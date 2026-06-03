@@ -361,6 +361,7 @@ export default function AdminPortal() {
   const [user, setUser]               = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === "undefined" ? true : window.innerWidth > 760);
   const [activeTab, setActiveTab]     = useState("dashboard");
+  const [showTaskModal, setShowTaskModal] = useState(false);
 
   const [allTasks, setAllTasks]       = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
@@ -498,6 +499,7 @@ export default function AdminPortal() {
       showToast("success", `Task "${form.title}" assigned${desc ? ` — repeats ${desc}` : ""}!`);
       setForm({ ...EMPTY_FORM });
       fetchAllTasks();
+      return true;
     }
   };
 
@@ -1115,6 +1117,24 @@ export default function AdminPortal() {
           .ap-recurrence-pills { grid-template-columns: 1fr; }
           .ap-weekday-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
         }
+        .ap-fab { position: fixed; bottom: 32px; right: 32px; z-index: 999; width: 52px; height: 52px; border-radius: 50%; background: #dc2626; color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(220,38,38,.4); transition: transform .2s, box-shadow .2s; }
+        .ap-fab:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(220,38,38,.5); }
+        .ap-fab:active { transform: scale(.96); }
+
+        .ap-modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(15,23,42,.45); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .ap-modal { background: #fff; border-radius: 16px; width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2); display: flex; flex-direction: column; }
+        .ap-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid #f1f5f9; position: sticky; top: 0; background: #fff; z-index: 1; border-radius: 16px 16px 0 0; }
+        .ap-modal-title { font-size: 16px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 9px; }
+        .ap-modal-title-icon { width: 32px; height: 32px; border-radius: 8px; background: #fef2f2; display: flex; align-items: center; justify-content: center; color: #dc2626; }
+        .ap-modal-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; transition: background .15s; }
+        .ap-modal-close:hover { background: #f1f5f9; }
+        .ap-modal-body { padding: 24px; }
+
+        @media (max-width: 760px) {
+          .ap-fab { bottom: 20px; right: 16px; width: 48px; height: 48px; }
+          .ap-modal-backdrop { padding: 0; align-items: flex-end; }
+          .ap-modal { border-radius: 16px 16px 0 0; max-height: 92vh; }
+        }
       `}</style>
 
       <div className="op-root">
@@ -1190,6 +1210,166 @@ export default function AdminPortal() {
             </div>
           </main>
         </div>
+        {/* Floating Action Button — only on dashboard */}
+        {activeTab === "dashboard" && (
+          <button className="ap-fab" onClick={() => setShowTaskModal(true)} title="Assign new task">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
+        )}
+
+          {/* Assign Task Modal */}
+          {showTaskModal && (
+            <div className="ap-modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowTaskModal(false); }}>
+              <div className="ap-modal">
+                <div className="ap-modal-header">
+                  <div className="ap-modal-title">
+                    <div className="ap-modal-title-icon">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                    </div>
+                    Assign New Task
+                  </div>
+                  <button className="ap-modal-close" onClick={() => setShowTaskModal(false)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+                <div className="ap-modal-body">
+                  {/* Reuse the exact same form JSX from case "assign-task" */}
+                  <div className="ap-form-grid">
+                    {/* Row 1 */}
+                    <div className="ap-form-row ap-col-2">
+                      <div className="ap-field">
+                        <label className="ap-label">Task Title <span className="ap-req">*</span></label>
+                        <input className="ap-input" name="title" value={form.title} onChange={handleFormChange} placeholder="e.g. Inspect electrical panel" />
+                      </div>
+                      <div className="ap-field">
+                        <label className="ap-label">Assign To (username) <span className="ap-req">*</span></label>
+                        <input className="ap-input" name="assigned_to" value={form.assigned_to} onChange={handleFormChange} placeholder="e.g. john_doe" />
+                      </div>
+                    </div>
+                    <div className="ap-form-row ap-col-1">
+                      <div className="ap-field">
+                        <label className="ap-label">Description</label>
+                        <textarea className="ap-input ap-textarea" name="description" value={form.description} onChange={handleFormChange} placeholder="Add task details…" rows={3} />
+                      </div>
+                    </div>
+                    <div className="ap-form-row ap-col-3">
+                      <div className="ap-field">
+                        <label className="ap-label">Site Name</label>
+                        <input className="ap-input" name="site_name" value={form.site_name} onChange={handleFormChange} placeholder="e.g. Site A" />
+                      </div>
+                      <div className="ap-field">
+                        <label className="ap-label">Priority</label>
+                        <select className="ap-input ap-select" name="priority" value={form.priority} onChange={handleFormChange}>
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                        </select>
+                      </div>
+                      <div className="ap-field">
+                        <label className="ap-label">Initial Status</label>
+                        <select className="ap-input ap-select" name="status" value={form.status} onChange={handleFormChange}>
+                          <option value="pending">Pending</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="ap-form-row ap-col-2">
+                      <div className="ap-field">
+                        <label className="ap-label">Start / Due Date</label>
+                        <input className="ap-input" type="date" name="due_date" value={form.due_date} onChange={handleFormChange} />
+                      </div>
+                      <div className="ap-field ap-field-center">
+                        <label className="ap-label">Recurring Task</label>
+                        <label className="ap-toggle">
+                          <input type="checkbox" name="is_recurring" checked={form.is_recurring} onChange={handleFormChange} />
+                          <span className="ap-toggle-track"><span className="ap-toggle-thumb" /></span>
+                          <span className="ap-toggle-label">{form.is_recurring ? "Yes" : "No"}</span>
+                        </label>
+                      </div>
+                    </div>
+                    {form.is_recurring && (
+                      <>
+                        <div className="ap-recurrence-divider">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                          Recurrence Schedule
+                        </div>
+                        <div className="ap-form-row ap-col-2">
+                          <div className="ap-field">
+                            <label className="ap-label">Recurrence Pattern <span className="ap-req">*</span></label>
+                            <div className="ap-recurrence-pills">
+                              {["daily","weekly","monthly","yearly"].map((r) => (
+                                <button key={r} type="button" className={`ap-rpill${form.recurrence === r ? " active" : ""}`} onClick={() => setForm((p) => ({ ...p, recurrence: r }))}>
+                                  {r.charAt(0).toUpperCase() + r.slice(1)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        {form.recurrence === "weekly" && (
+                          <div className="ap-form-row ap-col-1">
+                            <div className="ap-field">
+                              <label className="ap-label">Repeat on which day?</label>
+                              <div className="ap-weekday-grid">
+                                {WEEKDAYS.map((day, i) => (
+                                  <button key={day} type="button" className={`ap-wday${String(form.anchor_weekday) === String(i) ? " active" : ""}`} onClick={() => setForm((p) => ({ ...p, anchor_weekday: String(i) }))}>
+                                    {day.slice(0,3)}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {form.recurrence === "monthly" && (
+                          <div className="ap-form-row ap-col-2">
+                            <div className="ap-field">
+                              <label className="ap-label">Repeat on day of month</label>
+                              <select className="ap-input ap-select" name="anchor_day" value={form.anchor_day} onChange={handleFormChange}>
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}{ordinal(d)}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                        {form.recurrence === "yearly" && (
+                          <div className="ap-form-row ap-col-2">
+                            <div className="ap-field">
+                              <label className="ap-label">Month</label>
+                              <select className="ap-input ap-select" name="anchor_month" value={form.anchor_month} onChange={handleFormChange}>
+                                {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                              </select>
+                            </div>
+                            <div className="ap-field">
+                              <label className="ap-label">Day</label>
+                              <select className="ap-input ap-select" name="anchor_month_day" value={form.anchor_month_day} onChange={handleFormChange}>
+                                {Array.from({ length: monthDays }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}{ordinal(d)}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                        {anchorPreview && (
+                          <div className="ap-anchor-preview">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                            This task will auto-generate a new instance <strong>{anchorPreview}</strong>.
+                          </div>
+                        )}
+                      </>
+                    )}
+                    <div className="ap-form-row ap-col-1 ap-form-actions">
+                      <button className="ap-btn-secondary" onClick={() => setForm({ ...EMPTY_FORM })}>Reset</button>
+                      <button className="ap-btn-primary" onClick={async () => {
+                          const ok = await handleSubmit();
+                          if (ok) setShowTaskModal(false);
+                        }} disabled={submitting}>
+                        {submitting ? <><span className="ap-mini-spinner" /> Assigning…</> : <>Assign Task</>}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
       </div>
     </>
   );

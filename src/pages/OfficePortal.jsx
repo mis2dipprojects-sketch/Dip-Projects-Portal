@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Navbar from "../components/Navbar";
 import { supabase } from "../supabase";
 
@@ -53,6 +53,116 @@ const STATUS_STYLES = {
   completed:   { bg: "#f0fdf4", color: "#16a34a" },
 };
 
+const EMPTY_FILTERS = { dateFrom: "", dateTo: "", site: "", priority: "", status: "", assignedBy: "" };
+
+// ── Filter Bar ─────────────────────────────────────────────────────────────
+function TaskFilterBar({ filters, onChange, onClear, taskList, showAssignedBy }) {
+  const sitesFiltered    = applyFilters(taskList, { ...filters, site: "" });
+  const priorityFiltered = applyFilters(taskList, { ...filters, priority: "" });
+  const statusFiltered   = applyFilters(taskList, { ...filters, status: "" });
+  const assigneeFiltered = applyFilters(taskList, { ...filters, assignedBy: "" });
+
+  const sites     = useMemo(() => [...new Set(sitesFiltered.map(t => t.site_name).filter(Boolean))].sort(),      [JSON.stringify(sitesFiltered)]);
+  const assignees = useMemo(() => [...new Set(assigneeFiltered.map(t => t.assigned_by).filter(Boolean))].sort(), [JSON.stringify(assigneeFiltered)]);
+  const priorities = useMemo(() => [...new Set(priorityFiltered.map(t => t.priority).filter(Boolean))].sort(),   [JSON.stringify(priorityFiltered)]);
+  const statuses  = useMemo(() => [...new Set(statusFiltered.map(t => t.status).filter(Boolean))].sort(),        [JSON.stringify(statusFiltered)]);
+  const isActive   = Object.values(filters).some(v => v !== "");
+
+  return (
+    <div className="tf-bar">
+      {/* Date range */}
+      <div className="tf-group">
+        <span className="tf-label">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Due date
+        </span>
+        <input className="tf-input tf-date" type="date" value={filters.dateFrom} onChange={e => onChange("dateFrom", e.target.value)} title="From"/>
+        <span className="tf-sep-text">–</span>
+        <input className="tf-input tf-date" type="date" value={filters.dateTo} min={filters.dateFrom} onChange={e => onChange("dateTo", e.target.value)} title="To"/>
+      </div>
+
+      <div className="tf-divider"/>
+
+      {/* Site */}
+      {sites.length > 0 && (
+        <>
+          <div className="tf-group">
+            <span className="tf-label">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </span>
+            <select className="tf-select" value={filters.site} onChange={e => onChange("site", e.target.value)}>
+              <option value="">All sites</option>
+              {sites.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div className="tf-divider"/>
+        </>
+      )}
+
+      {/* Priority */}
+      <div className="tf-group">
+        <span className="tf-label">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+        </span>
+        <select className="tf-select" value={filters.priority} onChange={e => onChange("priority", e.target.value)}>
+          <option value="">All priorities</option>
+          {priorities.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
+        </select>
+      </div>
+
+      <div className="tf-divider"/>
+
+      {/* Status */}
+      <div className="tf-group">
+        <span className="tf-label">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+        </span>
+        <select className="tf-select" value={filters.status} onChange={e => onChange("status", e.target.value)}>
+          <option value="">All statuses</option>
+          {statuses.map(s => <option key={s} value={s}>{s.replace("_"," ").replace(/\b\w/g, c => c.toUpperCase())}</option>)}
+        </select>
+      </div>
+
+      {/* Given By — only for delegated tab */}
+      {showAssignedBy && assignees.length > 0 && (
+        <>
+          <div className="tf-divider"/>
+          <div className="tf-group">
+            <span className="tf-label">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Given by
+            </span>
+            <select className="tf-select" value={filters.assignedBy} onChange={e => onChange("assignedBy", e.target.value)}>
+              <option value="">Anyone</option>
+              {assignees.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+        </>
+      )}
+
+      {/* Clear */}
+      {isActive && (
+        <button className="tf-clear" onClick={onClear}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Clear filters
+        </button>
+      )}
+    </div>
+  );
+}
+
+function applyFilters(tasks, filters) {
+  return tasks.filter(t => {
+    if (filters.site     && t.site_name    !== filters.site)     return false;
+    if (filters.priority && t.priority     !== filters.priority) return false;
+    if (filters.status   && t.status       !== filters.status)   return false;
+    if (filters.assignedBy && t.assigned_by !== filters.assignedBy) return false;
+    if (filters.dateFrom && t.due_date && t.due_date < filters.dateFrom) return false;
+    if (filters.dateTo   && t.due_date && t.due_date > filters.dateTo)   return false;
+    return true;
+  });
+}
+
 // ── Leave status helpers ───────────────────────────────────────────────────
 function computeLeaveStatus(leave) {
   if (leave.admin_approved === false || leave.proxy_approved === false) return "rejected";
@@ -103,7 +213,7 @@ function ApprovalPip({ label, state }) {
   );
 }
 
-// ── TaskCard (unchanged) ───────────────────────────────────────────────────
+// ── TaskCard ───────────────────────────────────────────────────────────────
 function TaskCard({ task, onStatusChange, updating }) {
   const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
   const s = STATUS_STYLES[task.status]     || STATUS_STYLES.pending;
@@ -154,18 +264,28 @@ function TaskCard({ task, onStatusChange, updating }) {
   );
 }
 
-function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText }) {
+function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filters, onFilterChange, onFilterClear, showAssignedBy, allTasks }) {
+  const filtered = applyFilters(tasks, filters);
+  const hasActiveFilters = Object.values(filters).some(v => v !== "");
+
   if (loading) return <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading tasks…</p></div>;
-  if (!tasks.length) return (
-    <div className="op-empty-state">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.3}}><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="13" y2="13"/></svg>
-      <p className="op-empty-text">{emptyText}</p>
-    </div>
-  );
+
   return (
-    <div className="op-task-grid">
-      {tasks.map((t)=><TaskCard key={t.id} task={t} onStatusChange={onStatusChange} updating={updatingId}/>)}
-    </div>
+    <>
+      {hasActiveFilters && (
+        <p className="tf-count">Showing {filtered.length} of {tasks.length} task{tasks.length !== 1 ? "s" : ""}</p>
+      )}  
+      {filtered.length === 0 ? (
+        <div className="op-empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.3}}><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="13" y2="13"/></svg>
+          <p className="op-empty-text">{hasActiveFilters ? "No tasks match the current filters." : emptyText}</p>
+        </div>
+      ) : (
+        <div className="op-task-grid">
+          {filtered.map(t => <TaskCard key={t.id} task={t} onStatusChange={onStatusChange} updating={updatingId}/>)}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -187,7 +307,6 @@ function LeaveCard({ leave, showActions, onProxyAction }) {
         </div>
         <LeaveBadge leave={leave}/>
       </div>
-
       <div className="lv-card-dates">
         <span className="op-meta-pill">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -196,26 +315,20 @@ function LeaveCard({ leave, showActions, onProxyAction }) {
         {days && <span className="op-meta-pill">{days} day{days>1?"s":""}</span>}
         {leave.site_name && <span className="op-meta-pill">{leave.site_name}</span>}
       </div>
-
       {leave.reason && <p className="lv-reason">"{leave.reason}"</p>}
-
       {leave.proxy_user_name && (
         <div className="lv-proxy-info">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
           Proxy: <strong>{leave.proxy_user_name}</strong>
         </div>
       )}
-
       <ApprovalPips leave={leave}/>
-
       {leave.rejection_reason && (
         <div className="lv-rejection">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           {leave.rejection_reason}
         </div>
       )}
-
-      {/* Proxy action buttons */}
       {showActions && leave.proxy_approved === null && (
         <div className="lv-actions">
           <button className="lv-btn-approve" onClick={()=>onProxyAction(leave.id, true)}>
@@ -240,10 +353,9 @@ function LeaveCard({ leave, showActions, onProxyAction }) {
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function OfficePortal() {
   const [user, setUser]               = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeSection, setActiveSection] = useState("tasks"); // "tasks" | "leaves"
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === "undefined" ? true : window.innerWidth > 760);
   const [activeTab, setActiveTab]     = useState("my-tasks");
-
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   // Tasks
   const [myTasks, setMyTasks]               = useState([]);
   const [recurringTasks, setRecurringTasks] = useState([]);
@@ -251,20 +363,21 @@ export default function OfficePortal() {
   const [loadingTasks, setLoadingTasks]     = useState(false);
   const [updatingId, setUpdatingId]         = useState(null);
 
+  // Filters — one set per task tab, reset independently
+  const [myTaskFilters,        setMyTaskFilters]        = useState({ ...EMPTY_FILTERS });
+  const [recurringFilters,     setRecurringFilters]     = useState({ ...EMPTY_FILTERS });
+  const [delegatedFilters,     setDelegatedFilters]     = useState({ ...EMPTY_FILTERS });
+
   // Leaves
-  const [myLeaves, setMyLeaves]         = useState([]);
-  const [proxyLeaves, setProxyLeaves]   = useState([]);
+  const [myLeaves, setMyLeaves]           = useState([]);
+  const [proxyLeaves, setProxyLeaves]     = useState([]);
   const [loadingLeaves, setLoadingLeaves] = useState(false);
   const [leaveSubmitting, setLeaveSubmitting] = useState(false);
-  const [toast, setToast]               = useState(null);
+  const [toast, setToast]                 = useState(null);
 
   // Leave form
   const [leaveForm, setLeaveForm] = useState({
-    leave_type: "",
-    from_date: "",
-    to_date: "",
-    reason: "",
-    proxy_user_name: "",
+    leave_type: "", from_date: "", to_date: "", reason: "", proxy_user_name: "",
   });
 
   useEffect(() => {
@@ -272,7 +385,6 @@ export default function OfficePortal() {
     if (s) setUser(JSON.parse(s));
   }, []);
 
-  // ── Fetch tasks ───────────────────────────────────────────────────────
   const fetchTasks = useCallback(async (u) => {
     if (!u) return;
     setLoadingTasks(true);
@@ -285,7 +397,6 @@ export default function OfficePortal() {
     setLoadingTasks(false);
   }, []);
 
-  // ── Fetch leaves ──────────────────────────────────────────────────────
   const fetchLeaves = useCallback(async (u) => {
     if (!u) return;
     setLoadingLeaves(true);
@@ -300,24 +411,26 @@ export default function OfficePortal() {
     if (user) { fetchTasks(user); fetchLeaves(user); }
   }, [user, fetchTasks, fetchLeaves]);
 
-  // ── Toast ─────────────────────────────────────────────────────────────
   const showToast = (type, msg) => {
     setToast({type,msg});
     setTimeout(()=>setToast(null),3500);
   };
 
-  // ── Task status change ────────────────────────────────────────────────
+  const handleNavClick = (key) => {
+    setActiveTab(key);
+    if (typeof window !== "undefined" && window.innerWidth <= 760) setSidebarOpen(false);
+  };
+
   const handleStatusChange = async (taskId, newStatus) => {
     setUpdatingId(taskId);
     const { error } = await supabase.from("tasks").update({status:newStatus}).eq("id",taskId);
     if (!error) {
-      const patch = (list) => list.map((t)=>t.id===taskId?{...t,status:newStatus}:t);
+      const patch = (list) => list.map(t => t.id===taskId ? {...t,status:newStatus} : t);
       setMyTasks(p=>patch(p)); setRecurringTasks(p=>patch(p)); setDelegatedTasks(p=>patch(p));
     }
     setUpdatingId(null);
   };
 
-  // ── Submit leave ──────────────────────────────────────────────────────
   const handleLeaveSubmit = async () => {
     if (!leaveForm.leave_type)  return showToast("error","Please select a leave type.");
     if (!leaveForm.from_date)   return showToast("error","Please select a start date.");
@@ -339,9 +452,8 @@ export default function OfficePortal() {
       proxy_user_name: leaveForm.proxy_user_name.trim() || null,
       status:          "pending",
       admin_approved:  null,
-      proxy_approved:  leaveForm.proxy_user_name.trim() ? null : null,
+      proxy_approved:  null,
     };
-
     const { error } = await supabase.from("leaves").insert([payload]);
     setLeaveSubmitting(false);
     if (error) {
@@ -354,7 +466,6 @@ export default function OfficePortal() {
     }
   };
 
-  // ── Proxy approve/decline ─────────────────────────────────────────────
   const handleProxyAction = async (leaveId, approved) => {
     const { error } = await supabase.from("leaves").update({ proxy_approved: approved }).eq("id",leaveId);
     if (!error) {
@@ -373,23 +484,51 @@ export default function OfficePortal() {
     ...recurringTasks.filter(t=>!delegatedTasks.some(d=>d.id===t.id)),
   ].sort((a,b)=>new Date(a.due_date||a.created_at||0)-new Date(b.due_date||b.created_at||0));
 
-  // Which nav items to show
-  const currentNav = activeSection === "tasks" ? TASK_NAV : LEAVE_NAV;
   const activeItem = [...TASK_NAV,...LEAVE_NAV].find(n=>n.key===activeTab);
-
   const proxyPendingCount = proxyLeaves.filter(l=>l.proxy_approved===null).length;
+
+  // Filter change helpers
+  const makeFilterChange = (setter) => (key, val) => setter(prev => ({...prev, [key]: val}));
+  const makeFilterClear  = (setter) => () => setter({ ...EMPTY_FILTERS });
 
   const renderContent = () => {
     switch (activeTab) {
-      // ── TASKS ────────────────────────────────────────────────────────
       case "my-tasks":
-        return <TaskList tasks={myTasks} loading={loadingTasks} onStatusChange={handleStatusChange} updatingId={updatingId} emptyText="No tasks assigned to you yet."/>;
-      case "recurring-tasks":
-        return <TaskList tasks={recurringTasks} loading={loadingTasks} onStatusChange={handleStatusChange} updatingId={updatingId} emptyText="No recurring tasks assigned to you."/>;
-      case "delegated-tasks":
-        return <TaskList tasks={delegatedMixed} loading={loadingTasks} onStatusChange={handleStatusChange} updatingId={updatingId} emptyText="You haven't delegated any tasks yet."/>;
+        return <TaskList
+          tasks={myTasks} loading={loadingTasks}
+          onStatusChange={handleStatusChange} updatingId={updatingId}
+          emptyText="No tasks assigned to you yet."
+          filters={myTaskFilters}
+          onFilterChange={makeFilterChange(setMyTaskFilters)}
+          onFilterClear={makeFilterClear(setMyTaskFilters)}
+          showAssignedBy={false}
+          allTasks={myTasks}
+        />;
 
-      // ── APPLY LEAVE ──────────────────────────────────────────────────
+      case "recurring-tasks":
+        return <TaskList
+          tasks={recurringTasks} loading={loadingTasks}
+          onStatusChange={handleStatusChange} updatingId={updatingId}
+          emptyText="No recurring tasks assigned to you."
+          filters={recurringFilters}
+          onFilterChange={makeFilterChange(setRecurringFilters)}
+          onFilterClear={makeFilterClear(setRecurringFilters)}
+          showAssignedBy={false}
+          allTasks={recurringTasks}
+        />;
+
+      case "delegated-tasks":
+        return <TaskList
+          tasks={delegatedMixed} loading={loadingTasks}
+          onStatusChange={handleStatusChange} updatingId={updatingId}
+          emptyText="You haven't delegated any tasks yet."
+          filters={delegatedFilters}
+          onFilterChange={makeFilterChange(setDelegatedFilters)}
+          onFilterClear={makeFilterClear(setDelegatedFilters)}
+          showAssignedBy={true}
+          allTasks={delegatedMixed}
+        />;
+
       case "apply-leave":
         return (
           <div className="lv-form-wrap">
@@ -397,9 +536,7 @@ export default function OfficePortal() {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               Your leave application will be reviewed by <strong>Admin</strong>. If you assign a proxy, their approval is also required before the leave is granted.
             </div>
-
             <div className="lv-form-grid">
-              {/* Leave Type */}
               <div className="lv-field lv-col-2">
                 <label className="lv-label">Leave Type <span className="lv-req">*</span></label>
                 <select className="lv-input lv-select" value={leaveForm.leave_type} onChange={e=>setLeaveForm(p=>({...p,leave_type:e.target.value}))}>
@@ -407,8 +544,6 @@ export default function OfficePortal() {
                   {LEAVE_TYPES.map(t=><option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-
-              {/* Dates */}
               <div className="lv-field">
                 <label className="lv-label">From Date <span className="lv-req">*</span></label>
                 <input className="lv-input" type="date" value={leaveForm.from_date} onChange={e=>setLeaveForm(p=>({...p,from_date:e.target.value}))} min={new Date().toISOString().slice(0,10)}/>
@@ -417,36 +552,23 @@ export default function OfficePortal() {
                 <label className="lv-label">To Date <span className="lv-req">*</span></label>
                 <input className="lv-input" type="date" value={leaveForm.to_date} onChange={e=>setLeaveForm(p=>({...p,to_date:e.target.value}))} min={leaveForm.from_date||new Date().toISOString().slice(0,10)}/>
               </div>
-
-              {/* Duration preview */}
               {leaveForm.from_date && leaveForm.to_date && new Date(leaveForm.to_date)>=new Date(leaveForm.from_date) && (
                 <div className="lv-duration-preview lv-col-2">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                   {Math.ceil((new Date(leaveForm.to_date)-new Date(leaveForm.from_date))/(1000*60*60*24))+1} day(s) of leave
                 </div>
               )}
-
-              {/* Reason */}
               <div className="lv-field lv-col-2">
                 <label className="lv-label">Reason</label>
                 <textarea className="lv-input lv-textarea" rows={3} placeholder="Briefly describe the reason for your leave…" value={leaveForm.reason} onChange={e=>setLeaveForm(p=>({...p,reason:e.target.value}))}/>
               </div>
-
-              {/* Proxy */}
               <div className="lv-field lv-col-2">
-                <label className="lv-label">
-                  Proxy Username
-                  <span className="lv-optional">optional</span>
-                </label>
+                <label className="lv-label">Proxy Username <span className="lv-optional">optional</span></label>
                 <input className="lv-input" placeholder="Enter colleague's username to act as proxy…" value={leaveForm.proxy_user_name} onChange={e=>setLeaveForm(p=>({...p,proxy_user_name:e.target.value}))}/>
                 <span className="lv-hint">If assigned, both admin and proxy must approve your leave.</span>
               </div>
-
-              {/* Submit */}
               <div className="lv-field lv-col-2 lv-actions-row">
-                <button className="lv-btn-reset" onClick={()=>setLeaveForm({leave_type:"",from_date:"",to_date:"",reason:"",proxy_user_name:""})}>
-                  Reset
-                </button>
+                <button className="lv-btn-reset" onClick={()=>setLeaveForm({leave_type:"",from_date:"",to_date:"",reason:"",proxy_user_name:""})}>Reset</button>
                 <button className="lv-btn-submit" onClick={handleLeaveSubmit} disabled={leaveSubmitting}>
                   {leaveSubmitting
                     ? <><span className="op-mini-spinner"/>&nbsp;Submitting…</>
@@ -458,7 +580,6 @@ export default function OfficePortal() {
           </div>
         );
 
-      // ── MY LEAVES ────────────────────────────────────────────────────
       case "my-leaves":
         if (loadingLeaves) return <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading…</p></div>;
         if (!myLeaves.length) return (
@@ -468,13 +589,8 @@ export default function OfficePortal() {
             <button className="lv-btn-submit" style={{marginTop:4}} onClick={()=>setActiveTab("apply-leave")}>Apply Now</button>
           </div>
         );
-        return (
-          <div className="lv-cards-grid">
-            {myLeaves.map(l=><LeaveCard key={l.id} leave={l} showActions={false}/>)}
-          </div>
-        );
+        return <div className="lv-cards-grid">{myLeaves.map(l=><LeaveCard key={l.id} leave={l} showActions={false}/>)}</div>;
 
-      // ── PROXY REQUEST ────────────────────────────────────────────────
       case "proxy-request":
         if (loadingLeaves) return <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading…</p></div>;
         if (!proxyLeaves.length) return (
@@ -483,11 +599,7 @@ export default function OfficePortal() {
             <p className="op-empty-text">No one has assigned you as a proxy yet.</p>
           </div>
         );
-        return (
-          <div className="lv-cards-grid">
-            {proxyLeaves.map(l=><LeaveCard key={l.id} leave={l} showActions={true} onProxyAction={handleProxyAction}/>)}
-          </div>
-        );
+        return <div className="lv-cards-grid">{proxyLeaves.map(l=><LeaveCard key={l.id} leave={l} showActions={true} onProxyAction={handleProxyAction}/>)}</div>;
 
       default: return null;
     }
@@ -498,15 +610,31 @@ export default function OfficePortal() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
         .op-root { font-family: 'DM Sans', sans-serif; background: #f4f6f9; min-height: 100vh; color: #1e293b; }
         .op-body { display: flex; min-height: calc(100vh - 60px); }
+
+        /* ── Filter Bar ── */
+        .tf-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: #f8fafc; border: 1px solid #e8edf3; border-radius: 10px; margin-bottom: 16px; }
+        .tf-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+        .tf-label { font-size: 12px; font-weight: 600; color: #64748b; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+        .tf-input { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 9px; height: 32px; outline: none; transition: border .15s; }
+        .tf-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
+        .tf-date { width: 140px; cursor: pointer; }
+        .tf-select { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 9px; height: 32px; cursor: pointer; outline: none; transition: border .15s; }
+        .tf-select:focus { border-color: #2563eb; }
+        .tf-sep-text { font-size: 12px; color: #94a3b8; }
+        .tf-divider { width: 1px; height: 20px; background: #e2e8f0; flex-shrink: 0; }
+        .tf-clear { display: inline-flex; align-items: center; gap: 5px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 5px 11px; height: 32px; cursor: pointer; white-space: nowrap; transition: background .15s; margin-left: auto; }
+        .tf-clear:hover { background: #fee2e2; }
+        .tf-count { font-size: 12px; color: #64748b; margin-bottom: 12px; margin-top: -6px; }
 
         /* ── Sidebar ── */
         .op-sidebar { width: 240px; min-width: 240px; background: #fff; border-right: 1px solid #e8edf3; display: flex; flex-direction: column; transition: width .25s cubic-bezier(.4,0,.2,1), min-width .25s, opacity .2s; overflow: hidden; box-shadow: 2px 0 12px rgba(0,0,0,.04); }
         .op-sidebar.collapsed { width: 0; min-width: 0; opacity: 0; pointer-events: none; }
-        .op-sidebar-header { padding: 20px 20px 12px; border-bottom: 1px solid #f0f4f8; }
+        .op-sidebar-header { padding: 20px 20px 12px; border-bottom: 1px solid #f0f4f8; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
         .op-sidebar-label { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #94a3b8; }
+        .op-sidebar-close { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #64748b; cursor: pointer; align-items: center; justify-content: center; }
+        .op-sidebar-backdrop { display: none; }
         .op-nav { padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
         .op-nav-section { font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: #cbd5e1; padding: 12px 12px 4px; }
         .op-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; color: #64748b; font-size: 13.5px; font-weight: 500; white-space: nowrap; border: none; background: transparent; width: 100%; text-align: left; transition: background .15s, color .15s; position: relative; }
@@ -534,11 +662,11 @@ export default function OfficePortal() {
 
         /* ── Content Card ── */
         .op-content-card { background: #fff; border-radius: 14px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,.05); min-height: 300px; }
-        .op-content-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9; }
+        .op-content-header {display: flex; align-items: center; gap: 10px;margin-bottom: 20px; padding-bottom: 16px;border-bottom: 1px solid #f1f5f9;flex-wrap: wrap;}
         .op-content-icon  { width: 36px; height: 36px; border-radius: 8px; background: #eff6ff; display: flex; align-items: center; justify-content: center; color: #2563eb; }
         .op-content-title { font-size: 15px; font-weight: 600; color: #1e293b; }
 
-        /* ── Task cards (unchanged) ── */
+        /* ── Task cards ── */
         .op-task-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(300px,1fr)); gap: 16px; }
         .op-task-card { background: #fff; border: 1px solid #e8edf3; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .15s; }
         .op-task-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
@@ -609,11 +737,86 @@ export default function OfficePortal() {
         .op-toast-success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
         .op-toast-error   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
         @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+        @media (max-width: 900px) {
+          .op-main { padding: 22px 22px 28px; }
+          .op-content-card { padding: 22px; border-radius: 12px; }
+          .op-profile-card { padding: 20px 22px; align-items: flex-start; }
+          .op-task-grid, .lv-cards-grid { grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); gap: 14px; }
+          .tf-date { width: 120px; }
+        }
+
+        @media (max-width: 760px) {
+          .op-body { display: block; }
+          .op-sidebar { position: fixed; top: 0; left: 0; z-index: 10020; height: 100vh; width: min(84vw, 300px); min-width: 0; border-right: 1px solid #e8edf3; transform: translateX(0); opacity: 1; box-shadow: 12px 0 34px rgba(15,23,42,.18); transition: transform .22s ease, opacity .18s ease; }
+          .op-sidebar.collapsed { width: min(84vw, 300px); min-width: 0; transform: translateX(-105%); opacity: 0; pointer-events: none; }
+          .op-sidebar-close { display: inline-flex; }
+          .op-sidebar-backdrop { display: block; position: fixed; inset: 0; z-index: 10010; background: rgba(15,23,42,.38); backdrop-filter: blur(2px); border: none; padding: 0; }
+          .op-main { padding: 16px 14px 24px; overflow: visible; }
+          .op-topbar { margin-bottom: 16px; gap: 10px; }
+          .op-toggle-btn { width: 38px; height: 38px; }
+          .op-profile-card { margin-bottom: 16px; padding: 16px; border-radius: 10px; gap: 12px; align-items: flex-start; }
+          .op-avatar { width: 44px; height: 44px; font-size: 18px; }
+          .op-profile-meta { gap: 8px; }
+          .op-meta-chip { width: 100%; align-items: flex-start; }
+          .op-content-card { padding: 16px; border-radius: 10px; min-height: 240px; }
+          .op-content-header { margin-bottom: 16px; padding-bottom: 12px; }
+          .op-task-grid, .lv-cards-grid { grid-template-columns: 1fr; gap: 12px; }
+          .op-task-card, .lv-card { padding: 16px; border-radius: 10px; }
+          .op-task-top, .lv-card-top { flex-direction: column; }
+          .op-task-footer { align-items: stretch; flex-direction: column; }
+          .op-status-select { width: 100%; padding: 9px 10px; }
+          .lv-form-wrap { gap: 14px; }
+          .lv-form-info { padding: 12px 13px; }
+          .lv-form-grid { grid-template-columns: 1fr; gap: 14px; }
+          .lv-col-2 { grid-column: span 1; }
+          .lv-actions-row { flex-direction: column-reverse; align-items: stretch; }
+          .lv-btn-submit, .lv-btn-reset { width: 100%; justify-content: center; }
+          .lv-actions { flex-direction: column; }
+          .lv-btn-approve, .lv-btn-reject { width: 100%; justify-content: center; padding: 9px 14px; }
+          .op-empty-state { padding: 38px 16px; }
+          .op-toast { left: 14px; right: 14px; bottom: 16px; justify-content: center; }
+          .tf-bar { gap: 6px; padding: 10px 12px; }
+          .tf-divider { display: none; }
+          .tf-date { width: 100%; }
+          .tf-group { width: 100%; }
+          .tf-select { width: 100%; }
+          .tf-clear { width: 100%; justify-content: center; margin-left: 0; }
+        }
+
+        @media (max-width: 380px) {
+          .op-main { padding: 12px 10px 20px; }
+          .op-content-card, .op-profile-card { padding: 14px; }
+          .op-page-title { font-size: 16px; }
+          .op-task-card, .lv-card { padding: 14px; }
+        }
+          .op-header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+          .tf-bar-inline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; }
+
+          .tf-mobile-btn { display: none; width: 32px; height: 32px; border-radius: 8px;
+            border: 1px solid #e2e8f0; background: #f8fafc; color: #475569;
+            cursor: pointer; align-items: center; justify-content: center; flex-shrink: 0; }
+          .tf-mobile-btn.active { background: #eff6ff; border-color: #bfdbfe; color: #2563eb; }
+
+          .tf-popup { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200;
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 14px; width: 290px; }
+
+          /* On desktop hide mobile btn, on mobile hide inline bar and show btn */
+          @media (max-width: 760px) {
+            .tf-bar-inline { display: none; }
+            .tf-mobile-btn { display: inline-flex; }
+            .tf-popup .tf-bar { flex-direction: column; }
+            .tf-popup .tf-divider { display: none; }
+            .tf-popup .tf-group { width: 100%; }
+            .tf-popup .tf-select, .tf-popup .tf-date { width: 100%; }
+            .tf-popup .tf-clear { width: 100%; justify-content: center; margin-left: 0; }
+          }
       `}</style>
 
       <div className="op-root">
         <Navbar/>
-
         {toast && (
           <div className={`op-toast op-toast-${toast.type}`}>
             {toast.type==="success"
@@ -625,25 +828,26 @@ export default function OfficePortal() {
         )}
 
         <div className="op-body">
+          {sidebarOpen && (
+            <button className="op-sidebar-backdrop" aria-label="Close sidebar" onClick={()=>setSidebarOpen(false)} />
+          )}
           <aside className={`op-sidebar${sidebarOpen ? "" : " collapsed"}`}>
             <div className="op-sidebar-header">
               <span className="op-sidebar-label">Navigation</span>
+              <button className="op-sidebar-close" aria-label="Close sidebar" onClick={()=>setSidebarOpen(false)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
             <nav className="op-nav">
-              {/* Tasks section */}
               <span className="op-nav-section">Tasks</span>
               {TASK_NAV.map(item=>(
-                <button key={item.key} className={`op-nav-item${activeTab===item.key?" active":""}`}
-                  onClick={()=>{ setActiveSection("tasks"); setActiveTab(item.key); }}>
+                <button key={item.key} className={`op-nav-item${activeTab===item.key?" active":""}`} onClick={()=>handleNavClick(item.key)}>
                   <span className="op-nav-icon">{item.icon}</span>{item.label}
                 </button>
               ))}
-
-              {/* Leave section */}
               <span className="op-nav-section" style={{marginTop:8}}>Leave</span>
               {LEAVE_NAV.map(item=>(
-                <button key={item.key} className={`op-nav-item${activeTab===item.key?" active":""}`}
-                  onClick={()=>{ setActiveSection("leaves"); setActiveTab(item.key); }}>
+                <button key={item.key} className={`op-nav-item${activeTab===item.key?" active":""}`} onClick={()=>handleNavClick(item.key)}>
                   <span className="op-nav-icon">{item.icon}</span>
                   {item.label}
                   {item.key==="proxy-request" && proxyPendingCount>0 && (
@@ -657,9 +861,7 @@ export default function OfficePortal() {
           <main className="op-main">
             <div className="op-topbar">
               <button className="op-toggle-btn" onClick={()=>setSidebarOpen(p=>!p)} aria-label="Toggle sidebar">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                  <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-                </svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
               </button>
               <span className="op-page-title">Engineer Office Portal</span>
             </div>
@@ -679,8 +881,81 @@ export default function OfficePortal() {
 
             <div className="op-content-card">
               <div className="op-content-header">
-                <div className="op-content-icon">{activeItem?.icon}</div>
-                <span className="op-content-title">{activeItem?.label}</span>
+                <div className="op-header-left">
+                  <div className="op-content-icon">{activeItem?.icon}</div>
+                  <span className="op-content-title">{activeItem?.label}</span>
+                </div>
+
+                {/* Show filter controls only on task tabs */}
+                {["my-tasks","recurring-tasks","delegated-tasks"].includes(activeTab) && (
+                  <>
+                    {/* Desktop: inline filter bar */}
+                    <div className="tf-bar-inline">
+                      <TaskFilterBar
+                        filters={
+                          activeTab === "my-tasks" ? myTaskFilters
+                          : activeTab === "recurring-tasks" ? recurringFilters
+                          : delegatedFilters
+                        }
+                        onChange={
+                          activeTab === "my-tasks" ? makeFilterChange(setMyTaskFilters)
+                          : activeTab === "recurring-tasks" ? makeFilterChange(setRecurringFilters)
+                          : makeFilterChange(setDelegatedFilters)
+                        }
+                        onClear={
+                          activeTab === "my-tasks" ? makeFilterClear(setMyTaskFilters)
+                          : activeTab === "recurring-tasks" ? makeFilterClear(setRecurringFilters)
+                          : makeFilterClear(setDelegatedFilters)
+                        }
+                        taskList={
+                          activeTab === "my-tasks" ? myTasks
+                          : activeTab === "recurring-tasks" ? recurringTasks
+                          : delegatedMixed
+                        }
+                        showAssignedBy={activeTab === "delegated-tasks"}
+                      />
+                    </div>
+
+                    {/* Mobile: filter icon button + popup */}
+                    <div style={{ position:"relative", marginLeft:"auto", flexShrink:0 }}>
+                      <button
+                        className={`tf-mobile-btn${mobileFilterOpen ? " active" : ""}`}
+                        onClick={() => setMobileFilterOpen(p => !p)}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                          <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
+                        </svg>
+                      </button>
+                      {mobileFilterOpen && (
+                        <div className="tf-popup">
+                          <TaskFilterBar
+                            filters={
+                              activeTab === "my-tasks" ? myTaskFilters
+                              : activeTab === "recurring-tasks" ? recurringFilters
+                              : delegatedFilters
+                            }
+                            onChange={
+                              activeTab === "my-tasks" ? makeFilterChange(setMyTaskFilters)
+                              : activeTab === "recurring-tasks" ? makeFilterChange(setRecurringFilters)
+                              : makeFilterChange(setDelegatedFilters)
+                            }
+                            onClear={
+                              activeTab === "my-tasks" ? makeFilterClear(setMyTaskFilters)
+                              : activeTab === "recurring-tasks" ? makeFilterClear(setRecurringFilters)
+                              : makeFilterClear(setDelegatedFilters)
+                            }
+                            taskList={
+                              activeTab === "my-tasks" ? myTasks
+                              : activeTab === "recurring-tasks" ? recurringTasks
+                              : delegatedMixed
+                            }
+                            showAssignedBy={activeTab === "delegated-tasks"}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
               {renderContent()}
             </div>
@@ -689,4 +964,4 @@ export default function OfficePortal() {
       </div>
     </>
   );
-}
+} 

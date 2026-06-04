@@ -1,16 +1,4 @@
-// generateSiteReportPDF.js
-// Generates PDF using html2canvas + jsPDF — direct download, no print dialog.
-// Strategy: renders each "page" as its own isolated div so content never splits
-// mid-element. Photo pairs (2-up grid) and the Thank You section each get their
-// own page render.
-//
-// DEPENDENCIES (add to index.html or import via npm):
-//   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-//   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-// OR:
-//   npm install html2canvas jspdf
 
-// ─── helpers ────────────────────────────────────────────────────────────────
 
 async function normaliseLogo(src) {
   if (!src) return null;

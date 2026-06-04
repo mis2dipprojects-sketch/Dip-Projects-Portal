@@ -1614,7 +1614,9 @@ function formatNextDue(date) {
             .op-avatar { width: 44px; height: 44px; font-size: 18px; }
             .op-content-card { padding: 16px; border-radius: 10px; min-height: 240px; }
             .op-content-header { margin-bottom: 16px; padding-bottom: 12px; }
-            .ap-stats-row, .ap-leave-summary { grid-template-columns: 1fr; gap: 10px; margin-bottom: 16px; }
+            .ap-stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+            .ap-stats-row .ap-stat-card:last-child { grid-column: 1 / -1; }
+            .ap-leave-summary { grid-template-columns: 1fr; gap: 10px; margin-bottom: 16px; }
             .ap-stat-card { padding: 15px 16px; border-radius: 10px; }
             .ap-stat-value { font-size: 23px; }
             .ap-recent-leave { align-items: flex-start; flex-direction: column; gap: 8px; }

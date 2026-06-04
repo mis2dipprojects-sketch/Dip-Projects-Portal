@@ -2,6 +2,8 @@ import { useState, useRef } from "react";
 import { supabase } from "../supabase";
 import { generateSiteReportPDF } from "./generateSiteReportPDF"; // adjust path
 import logoAsset from "../assets/logo.png";
+import { processImage } from "../utils/imageUtils.js";
+
 function Section({ num, title, children, openSections, toggleSection }) {
   const open = !!openSections[num];
   return (
@@ -95,20 +97,22 @@ export default function SiteReport({ user }) {
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   // ── Image handling ──
-  const handleFiles = (files) => {
-    Array.from(files).forEach((file) => {
-      if (file.size > 10 * 1024 * 1024) {
-        showToast("error", `${file.name} is too large (max 10 MB).`);
-        return;
+  // ── Image handling ──
+  const handleFiles = async (files) => {
+    const fileArr = Array.from(files);
+
+    for (const file of fileArr) {
+      try {
+        const processed = await processImage(file);
+        setPhotos((p) => [...p, {
+          dataUrl: processed.dataUrl,
+          caption: "",
+          file,
+        }]);
+      } catch (err) {
+        showToast("error", `Could not load ${file.name}: ${err.message}`);
       }
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        compressImage(e.target.result, (compressed) => {
-          setPhotos((p) => [...p, { dataUrl: compressed, caption: "", file }]);
-        });
-      };
-      reader.readAsDataURL(file);
-    });
+    }
   };
 
   const compressImage = (dataUrl, cb) => {
@@ -482,7 +486,7 @@ const handleSubmit = async () => {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               {photos.length > 0 ? `${photos.length} photo${photos.length > 1 ? "s" : ""} selected` : "Choose Photos"}
             </label>
-            <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={e => { handleFiles(e.target.files); e.target.value = ""; }} />
+            <input ref={fileRef} type="file" accept="image/*,.heic,.heif" multiple hidden onChange={e => { handleFiles(e.target.files); e.target.value = ""; }} />
             {photos.length > 0 && (
               <div className="svr-photo-grid">
                 {photos.map((ph, i) => (

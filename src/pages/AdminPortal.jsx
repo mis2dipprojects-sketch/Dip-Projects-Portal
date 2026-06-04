@@ -1414,7 +1414,7 @@ function formatNextDue(date) {
           .op-toggle-btn:hover { background: #f1f5f9; }
           .op-page-title { font-size: 18px; font-weight: 600; color: #1e293b; }
 
-          .op-profile-card { background: #fff; border-radius: 14px; padding: 24px 28px; border-bottom: 4px solid transparent;border-right: 4px solid transparent;background:linear-gradient(white, white) padding-box,linear-gradient(135deg,#3d1200 0%,#7a2e00 50%,#c96a10 100%) border-box; box-shadow: 0 4px 20px rgba(220,38,38,.08); margin-bottom: 28px; display: flex; align-items: center; gap: 20px; }
+          .op-profile-card { background: #fff; border-radius: 14px; padding: 24px 28px; border-bottom: 4px solid transparent;border-right: 4px solid transparent;background:linear-gradient(white, white) padding-box,linear-gradient(135deg,#3d1200 0%,#7a2e00 50%,#c96a10 100%) border-box; box-shadow: 0 4px 20px rgba(220,38,38,.08); margin-bottom: 28px; display: flex; align-items: center; gap: 20px; width:100% !important}
           .op-avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg,#fee2e2,#fecaca); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; color: #dc2626; flex-shrink: 0; font-family: 'DM Mono', monospace; }
           .op-profile-info { display: flex; flex-direction: column; gap: 4px; }
           .op-profile-name { font-size: 17px; font-weight: 600; color: #1e293b; }
@@ -1729,9 +1729,23 @@ function formatNextDue(date) {
                     <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
                   </svg>
                 </button>
-                <span className="op-page-title">Admin Portal</span>
+                
+              <div className="op-profile-card">
+                <div className="op-avatar">{user.name?.charAt(0).toUpperCase()}</div>
+                <div className="op-profile-info">
+                  <div className="op-profile-name">
+                    {user.name}<span className="ap-role-badge">Admin</span>
+                  </div>
+                  {/* <div className="op-profile-meta">
+                    <span className="op-meta-chip"><strong>Username:</strong> {user.user_name}</span>
+                    <span className="op-meta-chip"><strong>Designation:</strong> {user.designation}</span>
+                    <span className="op-meta-chip"><strong>Site:</strong> {user.site_name || "Not Assigned"}</span>
+                    <span className="op-meta-chip"><strong>Role:</strong> {user.role || "Not Assigned"}</span>
+                  </div> */}
+                </div>
               </div>
-
+              </div>
+{/* 
               <div className="op-profile-card">
                 <div className="op-avatar">{user.name?.charAt(0).toUpperCase()}</div>
                 <div className="op-profile-info">
@@ -1745,7 +1759,7 @@ function formatNextDue(date) {
                     <span className="op-meta-chip"><strong>Role:</strong> {user.role || "Not Assigned"}</span>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               <div className="op-content-card">
                 <div className="op-content-header">

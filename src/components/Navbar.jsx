@@ -17,7 +17,7 @@ export default function Navbar() {
     <>
       <style>{`
         .app-navbar {
-          height: 60px;
+          height: 75px;
           overflow: visible;
           background: linear-gradient(135deg, #3d1200 0%, #7a2e00 50%, #c96a10 100%);
           border-bottom: none;
@@ -42,8 +42,8 @@ export default function Navbar() {
         }
 
         .navbar-logo {
-          height: 48px;
-          width: 48px;
+          height: 60px;
+          width: 60px;
           object-fit: contain;
           flex-shrink: 0;
           background: white;
@@ -60,7 +60,7 @@ export default function Navbar() {
 
         .navbar-title {
           font-family: 'DM Sans', sans-serif;
-          font-size: 15px;
+          font-size: 17px;
           font-weight: 700;
           color: #fff;
           white-space: nowrap;

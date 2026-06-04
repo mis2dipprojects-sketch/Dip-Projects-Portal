@@ -432,7 +432,18 @@ export async function generateSiteReportPDF(data, photos = [], logoSrc = null) {
 
   const safeSite = (data.site_name     || "site").replace(/[\s/\\:*?"<>|]/g, "_");
   const safeName = (data.reporter_name || "reporter").replace(/[\s/\\:*?"<>|]/g, "_");
-  pdf.save(`SVR_${safeSite}_${data.visit_date}_${safeName}.pdf`);
+  // pdf.save(`SVR_${safeSite}_${data.visit_date}_${safeName}.pdf`);
 
-  return { fileName: `SVR_${safeSite}_${data.visit_date}_${safeName}.pdf` };
+  // return { fileName: `SVR_${safeSite}_${data.visit_date}_${safeName}.pdf` };
+  const fileName =
+  `SVR_${safeSite}_${data.visit_date}_${safeName}.pdf`;
+
+const pdfBlob = pdf.output("blob");
+
+pdf.save(fileName);
+
+return {
+  blob: pdfBlob,
+  fileName
+};
 }

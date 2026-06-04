@@ -8,6 +8,7 @@ function Section({ num, title, children, openSections, toggleSection }) {
   const open = !!openSections[num];
   return (
     <div className="svr-section">
+
       <button
         className={`svr-sec-header${open ? " open" : ""}`}
         onClick={() => toggleSection(num)}
@@ -79,6 +80,8 @@ export default function SiteReport({ user }) {
     site_visit_instructions: "",
     key_instructions: "",
   });
+  const [photosProcessing, setPhotosProcessing] = useState(false);
+  const [submitResult, setSubmitResult] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitStage, setSubmitStage] = useState(""); // progress label
@@ -97,23 +100,19 @@ export default function SiteReport({ user }) {
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   // ── Image handling ──
-  // ── Image handling ──
   const handleFiles = async (files) => {
-    const fileArr = Array.from(files);
-
-    for (const file of fileArr) {
-      try {
-        const processed = await processImage(file);
-        setPhotos((p) => [...p, {
-          dataUrl: processed.dataUrl,
-          caption: "",
-          file,
-        }]);
-      } catch (err) {
-        showToast("error", `Could not load ${file.name}: ${err.message}`);
-      }
+  const fileArr = Array.from(files);
+  setPhotosProcessing(true);
+  for (const file of fileArr) {
+    try {
+      const processed = await processImage(file);
+      setPhotos((p) => [...p, { dataUrl: processed.dataUrl, caption: "", file }]);
+    } catch (err) {
+      showToast("error", `Could not load ${file.name}: ${err.message}`);
     }
-  };
+  }
+  setPhotosProcessing(false);
+};
 
   const compressImage = (dataUrl, cb) => {
     const img = new Image();
@@ -242,7 +241,7 @@ const handleSubmit = async () => {
       // ── 3. Generate + upload PDF ──
       setSubmitStage("Generating PDF…");
       try {
-        const { blob: pdfBlob, fileName } = await generateSiteReportPDF(
+        const { blob: pdfBlob, fileName } = await generateSiteReportPDF(  
           {
             visit_date: form.visit_date,
             visit_time: form.visit_time,
@@ -259,6 +258,7 @@ const handleSubmit = async () => {
           photos,
           logoAsset
         );
+        setSubmitResult({ type: "success", msg: "Report generated and downloaded successfully!" })
         console.log("✅ PDF generated:", fileName, pdfBlob.size, "bytes");
 
         setSubmitStage("Uploading PDF…");
@@ -295,6 +295,7 @@ const handleSubmit = async () => {
           URL.revokeObjectURL(a.href);
         }
       } catch (pdfErr) {
+          setSubmitResult({ type: "error", msg: "Failed to generate report. " + pdfErr.message });
         console.error("❌ PDF generation error:", pdfErr);
         showToast("error", "PDF generation failed: " + pdfErr.message);
       }
@@ -502,15 +503,73 @@ const handleSubmit = async () => {
             )}
           </div>
         </Section>
+          {/* Inline submit result — shows above submit button */}
+{submitResult && (
+  <div style={{
+    display: "flex", alignItems: "center", gap: 10,
+    padding: "12px 16px", borderRadius: 10, marginBottom: 12,
+    background: submitResult.type === "success" ? "#f0fdf4" : "#fef2f2",
+    border: `1px solid ${submitResult.type === "success" ? "#bbf7d0" : "#fecaca"}`,
+    color: submitResult.type === "success" ? "#16a34a" : "#dc2626",
+    fontSize: 13.5, fontWeight: 500,
+  }}>
+    {submitResult.type === "success"
+      ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+      : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    }
+    {submitResult.msg}
+    <button onClick={() => setSubmitResult(null)} style={{
+      marginLeft: "auto", background: "none", border: "none",
+      cursor: "pointer", color: "inherit", padding: 2, display: "flex",
+    }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+)}
 
-        <button className="svr-submit" onClick={handleSubmit} disabled={submitting}>
+{/* Submit button — disabled while photos loading or submitting */}
+<button
+  onClick={handleSubmit}
+  disabled={photosProcessing || submitting}
+  className="svr-submit"
+>
+  {submitting ? "Generating PDF…" : "Generate Report"}
+</button>
+        {/* <button className="svr-submit" onClick={handleSubmit} disabled={submitting}>
           {submitting
             ? <><span className="op-mini-spinner" />&nbsp;{submitStage || "Submitting…"}</>
             : <><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>&nbsp;Submit Site Visit Report</>
           }
-        </button>
+        </button> */}
         {submitting && submitStage && <div className="svr-stage">{submitStage}</div>}
       </div>
+      {/* Photo processing popup — bottom-left floating */}
+{photosProcessing && (
+  <div style={{
+    position: "fixed", bottom: 28, left: 28, zIndex: 9999,
+    display: "flex", alignItems: "center", gap: 12,
+    background: "#fff", border: "1px solid #e2e8f0",
+    borderRadius: 12, padding: "14px 18px",
+    boxShadow: "0 8px 28px rgba(0,0,0,0.12)",
+    fontSize: 13.5, fontWeight: 500, color: "#1e293b",
+    animation: "slideUp .25s ease",
+  }}>
+    {/* Spinner */}
+    <div style={{
+      width: 18, height: 18, borderRadius: "50%",
+      border: "2.5px solid #e2e8f0",
+      borderTopColor: "#dc2626",
+      animation: "spin .7s linear infinite",
+      flexShrink: 0,
+    }}/>
+    <div>
+      <div style={{ fontWeight: 600, marginBottom: 2 }}>Processing images…</div>
+      <div style={{ fontSize: 12, color: "#64748b" }}>
+        Converting &amp; compressing, please wait
+      </div>
+    </div>
+  </div>
+)}
     </>
   );
 }

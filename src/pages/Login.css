@@ -1,0 +1,249 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: #f3f5f8;
+  position: relative;
+}
+
+.login-background {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 18%),
+    radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.07), transparent 22%);
+  pointer-events: none;
+}
+
+.login-card {
+  position: relative;
+  width: min(520px, 100%);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+  padding: 36px 32px;
+  z-index: 1;
+  color: #0f172a;
+}
+
+.login-branding {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 26px;
+}
+
+.logo-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #60a5fa);
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.login-branding h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.05;
+}
+
+.login-branding p {
+  margin: 6px 0 0;
+  color: #475569;
+  font-size: 1rem;
+}
+
+.login-alert {
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  font-size: 0.96rem;
+  line-height: 1.5;
+}
+
+.login-alert.success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+}
+
+.login-alert.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.login-field {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.login-field label {
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.login-field input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 14px 16px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-field input::placeholder {
+  color: #94a3b8;
+}
+
+.login-field input:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
+}
+
+.password-input-group {
+  position: relative;
+  display: grid;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.92rem;
+  cursor: pointer;
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 70px;
+}
+
+.login-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  margin-bottom: 10px;
+}
+
+.primary-button,
+.secondary-button,
+.link-button {
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.primary-button {
+  flex: 1 1 180px;
+  min-height: 52px;
+  background: linear-gradient(90deg, #2563eb, #3b82f6);
+  color: #ffffff;
+  box-shadow: 0 16px 30px rgba(37, 99, 235, 0.18);
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.primary-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.primary-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.secondary-button {
+  width: 100%;
+  min-height: 50px;
+  background: #1d4ed8;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.secondary-button:hover:not(:disabled) {
+  background: #1e40af;
+}
+
+.link-button {
+  background: transparent;
+  color: #2563eb;
+  text-decoration: none;
+  padding: 0;
+  min-width: 140px;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.forgot-panel {
+  margin-top: 18px;
+  padding: 22px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.forgot-panel p {
+  margin: 0 0 14px;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.forgot-panel input {
+  margin-bottom: 12px;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #0f172a;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.forgot-panel input::placeholder {
+  color: #94a3b8;
+}
+
+.forgot-panel input:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
+}
+
+@media (max-width: 520px) {
+  .login-card {
+    padding: 28px 20px;
+  }
+
+  .login-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .primary-button,
+  .link-button {
+    width: 100%;
+  }
+}

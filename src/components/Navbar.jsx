@@ -169,7 +169,7 @@ export default function Navbar() {
   .navbar-tagline { display: none; }
   .navbar-user-info { display: none; }
   .navbar-divider { display: none; }
-  .navbar-logo { height: 30px; width: 30px; }
+  .navbar-logo { height: 40px; width: 40px; }
   .navbar-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .navbar-left { flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; gap: 8px; }
   .navbar-right { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }

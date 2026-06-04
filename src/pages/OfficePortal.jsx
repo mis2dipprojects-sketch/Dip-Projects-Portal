@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Navbar from "../components/Navbar";
 import { supabase } from "../supabase";
-
+import SiteReport from "./Sitereport";
+import Checklists from "./Checklists";
 // ── Nav Items ──────────────────────────────────────────────────────────────
 const TASK_NAV = [
   {
@@ -38,7 +39,31 @@ const LEAVE_NAV = [
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>,
   },
 ];
-
+const REPORTS_NAV = [
+  {
+    key: "site-report",
+    label: "Site Report",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="9" y1="13" x2="15" y2="13"/>
+        <line x1="9" y1="17" x2="13" y2="17"/>
+        <polyline points="9 9 10 9 11 9"/>
+      </svg>
+    ),
+  },
+  {
+    key: "checklists",
+    label: "Checklists",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 11l3 3L22 4"/>
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+      </svg>
+    ),
+  },
+];
 const LEAVE_TYPES = ["Casual Leave","Sick Leave","Earned Leave","Maternity Leave","Paternity Leave","Compensatory Leave","Unpaid Leave"];
 
 const PRIORITY_STYLES = {
@@ -484,7 +509,7 @@ export default function OfficePortal() {
     ...recurringTasks.filter(t=>!delegatedTasks.some(d=>d.id===t.id)),
   ].sort((a,b)=>new Date(a.due_date||a.created_at||0)-new Date(b.due_date||b.created_at||0));
 
-  const activeItem = [...TASK_NAV,...LEAVE_NAV].find(n=>n.key===activeTab);
+  const activeItem = [...TASK_NAV,...LEAVE_NAV,...REPORTS_NAV].find(n=>n.key===activeTab);
   const proxyPendingCount = proxyLeaves.filter(l=>l.proxy_approved===null).length;
 
   // Filter change helpers
@@ -600,6 +625,12 @@ export default function OfficePortal() {
           </div>
         );
         return <div className="lv-cards-grid">{proxyLeaves.map(l=><LeaveCard key={l.id} leave={l} showActions={true} onProxyAction={handleProxyAction}/>)}</div>;
+        
+           case "site-report":
+            return <SiteReport user={user} />;
+
+          case "checklists":
+            return <Checklists user={user} />;
 
       default: return null;
     }
@@ -629,7 +660,7 @@ export default function OfficePortal() {
         .tf-count { font-size: 12px; color: #64748b; margin-bottom: 12px; margin-top: -6px; }
 
         /* ── Sidebar ── */
-        .op-sidebar { width: 240px; min-width: 240px; background: #fff; border-right: 1px solid #e8edf3; display: flex; flex-direction: column; transition: width .25s cubic-bezier(.4,0,.2,1), min-width .25s, opacity .2s; overflow: hidden; box-shadow: 2px 0 12px rgba(0,0,0,.04); }
+        .op-sidebar { width: 240px; min-width: 240px; background: #fff; border-right: 1px solid #e8edf3; display: flex; flex-direction: column; transition: width .25s cubic-bezier(.4,0,.2,1), min-width .25s, opacity .2s; overflow: hidden; box-shadow: 2px 0 12px rgba(0,0,0,.04); position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; }
         .op-sidebar.collapsed { width: 0; min-width: 0; opacity: 0; pointer-events: none; }
         .op-sidebar-header { padding: 20px 20px 12px; border-bottom: 1px solid #f0f4f8; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
         .op-sidebar-label { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #94a3b8; }
@@ -652,7 +683,8 @@ export default function OfficePortal() {
         .op-page-title { font-size: 18px; font-weight: 600; color: #1e293b; }
 
         /* ── Profile Card ── */
-        .op-profile-card { background: #fff; border-radius: 14px; padding: 24px 28px; border-top: 4px solid #2563eb; box-shadow: 0 4px 20px rgba(37,99,235,.08); margin-bottom: 28px; display: flex; align-items: center; gap: 20px; }
+        .op-profile-card { background: #fff; border-radius: 14px; padding: 24px 28px;   border-bottom: 4px solid transparent;border-right: 4px solid transparent;background:linear-gradient(white, white) padding-box,linear-gradient(135deg,#3d1200 0%,#7a2e00 50%,#c96a10 100%) border-box;
+         box-shadow: 0 4px 20px rgba(37,99,235,.08); margin-bottom: 28px; display: flex; align-items: center; gap: 20px; }
         .op-avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg,#dbeafe,#bfdbfe); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; color: #2563eb; flex-shrink: 0; font-family: 'DM Mono', monospace; }
         .op-profile-info { display: flex; flex-direction: column; gap: 4px; }
         .op-profile-name { font-size: 17px; font-weight: 600; color: #1e293b; }
@@ -826,7 +858,7 @@ export default function OfficePortal() {
             {toast.msg}
           </div>
         )}
-
+          
         <div className="op-body">
           {sidebarOpen && (
             <button className="op-sidebar-backdrop" aria-label="Close sidebar" onClick={()=>setSidebarOpen(false)} />
@@ -853,6 +885,18 @@ export default function OfficePortal() {
                   {item.key==="proxy-request" && proxyPendingCount>0 && (
                     <span className="op-nav-badge">{proxyPendingCount}</span>
                   )}
+                </button>
+              ))}
+
+              <span className="op-nav-section" style={{ marginTop: 8 }}>Reports</span>
+                {REPORTS_NAV.map(item => (
+                <button
+                  key={item.key}
+                  className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
+                  onClick={() => handleNavClick(item.key)}
+                >
+                  <span className="op-nav-icon">{item.icon}</span>
+                  {item.label}
                 </button>
               ))}
             </nav>

@@ -702,7 +702,7 @@ function formatNextDue(date) {
 
     const fetchEmployees = useCallback(async () => {
       setLoadingEmployees(true);
-      const { data } = await supabase.from("user_details").select("*").order("name", { ascending: true });
+      const { data } = await supabase.from("users_detail").select("*").order("name", { ascending: true });
       setEmployees(data || []);
       setLoadingEmployees(false);
     }, []);
@@ -754,7 +754,7 @@ function formatNextDue(date) {
 
   const handleEmpDelete = async (id) => {
     if (!window.confirm("Delete this employee?")) return;
-    await supabase.from("user_details").delete().eq("id", id);
+    await supabase.from("users_detail").delete().eq("id", id);
     setEmployees(p => p.filter(e => e.id !== id));
     showToast("success", "Employee deleted.");
   };
@@ -970,7 +970,200 @@ function formatNextDue(date) {
             )}
           </>
         );
+        case "recurring-tasks":
+  return (
+    <>
+      {/* Filter bar */}
+      <div className="tf-bar" style={{ marginBottom: 16 }}>
+        <div className="tf-group">
+          <span className="tf-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+          </span>
+          <select className="tf-select" value={recurringFilters.assignedTo}
+            onChange={e => setRecurringFilters(p => ({ ...p, assignedTo: e.target.value }))}>
+            <option value="">All users</option>
+            {rfAssignees.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
+        </div>
+        <div className="tf-divider"/>
+        {rfSites.length > 0 && (
+          <>
+            <div className="tf-group">
+              <select className="tf-select" value={recurringFilters.site}
+                onChange={e => setRecurringFilters(p => ({ ...p, site: e.target.value }))}>
+                <option value="">All sites</option>
+                {rfSites.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="tf-divider"/>
+          </>
+        )}
+        <div className="tf-group">
+          <select className="tf-select" value={recurringFilters.recurrence}
+            onChange={e => setRecurringFilters(p => ({ ...p, recurrence: e.target.value }))}>
+            <option value="">All patterns</option>
+            {["daily","weekly","monthly","yearly"].map(r => (
+              <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+            ))}
+          </select>
+        </div>
+        <div className="tf-divider"/>
+        <div className="tf-group">
+          <label style={{ display:"flex", alignItems:"center", gap:7, cursor:"pointer",
+            fontSize:12.5, fontWeight:600, color: recurringFilters.dueSoon ? "#dc2626" : "#64748b" }}>
+            <input type="checkbox" checked={recurringFilters.dueSoon}
+              onChange={e => setRecurringFilters(p => ({ ...p, dueSoon: e.target.checked }))}
+              style={{ accentColor:"#dc2626" }}
+            />
+            Due within 7 days
+          </label>
+        </div>
+        {Object.values(recurringFilters).some(v => v !== "" && v !== false) && (
+          <button className="tf-clear"
+            onClick={() => setRecurringFilters({ ...EMPTY_RECURRING_FILTERS })}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            Clear
+          </button>
+        )}
+      </div>
 
+      {/* Summary counts */}
+      <p className="tf-count" style={{ marginBottom: 14 }}>
+        {filteredRecurring.length} of {recurringTasks.length} recurring task{recurringTasks.length !== 1 ? "s" : ""}
+      </p>
+
+      {filteredRecurring.length === 0 ? (
+        <div className="op-empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}>
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+          </svg>
+          <p className="op-empty-text">
+            {recurringTasks.length === 0
+              ? "No recurring tasks yet. Create one from Assign Task."
+              : "No tasks match the current filters."}
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="ap-table-wrap">
+            <table className="ap-table">
+              <thead>
+                <tr>
+                  {["Title","Assigned To","Site","Priority","Pattern","Next Due",""].map(h => (
+                    <th key={h} className="ap-th">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRecurring.map(task => {
+                  const nextDate = getNextDueDate(task);
+                  const next     = formatNextDue(nextDate);
+                  const p        = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
+                  return (
+                    <tr key={task.id} className="ap-tr">
+                      <td className="ap-td ap-td-title">{task.title}</td>
+                      <td className="ap-td">{task.assigned_to}</td>
+                      <td className="ap-td">{task.site_name || "—"}</td>
+                      <td className="ap-td">
+                        <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
+                          <span className="ap-badge-dot" style={{ background: p.dot }}/>
+                          {task.priority}
+                        </span>
+                      </td>
+                      <td className="ap-td">
+                        <span className="ap-pill-blue">
+                          {anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}
+                        </span>
+                      </td>
+                      <td className="ap-td">
+                        {next?.label ? (
+                          <span style={{ fontSize:13, color:"#334155" }}>
+                            {next.label}
+                            {next.badge && (
+                              <span style={{ marginLeft:6, fontSize:10, fontWeight:700,
+                                background: next.bg, color: next.color,
+                                borderRadius:20, padding:"2px 7px" }}>
+                                {next.badge}
+                              </span>
+                            )}
+                          </span>
+                        ) : "—"}
+                      </td>
+                      <td className="ap-td">
+                        <button className="ap-del-btn" onClick={() => handleDelete(task.id)} title="Delete">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                            <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="ap-task-mobile-grid">
+            {filteredRecurring.map(task => {
+              const nextDate = getNextDueDate(task);
+              const next     = formatNextDue(nextDate);
+              const p        = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
+              return (
+                <div key={task.id} className="ap-task-card-mobile">
+                  <div className="ap-task-card-head">
+                    <div>
+                      <div className="ap-task-card-title">{task.title}</div>
+                      <div className="ap-task-card-sub">{task.assigned_to}</div>
+                    </div>
+                    <button className="ap-del-btn" onClick={() => handleDelete(task.id)} title="Delete">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                        <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="ap-task-card-badges">
+                    <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
+                      <span className="ap-badge-dot" style={{ background: p.dot }}/>{task.priority}
+                    </span>
+                    <span className="ap-pill-blue">
+                      {anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}
+                    </span>
+                  </div>
+                  <div className="ap-task-card-meta">
+                    <div><span>Site</span><strong>{task.site_name || "Not assigned"}</strong></div>
+                    <div>
+                      <span>Next Due</span>
+                      <strong>
+                        {next?.label || "—"}
+                        {next?.badge && (
+                          <span style={{ marginLeft:5, fontSize:10, fontWeight:700,
+                            background: next.bg, color: next.color,
+                            borderRadius:20, padding:"1px 6px" }}>
+                            {next.badge}
+                          </span>
+                        )}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </>
+  );
         case "leave-requests":
           return loadingLeaves ? (
             <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading leaves...</p></div>
@@ -1221,7 +1414,7 @@ function formatNextDue(date) {
           .op-toggle-btn:hover { background: #f1f5f9; }
           .op-page-title { font-size: 18px; font-weight: 600; color: #1e293b; }
 
-          .op-profile-card { background: #fff; border-radius: 14px; padding: 24px 28px; border-top: 4px solid #dc2626; box-shadow: 0 4px 20px rgba(220,38,38,.08); margin-bottom: 28px; display: flex; align-items: center; gap: 20px; }
+          .op-profile-card { background: #fff; border-radius: 14px; padding: 24px 28px; border-bottom: 4px solid transparent;border-right: 4px solid transparent;background:linear-gradient(white, white) padding-box,linear-gradient(135deg,#3d1200 0%,#7a2e00 50%,#c96a10 100%) border-box; box-shadow: 0 4px 20px rgba(220,38,38,.08); margin-bottom: 28px; display: flex; align-items: center; gap: 20px; }
           .op-avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg,#fee2e2,#fecaca); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; color: #dc2626; flex-shrink: 0; font-family: 'DM Mono', monospace; }
           .op-profile-info { display: flex; flex-direction: column; gap: 4px; }
           .op-profile-name { font-size: 17px; font-weight: 600; color: #1e293b; }

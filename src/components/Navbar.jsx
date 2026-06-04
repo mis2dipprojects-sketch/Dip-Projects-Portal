@@ -18,6 +18,7 @@ export default function Navbar() {
       <style>{`
         .app-navbar {
           height: 60px;
+          overflow: visible;
           background: linear-gradient(135deg, #3d1200 0%, #7a2e00 50%, #c96a10 100%);
           border-bottom: none;
           box-shadow: 0 2px 16px rgba(61,18,0,.35);
@@ -29,6 +30,8 @@ export default function Navbar() {
           top: 0;
           z-index: 9999;
           gap: 16px;
+          flex-wrap: nowrap;
+          overflow: hidden;
         }
 
         .navbar-left {
@@ -126,13 +129,13 @@ export default function Navbar() {
           font-weight: 500;
           white-space: nowrap;
         }
-
-        .navbar-right {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          flex-shrink: 0;
-        }
+          .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+            margin-left: auto;
+          }
 
         .navbar-logout {
           display: inline-flex;
@@ -154,12 +157,49 @@ export default function Navbar() {
         .navbar-logout:hover  { opacity: .9; background: #ffe8cc; }
         .navbar-logout:active { transform: scale(.97); }
 
-        @media (max-width: 600px) {
-          .app-navbar { padding: 0 14px; }
-          .navbar-tagline { display: none; }
-          .navbar-user-info { display: none; }
-          .navbar-divider { display: none; }
-        }
+@media (max-width: 600px) {
+  .app-navbar {
+    padding: 0 12px;
+    height: 56px;
+    gap: 8px;
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+  .navbar-tagline { display: none; }
+  .navbar-user-info { display: none; }
+  .navbar-divider { display: none; }
+  .navbar-logo { height: 30px; width: 30px; }
+  .navbar-title { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .navbar-left { flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; gap: 8px; }
+  .navbar-right { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+  .navbar-right {position: absolute; right: 20px; top: 10px;}
+  .navbar-left {position: absolute; left: 20px; top: 10px;}
+  .navbar-avatar {
+    width: 30px; height: 30px; font-size: 12px;
+    background: rgba(255,255,255,.25);
+    border: 1.5px solid rgba(255,255,255,.5);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; flex-shrink: 0;
+  }
+  .navbar-logout {
+    width: 34px; height: 34px;
+    padding: 0;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    background: #fff;
+    color: #3d1200;
+    border: none;
+    cursor: pointer;
+  }
+  .navbar-logout span { display: none; }
+  .navbar-logout svg { stroke: #3d1200; }
+}
+
+
       `}</style>
 
       <nav className="app-navbar">
@@ -193,7 +233,7 @@ export default function Navbar() {
               <polyline points="16 17 21 12 16 7"/>
               <line x1="21" y1="12" x2="9" y2="12"/>
             </svg>
-            Logout
+            <span>Logout</span>
           </button>
         </div>
       </nav>

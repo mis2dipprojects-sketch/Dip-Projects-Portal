@@ -736,7 +736,8 @@
       const [allReschedules, setAllReschedules]         = useState([]);
       const [loadingReschedules, setLoadingReschedules] = useState(false);
       const [updatingRescheduleId, setUpdatingRescheduleId] = useState(null);
-
+      const [recurringMobileFilterOpen, setRecurringMobileFilterOpen] = useState(false);
+      
       const [user, setUser]               = useState(null);
       const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === "undefined" ? true : window.innerWidth > 760);
       const [activeTab, setActiveTab]     = useState("dashboard");
@@ -1139,201 +1140,308 @@
               )}
             </>
           );
-          case "recurring-tasks":
-    return (
-      <>
-        {/* Filter bar */}
-        <div className="tf-bar" style={{ marginBottom: 16 }}>
-          <div className="tf-group">
-            <span className="tf-label">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-              </svg>
-            </span>
-            <select className="tf-select" value={recurringFilters.assignedTo}
-              onChange={e => setRecurringFilters(p => ({ ...p, assignedTo: e.target.value }))}>
-              <option value="">All users</option>
-              {rfAssignees.map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </div>
-          <div className="tf-divider"/>
-          {rfSites.length > 0 && (
+
+        case "recurring-tasks":
+          return (
             <>
-              <div className="tf-group">
-                <select className="tf-select" value={recurringFilters.site}
-                  onChange={e => setRecurringFilters(p => ({ ...p, site: e.target.value }))}>
-                  <option value="">All sites</option>
-                  {rfSites.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="tf-divider"/>
-            </>
-          )}
-          <div className="tf-group">
-            <select className="tf-select" value={recurringFilters.recurrence}
-              onChange={e => setRecurringFilters(p => ({ ...p, recurrence: e.target.value }))}>
-              <option value="">All patterns</option>
-              {["daily","weekly","monthly","yearly"].map(r => (
-                <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
-              ))}
-            </select>
-          </div>
-          <div className="tf-divider"/>
-          <div className="tf-group">
-            <label style={{ display:"flex", alignItems:"center", gap:7, cursor:"pointer",
-              fontSize:12.5, fontWeight:600, color: recurringFilters.dueSoon ? "#dc2626" : "#64748b" }}>
-              <input type="checkbox" checked={recurringFilters.dueSoon}
-                onChange={e => setRecurringFilters(p => ({ ...p, dueSoon: e.target.checked }))}
-                style={{ accentColor:"#dc2626" }}
-              />
-              Due within 7 days
-            </label>
-          </div>
-          {Object.values(recurringFilters).some(v => v !== "" && v !== false) && (
-            <button className="tf-clear"
-              onClick={() => setRecurringFilters({ ...EMPTY_RECURRING_FILTERS })}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-              Clear
-            </button>
-          )}
-        </div>
+              {/* Header row: count + filter icon */}
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14, gap:10 }}>
+                <p className="tf-count" style={{ margin:0 }}>
+                  {filteredRecurring.length} of {recurringTasks.length} recurring task{recurringTasks.length !== 1 ? "s" : ""}
+                </p>
 
-        {/* Summary counts */}
-        <p className="tf-count" style={{ marginBottom: 14 }}>
-          {filteredRecurring.length} of {recurringTasks.length} recurring task{recurringTasks.length !== 1 ? "s" : ""}
-        </p>
+                {/* Filter icon button (always visible, especially useful on mobile) */}
+                <div style={{ position:"relative" }}>
+                  <button
+                    className={`tf-mobile-btn${recurringMobileFilterOpen ? " active" : ""}`}
+                    style={{ display:"inline-flex" }}
+                    onClick={() => setRecurringMobileFilterOpen(p => !p)}
+                    title="Filter"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                      <line x1="4" y1="6" x2="20" y2="6"/>
+                      <line x1="8" y1="12" x2="16" y2="12"/>
+                      <line x1="11" y1="18" x2="13" y2="18"/>
+                    </svg>
+                    {Object.values(recurringFilters).some(v => v !== "" && v !== false) && (
+                      <span className="tf-mobile-badge"/>
+                    )}
+                  </button>
 
-        {filteredRecurring.length === 0 ? (
-          <div className="op-empty-state">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}>
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
-            </svg>
-            <p className="op-empty-text">
-              {recurringTasks.length === 0
-                ? "No recurring tasks yet. Create one from Assign Task."
-                : "No tasks match the current filters."}
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Desktop table */}
-            <div className="ap-table-wrap">
-              <table className="ap-table">
-                <thead>
-                  <tr>
-                    {["Title","Assigned To","Site","Priority","Pattern","Next Due",""].map(h => (
-                      <th key={h} className="ap-th">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRecurring.map(task => {
-                    const nextDate = getNextDueDate(task);
-                    const next     = formatNextDue(nextDate);
-                    const p        = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
-                    return (
-                      <tr key={task.id} className="ap-tr">
-                        <td className="ap-td ap-td-title">{task.title}</td>
-                        <td className="ap-td">{task.assigned_to}</td>
-                        <td className="ap-td">{task.site_name || "—"}</td>
-                        <td className="ap-td">
-                          <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
-                            <span className="ap-badge-dot" style={{ background: p.dot }}/>
-                            {task.priority}
-                          </span>
-                        </td>
-                        <td className="ap-td">
-                          <span className="ap-pill-blue">
-                            {anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}
-                          </span>
-                        </td>
-                        <td className="ap-td">
-                          {next?.label ? (
-                            <span style={{ fontSize:13, color:"#334155" }}>
-                              {next.label}
-                              {next.badge && (
-                                <span style={{ marginLeft:6, fontSize:10, fontWeight:700,
-                                  background: next.bg, color: next.color,
-                                  borderRadius:20, padding:"2px 7px" }}>
-                                  {next.badge}
-                                </span>
-                              )}
-                            </span>
-                          ) : "—"}
-                        </td>
-                        <td className="ap-td">
-                          <button className="ap-del-btn" onClick={() => handleDelete(task.id)} title="Delete">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-                              <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                  {/* Dropdown filter panel */}
+                  {recurringMobileFilterOpen && (
+                    <div className="tf-popup" style={{ width:280 }}>
+                      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+
+                        <div className="tf-group" style={{ width:"100%" }}>
+                          <span className="tf-label">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                             </svg>
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                            Assignee
+                          </span>
+                          <select
+                            className="tf-select"
+                            style={{ flex:1 }}
+                            value={recurringFilters.assignedTo}
+                            onChange={e => setRecurringFilters(p => ({ ...p, assignedTo: e.target.value }))}
+                          >
+                            <option value="">All users</option>
+                            {rfAssignees.map(a => <option key={a} value={a}>{a}</option>)}
+                          </select>
+                        </div>
 
-            {/* Mobile cards */}
-            <div className="ap-task-mobile-grid">
-              {filteredRecurring.map(task => {
-                const nextDate = getNextDueDate(task);
-                const next     = formatNextDue(nextDate);
-                const p        = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
-                return (
-                  <div key={task.id} className="ap-task-card-mobile">
-                    <div className="ap-task-card-head">
-                      <div>
-                        <div className="ap-task-card-title">{task.title}</div>
-                        <div className="ap-task-card-sub">{task.assigned_to}</div>
+                        {rfSites.length > 0 && (
+                          <div className="tf-group" style={{ width:"100%" }}>
+                            <span className="tf-label">Site</span>
+                            <select
+                              className="tf-select"
+                              style={{ flex:1 }}
+                              value={recurringFilters.site}
+                              onChange={e => setRecurringFilters(p => ({ ...p, site: e.target.value }))}
+                            >
+                              <option value="">All sites</option>
+                              {rfSites.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </div>
+                        )}
+
+                        <div className="tf-group" style={{ width:"100%" }}>
+                          <span className="tf-label">Pattern</span>
+                          <select
+                            className="tf-select"
+                            style={{ flex:1 }}
+                            value={recurringFilters.recurrence}
+                            onChange={e => setRecurringFilters(p => ({ ...p, recurrence: e.target.value }))}
+                          >
+                            <option value="">All patterns</option>
+                            {["daily","weekly","monthly","yearly"].map(r => (
+                              <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <label style={{
+                          display:"flex", alignItems:"center", gap:8, cursor:"pointer",
+                          fontSize:12.5, fontWeight:600,
+                          color: recurringFilters.dueSoon ? "#dc2626" : "#64748b",
+                          background: recurringFilters.dueSoon ? "#fef2f2" : "#f8fafc",
+                          border: `1px solid ${recurringFilters.dueSoon ? "#fecaca" : "#e2e8f0"}`,
+                          borderRadius:8, padding:"8px 12px", transition:"all .15s",
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={recurringFilters.dueSoon}
+                            onChange={e => setRecurringFilters(p => ({ ...p, dueSoon: e.target.checked }))}
+                            style={{ accentColor:"#dc2626", width:14, height:14 }}
+                          />
+                          Due within 7 days
+                        </label>
+
+                        {Object.values(recurringFilters).some(v => v !== "" && v !== false) && (
+                          <button
+                            className="tf-clear"
+                            style={{ width:"100%", justifyContent:"center", marginLeft:0 }}
+                            onClick={() => { setRecurringFilters({ ...EMPTY_RECURRING_FILTERS }); setRecurringMobileFilterOpen(false); }}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                            Clear filters
+                          </button>
+                        )}
                       </div>
-                      <button className="ap-del-btn" onClick={() => handleDelete(task.id)} title="Delete">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                          strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-                          <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                        </svg>
-                      </button>
                     </div>
-                    <div className="ap-task-card-badges">
-                      <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
-                        <span className="ap-badge-dot" style={{ background: p.dot }}/>{task.priority}
-                      </span>
-                      <span className="ap-pill-blue">
-                        {anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}
-                      </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Desktop filter bar — hidden on mobile via CSS */}
+              <div className="tf-bar" style={{ marginBottom:16, position:"static" }}>
+                <div className="tf-group">
+                  <span className="tf-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  </span>
+                  <select className="tf-select" value={recurringFilters.assignedTo}
+                    onChange={e => setRecurringFilters(p => ({ ...p, assignedTo: e.target.value }))}>
+                    <option value="">All users</option>
+                    {rfAssignees.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
+                <div className="tf-divider"/>
+                {rfSites.length > 0 && (
+                  <>
+                    <div className="tf-group">
+                      <select className="tf-select" value={recurringFilters.site}
+                        onChange={e => setRecurringFilters(p => ({ ...p, site: e.target.value }))}>
+                        <option value="">All sites</option>
+                        {rfSites.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
                     </div>
-                    <div className="ap-task-card-meta">
-                      <div><span>Site</span><strong>{task.site_name || "Not assigned"}</strong></div>
-                      <div>
-                        <span>Next Due</span>
-                        <strong>
-                          {next?.label || "—"}
-                          {next?.badge && (
-                            <span style={{ marginLeft:5, fontSize:10, fontWeight:700,
-                              background: next.bg, color: next.color,
-                              borderRadius:20, padding:"1px 6px" }}>
-                              {next.badge}
-                            </span>
-                          )}
-                        </strong>
-                      </div>
-                    </div>
+                    <div className="tf-divider"/>
+                  </>
+                )}
+                <div className="tf-group">
+                  <select className="tf-select" value={recurringFilters.recurrence}
+                    onChange={e => setRecurringFilters(p => ({ ...p, recurrence: e.target.value }))}>
+                    <option value="">All patterns</option>
+                    {["daily","weekly","monthly","yearly"].map(r => (
+                      <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="tf-divider"/>
+                <div className="tf-group">
+                  <label style={{ display:"flex", alignItems:"center", gap:7, cursor:"pointer",
+                    fontSize:12.5, fontWeight:600, color: recurringFilters.dueSoon ? "#dc2626" : "#64748b" }}>
+                    <input type="checkbox" checked={recurringFilters.dueSoon}
+                      onChange={e => setRecurringFilters(p => ({ ...p, dueSoon: e.target.checked }))}
+                      style={{ accentColor:"#dc2626" }}
+                    />
+                    Due within 7 days
+                  </label>
+                </div>
+                {Object.values(recurringFilters).some(v => v !== "" && v !== false) && (
+                  <button className="tf-clear" onClick={() => setRecurringFilters({ ...EMPTY_RECURRING_FILTERS })}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                    Clear
+                  </button>
+                )}
+              </div>
+
+                {filteredRecurring.length === 0 ? (
+                  <div className="op-empty-state">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}>
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+                    </svg>
+                    <p className="op-empty-text">
+                      {recurringTasks.length === 0
+                        ? "No recurring tasks yet. Create one from Assign Task."
+                        : "No tasks match the current filters."}
+                    </p>
                   </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </>
-    );
-          case "leave-requests":
+                ) : (
+                  <>
+                    {/* Desktop table */}
+                    <div className="ap-table-wrap">
+                      <table className="ap-table">
+                        <thead>
+                          <tr>
+                            {["Title","Assigned To","Site","Priority","Pattern","Next Due",""].map(h => (
+                              <th key={h} className="ap-th">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredRecurring.map(task => {
+                            const nextDate = getNextDueDate(task);
+                            const next     = formatNextDue(nextDate);
+                            const p        = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
+                            return (
+                              <tr key={task.id} className="ap-tr">
+                                <td className="ap-td ap-td-title">{task.title}</td>
+                                <td className="ap-td">{task.assigned_to}</td>
+                                <td className="ap-td">{task.site_name || "—"}</td>
+                                <td className="ap-td">
+                                  <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
+                                    <span className="ap-badge-dot" style={{ background: p.dot }}/>
+                                    {task.priority}
+                                  </span>
+                                </td>
+                                <td className="ap-td">
+                                  <span className="ap-pill-blue">
+                                    {anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}
+                                  </span>
+                                </td>
+                                <td className="ap-td">
+                                  {next?.label ? (
+                                    <span style={{ fontSize:13, color:"#334155" }}>
+                                      {next.label}
+                                      {next.badge && (
+                                        <span style={{ marginLeft:6, fontSize:10, fontWeight:700,
+                                          background: next.bg, color: next.color,
+                                          borderRadius:20, padding:"2px 7px" }}>
+                                          {next.badge}
+                                        </span>
+                                      )}
+                                    </span>
+                                  ) : "—"}
+                                </td>
+                                <td className="ap-td">
+                                  <button className="ap-del-btn" onClick={() => handleDelete(task.id)} title="Delete">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                      strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                                      <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                                    </svg>
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile cards */}
+                    <div className="ap-task-mobile-grid">
+                      {filteredRecurring.map(task => {
+                        const nextDate = getNextDueDate(task);
+                        const next     = formatNextDue(nextDate);
+                        const p        = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
+                        return (
+                          <div key={task.id} className="ap-task-card-mobile">
+                            <div className="ap-task-card-head">
+                              <div>
+                                <div className="ap-task-card-title">{task.title}</div>
+                                <div className="ap-task-card-sub">{task.assigned_to}</div>
+                              </div>
+                              <button className="ap-del-btn" onClick={() => handleDelete(task.id)} title="Delete">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                  strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                                  <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="ap-task-card-badges">
+                              <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
+                                <span className="ap-badge-dot" style={{ background: p.dot }}/>{task.priority}
+                              </span>
+                              <span className="ap-pill-blue">
+                                {anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}
+                              </span>
+                            </div>
+                            <div className="ap-task-card-meta">
+                              <div><span>Site</span><strong>{task.site_name || "Not assigned"}</strong></div>
+                              <div>
+                                <span>Next Due</span>
+                                <strong>
+                                  {next?.label || "—"}
+                                  {next?.badge && (
+                                    <span style={{ marginLeft:5, fontSize:10, fontWeight:700,
+                                      background: next.bg, color: next.color,
+                                      borderRadius:20, padding:"1px 6px" }}>
+                                      {next.badge}
+                                    </span>
+                                  )}
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </>
+            );
+            case "leave-requests":
             return loadingLeaves ? (
               <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading leaves...</p></div>
             ) : allLeaves.length === 0 ? (
@@ -1877,6 +1985,10 @@
 
             .ap-edit-btn { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid #bfdbfe; background: #eff6ff; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: #2563eb; transition: background .15s; }
             .ap-edit-btn:hover { background: #dbeafe; }
+            @media (max-width: 760px) {
+              .recurring-desktop-bar { display: none; }
+              .tf-bar{display:none;}
+            }
           `}</style>
 
           <div className="op-root">

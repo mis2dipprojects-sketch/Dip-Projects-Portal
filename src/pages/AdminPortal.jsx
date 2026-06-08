@@ -1,7 +1,7 @@
-  import { useEffect, useState, useCallback} from "react";
-  import Navbar from "../components/Navbar";
-  import { supabase } from "../supabase";
-  import { useRecurringTasks } from "../hooks/useRecurringTasks";
+    import { useEffect, useState, useCallback} from "react";
+    import Navbar from "../components/Navbar";
+    import { supabase } from "../supabase";
+    import { useRecurringTasks } from "../hooks/useRecurringTasks";
 
   const NAV_ITEMS = [
     {
@@ -55,6 +55,16 @@
       ),
     },
     {
+      key: "reschedule-requests",
+      label: "Reschedule Requests",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+          <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      ),
+    },
+    {
       key: "add-employee",
       label: "Add Employee",
       icon: (
@@ -79,1239 +89,1273 @@
   ];
 
 
-  const PRIORITY_STYLES = {
-    high:   { bg: "#fef2f2", color: "#dc2626", dot: "#dc2626" },
-    medium: { bg: "#fffbeb", color: "#d97706", dot: "#d97706" },
-    low:    { bg: "#f0fdf4", color: "#16a34a", dot: "#16a34a" },
-  };
+    const PRIORITY_STYLES = {
+      high:   { bg: "#fef2f2", color: "#dc2626", dot: "#dc2626" },
+      medium: { bg: "#fffbeb", color: "#d97706", dot: "#d97706" },
+      low:    { bg: "#f0fdf4", color: "#16a34a", dot: "#16a34a" },
+    };
 
-  const STATUS_STYLES = {
-    pending:     { bg: "#f1f5f9", color: "#64748b" },
-    in_progress: { bg: "#eff6ff", color: "#2563eb" },
-    completed:   { bg: "#f0fdf4", color: "#16a34a" },
-  };
+    const STATUS_STYLES = {
+      pending:     { bg: "#f1f5f9", color: "#64748b" },
+      in_progress: { bg: "#eff6ff", color: "#2563eb" },
+      completed:   { bg: "#f0fdf4", color: "#16a34a" },
+    };
 
-  const LEAVE_STATUS_STYLES = {
-    pending:  { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
-    approved: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
-    rejected: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca" },
-  };
+    const LEAVE_STATUS_STYLES = {
+      pending:  { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
+      approved: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+      rejected: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca" },
+    };
 
-  const WEEKDAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  const MONTHS   = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const WEEKDAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const MONTHS   = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-  const EMPTY_FORM = {
-    title: "", description: "", assigned_to: "", site_name: "", priority: "medium",
-    due_date: "", status: "pending", is_recurring: false, recurrence: "",
-    anchor_weekday: "1", anchor_day: "1", anchor_month: "1", anchor_month_day: "1",
-  };
+    const EMPTY_FORM = {
+      title: "", description: "", assigned_to: "", site_name: "", priority: "medium",
+      due_date: "", status: "pending", is_recurring: false, recurrence: "",
+      anchor_weekday: "1", anchor_day: "1", anchor_month: "1", anchor_month_day: "1",
+      reschedule_allowed: false,
+    };
 
-  const EMPTY_TASK_FILTERS = { dateFrom: "", dateTo: "", assignedTo: "", site: "", priority: "", status: "" };
-  // ── helpers ────────────────────────────────────────────────────────────────
-  function daysInMonth(month) {
-    return new Date(2001, parseInt(month, 10), 0).getDate();
-  }
-
-  function buildAnchor(form) {
-    switch (form.recurrence) {
-      case "daily":   return null;
-      case "weekly":  return String(form.anchor_weekday);
-      case "monthly": return String(form.anchor_day);
-      case "yearly":  return `${String(form.anchor_month).padStart(2,"0")}-${String(form.anchor_month_day).padStart(2,"0")}`;
-      default:        return null;
+    const EMPTY_TASK_FILTERS = { dateFrom: "", dateTo: "", assignedTo: "", site: "", priority: "", status: "" };
+    // ── helpers ────────────────────────────────────────────────────────────────
+    function daysInMonth(month) {
+      return new Date(2001, parseInt(month, 10), 0).getDate();
     }
-  }
 
-  function anchorDescription(recurrence, anchor) {
-    if (!anchor) return null;
-    switch (recurrence) {
-      case "weekly":  return `every ${WEEKDAYS[parseInt(anchor, 10)]}`;
-      case "monthly": return `on the ${anchor}${ordinal(parseInt(anchor,10))} of every month`;
+    function buildAnchor(form) {
+      switch (form.recurrence) {
+        case "daily":   return null;
+        case "weekly":  return String(form.anchor_weekday);
+        case "monthly": return String(form.anchor_day);
+        case "yearly":  return `${String(form.anchor_month).padStart(2,"0")}-${String(form.anchor_month_day).padStart(2,"0")}`;
+        default:        return null;
+      }
+    }
+
+    function anchorDescription(recurrence, anchor) {
+      if (!anchor) return null;
+      switch (recurrence) {
+        case "weekly":  return `every ${WEEKDAYS[parseInt(anchor, 10)]}`;
+        case "monthly": return `on the ${anchor}${ordinal(parseInt(anchor,10))} of every month`;
+        case "yearly": {
+          const [mm, dd] = anchor.split("-");
+          return `every year on ${MONTHS[parseInt(mm,10)-1]} ${parseInt(dd,10)}`;
+        }
+        default: return null;
+      }
+    }
+
+    function ordinal(n) {
+      if (n >= 11 && n <= 13) return "th";
+      switch (n % 10) { case 1: return "st"; case 2: return "nd"; case 3: return "rd"; default: return "th"; }
+    }
+
+    function computeLeaveStatus(leave) {
+      const storedStatus = normalizeText(leave.status);
+      if (leave.admin_approved === false || leave.proxy_approved === false || storedStatus === "rejected") return "rejected";
+      const proxyDone = !leave.proxy_user_name || leave.proxy_approved === true;
+      if ((leave.admin_approved === true || storedStatus === "approved") && proxyDone) return "approved";
+      return "pending";
+    }
+
+    function formatLeaveDate(date) {
+      return date ? new Date(date + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" }) : "N/A";
+    }
+
+    function getLeaveDays(leave) {
+      if (!leave.from_date || !leave.to_date) return null;
+      return Math.ceil((new Date(leave.to_date) - new Date(leave.from_date)) / (1000 * 60 * 60 * 24)) + 1;
+    }
+
+    function normalizeText(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function isSiteEngineerLeave(leave) {
+      return [leave.role, leave.designation, leave.user_role, leave.user_designation]
+        .map(normalizeText)
+        .some((value) => value === "site engineer" || value === "site_engineer");
+    }
+
+    function getHeadApprovalText(leave) {
+      const storedStatus = normalizeText(leave.status);
+      const headName = leave.proxy_user_name || leave.head_user_names;
+      if (leave.proxy_approved === true || storedStatus === "approved") return "Head: Approved";
+      if (leave.proxy_approved === false || storedStatus === "rejected") return "Head: Rejected";
+      return headName ? `Head (${headName}): Pending` : "Head: Pending";
+    }
+
+    function getHeadApprovalClass(leave) {
+      const storedStatus = normalizeText(leave.status);
+      if (leave.proxy_approved === true || storedStatus === "approved") return "ok";
+      if (leave.proxy_approved === false || storedStatus === "rejected") return "no";
+      return "";
+    }
+
+    function isFinalLeaveStatus(leave) {
+      const storedStatus = normalizeText(leave.status);
+      return storedStatus === "approved" || storedStatus === "rejected";
+    }
+
+    function applyTaskFilters(tasks, filters) {
+      return tasks.filter((t) => {
+        if (filters.assignedTo && t.assigned_to !== filters.assignedTo) return false;
+        if (filters.site      && t.site_name    !== filters.site)     return false;
+        if (filters.priority  && t.priority     !== filters.priority) return false;
+        if (filters.status    && t.status       !== filters.status)   return false;
+        if (filters.dateFrom  && t.due_date && t.due_date < filters.dateFrom) return false;
+        if (filters.dateTo    && t.due_date && t.due_date > filters.dateTo)   return false;
+        return true;
+      });
+    }
+
+    function getNextDueDate(task) {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const anchor = task.recurrence_anchor;
+    const rec    = task.recurrence;
+
+    switch (rec) {
+      case "daily": {
+        const d = new Date(today);
+        return d;
+      }
+      case "weekly": {
+        const targetDay = parseInt(anchor, 10); // 0–6
+        const d = new Date(today);
+        const diff = (targetDay - d.getDay() + 7) % 7;
+        d.setDate(d.getDate() + (diff === 0 ? 7 : diff));
+        return d;
+      }
+      case "monthly": {
+        const day = parseInt(anchor, 10);
+        const d = new Date(today.getFullYear(), today.getMonth(), day);
+        if (d <= today) d.setMonth(d.getMonth() + 1);
+        return d;
+      }
       case "yearly": {
-        const [mm, dd] = anchor.split("-");
-        return `every year on ${MONTHS[parseInt(mm,10)-1]} ${parseInt(dd,10)}`;
+        if (!anchor) return null;
+        const [mm, dd] = anchor.split("-").map(Number);
+        const d = new Date(today.getFullYear(), mm - 1, dd);
+        if (d <= today) d.setFullYear(d.getFullYear() + 1);
+        return d;
       }
       default: return null;
     }
   }
 
-  function ordinal(n) {
-    if (n >= 11 && n <= 13) return "th";
-    switch (n % 10) { case 1: return "st"; case 2: return "nd"; case 3: return "rd"; default: return "th"; }
+  function formatNextDue(date) {
+    if (!date) return "—";
+    const today = new Date(); today.setHours(0,0,0,0);
+    const diff = Math.round((date - today) / (1000*60*60*24));
+    const label = date.toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" });
+    if (diff === 0) return { label, badge: "Today",    color: "#dc2626", bg: "#fef2f2" };
+    if (diff === 1) return { label, badge: "Tomorrow", color: "#d97706", bg: "#fffbeb" };
+    if (diff <= 7)  return { label, badge: `In ${diff} days`, color: "#2563eb", bg: "#eff6ff" };
+    return { label, badge: null };
   }
+    // ── Task Filter Bar ────────────────────────────────────────────────────────
+    function TaskFilterBar({ filters, onChange, onClear, sites, priorities, statuses, assignees, inline, mobileOpen, onMobileToggle }) {
+    const isActive = Object.values(filters).some(v => v !== "");
 
-  function computeLeaveStatus(leave) {
-    const storedStatus = normalizeText(leave.status);
-    if (leave.admin_approved === false || leave.proxy_approved === false || storedStatus === "rejected") return "rejected";
-    const proxyDone = !leave.proxy_user_name || leave.proxy_approved === true;
-    if ((leave.admin_approved === true || storedStatus === "approved") && proxyDone) return "approved";
-    return "pending";
-  }
-
-  function formatLeaveDate(date) {
-    return date ? new Date(date + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" }) : "N/A";
-  }
-
-  function getLeaveDays(leave) {
-    if (!leave.from_date || !leave.to_date) return null;
-    return Math.ceil((new Date(leave.to_date) - new Date(leave.from_date)) / (1000 * 60 * 60 * 24)) + 1;
-  }
-
-  function normalizeText(value) {
-    return String(value || "").trim().toLowerCase();
-  }
-
-  function isSiteEngineerLeave(leave) {
-    return [leave.role, leave.designation, leave.user_role, leave.user_designation]
-      .map(normalizeText)
-      .some((value) => value === "site engineer" || value === "site_engineer");
-  }
-
-  function getHeadApprovalText(leave) {
-    const storedStatus = normalizeText(leave.status);
-    const headName = leave.proxy_user_name || leave.head_user_names;
-    if (leave.proxy_approved === true || storedStatus === "approved") return "Head: Approved";
-    if (leave.proxy_approved === false || storedStatus === "rejected") return "Head: Rejected";
-    return headName ? `Head (${headName}): Pending` : "Head: Pending";
-  }
-
-  function getHeadApprovalClass(leave) {
-    const storedStatus = normalizeText(leave.status);
-    if (leave.proxy_approved === true || storedStatus === "approved") return "ok";
-    if (leave.proxy_approved === false || storedStatus === "rejected") return "no";
-    return "";
-  }
-
-  function isFinalLeaveStatus(leave) {
-    const storedStatus = normalizeText(leave.status);
-    return storedStatus === "approved" || storedStatus === "rejected";
-  }
-
-  function applyTaskFilters(tasks, filters) {
-    return tasks.filter((t) => {
-      if (filters.assignedTo && t.assigned_to !== filters.assignedTo) return false;
-      if (filters.site      && t.site_name    !== filters.site)     return false;
-      if (filters.priority  && t.priority     !== filters.priority) return false;
-      if (filters.status    && t.status       !== filters.status)   return false;
-      if (filters.dateFrom  && t.due_date && t.due_date < filters.dateFrom) return false;
-      if (filters.dateTo    && t.due_date && t.due_date > filters.dateTo)   return false;
-      return true;
-    });
-  }
-
-  function getNextDueDate(task) {
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const anchor = task.recurrence_anchor;
-  const rec    = task.recurrence;
-
-  switch (rec) {
-    case "daily": {
-      const d = new Date(today);
-      return d;
-    }
-    case "weekly": {
-      const targetDay = parseInt(anchor, 10); // 0–6
-      const d = new Date(today);
-      const diff = (targetDay - d.getDay() + 7) % 7;
-      d.setDate(d.getDate() + (diff === 0 ? 7 : diff));
-      return d;
-    }
-    case "monthly": {
-      const day = parseInt(anchor, 10);
-      const d = new Date(today.getFullYear(), today.getMonth(), day);
-      if (d <= today) d.setMonth(d.getMonth() + 1);
-      return d;
-    }
-    case "yearly": {
-      if (!anchor) return null;
-      const [mm, dd] = anchor.split("-").map(Number);
-      const d = new Date(today.getFullYear(), mm - 1, dd);
-      if (d <= today) d.setFullYear(d.getFullYear() + 1);
-      return d;
-    }
-    default: return null;
-  }
-}
-
-function formatNextDue(date) {
-  if (!date) return "—";
-  const today = new Date(); today.setHours(0,0,0,0);
-  const diff = Math.round((date - today) / (1000*60*60*24));
-  const label = date.toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" });
-  if (diff === 0) return { label, badge: "Today",    color: "#dc2626", bg: "#fef2f2" };
-  if (diff === 1) return { label, badge: "Tomorrow", color: "#d97706", bg: "#fffbeb" };
-  if (diff <= 7)  return { label, badge: `In ${diff} days`, color: "#2563eb", bg: "#eff6ff" };
-  return { label, badge: null };
-}
-  // ── Task Filter Bar ────────────────────────────────────────────────────────
-  function TaskFilterBar({ filters, onChange, onClear, sites, priorities, statuses, assignees, inline, mobileOpen, onMobileToggle }) {
-  const isActive = Object.values(filters).some(v => v !== "");
-
-  const fields = (
-    <>
-      <div className="tf-group">
-        <span className="tf-label">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          Due
-        </span>
-        <input className="tf-input tf-date" type="date" value={filters.dateFrom} onChange={e => onChange("dateFrom", e.target.value)} title="From"/>
-        <span className="tf-sep-text">–</span>
-        <input className="tf-input tf-date" type="date" value={filters.dateTo} min={filters.dateFrom} onChange={e => onChange("dateTo", e.target.value)} title="To"/>
-      </div>
-      <div className="tf-divider"/>
-      <div className="tf-group">
-        <span className="tf-label">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </span>
-        <select className="tf-select" value={filters.assignedTo} onChange={e => onChange("assignedTo", e.target.value)}>
-          <option value="">All users</option>
-          {assignees.map(a => <option key={a} value={a}>{a}</option>)}
-        </select>
-      </div>
-      {sites.length > 0 && (<><div className="tf-divider"/>
+    const fields = (
+      <>
         <div className="tf-group">
-          <select className="tf-select" value={filters.site} onChange={e => onChange("site", e.target.value)}>
-            <option value="">All sites</option>
-            {sites.map(s => <option key={s} value={s}>{s}</option>)}
+          <span className="tf-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Due
+          </span>
+          <input className="tf-input tf-date" type="date" value={filters.dateFrom} onChange={e => onChange("dateFrom", e.target.value)} title="From"/>
+          <span className="tf-sep-text">–</span>
+          <input className="tf-input tf-date" type="date" value={filters.dateTo} min={filters.dateFrom} onChange={e => onChange("dateTo", e.target.value)} title="To"/>
+        </div>
+        <div className="tf-divider"/>
+        <div className="tf-group">
+          <span className="tf-label">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </span>
+          <select className="tf-select" value={filters.assignedTo} onChange={e => onChange("assignedTo", e.target.value)}>
+            <option value="">All users</option>
+            {assignees.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
-      </>)}
-      <div className="tf-divider"/>
-      <div className="tf-group">
-        <select className="tf-select" value={filters.priority} onChange={e => onChange("priority", e.target.value)}>
-          <option value="">All priorities</option>
-          {priorities.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
-        </select>
-      </div>
-      <div className="tf-divider"/>
-      <div className="tf-group">
-        <select className="tf-select" value={filters.status} onChange={e => onChange("status", e.target.value)}>
-          <option value="">All statuses</option>
-          {statuses.map(s => <option key={s} value={s}>{s.replace("_"," ").replace(/\b\w/g,c=>c.toUpperCase())}</option>)}
-        </select>
-      </div>
-      {isActive && (
-        <button className="tf-clear" onClick={onClear}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          Clear
-        </button>
-      )}
-    </>
-  );
-
-  if (inline) {
-    return (
-      <>
-        <div className="tf-bar-inline">{fields}</div>
-        <div style={{ position:"relative", marginLeft:"auto", flexShrink:0 }}>
-          <button className={`tf-mobile-btn${mobileOpen?" active":""}`} onClick={onMobileToggle}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-              <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
-            </svg>
-            {isActive && <span className="tf-mobile-badge"/>}
-          </button>
-          {mobileOpen && (
-            <div className="tf-popup">
-              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>{fields}</div>
-            </div>
-          )}
+        {sites.length > 0 && (<><div className="tf-divider"/>
+          <div className="tf-group">
+            <select className="tf-select" value={filters.site} onChange={e => onChange("site", e.target.value)}>
+              <option value="">All sites</option>
+              {sites.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        </>)}
+        <div className="tf-divider"/>
+        <div className="tf-group">
+          <select className="tf-select" value={filters.priority} onChange={e => onChange("priority", e.target.value)}>
+            <option value="">All priorities</option>
+            {priorities.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
+          </select>
         </div>
+        <div className="tf-divider"/>
+        <div className="tf-group">
+          <select className="tf-select" value={filters.status} onChange={e => onChange("status", e.target.value)}>
+            <option value="">All statuses</option>
+            {statuses.map(s => <option key={s} value={s}>{s.replace("_"," ").replace(/\b\w/g,c=>c.toUpperCase())}</option>)}
+          </select>
+        </div>
+        {isActive && (
+          <button className="tf-clear" onClick={onClear}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Clear
+          </button>
+        )}
       </>
     );
-  }
 
-  return <div className="tf-bar">{fields}</div>;
-}
-  // ── sub-components ─────────────────────────────────────────────────────────
-  function StatCard({ label, value, icon, accent }) {
-    return (
-      <div className="ap-stat-card" style={{ borderTopColor: accent }}>
-        <div className="ap-stat-icon" style={{ background: accent + "18", color: accent }}>{icon}</div>
-        <div className="ap-stat-body">
-          <div className="ap-stat-value">{value}</div>
-          <div className="ap-stat-label">{label}</div>
+    if (inline) {
+      return (
+        <>
+          <div className="tf-bar-inline">{fields}</div>
+          <div style={{ position:"relative", marginLeft:"auto", flexShrink:0 }}>
+            <button className={`tf-mobile-btn${mobileOpen?" active":""}`} onClick={onMobileToggle}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
+              </svg>
+              {isActive && <span className="tf-mobile-badge"/>}
+            </button>
+            {mobileOpen && (
+              <div className="tf-popup">
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>{fields}</div>
+              </div>
+            )}
+          </div>
+        </>
+      );
+    }
+
+    return <div className="tf-bar">{fields}</div>;
+  }
+    // ── sub-components ─────────────────────────────────────────────────────────
+    function StatCard({ label, value, icon, accent }) {
+      return (
+        <div className="ap-stat-card" style={{ borderTopColor: accent }}>
+          <div className="ap-stat-icon" style={{ background: accent + "18", color: accent }}>{icon}</div>
+          <div className="ap-stat-body">
+            <div className="ap-stat-value">{value}</div>
+            <div className="ap-stat-label">{label}</div>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  function TaskRow({ task, onDelete }) {
-    const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
-    const s = STATUS_STYLES[task.status]     || STATUS_STYLES.pending;
-    return (
-      <tr className="ap-tr">
-        <td className="ap-td ap-td-title">
-          {task.parent_task_id && <span className="ap-child-badge" title="Auto-generated instance">↳</span>}
-          {task.title}
-        </td>
-        <td className="ap-td">{task.assigned_to}</td>
-        <td className="ap-td">{task.site_name || "—"}</td>
-        <td className="ap-td">
-          <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
-            <span className="ap-badge-dot" style={{ background: p.dot }} />{task.priority}
-          </span>
-        </td>
-        <td className="ap-td">
-          <span className="ap-badge" style={{ background: s.bg, color: s.color }}>{task.status?.replace("_"," ")}</span>
-        </td>
-        <td className="ap-td">{task.due_date ? new Date(task.due_date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}) : "—"}</td>
-        <td className="ap-td">
-          {task.is_recurring
-            ? <span className="ap-pill-blue">{anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}</span>
-            : task.parent_task_id
-              ? <span className="ap-pill-orange">instance</span>
-              : <span style={{ color:"#94a3b8", fontSize:12 }}>—</span>}
-        </td>
-        <td className="ap-td">
-          <button className="ap-del-btn" onClick={() => onDelete(task.id)} title="Delete">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-              <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-            </svg>
-          </button>
-        </td>
-      </tr>
-    );
-  }
+    function TaskRow({ task, onDelete }) {
+      const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
+      const s = STATUS_STYLES[task.status]     || STATUS_STYLES.pending;
+      return (
+        <tr className="ap-tr">
+          <td className="ap-td ap-td-title">
+            {task.parent_task_id && <span className="ap-child-badge" title="Auto-generated instance">↳</span>}
+            {task.title}
+          </td>
+          <td className="ap-td">{task.assigned_to}</td>
+          <td className="ap-td">{task.site_name || "—"}</td>
+          <td className="ap-td">
+            <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
+              <span className="ap-badge-dot" style={{ background: p.dot }} />{task.priority}
+            </span>
+          </td>
+          <td className="ap-td">
+            <span className="ap-badge" style={{ background: s.bg, color: s.color }}>{task.status?.replace("_"," ")}</span>
+          </td>
+          <td className="ap-td">{task.due_date ? new Date(task.due_date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}) : "—"}</td>
+          <td className="ap-td">
+            {task.is_recurring
+              ? <span className="ap-pill-blue">{anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}</span>
+              : task.parent_task_id
+                ? <span className="ap-pill-orange">instance</span>
+                : <span style={{ color:"#94a3b8", fontSize:12 }}>—</span>}
+          </td>
+          <td className="ap-td">
+            <button className="ap-del-btn" onClick={() => onDelete(task.id)} title="Delete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+              </svg>
+            </button>
+          </td>
+        </tr>
+      );
+    }
 
-  function TaskCard({ task, onDelete }) {
-    const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
-    const s = STATUS_STYLES[task.status]     || STATUS_STYLES.pending;
-    const schedule = task.is_recurring
-      ? anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence
-      : task.parent_task_id ? "instance" : "one-time";
+    function TaskCard({ task, onDelete }) {
+      const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
+      const s = STATUS_STYLES[task.status]     || STATUS_STYLES.pending;
+      const schedule = task.is_recurring
+        ? anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence
+        : task.parent_task_id ? "instance" : "one-time";
 
-    return (
-      <div className="ap-task-card-mobile">
-        <div className="ap-task-card-head">
-          <div>
-            <div className="ap-task-card-title">
-              {task.parent_task_id && <span className="ap-child-badge" title="Auto-generated instance">↳</span>}
-              {task.title}
+      return (
+        <div className="ap-task-card-mobile">
+          <div className="ap-task-card-head">
+            <div>
+              <div className="ap-task-card-title">
+                {task.parent_task_id && <span className="ap-child-badge" title="Auto-generated instance">↳</span>}
+                {task.title}
+              </div>
+              <div className="ap-task-card-sub">{task.assigned_to || "Unassigned"}</div>
             </div>
-            <div className="ap-task-card-sub">{task.assigned_to || "Unassigned"}</div>
+            <button className="ap-del-btn" onClick={() => onDelete(task.id)} title="Delete" aria-label="Delete task">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+              </svg>
+            </button>
           </div>
-          <button className="ap-del-btn" onClick={() => onDelete(task.id)} title="Delete" aria-label="Delete task">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-              <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-            </svg>
-          </button>
-        </div>
-        <div className="ap-task-card-badges">
-          <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
-            <span className="ap-badge-dot" style={{ background: p.dot }} />{task.priority}
-          </span>
-          <span className="ap-badge" style={{ background: s.bg, color: s.color }}>{task.status?.replace("_"," ")}</span>
-          <span className={task.is_recurring ? "ap-pill-blue" : task.parent_task_id ? "ap-pill-orange" : "ap-mobile-pill-muted"}>{schedule}</span>
-        </div>
-        <div className="ap-task-card-meta">
-          <div><span>Site</span><strong>{task.site_name || "Not assigned"}</strong></div>
-          <div><span>Due Date</span><strong>{task.due_date ? new Date(task.due_date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}) : "Not set"}</strong></div>
-        </div>
-      </div>
-    );
-  }
-
-  function LeaveStatusBadge({ leave }) {
-    const status = computeLeaveStatus(leave);
-    const style = LEAVE_STATUS_STYLES[status];
-    return (
-      <span className="ap-leave-status" style={{ background: style.bg, color: style.color, borderColor: style.border }}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
-  }
-
-  function LeaveRequestCard({ leave, onAction, updating }) {
-    const status = computeLeaveStatus(leave);
-    const days = getLeaveDays(leave);
-    const managedByHead = isSiteEngineerLeave(leave);
-    const canAct = !managedByHead
-      && (leave.admin_approved === null || leave.admin_approved === undefined)
-      && !isFinalLeaveStatus(leave);
-
-    return (
-      <div className="ap-leave-card" style={{ borderLeftColor: status === "approved" ? "#16a34a" : status === "rejected" ? "#dc2626" : "#f59e0b" }}>
-        <div className="ap-leave-card-top">
-          <div>
-            <div className="ap-leave-title">{leave.name || leave.user_name || "Employee"}</div>
-            <div className="ap-leave-sub">{leave.user_name || "No username"}{leave.site_name ? ` - ${leave.site_name}` : ""}</div>
+          <div className="ap-task-card-badges">
+            <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
+              <span className="ap-badge-dot" style={{ background: p.dot }} />{task.priority}
+            </span>
+            <span className="ap-badge" style={{ background: s.bg, color: s.color }}>{task.status?.replace("_"," ")}</span>
+            <span className={task.is_recurring ? "ap-pill-blue" : task.parent_task_id ? "ap-pill-orange" : "ap-mobile-pill-muted"}>{schedule}</span>
           </div>
-          <LeaveStatusBadge leave={leave} />
+          <div className="ap-task-card-meta">
+            <div><span>Site</span><strong>{task.site_name || "Not assigned"}</strong></div>
+            <div><span>Due Date</span><strong>{task.due_date ? new Date(task.due_date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}) : "Not set"}</strong></div>
+          </div>
         </div>
-        <div className="ap-leave-meta">
-          {(leave.role || leave.designation) && <span>{leave.role || leave.designation}</span>}
-          <span>{leave.leave_type || "Leave"}</span>
-          <span>{formatLeaveDate(leave.from_date)} to {formatLeaveDate(leave.to_date)}</span>
-          {days && <span>{days} day{days > 1 ? "s" : ""}</span>}
-        </div>
-        {leave.reason && <p className="ap-leave-reason">{leave.reason}</p>}
-        <div className="ap-leave-approvals">
-          {managedByHead ? (
-            <span className={`ap-approval-pill ${getHeadApprovalClass(leave)}`}>{getHeadApprovalText(leave)}</span>
+      );
+    }
+
+    function LeaveStatusBadge({ leave }) {
+      const status = computeLeaveStatus(leave);
+      const style = LEAVE_STATUS_STYLES[status];
+      return (
+        <span className="ap-leave-status" style={{ background: style.bg, color: style.color, borderColor: style.border }}>
+          {status.charAt(0).toUpperCase() + status.slice(1)}
+        </span>
+      );
+    }
+
+    function LeaveRequestCard({ leave, onAction, updating }) {
+      const status = computeLeaveStatus(leave);
+      const days = getLeaveDays(leave);
+      const managedByHead = isSiteEngineerLeave(leave);
+      const canAct = !managedByHead
+        && (leave.admin_approved === null || leave.admin_approved === undefined)
+        && !isFinalLeaveStatus(leave);
+
+      return (
+        <div className="ap-leave-card" style={{ borderLeftColor: status === "approved" ? "#16a34a" : status === "rejected" ? "#dc2626" : "#f59e0b" }}>
+          <div className="ap-leave-card-top">
+            <div>
+              <div className="ap-leave-title">{leave.name || leave.user_name || "Employee"}</div>
+              <div className="ap-leave-sub">{leave.user_name || "No username"}{leave.site_name ? ` - ${leave.site_name}` : ""}</div>
+            </div>
+            <LeaveStatusBadge leave={leave} />
+          </div>
+          <div className="ap-leave-meta">
+            {(leave.role || leave.designation) && <span>{leave.role || leave.designation}</span>}
+            <span>{leave.leave_type || "Leave"}</span>
+            <span>{formatLeaveDate(leave.from_date)} to {formatLeaveDate(leave.to_date)}</span>
+            {days && <span>{days} day{days > 1 ? "s" : ""}</span>}
+          </div>
+          {leave.reason && <p className="ap-leave-reason">{leave.reason}</p>}
+          <div className="ap-leave-approvals">
+            {managedByHead ? (
+              <span className={`ap-approval-pill ${getHeadApprovalClass(leave)}`}>{getHeadApprovalText(leave)}</span>
+            ) : (
+              <>
+                {leave.admin_approved === true  && <span className="ap-approval-pill ok">Admin: Approved</span>}
+                {leave.admin_approved === false && <span className="ap-approval-pill no">Admin: Rejected</span>}
+                {leave.proxy_user_name ? (
+                  <span className={`ap-approval-pill ${leave.proxy_approved === true ? "ok" : leave.proxy_approved === false ? "no" : ""}`}>
+                    Proxy ({leave.proxy_user_name}): {leave.proxy_approved === true ? "Accepted" : leave.proxy_approved === false ? "Declined" : "Pending"}
+                  </span>
+                ) : (
+                  (leave.admin_approved === null || leave.admin_approved === undefined)
+                    ? <span className="ap-approval-pill">Admin: Pending</span>
+                    : null
+                )}
+              </>
+            )}
+          </div>
+          {leave.rejection_reason && <div className="ap-leave-rejection">{leave.rejection_reason}</div>}
+          {canAct ? (
+            <div className="ap-leave-actions">
+              <button className="ap-btn-approve" disabled={updating === leave.id} onClick={() => onAction(leave, true)}>Approve</button>
+              <button className="ap-btn-reject"  disabled={updating === leave.id} onClick={() => onAction(leave, false)}>Reject</button>
+              {updating === leave.id && <span className="ap-saving">saving...</span>}
+            </div>
+          ) : managedByHead ? (
+            <div className="ap-leave-done">Managed by site head - admin can view status only.</div>
           ) : (
-            <>
-              {leave.admin_approved === true  && <span className="ap-approval-pill ok">Admin: Approved</span>}
-              {leave.admin_approved === false && <span className="ap-approval-pill no">Admin: Rejected</span>}
-              {leave.proxy_user_name ? (
-                <span className={`ap-approval-pill ${leave.proxy_approved === true ? "ok" : leave.proxy_approved === false ? "no" : ""}`}>
-                  Proxy ({leave.proxy_user_name}): {leave.proxy_approved === true ? "Accepted" : leave.proxy_approved === false ? "Declined" : "Pending"}
-                </span>
-              ) : (
-                (leave.admin_approved === null || leave.admin_approved === undefined)
-                  ? <span className="ap-approval-pill">Admin: Pending</span>
-                  : null
-              )}
-            </>
+            <div className="ap-leave-done">Admin decision already submitted.</div>
           )}
         </div>
-        {leave.rejection_reason && <div className="ap-leave-rejection">{leave.rejection_reason}</div>}
-        {canAct ? (
-          <div className="ap-leave-actions">
-            <button className="ap-btn-approve" disabled={updating === leave.id} onClick={() => onAction(leave, true)}>Approve</button>
-            <button className="ap-btn-reject"  disabled={updating === leave.id} onClick={() => onAction(leave, false)}>Reject</button>
-            {updating === leave.id && <span className="ap-saving">saving...</span>}
-          </div>
-        ) : managedByHead ? (
-          <div className="ap-leave-done">Managed by site head - admin can view status only.</div>
-        ) : (
-          <div className="ap-leave-done">Admin decision already submitted.</div>
-        )}
-      </div>
-    );
-  }
+      );
+    }
 
-  // ── Shared task form JSX (used in both assign-task tab and modal) ───────────
-  function TaskForm({ form, handleFormChange, setForm, handleSubmit, submitting, onSuccess }) {
-    const liveAnchor    = form.is_recurring ? buildAnchor(form) : null;
-    const anchorPreview = form.is_recurring && form.recurrence ? anchorDescription(form.recurrence, liveAnchor) : null;
-    const monthDays     = daysInMonth(form.anchor_month);
+    // ── Shared task form JSX (used in both assign-task tab and modal) ───────────
+    function TaskForm({ form, handleFormChange, setForm, handleSubmit, submitting, onSuccess }) {
+      const liveAnchor    = form.is_recurring ? buildAnchor(form) : null;
+      const anchorPreview = form.is_recurring && form.recurrence ? anchorDescription(form.recurrence, liveAnchor) : null;
+      const monthDays     = daysInMonth(form.anchor_month);
 
-    return (
-      <div className="ap-form-grid">
-        <div className="ap-form-row ap-col-2">
-          <div className="ap-field">
-            <label className="ap-label">Task Title <span className="ap-req">*</span></label>
-            <input className="ap-input" name="title" value={form.title} onChange={handleFormChange} placeholder="e.g. Inspect electrical panel" />
-          </div>
-          <div className="ap-field">
-            <label className="ap-label">Assign To (username) <span className="ap-req">*</span></label>
-            <input className="ap-input" name="assigned_to" value={form.assigned_to} onChange={handleFormChange} placeholder="e.g. john_doe" />
-          </div>
-        </div>
-        <div className="ap-form-row ap-col-1">
-          <div className="ap-field">
-            <label className="ap-label">Description</label>
-            <textarea className="ap-input ap-textarea" name="description" value={form.description} onChange={handleFormChange} placeholder="Add task details, instructions, or notes…" rows={3} />
-          </div>
-        </div>
-        <div className="ap-form-row ap-col-3">
-          <div className="ap-field">
-            <label className="ap-label">Site Name</label>
-            <input className="ap-input" name="site_name" value={form.site_name} onChange={handleFormChange} placeholder="e.g. Site A" />
-          </div>
-          <div className="ap-field">
-            <label className="ap-label">Priority</label>
-            <select className="ap-input ap-select" name="priority" value={form.priority} onChange={handleFormChange}>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
-          <div className="ap-field">
-            <label className="ap-label">Initial Status</label>
-            <select className="ap-input ap-select" name="status" value={form.status} onChange={handleFormChange}>
-              <option value="pending">Pending</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-            </select>
-          </div>
-        </div>
-        <div className="ap-form-row ap-col-2">
-          <div className="ap-field">
-            <label className="ap-label">Start / Due Date</label>
-            <input className="ap-input" type="date" name="due_date" value={form.due_date} onChange={handleFormChange} />
-          </div>
-          <div className="ap-field ap-field-center">
-            <label className="ap-label">Recurring Task</label>
-            <label className="ap-toggle">
-              <input type="checkbox" name="is_recurring" checked={form.is_recurring} onChange={handleFormChange} />
-              <span className="ap-toggle-track"><span className="ap-toggle-thumb" /></span>
-              <span className="ap-toggle-label">{form.is_recurring ? "Yes" : "No"}</span>
-            </label>
-          </div>
-        </div>
-        {form.is_recurring && (
-          <>
-            <div className="ap-recurrence-divider">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-              Recurrence Schedule
+      return (
+        <div className="ap-form-grid">
+          <div className="ap-form-row ap-col-2">
+            <div className="ap-field">
+              <label className="ap-label">Task Title <span className="ap-req">*</span></label>
+              <input className="ap-input" name="title" value={form.title} onChange={handleFormChange} placeholder="e.g. Inspect electrical panel" />
             </div>
-            <div className="ap-form-row ap-col-2">
-              <div className="ap-field">
-                <label className="ap-label">Recurrence Pattern <span className="ap-req">*</span></label>
-                <div className="ap-recurrence-pills">
-                  {["daily","weekly","monthly","yearly"].map((r) => (
-                    <button key={r} type="button" className={`ap-rpill${form.recurrence === r ? " active" : ""}`} onClick={() => setForm((p) => ({ ...p, recurrence: r }))}>
-                      {r === "daily"   && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>}
-                      {r === "weekly"  && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}
-                      {r === "monthly" && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/></svg>}
-                      {r === "yearly"  && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>}
-                      {r.charAt(0).toUpperCase() + r.slice(1)}
-                    </button>
-                  ))}
-                </div>
+            <div className="ap-field">
+              <label className="ap-label">Assign To (username) <span className="ap-req">*</span></label>
+              <input className="ap-input" name="assigned_to" value={form.assigned_to} onChange={handleFormChange} placeholder="e.g. john_doe" />
+            </div>
+          </div>
+          <div className="ap-form-row ap-col-2">
+            <div className="ap-field ap-field-center">
+              <label className="ap-label">Reschedule Request</label>
+              <label className="ap-toggle">
+                <input
+                  type="checkbox"
+                  name="reschedule_allowed"
+                  checked={form.reschedule_allowed || false}
+                  onChange={handleFormChange}
+                />
+                <span className="ap-toggle-track"><span className="ap-toggle-thumb" /></span>
+                <span className="ap-toggle-label">
+                  {form.reschedule_allowed ? "Yes — employee can request reschedule" : "No"}
+                </span>
+              </label>
+            </div>
+          </div>
+          <div className="ap-form-row ap-col-1">
+            <div className="ap-field">
+              <label className="ap-label">Description</label>
+              <textarea className="ap-input ap-textarea" name="description" value={form.description} onChange={handleFormChange} placeholder="Add task details, instructions, or notes…" rows={3} />
+            </div>
+          </div>
+          <div className="ap-form-row ap-col-3">
+            <div className="ap-field">
+              <label className="ap-label">Site Name</label>
+              <input className="ap-input" name="site_name" value={form.site_name} onChange={handleFormChange} placeholder="e.g. Site A" />
+            </div>
+            <div className="ap-field">
+              <label className="ap-label">Priority</label>
+              <select className="ap-input ap-select" name="priority" value={form.priority} onChange={handleFormChange}>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div className="ap-field">
+              <label className="ap-label">Initial Status</label>
+              <select className="ap-input ap-select" name="status" value={form.status} onChange={handleFormChange}>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+          </div>
+          <div className="ap-form-row ap-col-2">
+            <div className="ap-field">
+              <label className="ap-label">Start / Due Date</label>
+              <input className="ap-input" type="date" name="due_date" value={form.due_date} onChange={handleFormChange} />
+            </div>
+            <div className="ap-field ap-field-center">
+              <label className="ap-label">Recurring Task</label>
+              <label className="ap-toggle">
+                <input type="checkbox" name="is_recurring" checked={form.is_recurring} onChange={handleFormChange} />
+                <span className="ap-toggle-track"><span className="ap-toggle-thumb" /></span>
+                <span className="ap-toggle-label">{form.is_recurring ? "Yes" : "No"}</span>
+              </label>
+            </div>
+          </div>
+          {form.is_recurring && (
+            <>
+              <div className="ap-recurrence-divider">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                Recurrence Schedule
               </div>
-            </div>
-            {form.recurrence === "weekly" && (
-              <div className="ap-form-row ap-col-1">
+              <div className="ap-form-row ap-col-2">
                 <div className="ap-field">
-                  <label className="ap-label">Repeat on which day?</label>
-                  <div className="ap-weekday-grid">
-                    {WEEKDAYS.map((day, i) => (
-                      <button key={day} type="button" className={`ap-wday${String(form.anchor_weekday) === String(i) ? " active" : ""}`} onClick={() => setForm((p) => ({ ...p, anchor_weekday: String(i) }))}>
-                        {day.slice(0,3)}
+                  <label className="ap-label">Recurrence Pattern <span className="ap-req">*</span></label>
+                  <div className="ap-recurrence-pills">
+                    {["daily","weekly","monthly","yearly"].map((r) => (
+                      <button key={r} type="button" className={`ap-rpill${form.recurrence === r ? " active" : ""}`} onClick={() => setForm((p) => ({ ...p, recurrence: r }))}>
+                        {r === "daily"   && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>}
+                        {r === "weekly"  && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}
+                        {r === "monthly" && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/></svg>}
+                        {r === "yearly"  && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>}
+                        {r.charAt(0).toUpperCase() + r.slice(1)}
                       </button>
                     ))}
                   </div>
                 </div>
               </div>
-            )}
-            {form.recurrence === "monthly" && (
-              <div className="ap-form-row ap-col-2">
-                <div className="ap-field">
-                  <label className="ap-label">Repeat on day of month</label>
-                  <select className="ap-input ap-select" name="anchor_day" value={form.anchor_day} onChange={handleFormChange}>
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}{ordinal(d)}</option>)}
-                  </select>
-                </div>
-              </div>
-            )}
-            {form.recurrence === "yearly" && (
-              <div className="ap-form-row ap-col-2">
-                <div className="ap-field">
-                  <label className="ap-label">Month</label>
-                  <select className="ap-input ap-select" name="anchor_month" value={form.anchor_month} onChange={handleFormChange}>
-                    {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                  </select>
-                </div>
-                <div className="ap-field">
-                  <label className="ap-label">Day</label>
-                  <select className="ap-input ap-select" name="anchor_month_day" value={form.anchor_month_day} onChange={handleFormChange}>
-                    {Array.from({ length: monthDays }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}{ordinal(d)}</option>)}
-                  </select>
-                </div>
-              </div>
-            )}
-            {anchorPreview && (
-              <div className="ap-anchor-preview">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                This task will auto-generate a new instance <strong>{anchorPreview}</strong>. If the previous instance is still pending, a warning note will be added.
-              </div>
-            )}
-          </>
-        )}
-        <div className="ap-form-row ap-col-1 ap-form-actions">
-          <button className="ap-btn-secondary" onClick={() => setForm({ ...EMPTY_FORM })}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-            Reset
-          </button>
-          <button className="ap-btn-primary" onClick={async () => { const ok = await handleSubmit(); if (ok && onSuccess) onSuccess(); }} disabled={submitting}>
-            {submitting ? <><span className="ap-mini-spinner" /> Assigning…</> : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg> Assign Task</>}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── main component ─────────────────────────────────────────────────────────
-  export default function AdminPortal() {
-    const [user, setUser]               = useState(null);
-    const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === "undefined" ? true : window.innerWidth > 760);
-    const [activeTab, setActiveTab]     = useState("dashboard");
-    const [showTaskModal, setShowTaskModal] = useState(false);
-
-    const [employees, setEmployees]       = useState([]);
-    const [loadingEmployees, setLoadingEmployees] = useState(false);
-    const [editingEmployee, setEditingEmployee]   = useState(null); // holds employee object when editing
-    const [empForm, setEmpForm] = useState({ name:"", user_name:"", password:"", department:"", designation:"" });
-    const [empSubmitting, setEmpSubmitting] = useState(false);
-    
-
-    const [allTasks, setAllTasks]         = useState([]);
-    const [loadingTasks, setLoadingTasks] = useState(false);
-    const [allLeaves, setAllLeaves]       = useState([]);
-    const [loadingLeaves, setLoadingLeaves] = useState(false);
-    const [updatingLeaveId, setUpdatingLeaveId] = useState(null);
-    const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
-    const [form, setForm]             = useState(EMPTY_FORM);
-    const [submitting, setSubmitting] = useState(false);
-    const [toast, setToast]           = useState(null);
-
-    // Task filters
-    const [taskFilters, setTaskFilters] = useState({ ...EMPTY_TASK_FILTERS });
-        
-    const EMPTY_RECURRING_FILTERS = { dueSoon: false, site: "", assignedTo: "", recurrence: "" };
-        const [recurringFilters, setRecurringFilters] = useState({ ...EMPTY_RECURRING_FILTERS })
-
-    useEffect(() => {
-      const s = localStorage.getItem("user");
-      if (s) setUser(JSON.parse(s));
-    }, []);
-
-    const fetchAllTasks = useCallback(async () => {
-      setLoadingTasks(true);
-      const { data } = await supabase.from("tasks").select("*").order("created_at",{ ascending:false });
-      setAllTasks(data || []);
-      setLoadingTasks(false);
-    }, []);
-
-    const fetchAllLeaves = useCallback(async () => {
-      setLoadingLeaves(true);
-      const { data, error } = await supabase.from("leaves").select("*").order("created_at",{ ascending:false });
-      if (error) {
-        showToast("error","Failed to load leaves. " + error.message);
-      } else {
-        const leaves = data || [];
-        const userNames = [...new Set(leaves.map((l) => l.user_name).filter(Boolean))];
-        let siteNames = [...new Set(leaves.map((l) => l.site_name).filter(Boolean))];
-        let usersByName = {};
-        let headsBySite = {};
-
-        if (userNames.length) {
-          const { data: users } = await supabase.from("users").select("user_name, role, site_name").in("user_name", userNames);
-          usersByName = (users || []).reduce((map, item) => ({ ...map, [item.user_name]: item }), {});
-          siteNames = [...new Set([...siteNames, ...(users || []).map((u) => u.site_name).filter(Boolean)])];
-        }
-        if (siteNames.length) {
-          const { data: heads } = await supabase.from("site_details").select("site_name, user_name, role").in("site_name", siteNames).eq("role", "Project Head");
-          headsBySite = (heads || []).reduce((map, item) => ({ ...map, [item.site_name]: [...(map[item.site_name] || []), item.user_name] }), {});
-        }
-
-        setAllLeaves(leaves.map((leave) => ({
-          ...leave,
-          role:            leave.role || usersByName[leave.user_name]?.role || "",
-          site_name:       leave.site_name || usersByName[leave.user_name]?.site_name || "",
-          head_user_names: headsBySite[leave.site_name || usersByName[leave.user_name]?.site_name]?.join(", ") || "",
-        })));
-      }
-      setLoadingLeaves(false);
-    }, []);
-
-    const fetchEmployees = useCallback(async () => {
-      setLoadingEmployees(true);
-      const { data } = await supabase.from("users_detail").select("*").order("name", { ascending: true });
-      setEmployees(data || []);
-      setLoadingEmployees(false);
-    }, []);
-
-    const handleEmpFormChange = (e) => {
-    const { name, value } = e.target;
-    setEmpForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleEmpSubmit = async () => {
-    if (!empForm.name.trim() || !empForm.user_name.trim() || !empForm.password.trim() || !empForm.department.trim() || !empForm.designation.trim())
-      return showToast("error", "Please fill all fields.");
-
-    setEmpSubmitting(true);
-    if (editingEmployee) {
-    const { error } = await supabase.from("user_details").update({
-      name:        empForm.name.trim(),
-      user_name:   empForm.user_name.trim(),
-      password:    empForm.password.trim(),
-      department:  empForm.department.trim(),
-      designation: empForm.designation.trim(),
-    }).eq("id", editingEmployee.id);
-    setEmpSubmitting(false);
-    if (error) return showToast("error", "Failed to update. " + error.message);
-    showToast("success", "Employee updated successfully!");
-  } else {
-    const { error } = await supabase.from("user_details").insert([{
-      name:        empForm.name.trim(),
-      user_name:   empForm.user_name.trim(),
-      password:    empForm.password.trim(),
-      department:  empForm.department.trim(),
-      designation: empForm.designation.trim(),
-    }]);
-    setEmpSubmitting(false);
-    if (error) return showToast("error", "Failed to save. " + error.message);
-    showToast("success", "Employee saved successfully!");
-  }
-    setEmpForm({ name:"", user_name:"", password:"", department:"", designation:"" });
-    setEditingEmployee(null);
-    fetchEmployees();
-    setActiveTab("manage-employees");
-  };
-
-  const handleEmpEdit = (emp) => {
-    setEditingEmployee(emp);
-    setEmpForm({ name: emp.name, user_name: emp.user_name, password: emp.password || "", department: emp.department || "", designation: emp.designation || "" });
-    setActiveTab("add-employee");
-  };
-
-  const handleEmpDelete = async (id) => {
-    if (!window.confirm("Delete this employee?")) return;
-    await supabase.from("users_detail").delete().eq("id", id);
-    setEmployees(p => p.filter(e => e.id !== id));
-    showToast("success", "Employee deleted.");
-  };
-
-    useEffect(() => { if (user) { fetchAllTasks(); fetchAllLeaves(); fetchEmployees(); } }, [user, fetchAllTasks, fetchAllLeaves, fetchEmployees]);
-
-    useRecurringTasks(user, fetchAllTasks);
-
-    const showToast = (type, msg) => {
-      setToast({ type, msg });
-      setTimeout(() => setToast(null), 3500);
-    };
-
-    const handleNavClick = (key) => {
-      setActiveTab(key);
-      if (typeof window !== "undefined" && window.innerWidth <= 760) setSidebarOpen(false);
-    };
-
-    const handleFormChange = (e) => {
-      const { name, value, type, checked } = e.target;
-      setForm((prev) => ({
-        ...prev,
-        [name]: type === "checkbox" ? checked : value,
-        ...(name === "is_recurring" && !checked ? { recurrence: "" } : {}),
-      }));
-    };
-
-    const handleSubmit = async () => {
-      if (!form.title.trim())       return showToast("error","Title is required.");
-      if (!form.assigned_to.trim()) return showToast("error","Assigned To is required.");
-      if (form.is_recurring && !form.recurrence) return showToast("error","Please select a recurrence pattern.");
-
-      const anchor = form.is_recurring ? buildAnchor(form) : null;
-      setSubmitting(true);
-      const payload = {
-        title:             form.title.trim(),
-        description:       form.description.trim() || null,
-        assigned_to:       form.assigned_to.trim(),
-        site_name:         form.site_name.trim() || null,
-        assigned_by:       user.user_name,
-        priority:          form.priority,
-        status:            form.status,
-        due_date:          form.due_date || null,
-        is_recurring:      form.is_recurring,
-        recurrence:        form.is_recurring ? form.recurrence : null,
-        recurrence_anchor: anchor,
-        last_generated_date: null,
-        parent_task_id:    null,
-      };
-      const { error } = await supabase.from("tasks").insert([payload]);
-      setSubmitting(false);
-      if (error) {
-        showToast("error","Failed to assign task. " + error.message);
-        return false;
-      } else {
-        const desc = form.is_recurring ? anchorDescription(form.recurrence, anchor) : null;
-        showToast("success", `Task "${form.title}" assigned${desc ? ` — repeats ${desc}` : ""}!`);
-        setForm({ ...EMPTY_FORM });
-        fetchAllTasks();
-        return true;
-      }
-    };
-
-    const handleDelete = async (id) => {
-      if (!window.confirm("Delete this task?")) return;
-      await supabase.from("tasks").delete().eq("id", id);
-      setAllTasks((p) => p.filter((t) => t.id !== id));
-      showToast("success","Task deleted.");
-    };
-
-    const handleLeaveAction = async (leave, approved) => {
-      const reason = approved ? null : window.prompt("Reason for rejecting this leave?") || "Rejected by admin";
-      setUpdatingLeaveId(leave.id);
-      const payload = {
-        admin_approved:   approved,
-        approved_by:      approved ? user.user_name : null,
-        rejection_reason: approved ? null : reason,
-        status:           approved ? "Approved" : "Rejected",
-      };
-      const { error } = await supabase.from("leaves").update(payload).eq("id", leave.id);
-      setUpdatingLeaveId(null);
-      if (error) { showToast("error","Failed to update leave. " + error.message); return; }
-      setAllLeaves((prev) => prev.map((item) => item.id === leave.id ? { ...item, ...payload } : item));
-      showToast("success", approved ? "Leave approved." : "Leave rejected.");
-    };
-
-    if (!user) return <h2 style={{ textAlign:"center", marginTop:80, color:"#94a3b8" }}>Loading…</h2>;
-
-    const activeItem = NAV_ITEMS.find((n) => n.key === activeTab);
-    const total      = allTasks.length;
-    const pending    = allTasks.filter((t) => t.status === "pending").length;
-    const inProgress = allTasks.filter((t) => t.status === "in_progress").length;
-    const completed  = allTasks.filter((t) => t.status === "completed").length;
-    const leaveTotal = allLeaves.length;
-    const leavePending = allLeaves.filter((l) => computeLeaveStatus(l) === "pending").length;
-    const leavePendingForAdmin = allLeaves.filter((l) => computeLeaveStatus(l) === "pending" && !isSiteEngineerLeave(l)).length;
-    const leaveApproved = allLeaves.filter((l) => computeLeaveStatus(l) === "approved").length;
-    const leaveRejected = allLeaves.filter((l) => computeLeaveStatus(l) === "rejected").length;
-    const recentLeaves = allLeaves.slice(0, 4);
-
-    // Filtered tasks for the all-tasks tab
-    const filteredTasks    = applyTaskFilters(allTasks, taskFilters);
-    const hasActiveFilters = Object.values(taskFilters).some(v => v !== "");
-
-    const tfSites      = [...new Set(applyTaskFilters(allTasks, { ...taskFilters, site: "" }).map(t => t.site_name).filter(Boolean))].sort();
-    const tfPriorities = [...new Set(applyTaskFilters(allTasks, { ...taskFilters, priority: "" }).map(t => t.priority).filter(Boolean))].sort();
-    const tfStatuses   = [...new Set(applyTaskFilters(allTasks, { ...taskFilters, status: "" }).map(t => t.status).filter(Boolean))].sort();
-    const tfAssignees = [...new Set(applyTaskFilters(allTasks, { ...taskFilters, assignedTo: "" }).map(t => t.assigned_to).filter(Boolean))].sort();
-
-
-    const recurringTasks = allTasks.filter(t => t.is_recurring);
-
-    const filteredRecurring = recurringTasks.filter(t => {
-      if (recurringFilters.site       && t.site_name   !== recurringFilters.site)      return false;
-      if (recurringFilters.assignedTo && t.assigned_to !== recurringFilters.assignedTo) return false;
-      if (recurringFilters.recurrence && t.recurrence  !== recurringFilters.recurrence) return false;
-      if (recurringFilters.dueSoon) {
-        const next = getNextDueDate(t);
-        if (!next) return false;
-        const diff = Math.round((next - new Date().setHours(0,0,0,0)) / (1000*60*60*24));
-        if (diff > 7) return false;
-      }
-      return true;
-    });
-
-    const rfSites     = [...new Set(recurringTasks.map(t => t.site_name).filter(Boolean))].sort();
-    const rfAssignees = [...new Set(recurringTasks.map(t => t.assigned_to).filter(Boolean))].sort();
-
-    const renderContent = () => {
-      switch (activeTab) {
-
-        case "dashboard":
-          return (
-            <>
-              <div className="ap-stats-row">
-                <StatCard label="Total Tasks" value={total} accent="#2563eb" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>}/>
-                <StatCard label="Pending" value={pending} accent="#f59e0b" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>}/>
-                <StatCard label="In Progress" value={inProgress} accent="#6366f1" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>}/>
-                <StatCard label="Completed" value={completed} accent="#16a34a" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}/>
-                <StatCard label="Pending Admin Leaves" value={leavePendingForAdmin} accent="#dc2626" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}/>
-              </div>
-              <div className="ap-leave-summary">
-                <div><span>Total leave requests</span><strong>{leaveTotal}</strong></div>
-                <div><span>Approved</span><strong>{leaveApproved}</strong></div>
-                <div><span>Rejected</span><strong>{leaveRejected}</strong></div>
-                <div><span>Pending admin action</span><strong>{leavePendingForAdmin}</strong></div>
-              </div>
-              {recentLeaves.length > 0 && (
-                <div className="ap-recent-leaves">
-                  <div className="ap-section-title">Recent Leave Requests</div>
-                  <div className="ap-recent-list">
-                    {recentLeaves.map((leave) => (
-                      <div key={leave.id} className="ap-recent-leave">
-                        <div>
-                          <strong>{leave.name || leave.user_name || "Employee"}</strong>
-                          <span>{leave.leave_type} - {formatLeaveDate(leave.from_date)} to {formatLeaveDate(leave.to_date)}</span>
-                        </div>
-                        <LeaveStatusBadge leave={leave} />
-                      </div>
-                    ))}
+              {form.recurrence === "weekly" && (
+                <div className="ap-form-row ap-col-1">
+                  <div className="ap-field">
+                    <label className="ap-label">Repeat on which day?</label>
+                    <div className="ap-weekday-grid">
+                      {WEEKDAYS.map((day, i) => (
+                        <button key={day} type="button" className={`ap-wday${String(form.anchor_weekday) === String(i) ? " active" : ""}`} onClick={() => setForm((p) => ({ ...p, anchor_weekday: String(i) }))}>
+                          {day.slice(0,3)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
-              <div className="ap-dash-hint">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                Recurring tasks auto-generate new instances on their scheduled day. If the previous instance is incomplete, the new one includes a warning note.
-              </div>
+              {form.recurrence === "monthly" && (
+                <div className="ap-form-row ap-col-2">
+                  <div className="ap-field">
+                    <label className="ap-label">Repeat on day of month</label>
+                    <select className="ap-input ap-select" name="anchor_day" value={form.anchor_day} onChange={handleFormChange}>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}{ordinal(d)}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+              {form.recurrence === "yearly" && (
+                <div className="ap-form-row ap-col-2">
+                  <div className="ap-field">
+                    <label className="ap-label">Month</label>
+                    <select className="ap-input ap-select" name="anchor_month" value={form.anchor_month} onChange={handleFormChange}>
+                      {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div className="ap-field">
+                    <label className="ap-label">Day</label>
+                    <select className="ap-input ap-select" name="anchor_month_day" value={form.anchor_month_day} onChange={handleFormChange}>
+                      {Array.from({ length: monthDays }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}{ordinal(d)}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+              {anchorPreview && (
+                <div className="ap-anchor-preview">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                  This task will auto-generate a new instance <strong>{anchorPreview}</strong>. If the previous instance is still pending, a warning note will be added.
+                </div>
+              )}
+            </>
+          )}
+          <div className="ap-form-row ap-col-1 ap-form-actions">
+            <button className="ap-btn-secondary" onClick={() => setForm({ ...EMPTY_FORM })}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+              Reset
+            </button>
+            <button className="ap-btn-primary" onClick={async () => { const ok = await handleSubmit(); if (ok && onSuccess) onSuccess(); }} disabled={submitting}>
+              {submitting ? <><span className="ap-mini-spinner" /> Assigning…</> : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg> Assign Task</>}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    const RESCHED_STATUS_STYLES = {
+    pending:  { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
+    approved: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+    rejected: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca" },
+  };
+  
+  function RescheduleRequestCard({ req, onAction, updating }) {
+    const ss = RESCHED_STATUS_STYLES[req.status] || RESCHED_STATUS_STYLES.pending;
+    const fmtDate = d => d ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" }) : "—";
+    const taskTitle = req.tasks?.title || `Task #${req.task_id}`;
+    const siteName  = req.tasks?.site_name;
+  
+    return (
+      <div className="ap-leave-card" style={{ borderLeftColor: req.status==="approved" ? "#16a34a" : req.status==="rejected" ? "#dc2626" : "#f59e0b" }}>
+        <div className="ap-leave-card-top">
+          <div>
+            <div className="ap-leave-title">{req.requested_by}</div>
+            <div className="ap-leave-sub">
+              Task: <strong>{taskTitle}</strong>
+              {siteName && ` · ${siteName}`}
+            </div>
+          </div>
+          <span className="ap-leave-status" style={{ background: ss.bg, color: ss.color, borderColor: ss.border }}>
+            {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+          </span>
+        </div>
+  
+        <div className="ap-leave-meta">
+          <span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:3}}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Current: {fmtDate(req.current_due)}
+          </span>
+          <span style={{ color:"#2563eb", background:"#eff6ff", borderColor:"#bfdbfe" }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:3}}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            Requested: {fmtDate(req.requested_date)}
+          </span>
+          <span>
+            {new Date(req.created_at).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })}
+          </span>
+        </div>
+  
+        {req.reason && (
+          <p className="ap-leave-reason">"{req.reason}"</p>
+        )}
+  
+        {req.admin_note && (
+          <div className="ap-leave-rejection">{req.admin_note}</div>
+        )}
+  
+        {req.status === "pending" ? (
+          <div className="ap-leave-actions">
+            <button
+              className="ap-btn-approve"
+              disabled={updating === req.id}
+              onClick={() => onAction(req, true)}
+            >
+              Approve & Update Due Date
+            </button>
+            <button
+              className="ap-btn-reject"
+              disabled={updating === req.id}
+              onClick={() => onAction(req, false)}
+            >
+              Reject
+            </button>
+            {updating === req.id && <span className="ap-saving">saving…</span>}
+          </div>
+        ) : (
+          <div className="ap-leave-done">
+            {req.status === "approved"
+              ? `✓ Approved by ${req.actioned_by} — due date updated to ${fmtDate(req.requested_date)}`
+              : `✗ Rejected by ${req.actioned_by}`}
+          </div>
+        )}
+      </div>
+    );
+  }
+    // ── main component ─────────────────────────────────────────────────────────
+    export default function AdminPortal() {
+      const [allReschedules, setAllReschedules]         = useState([]);
+      const [loadingReschedules, setLoadingReschedules] = useState(false);
+      const [updatingRescheduleId, setUpdatingRescheduleId] = useState(null);
+
+      const [user, setUser]               = useState(null);
+      const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === "undefined" ? true : window.innerWidth > 760);
+      const [activeTab, setActiveTab]     = useState("dashboard");
+      const [showTaskModal, setShowTaskModal] = useState(false);
+      const [rejectModal, setRejectModal] = useState(null);
+
+      const [employees, setEmployees]       = useState([]);
+      const [loadingEmployees, setLoadingEmployees] = useState(false);
+      const [editingEmployee, setEditingEmployee]   = useState(null); // holds employee object when editing
+      const [empForm, setEmpForm] = useState({ name:"", user_name:"", password:"", department:"", designation:"" });
+      const [empSubmitting, setEmpSubmitting] = useState(false);
+      
+
+      const [allTasks, setAllTasks]         = useState([]);
+      const [loadingTasks, setLoadingTasks] = useState(false);
+      const [allLeaves, setAllLeaves]       = useState([]);
+      const [loadingLeaves, setLoadingLeaves] = useState(false);
+      const [updatingLeaveId, setUpdatingLeaveId] = useState(null);
+      const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+      const [form, setForm]             = useState(EMPTY_FORM);
+      const [submitting, setSubmitting] = useState(false);
+      const [toast, setToast]           = useState(null);
+
+      // Task filters
+      const [taskFilters, setTaskFilters] = useState({ ...EMPTY_TASK_FILTERS });
+          
+      const EMPTY_RECURRING_FILTERS = { dueSoon: false, site: "", assignedTo: "", recurrence: "" };
+          const [recurringFilters, setRecurringFilters] = useState({ ...EMPTY_RECURRING_FILTERS })
+
+      useEffect(() => {
+        const s = localStorage.getItem("user");
+        if (s) setUser(JSON.parse(s));
+      }, []);
+
+      const fetchAllTasks = useCallback(async () => {
+        setLoadingTasks(true);
+        const { data } = await supabase.from("tasks").select("*").order("created_at",{ ascending:false });
+        setAllTasks(data || []);
+        setLoadingTasks(false);
+      }, []);
+      
+      const fetchAllReschedules = useCallback(async () => {
+        setLoadingReschedules(true);
+        const { data } = await supabase
+          .from("reschedule_requests")
+          .select("*, tasks(title, site_name)")
+          .order("created_at", { ascending: false });
+        setAllReschedules(data || []);
+        setLoadingReschedules(false);
+      }, []);
+  
+      const fetchAllLeaves = useCallback(async () => {
+        setLoadingLeaves(true);
+        const { data, error } = await supabase.from("leaves").select("*").order("created_at",{ ascending:false });
+        if (error) {
+          showToast("error","Failed to load leaves. " + error.message);
+        } else {
+          const leaves = data || [];
+          const userNames = [...new Set(leaves.map((l) => l.user_name).filter(Boolean))];
+          let siteNames = [...new Set(leaves.map((l) => l.site_name).filter(Boolean))];
+          let usersByName = {};
+          let headsBySite = {};
+
+          if (userNames.length) {
+            const { data: users } = await supabase.from("users").select("user_name, role, site_name").in("user_name", userNames);
+            usersByName = (users || []).reduce((map, item) => ({ ...map, [item.user_name]: item }), {});
+            siteNames = [...new Set([...siteNames, ...(users || []).map((u) => u.site_name).filter(Boolean)])];
+          }
+          if (siteNames.length) {
+            const { data: heads } = await supabase.from("site_details").select("site_name, user_name, role").in("site_name", siteNames).eq("role", "Project Head");
+            headsBySite = (heads || []).reduce((map, item) => ({ ...map, [item.site_name]: [...(map[item.site_name] || []), item.user_name] }), {});
+          }
+
+          setAllLeaves(leaves.map((leave) => ({
+            ...leave,
+            role:            leave.role || usersByName[leave.user_name]?.role || "",
+            site_name:       leave.site_name || usersByName[leave.user_name]?.site_name || "",
+            head_user_names: headsBySite[leave.site_name || usersByName[leave.user_name]?.site_name]?.join(", ") || "",
+          })));
+        }
+        setLoadingLeaves(false);
+      }, []);
+
+      const fetchEmployees = useCallback(async () => {
+        setLoadingEmployees(true);
+        const { data } = await supabase.from("user_details").select("*").order("name", { ascending: true });
+        setEmployees(data || []);
+        setLoadingEmployees(false);
+      }, []);
+
+      const handleEmpFormChange = (e) => {
+      const { name, value } = e.target;
+      setEmpForm(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleEmpSubmit = async () => {
+      if (!empForm.name.trim() || !empForm.user_name.trim() || !empForm.password.trim() || !empForm.department.trim() || !empForm.designation.trim())
+        return showToast("error", "Please fill all fields.");
+
+      setEmpSubmitting(true);
+      if (editingEmployee) {
+      const { error } = await supabase.from("user_details").update({
+        name:        empForm.name.trim(),
+        user_name:   empForm.user_name.trim(),
+        password:    empForm.password.trim(),
+        department:  empForm.department.trim(),
+        designation: empForm.designation.trim(),
+      }).eq("id", editingEmployee.id);
+      setEmpSubmitting(false);
+      if (error) return showToast("error", "Failed to update. " + error.message);
+      showToast("success", "Employee updated successfully!");
+    } else {
+      const { error } = await supabase.from("user_details").insert([{
+        name:        empForm.name.trim(),
+        user_name:   empForm.user_name.trim(),
+        password:    empForm.password.trim(),
+        department:  empForm.department.trim(),
+        designation: empForm.designation.trim(),
+      }]);
+      setEmpSubmitting(false);
+      if (error) return showToast("error", "Failed to save. " + error.message);
+      showToast("success", "Employee saved successfully!");
+    }
+      setEmpForm({ name:"", user_name:"", password:"", department:"", designation:"" });
+      setEditingEmployee(null);
+      fetchEmployees();
+      setActiveTab("manage-employees");
+    };
+
+    const handleEmpEdit = (emp) => {
+      setEditingEmployee(emp);
+      setEmpForm({ name: emp.name, user_name: emp.user_name, password: emp.password || "", department: emp.department || "", designation: emp.designation || "" });
+      setActiveTab("add-employee");
+    };
+
+    const handleEmpDelete = async (id) => {
+      if (!window.confirm("Delete this employee?")) return;
+      await supabase.from("user_details").delete().eq("id", id);
+      setEmployees(p => p.filter(e => e.id !== id));
+      showToast("success", "Employee deleted.");
+    };
+
+    useEffect(() => {
+        if (user) { fetchAllTasks(); fetchAllLeaves(); fetchEmployees(); fetchAllReschedules(); }
+      }, [user, fetchAllTasks, fetchAllLeaves, fetchEmployees, fetchAllReschedules]);
+
+      useRecurringTasks(user, fetchAllTasks);
+
+      const showToast = (type, msg) => {
+        setToast({ type, msg });
+        setTimeout(() => setToast(null), 3500);
+      };
+
+      const handleNavClick = (key) => {
+        setActiveTab(key);
+        if (typeof window !== "undefined" && window.innerWidth <= 760) setSidebarOpen(false);
+      };
+
+      const handleFormChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setForm((prev) => ({
+          ...prev,
+          [name]: type === "checkbox" ? checked : value,
+          ...(name === "is_recurring" && !checked ? { recurrence: "" } : {}),
+        }));
+      };
+
+      const handleSubmit = async () => {
+        if (!form.title.trim())       return showToast("error","Title is required.");
+        if (!form.assigned_to.trim()) return showToast("error","Assigned To is required.");
+        if (form.is_recurring && !form.recurrence) return showToast("error","Please select a recurrence pattern.");
+
+        const anchor = form.is_recurring ? buildAnchor(form) : null;
+        setSubmitting(true);
+        const payload = {
+          title:             form.title.trim(),
+          description:       form.description.trim() || null,
+          assigned_to:       form.assigned_to.trim(),
+          site_name:         form.site_name.trim() || null,
+          assigned_by:       user.user_name,
+          priority:          form.priority,
+          status:            form.status,
+          due_date:          form.due_date || null,
+          is_recurring:      form.is_recurring,
+          recurrence:        form.is_recurring ? form.recurrence : null,
+          recurrence_anchor: anchor,
+          last_generated_date: null,
+          parent_task_id:    null,
+          reschedule_allowed: form.reschedule_allowed || false,
+        };
+        const { error } = await supabase.from("tasks").insert([payload]);
+        setSubmitting(false);
+        if (error) {
+          showToast("error","Failed to assign task. " + error.message);
+          return false;
+        } else {
+          const desc = form.is_recurring ? anchorDescription(form.recurrence, anchor) : null;
+          showToast("success", `Task "${form.title}" assigned${desc ? ` — repeats ${desc}` : ""}!`);
+          setForm({ ...EMPTY_FORM });
+          fetchAllTasks();
+          return true;
+        }
+      };
+
+      const handleDelete = async (id) => {
+        if (!window.confirm("Delete this task?")) return;
+        await supabase.from("tasks").delete().eq("id", id);
+        setAllTasks((p) => p.filter((t) => t.id !== id));
+        showToast("success","Task deleted.");
+      };
+
+      const handleRescheduleAction = async (req, approved) => {
+        if (!approved) {
+          // Open the reject modal instead of window.prompt
+          setRejectModal({ req, reason: "" });
+          return;
+        }
+        // Approve path — unchanged
+        setUpdatingRescheduleId(req.id);
+        const payload = {
+          status:      "approved",
+          actioned_by: user.user_name,
+          actioned_at: new Date().toISOString(),
+          admin_note:  null,
+        };
+        const { error } = await supabase.from("reschedule_requests").update(payload).eq("id", req.id);
+        if (!error) {
+          await supabase.from("tasks").update({ due_date: req.requested_date }).eq("id", req.task_id);
+          fetchAllTasks();
+        }
+        setUpdatingRescheduleId(null);
+        if (error) { showToast("error", "Failed to update: " + error.message); return; }
+        setAllReschedules(prev => prev.map(r => r.id===req.id ? { ...r, ...payload } : r));
+        showToast("success", "Reschedule approved — task due date updated.");
+      };
+      
+      // Add this new function for confirming the rejection:
+      const handleRejectConfirm = async () => {
+        if (!rejectModal.reason.trim()) return; // button is disabled, but guard anyway
+        const req    = rejectModal.req;
+        const reason = rejectModal.reason.trim();
+        setRejectModal(null);
+        setUpdatingRescheduleId(req.id);
+        const payload = {
+          status:      "rejected",
+          actioned_by: user.user_name,
+          actioned_at: new Date().toISOString(),
+          admin_note:  reason,
+        };
+        const { error } = await supabase.from("reschedule_requests").update(payload).eq("id", req.id);
+        setUpdatingRescheduleId(null);
+        if (error) { showToast("error", "Failed to reject: " + error.message); return; }
+        setAllReschedules(prev => prev.map(r => r.id===req.id ? { ...r, ...payload } : r));
+        showToast("success", "Reschedule rejected.");
+      };
+
+      const handleLeaveAction = async (leave, approved) => {
+        const reason = approved ? null : window.prompt("Reason for rejecting this leave?") || "Rejected by admin";
+        setUpdatingLeaveId(leave.id);
+        const payload = {
+          admin_approved:   approved,
+          approved_by:      approved ? user.user_name : null,
+          rejection_reason: approved ? null : reason,
+          status:           approved ? "Approved" : "Rejected",
+        };
+        const { error } = await supabase.from("leaves").update(payload).eq("id", leave.id);
+        setUpdatingLeaveId(null);
+        if (error) { showToast("error","Failed to update leave. " + error.message); return; }
+        setAllLeaves((prev) => prev.map((item) => item.id === leave.id ? { ...item, ...payload } : item));
+        showToast("success", approved ? "Leave approved." : "Leave rejected.");
+      };
+
+      if (!user) return <h2 style={{ textAlign:"center", marginTop:80, color:"#94a3b8" }}>Loading…</h2>;
+
+      const activeItem = NAV_ITEMS.find((n) => n.key === activeTab);
+      const total      = allTasks.length;
+      const pending    = allTasks.filter((t) => t.status === "pending").length;
+      const inProgress = allTasks.filter((t) => t.status === "in_progress").length;
+      const completed  = allTasks.filter((t) => t.status === "completed").length;
+      const leaveTotal = allLeaves.length;
+      const leavePending = allLeaves.filter((l) => computeLeaveStatus(l) === "pending").length;
+      const leavePendingForAdmin = allLeaves.filter((l) => computeLeaveStatus(l) === "pending" && !isSiteEngineerLeave(l)).length;
+      const leaveApproved = allLeaves.filter((l) => computeLeaveStatus(l) === "approved").length;
+      const leaveRejected = allLeaves.filter((l) => computeLeaveStatus(l) === "rejected").length;
+      const reschedPending  = allReschedules.filter(r => r.status === "pending").length;
+      const recentLeaves = allLeaves.slice(0, 4);
+
+      // Filtered tasks for the all-tasks tab
+      const filteredTasks    = applyTaskFilters(allTasks, taskFilters);
+      const hasActiveFilters = Object.values(taskFilters).some(v => v !== "");
+
+      const tfSites      = [...new Set(applyTaskFilters(allTasks, { ...taskFilters, site: "" }).map(t => t.site_name).filter(Boolean))].sort();
+      const tfPriorities = [...new Set(applyTaskFilters(allTasks, { ...taskFilters, priority: "" }).map(t => t.priority).filter(Boolean))].sort();
+      const tfStatuses   = [...new Set(applyTaskFilters(allTasks, { ...taskFilters, status: "" }).map(t => t.status).filter(Boolean))].sort();
+      const tfAssignees = [...new Set(applyTaskFilters(allTasks, { ...taskFilters, assignedTo: "" }).map(t => t.assigned_to).filter(Boolean))].sort();
+
+
+      const recurringTasks = allTasks.filter(t => t.is_recurring);
+
+      const filteredRecurring = recurringTasks.filter(t => {
+        if (recurringFilters.site       && t.site_name   !== recurringFilters.site)      return false;
+        if (recurringFilters.assignedTo && t.assigned_to !== recurringFilters.assignedTo) return false;
+        if (recurringFilters.recurrence && t.recurrence  !== recurringFilters.recurrence) return false;
+        if (recurringFilters.dueSoon) {
+          const next = getNextDueDate(t);
+          if (!next) return false;
+          const diff = Math.round((next - new Date().setHours(0,0,0,0)) / (1000*60*60*24));
+          if (diff > 7) return false;
+        }
+        return true;
+      });
+
+      const rfSites     = [...new Set(recurringTasks.map(t => t.site_name).filter(Boolean))].sort();
+      const rfAssignees = [...new Set(recurringTasks.map(t => t.assigned_to).filter(Boolean))].sort();
+
+      const renderContent = () => {
+        switch (activeTab) {
+
+          case "dashboard":
+            return (
+              <>
+                <div className="ap-stats-row">
+                  <StatCard label="Total Tasks" value={total} accent="#2563eb" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>}/>
+                  <StatCard label="Pending" value={pending} accent="#f59e0b" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>}/>
+                  <StatCard label="In Progress" value={inProgress} accent="#6366f1" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>}/>
+                  <StatCard label="Completed" value={completed} accent="#16a34a" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}/>
+                  <StatCard label="Pending Admin Leaves" value={leavePendingForAdmin} accent="#dc2626" icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}/>
+                </div>
+                <div className="ap-leave-summary">
+                  <div><span>Total leave requests</span><strong>{leaveTotal}</strong></div>
+                  <div><span>Approved</span><strong>{leaveApproved}</strong></div>
+                  <div><span>Rejected</span><strong>{leaveRejected}</strong></div>
+                  <div><span>Pending admin action</span><strong>{leavePendingForAdmin}</strong></div>
+                </div>
+                {recentLeaves.length > 0 && (
+                  <div className="ap-recent-leaves">
+                    <div className="ap-section-title">Recent Leave Requests</div>
+                    <div className="ap-recent-list">
+                      {recentLeaves.map((leave) => (
+                        <div key={leave.id} className="ap-recent-leave">
+                          <div>
+                            <strong>{leave.name || leave.user_name || "Employee"}</strong>
+                            <span>{leave.leave_type} - {formatLeaveDate(leave.from_date)} to {formatLeaveDate(leave.to_date)}</span>
+                          </div>
+                          <LeaveStatusBadge leave={leave} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="ap-dash-hint">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  Recurring tasks auto-generate new instances on their scheduled day. If the previous instance is incomplete, the new one includes a warning note.
+                </div>
+              </>
+            );
+
+          case "assign-task":
+            return (
+              <TaskForm
+                form={form}
+                handleFormChange={handleFormChange}
+                setForm={setForm}
+                handleSubmit={handleSubmit}
+                submitting={submitting}
+              />
+            );
+
+          case "all-tasks":
+          return loadingTasks ? (
+            <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading tasks…</p></div>
+          ) : (
+            <>
+              {hasActiveFilters && (
+                <p className="tf-count">Showing {filteredTasks.length} of {allTasks.length} task{allTasks.length !== 1 ? "s" : ""}</p>
+              )}
+              {filteredTasks.length === 0 ? (
+                <div className="op-empty-state">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="13" y2="13"/></svg>
+                  <p className="op-empty-text">{hasActiveFilters ? "No tasks match the current filters." : "No tasks found. Start by assigning one."}</p>
+                  {hasActiveFilters && (
+                    <button className="tf-clear" style={{ marginTop:4 }} onClick={() => setTaskFilters({ ...EMPTY_TASK_FILTERS })}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="ap-table-wrap">
+                    <table className="ap-table">
+                      <thead><tr>{["Title","Assigned To","Site","Priority","Status","Due Date","Schedule",""].map((h) => <th key={h} className="ap-th">{h}</th>)}</tr></thead>
+                      <tbody>{filteredTasks.map((t) => <TaskRow key={t.id} task={t} onDelete={handleDelete}/>)}</tbody>
+                    </table>
+                  </div>
+                  <div className="ap-task-mobile-grid">
+                    {filteredTasks.map((t) => <TaskCard key={t.id} task={t} onDelete={handleDelete}/>)}
+                  </div>
+                </>
+              )}
             </>
           );
+          case "recurring-tasks":
+    return (
+      <>
+        {/* Filter bar */}
+        <div className="tf-bar" style={{ marginBottom: 16 }}>
+          <div className="tf-group">
+            <span className="tf-label">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+            </span>
+            <select className="tf-select" value={recurringFilters.assignedTo}
+              onChange={e => setRecurringFilters(p => ({ ...p, assignedTo: e.target.value }))}>
+              <option value="">All users</option>
+              {rfAssignees.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+          <div className="tf-divider"/>
+          {rfSites.length > 0 && (
+            <>
+              <div className="tf-group">
+                <select className="tf-select" value={recurringFilters.site}
+                  onChange={e => setRecurringFilters(p => ({ ...p, site: e.target.value }))}>
+                  <option value="">All sites</option>
+                  {rfSites.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="tf-divider"/>
+            </>
+          )}
+          <div className="tf-group">
+            <select className="tf-select" value={recurringFilters.recurrence}
+              onChange={e => setRecurringFilters(p => ({ ...p, recurrence: e.target.value }))}>
+              <option value="">All patterns</option>
+              {["daily","weekly","monthly","yearly"].map(r => (
+                <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+              ))}
+            </select>
+          </div>
+          <div className="tf-divider"/>
+          <div className="tf-group">
+            <label style={{ display:"flex", alignItems:"center", gap:7, cursor:"pointer",
+              fontSize:12.5, fontWeight:600, color: recurringFilters.dueSoon ? "#dc2626" : "#64748b" }}>
+              <input type="checkbox" checked={recurringFilters.dueSoon}
+                onChange={e => setRecurringFilters(p => ({ ...p, dueSoon: e.target.checked }))}
+                style={{ accentColor:"#dc2626" }}
+              />
+              Due within 7 days
+            </label>
+          </div>
+          {Object.values(recurringFilters).some(v => v !== "" && v !== false) && (
+            <button className="tf-clear"
+              onClick={() => setRecurringFilters({ ...EMPTY_RECURRING_FILTERS })}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+              Clear
+            </button>
+          )}
+        </div>
 
-        case "assign-task":
-          return (
-            <TaskForm
-              form={form}
-              handleFormChange={handleFormChange}
-              setForm={setForm}
-              handleSubmit={handleSubmit}
-              submitting={submitting}
-            />
-          );
+        {/* Summary counts */}
+        <p className="tf-count" style={{ marginBottom: 14 }}>
+          {filteredRecurring.length} of {recurringTasks.length} recurring task{recurringTasks.length !== 1 ? "s" : ""}
+        </p>
 
-        case "all-tasks":
-        return loadingTasks ? (
-          <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading tasks…</p></div>
+        {filteredRecurring.length === 0 ? (
+          <div className="op-empty-state">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}>
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+            </svg>
+            <p className="op-empty-text">
+              {recurringTasks.length === 0
+                ? "No recurring tasks yet. Create one from Assign Task."
+                : "No tasks match the current filters."}
+            </p>
+          </div>
         ) : (
           <>
-            {hasActiveFilters && (
-              <p className="tf-count">Showing {filteredTasks.length} of {allTasks.length} task{allTasks.length !== 1 ? "s" : ""}</p>
-            )}
-            {filteredTasks.length === 0 ? (
+            {/* Desktop table */}
+            <div className="ap-table-wrap">
+              <table className="ap-table">
+                <thead>
+                  <tr>
+                    {["Title","Assigned To","Site","Priority","Pattern","Next Due",""].map(h => (
+                      <th key={h} className="ap-th">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRecurring.map(task => {
+                    const nextDate = getNextDueDate(task);
+                    const next     = formatNextDue(nextDate);
+                    const p        = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
+                    return (
+                      <tr key={task.id} className="ap-tr">
+                        <td className="ap-td ap-td-title">{task.title}</td>
+                        <td className="ap-td">{task.assigned_to}</td>
+                        <td className="ap-td">{task.site_name || "—"}</td>
+                        <td className="ap-td">
+                          <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
+                            <span className="ap-badge-dot" style={{ background: p.dot }}/>
+                            {task.priority}
+                          </span>
+                        </td>
+                        <td className="ap-td">
+                          <span className="ap-pill-blue">
+                            {anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}
+                          </span>
+                        </td>
+                        <td className="ap-td">
+                          {next?.label ? (
+                            <span style={{ fontSize:13, color:"#334155" }}>
+                              {next.label}
+                              {next.badge && (
+                                <span style={{ marginLeft:6, fontSize:10, fontWeight:700,
+                                  background: next.bg, color: next.color,
+                                  borderRadius:20, padding:"2px 7px" }}>
+                                  {next.badge}
+                                </span>
+                              )}
+                            </span>
+                          ) : "—"}
+                        </td>
+                        <td className="ap-td">
+                          <button className="ap-del-btn" onClick={() => handleDelete(task.id)} title="Delete">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                              <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="ap-task-mobile-grid">
+              {filteredRecurring.map(task => {
+                const nextDate = getNextDueDate(task);
+                const next     = formatNextDue(nextDate);
+                const p        = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
+                return (
+                  <div key={task.id} className="ap-task-card-mobile">
+                    <div className="ap-task-card-head">
+                      <div>
+                        <div className="ap-task-card-title">{task.title}</div>
+                        <div className="ap-task-card-sub">{task.assigned_to}</div>
+                      </div>
+                      <button className="ap-del-btn" onClick={() => handleDelete(task.id)} title="Delete">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                          strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                          <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="ap-task-card-badges">
+                      <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
+                        <span className="ap-badge-dot" style={{ background: p.dot }}/>{task.priority}
+                      </span>
+                      <span className="ap-pill-blue">
+                        {anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}
+                      </span>
+                    </div>
+                    <div className="ap-task-card-meta">
+                      <div><span>Site</span><strong>{task.site_name || "Not assigned"}</strong></div>
+                      <div>
+                        <span>Next Due</span>
+                        <strong>
+                          {next?.label || "—"}
+                          {next?.badge && (
+                            <span style={{ marginLeft:5, fontSize:10, fontWeight:700,
+                              background: next.bg, color: next.color,
+                              borderRadius:20, padding:"1px 6px" }}>
+                              {next.badge}
+                            </span>
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </>
+    );
+          case "leave-requests":
+            return loadingLeaves ? (
+              <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading leaves...</p></div>
+            ) : allLeaves.length === 0 ? (
               <div className="op-empty-state">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="13" y2="13"/></svg>
-                <p className="op-empty-text">{hasActiveFilters ? "No tasks match the current filters." : "No tasks found. Start by assigning one."}</p>
-                {hasActiveFilters && (
-                  <button className="tf-clear" style={{ marginTop:4 }} onClick={() => setTaskFilters({ ...EMPTY_TASK_FILTERS })}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    Clear filters
-                  </button>
-                )}
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <p className="op-empty-text">No leave requests found.</p>
               </div>
             ) : (
               <>
-                <div className="ap-table-wrap">
-                  <table className="ap-table">
-                    <thead><tr>{["Title","Assigned To","Site","Priority","Status","Due Date","Schedule",""].map((h) => <th key={h} className="ap-th">{h}</th>)}</tr></thead>
-                    <tbody>{filteredTasks.map((t) => <TaskRow key={t.id} task={t} onDelete={handleDelete}/>)}</tbody>
-                  </table>
+                <div className="ap-leave-summary ap-leave-summary-tight">
+                  <div><span>Total</span><strong>{leaveTotal}</strong></div>
+                  <div><span>Pending</span><strong>{leavePending}</strong></div>
+                  <div><span>Admin Action</span><strong>{leavePendingForAdmin}</strong></div>
+                  <div><span>Approved</span><strong>{leaveApproved}</strong></div>
+                  <div><span>Rejected</span><strong>{leaveRejected}</strong></div>
                 </div>
-                <div className="ap-task-mobile-grid">
-                  {filteredTasks.map((t) => <TaskCard key={t.id} task={t} onDelete={handleDelete}/>)}
+                <div className="ap-leave-grid">
+                  {allLeaves.map((leave) => (
+                    <LeaveRequestCard key={leave.id} leave={leave} onAction={handleLeaveAction} updating={updatingLeaveId} />
+                  ))}
                 </div>
               </>
-            )}
-          </>
-        );
-        case "recurring-tasks":
-  return (
-    <>
-      {/* Filter bar */}
-      <div className="tf-bar" style={{ marginBottom: 16 }}>
-        <div className="tf-group">
-          <span className="tf-label">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-            </svg>
-          </span>
-          <select className="tf-select" value={recurringFilters.assignedTo}
-            onChange={e => setRecurringFilters(p => ({ ...p, assignedTo: e.target.value }))}>
-            <option value="">All users</option>
-            {rfAssignees.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-        </div>
-        <div className="tf-divider"/>
-        {rfSites.length > 0 && (
-          <>
-            <div className="tf-group">
-              <select className="tf-select" value={recurringFilters.site}
-                onChange={e => setRecurringFilters(p => ({ ...p, site: e.target.value }))}>
-                <option value="">All sites</option>
-                {rfSites.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="tf-divider"/>
-          </>
-        )}
-        <div className="tf-group">
-          <select className="tf-select" value={recurringFilters.recurrence}
-            onChange={e => setRecurringFilters(p => ({ ...p, recurrence: e.target.value }))}>
-            <option value="">All patterns</option>
-            {["daily","weekly","monthly","yearly"].map(r => (
-              <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
-            ))}
-          </select>
-        </div>
-        <div className="tf-divider"/>
-        <div className="tf-group">
-          <label style={{ display:"flex", alignItems:"center", gap:7, cursor:"pointer",
-            fontSize:12.5, fontWeight:600, color: recurringFilters.dueSoon ? "#dc2626" : "#64748b" }}>
-            <input type="checkbox" checked={recurringFilters.dueSoon}
-              onChange={e => setRecurringFilters(p => ({ ...p, dueSoon: e.target.checked }))}
-              style={{ accentColor:"#dc2626" }}
-            />
-            Due within 7 days
-          </label>
-        </div>
-        {Object.values(recurringFilters).some(v => v !== "" && v !== false) && (
-          <button className="tf-clear"
-            onClick={() => setRecurringFilters({ ...EMPTY_RECURRING_FILTERS })}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-            Clear
-          </button>
-        )}
-      </div>
-
-      {/* Summary counts */}
-      <p className="tf-count" style={{ marginBottom: 14 }}>
-        {filteredRecurring.length} of {recurringTasks.length} recurring task{recurringTasks.length !== 1 ? "s" : ""}
-      </p>
-
-      {filteredRecurring.length === 0 ? (
-        <div className="op-empty-state">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}>
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
-          </svg>
-          <p className="op-empty-text">
-            {recurringTasks.length === 0
-              ? "No recurring tasks yet. Create one from Assign Task."
-              : "No tasks match the current filters."}
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* Desktop table */}
-          <div className="ap-table-wrap">
-            <table className="ap-table">
-              <thead>
-                <tr>
-                  {["Title","Assigned To","Site","Priority","Pattern","Next Due",""].map(h => (
-                    <th key={h} className="ap-th">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRecurring.map(task => {
-                  const nextDate = getNextDueDate(task);
-                  const next     = formatNextDue(nextDate);
-                  const p        = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
-                  return (
-                    <tr key={task.id} className="ap-tr">
-                      <td className="ap-td ap-td-title">{task.title}</td>
-                      <td className="ap-td">{task.assigned_to}</td>
-                      <td className="ap-td">{task.site_name || "—"}</td>
-                      <td className="ap-td">
-                        <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
-                          <span className="ap-badge-dot" style={{ background: p.dot }}/>
-                          {task.priority}
-                        </span>
-                      </td>
-                      <td className="ap-td">
-                        <span className="ap-pill-blue">
-                          {anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}
-                        </span>
-                      </td>
-                      <td className="ap-td">
-                        {next?.label ? (
-                          <span style={{ fontSize:13, color:"#334155" }}>
-                            {next.label}
-                            {next.badge && (
-                              <span style={{ marginLeft:6, fontSize:10, fontWeight:700,
-                                background: next.bg, color: next.color,
-                                borderRadius:20, padding:"2px 7px" }}>
-                                {next.badge}
-                              </span>
-                            )}
-                          </span>
-                        ) : "—"}
-                      </td>
-                      <td className="ap-td">
-                        <button className="ap-del-btn" onClick={() => handleDelete(task.id)} title="Delete">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-                            <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile cards */}
-          <div className="ap-task-mobile-grid">
-            {filteredRecurring.map(task => {
-              const nextDate = getNextDueDate(task);
-              const next     = formatNextDue(nextDate);
-              const p        = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
-              return (
-                <div key={task.id} className="ap-task-card-mobile">
-                  <div className="ap-task-card-head">
-                    <div>
-                      <div className="ap-task-card-title">{task.title}</div>
-                      <div className="ap-task-card-sub">{task.assigned_to}</div>
-                    </div>
-                    <button className="ap-del-btn" onClick={() => handleDelete(task.id)} title="Delete">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-                        <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="ap-task-card-badges">
-                    <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
-                      <span className="ap-badge-dot" style={{ background: p.dot }}/>{task.priority}
-                    </span>
-                    <span className="ap-pill-blue">
-                      {anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}
-                    </span>
-                  </div>
-                  <div className="ap-task-card-meta">
-                    <div><span>Site</span><strong>{task.site_name || "Not assigned"}</strong></div>
-                    <div>
-                      <span>Next Due</span>
-                      <strong>
-                        {next?.label || "—"}
-                        {next?.badge && (
-                          <span style={{ marginLeft:5, fontSize:10, fontWeight:700,
-                            background: next.bg, color: next.color,
-                            borderRadius:20, padding:"1px 6px" }}>
-                            {next.badge}
-                          </span>
-                        )}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </>
-  );
-        case "leave-requests":
-          return loadingLeaves ? (
-            <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading leaves...</p></div>
-          ) : allLeaves.length === 0 ? (
-            <div className="op-empty-state">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              <p className="op-empty-text">No leave requests found.</p>
-            </div>
-          ) : (
-            <>
-              <div className="ap-leave-summary ap-leave-summary-tight">
-                <div><span>Total</span><strong>{leaveTotal}</strong></div>
-                <div><span>Pending</span><strong>{leavePending}</strong></div>
-                <div><span>Admin Action</span><strong>{leavePendingForAdmin}</strong></div>
-                <div><span>Approved</span><strong>{leaveApproved}</strong></div>
-                <div><span>Rejected</span><strong>{leaveRejected}</strong></div>
-              </div>
-              <div className="ap-leave-grid">
-                {allLeaves.map((leave) => (
-                  <LeaveRequestCard key={leave.id} leave={leave} onAction={handleLeaveAction} updating={updatingLeaveId} />
-                ))}
-              </div>
-            </>
-          );
-
-        case "manage-employees":
-  return loadingEmployees ? (
-    <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading employees…</p></div>
-  ) : employees.length === 0 ? (
-    <div className="op-empty-state">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-      <p className="op-empty-text">No employees found.</p>
-      <button className="ap-btn-primary" style={{ marginTop:4 }} onClick={() => setActiveTab("add-employee")}>Add Employee</button>
-    </div>
-  ) : (
-    <>
-      {/* Desktop table */}
-      <div className="ap-table-wrap">
-        <table className="ap-table">
-          <thead>
-            <tr>
-              {["#","Name","Username","Department","Designation","Role","Site","Actions"].map(h => (
-                <th key={h} className="ap-th">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {employees.map((emp, idx) => (
-              <tr key={emp.id} className="ap-tr">
-                <td className="ap-td" style={{ color:"#94a3b8", fontSize:12 }}>{idx + 1}</td>
-                <td className="ap-td ap-td-title">{emp.name || "—"}</td>
-                <td className="ap-td" style={{ fontFamily:"'DM Mono',monospace", fontSize:12.5 }}>{emp.user_name || "—"}</td>
-                <td className="ap-td">{emp.department || "—"}</td>
-                <td className="ap-td">{emp.designation || "—"}</td>
-                <td className="ap-td">
-                  {emp.role
-                    ? <span className="ap-pill-blue">{emp.role}</span>
-                    : <span style={{ color:"#94a3b8", fontSize:12 }}>—</span>}
-                </td>
-                <td className="ap-td">{emp.site_name || "—"}</td>
-                <td className="ap-td">
-                  <div style={{ display:"flex", gap:6 }}>
-                    <button className="ap-edit-btn" onClick={() => handleEmpEdit(emp)}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                      Edit
-                    </button>
-                    <button className="ap-del-btn" onClick={() => handleEmpDelete(emp.id)} title="Delete">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Mobile cards */}
-      <div className="ap-task-mobile-grid">
-        {employees.map(emp => (
-          <div key={emp.id} className="ap-task-card-mobile">
-            <div className="ap-task-card-head">
-              <div>
-                <div className="ap-task-card-title">{emp.name || "—"}</div>
-                <div className="ap-task-card-sub" style={{ fontFamily:"'DM Mono',monospace" }}>{emp.user_name || "—"}</div>
-              </div>
-              <div style={{ display:"flex", gap:6 }}>
-                <button className="ap-edit-btn" onClick={() => handleEmpEdit(emp)}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                </button>
-                <button className="ap-del-btn" onClick={() => handleEmpDelete(emp.id)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                </button>
-              </div>
-            </div>
-            <div className="ap-task-card-meta">
-              <div><span>Department</span><strong>{emp.department || "—"}</strong></div>
-              <div><span>Designation</span><strong>{emp.designation || "—"}</strong></div>
-              <div><span>Role</span><strong>{emp.role || "—"}</strong></div>
-              <div><span>Site</span><strong>{emp.site_name || "—"}</strong></div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </>
-  );
-          case "add-employee":
-            return (
-              <div className="ap-form-grid">
-                <div className="ap-form-row ap-col-2">
-                  <div className="ap-field">
-                    <label className="ap-label">Full Name <span className="ap-req">*</span></label>
-                    <input className="ap-input" name="name" value={empForm.name} onChange={handleEmpFormChange} placeholder="e.g. John Doe"/>
-                  </div>
-                  <div className="ap-field">
-                    <label className="ap-label">Username <span className="ap-req">*</span></label>
-                    <input className="ap-input" name="user_name" value={empForm.user_name} onChange={handleEmpFormChange} placeholder="e.g. john_doe" disabled={!!editingEmployee}/>
-                  </div>
-                </div>
-                <div className="ap-form-row ap-col-2">
-                  <div className="ap-field">
-                    <label className="ap-label">Password <span className="ap-req">*</span></label>
-                    <input className="ap-input" type="password" name="password" value={empForm.password} onChange={handleEmpFormChange} placeholder="••••••••"/>
-                  </div>
-                  <div className="ap-field">
-                    <label className="ap-label">Department <span className="ap-req">*</span></label>
-                    <input className="ap-input" name="department" value={empForm.department} onChange={handleEmpFormChange} placeholder="e.g. Engineering"/>
-                  </div>
-                </div>
-                <div className="ap-form-row ap-col-2">
-                  <div className="ap-field">
-                    <label className="ap-label">Designation <span className="ap-req">*</span></label>
-                    <input className="ap-input" name="designation" value={empForm.designation} onChange={handleEmpFormChange} placeholder="e.g. Site Engineer"/>
-                  </div>
-                </div>
-                <div className="ap-form-row ap-col-1 ap-form-actions">
-                  <button className="ap-btn-secondary" onClick={() => {
-                    setEmpForm({ name:"", user_name:"", password:"", department:"", designation:"" });
-                    setEditingEmployee(null);
-                  }}>Reset</button>
-                  <button className="ap-btn-primary" onClick={handleEmpSubmit} disabled={empSubmitting}>
-                    {empSubmitting
-                      ? <><span className="ap-mini-spinner"/> Saving…</>
-                      : editingEmployee ? "Update Employee" : "Save Employee"
-                    }
-                  </button>
-                </div>
-              </div>
             );
 
           case "manage-employees":
@@ -1329,22 +1373,33 @@ function formatNextDue(date) {
                 <div className="ap-table-wrap">
                   <table className="ap-table">
                     <thead>
-                      <tr>{["Name","Username","Department","Designation","Actions"].map(h => <th key={h} className="ap-th">{h}</th>)}</tr>
+                      <tr>
+                        {["#","Name","Username","Department","Designation","Role","Status","Actions"].map(h => (
+                          <th key={h} className="ap-th">{h}</th>
+                        ))}
+                      </tr>
                     </thead>
                     <tbody>
-                      {employees.map(emp => (
+                      {employees.map((emp, idx) => (
                         <tr key={emp.id} className="ap-tr">
-                          <td className="ap-td ap-td-title">{emp.name}</td>
-                          <td className="ap-td" style={{ fontFamily:"'DM Mono', monospace", fontSize:12.5 }}>{emp.user_name}</td>
+                          <td className="ap-td" style={{ color:"#94a3b8", fontSize:12 }}>{idx + 1}</td>
+                          <td className="ap-td ap-td-title">{emp.name || "—"}</td>
+                          <td className="ap-td" style={{ fontFamily:"'DM Mono',monospace", fontSize:12.5 }}>{emp.user_name || "—"}</td>
                           <td className="ap-td">{emp.department || "—"}</td>
                           <td className="ap-td">{emp.designation || "—"}</td>
+                          <td className="ap-td">
+                            {emp.role
+                              ? <span className="ap-pill-blue">{emp.role}</span>
+                              : <span style={{ color:"#94a3b8", fontSize:12 }}>—</span>}
+                          </td>
+                          <td className="ap-td">{emp.status|| "—"}</td>
                           <td className="ap-td">
                             <div style={{ display:"flex", gap:6 }}>
                               <button className="ap-edit-btn" onClick={() => handleEmpEdit(emp)}>
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 Edit
                               </button>
-                              <button className="ap-del-btn" onClick={() => handleEmpDelete(emp.id)}>
+                              <button className="ap-del-btn" onClick={() => handleEmpDelete(emp.id)} title="Delete">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                               </button>
                             </div>
@@ -1361,8 +1416,8 @@ function formatNextDue(date) {
                     <div key={emp.id} className="ap-task-card-mobile">
                       <div className="ap-task-card-head">
                         <div>
-                          <div className="ap-task-card-title">{emp.name}</div>
-                          <div className="ap-task-card-sub" style={{ fontFamily:"'DM Mono',monospace" }}>{emp.user_name}</div>
+                          <div className="ap-task-card-title">{emp.name || "—"}</div>
+                          <div className="ap-task-card-sub" style={{ fontFamily:"'DM Mono',monospace" }}>{emp.user_name || "—"}</div>
                         </div>
                         <div style={{ display:"flex", gap:6 }}>
                           <button className="ap-edit-btn" onClick={() => handleEmpEdit(emp)}>
@@ -1376,455 +1431,716 @@ function formatNextDue(date) {
                       <div className="ap-task-card-meta">
                         <div><span>Department</span><strong>{emp.department || "—"}</strong></div>
                         <div><span>Designation</span><strong>{emp.designation || "—"}</strong></div>
+                        <div><span>Role</span><strong>{emp.role || "—"}</strong></div>
+                        <div><span>Site</span><strong>{emp.site_name || "—"}</strong></div>
                       </div>
                     </div>
                   ))}
                 </div>
               </>
             );
-        default: return null;
-      }
-    };
+            case "add-employee":
+              return (
+                <div className="ap-form-grid">
+                  <div className="ap-form-row ap-col-2">
+                    <div className="ap-field">
+                      <label className="ap-label">Full Name <span className="ap-req">*</span></label>
+                      <input className="ap-input" name="name" value={empForm.name} onChange={handleEmpFormChange} placeholder="e.g. John Doe"/>
+                    </div>
+                    <div className="ap-field">
+                      <label className="ap-label">Username <span className="ap-req">*</span></label>
+                      <input className="ap-input" name="user_name" value={empForm.user_name} onChange={handleEmpFormChange} placeholder="e.g. john_doe" disabled={!!editingEmployee}/>
+                    </div>
+                  </div>
+                  <div className="ap-form-row ap-col-2">
+                    <div className="ap-field">
+                      <label className="ap-label">Password <span className="ap-req">*</span></label>
+                      <input className="ap-input" type="password" name="password" value={empForm.password} onChange={handleEmpFormChange} placeholder="••••••••"/>
+                    </div>
+                    <div className="ap-field">
+                      <label className="ap-label">Department <span className="ap-req">*</span></label>
+                      <input className="ap-input" name="department" value={empForm.department} onChange={handleEmpFormChange} placeholder="e.g. Engineering"/>
+                    </div>
+                  </div>
+                  <div className="ap-form-row ap-col-2">
+                    <div className="ap-field">
+                      <label className="ap-label">Designation <span className="ap-req">*</span></label>
+                      <input className="ap-input" name="designation" value={empForm.designation} onChange={handleEmpFormChange} placeholder="e.g. Site Engineer"/>
+                    </div>
+                  </div>
+                  <div className="ap-form-row ap-col-1 ap-form-actions">
+                    <button className="ap-btn-secondary" onClick={() => {
+                      setEmpForm({ name:"", user_name:"", password:"", department:"", designation:"" });
+                      setEditingEmployee(null);
+                    }}>Reset</button>
+                    <button className="ap-btn-primary" onClick={handleEmpSubmit} disabled={empSubmitting}>
+                      {empSubmitting
+                        ? <><span className="ap-mini-spinner"/> Saving…</>
+                        : editingEmployee ? "Update Employee" : "Save Employee"
+                      }
+                    </button>
+                  </div>
+                </div>
+              );
 
-    return (
-      <>
-        <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
-          *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+            case "manage-employees":
+              return loadingEmployees ? (
+                <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading employees…</p></div>
+              ) : employees.length === 0 ? (
+                <div className="op-empty-state">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                  <p className="op-empty-text">No employees found.</p>
+                  <button className="ap-btn-primary" style={{ marginTop:4 }} onClick={() => setActiveTab("add-employee")}>Add Employee</button>
+                </div>
+              ) : (
+                <>
+                  {/* Desktop table */}
+                  <div className="ap-table-wrap">
+                    <table className="ap-table">
+                      <thead>
+                        <tr>{["Name","Username","Department","Designation","Actions"].map(h => <th key={h} className="ap-th">{h}</th>)}</tr>
+                      </thead>
+                      <tbody>
+                        {employees.map(emp => (
+                          <tr key={emp.id} className="ap-tr">
+                            <td className="ap-td ap-td-title">{emp.name}</td>
+                            <td className="ap-td" style={{ fontFamily:"'DM Mono', monospace", fontSize:12.5 }}>{emp.user_name}</td>
+                            <td className="ap-td">{emp.department || "—"}</td>
+                            <td className="ap-td">{emp.designation || "—"}</td>
+                            <td className="ap-td">
+                              <div style={{ display:"flex", gap:6 }}>
+                                <button className="ap-edit-btn" onClick={() => handleEmpEdit(emp)}>
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                  Edit
+                                </button>
+                                <button className="ap-del-btn" onClick={() => handleEmpDelete(emp.id)}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
 
-          .op-root  { font-family: 'DM Sans', sans-serif; background: #f4f6f9; min-height: 100vh; color: #1e293b; }
-          .op-body  { display: flex; min-height: calc(100vh - 60px); align-items: flex-start; }
-          .op-sidebar { width: 240px; min-width: 240px; background: #fff; border-right: 1px solid #e8edf3; display: flex; flex-direction: column; transition: width .25s cubic-bezier(.4,0,.2,1), min-width .25s, opacity .2s; overflow: hidden; box-shadow: 2px 0 12px rgba(0,0,0,.04); position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; }
-          .op-sidebar.collapsed { width: 0; min-width: 0; opacity: 0; pointer-events: none; }
-          .op-sidebar-header { padding: 20px 20px 12px; border-bottom: 1px solid #f0f4f8; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-          .op-sidebar-label  { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #94a3b8; }
-          .op-sidebar-close { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #64748b; cursor: pointer; align-items: center; justify-content: center; }
-          .op-sidebar-backdrop { display: none; }
-          .op-nav { padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
-          .op-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; color: #64748b; font-size: 13.5px; font-weight: 500; white-space: nowrap; border: none; background: transparent; width: 100%; text-align: left; transition: background .15s, color .15s; position: relative; }
-          .op-nav-item:hover  { background: #f1f5f9; color: #1e293b; }
-          .op-nav-item.active { background: #fef2f2; color: #dc2626; }
-          .op-nav-item.active svg { stroke: #dc2626; }
-          .op-nav-icon { flex-shrink: 0; display: flex; align-items: center; }
-          .op-nav-badge { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 999px; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
+                  {/* Mobile cards */}
+                  <div className="ap-task-mobile-grid">
+                    {employees.map(emp => (
+                      <div key={emp.id} className="ap-task-card-mobile">
+                        <div className="ap-task-card-head">
+                          <div>
+                            <div className="ap-task-card-title">{emp.name}</div>
+                            <div className="ap-task-card-sub" style={{ fontFamily:"'DM Mono',monospace" }}>{emp.user_name}</div>
+                          </div>
+                          <div style={{ display:"flex", gap:6 }}>
+                            <button className="ap-edit-btn" onClick={() => handleEmpEdit(emp)}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </button>
+                            <button className="ap-del-btn" onClick={() => handleEmpDelete(emp.id)}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                            </button>
+                          </div>
+                        </div>
+                        <div className="ap-task-card-meta">
+                          <div><span>Department</span><strong>{emp.department || "—"}</strong></div>
+                          <div><span>Designation</span><strong>{emp.designation || "—"}</strong></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
 
-          .op-main { flex: 1; padding: 28px 32px; overflow: auto; }
-          .op-topbar { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
-          .op-toggle-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; transition: background .15s; flex-shrink: 0; }
-          .op-toggle-btn:hover { background: #f1f5f9; }
-          .op-page-title { font-size: 18px; font-weight: 600; color: #1e293b; }
+              case "reschedule-requests":
+                return loadingReschedules ? (
+                  <div className="op-empty-state">
+                    <div className="op-spinner"/>
+                    <p className="op-empty-text">Loading reschedule requests…</p>
+                  </div>
+                ) : allReschedules.length === 0 ? (
+                  <div className="op-empty-state">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}>
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+                    </svg>
+                    <p className="op-empty-text">No reschedule requests found.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="ap-leave-summary ap-leave-summary-tight">
+                      <div><span>Total</span><strong>{allReschedules.length}</strong></div>
+                      <div><span>Pending</span><strong>{reschedPending}</strong></div>
+                      <div><span>Approved</span><strong>{allReschedules.filter(r=>r.status==="approved").length}</strong></div>
+                      <div><span>Rejected</span><strong>{allReschedules.filter(r=>r.status==="rejected").length}</strong></div>
+                    </div>
+                    <div className="ap-leave-grid">
+                      {allReschedules.map(req => (
+                        <RescheduleRequestCard
+                          key={req.id}
+                          req={req}
+                          onAction={handleRescheduleAction}
+                          updating={updatingRescheduleId}
+                        />
+                      ))}
+                    </div>
+                  </>
+                );
+          default: return null;
+        }
+      };
 
-          .op-profile-card { background: #fff; border-radius: 14px; padding: 24px 28px; border-bottom: 4px solid transparent;border-right: 4px solid transparent;background:linear-gradient(white, white) padding-box,linear-gradient(135deg,#3d1200 0%,#7a2e00 50%,#c96a10 100%) border-box; box-shadow: 0 4px 20px rgba(220,38,38,.08); margin-bottom: 28px; display: flex; align-items: center; gap: 20px; width:100% !important}
-          .op-avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg,#fee2e2,#fecaca); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; color: #dc2626; flex-shrink: 0; font-family: 'DM Mono', monospace; }
-          .op-profile-info { display: flex; flex-direction: column; gap: 4px; }
-          .op-profile-name { font-size: 17px; font-weight: 600; color: #1e293b; }
-          .op-profile-meta { display: flex; gap: 16px; flex-wrap: wrap; }
-          .op-meta-chip { font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 5px; }
-          .op-meta-chip strong { color: #334155; }
-          .ap-role-badge { font-size: 11px; font-weight: 700; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 20px; padding: 2px 10px; margin-left: 8px; letter-spacing: .04em; }
+      return (
+        <>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
+            *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-          .op-content-card { background: #fff; border-radius: 14px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,.05); min-height: 300px; }
-          .op-content-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9; }
-          .op-content-icon  { width: 36px; height: 36px; border-radius: 8px; background: #fef2f2; display: flex; align-items: center; justify-content: center; color: #dc2626; }
-          .op-content-title { font-size: 15px; font-weight: 600; color: #1e293b; }
+            .op-root  { font-family: 'DM Sans', sans-serif; background: #f4f6f9; min-height: 100vh; color: #1e293b; }
+            .op-body  { display: flex; min-height: calc(100vh - 60px); align-items: flex-start; background: #c9d0d4d0;}
+            .op-sidebar { width: 240px; min-width: 240px; background: #fff; border-right: 1px solid #e8edf3; display: flex; flex-direction: column; transition: width .25s cubic-bezier(.4,0,.2,1), min-width .25s, opacity .2s; overflow: hidden; box-shadow: 2px 0 12px rgba(0,0,0,.04); position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; }
+            .op-sidebar.collapsed { width: 0; min-width: 0; opacity: 0; pointer-events: none; }
+            .op-sidebar-header { padding: 20px 20px 12px; border-bottom: 1px solid #f0f4f8; display: flex; align-items: center; justify-content: space-between; gap: 12px;}
+            .op-sidebar-label  { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #000000; }
+            .op-sidebar-close { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #64748b; cursor: pointer; align-items: center; justify-content: center; }
+            .op-sidebar-backdrop { display: none; }
+            .op-nav { padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+            .op-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; color: #64748b; font-size: 13.5px; font-weight: 500; white-space: nowrap; border: none; background: transparent; width: 100%; text-align: left; transition: background .15s, color .15s; position: relative; }
+            .op-nav-item:hover  { background: #f1f5f9; color: #1e293b; }
+            .op-nav-item.active { background: #fef2f2; color: #dc2626; }
+            .op-nav-item.active svg { stroke: #dc2626; }
+            .op-nav-icon { flex-shrink: 0; display: flex; align-items: center; }
+            .op-nav-badge { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 999px; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
 
-          /* ── Filter Bar ── */
-          .tf-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: #f8fafc; border: 1px solid #e8edf3; border-radius: 10px; margin-bottom: 16px; }
-          .tf-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
-          .tf-label { font-size: 12px; font-weight: 600; color: #64748b; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-          .tf-input { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 9px; height: 32px; outline: none; transition: border .15s; }
-          .tf-input:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.08); }
-          .tf-date { width: 140px; cursor: pointer; }
-          .tf-select { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 9px; height: 32px; cursor: pointer; outline: none; transition: border .15s; }
-          .tf-select:focus { border-color: #dc2626; }
-          .tf-sep-text { font-size: 12px; color: #94a3b8; }
-          .tf-divider { width: 1px; height: 20px; background: #e2e8f0; flex-shrink: 0; }
-          .tf-clear { display: inline-flex; align-items: center; gap: 5px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 5px 11px; height: 32px; cursor: pointer; white-space: nowrap; transition: background .15s; margin-left: auto; }
-          .tf-clear:hover { background: #fee2e2; }
-          .tf-count { font-size: 12px; color: #64748b; margin-bottom: 12px; margin-top: -6px; }
+            .op-main { flex: 1; padding: 28px 32px; overflow: auto; }
+            .op-topbar { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+            .op-toggle-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; transition: background .15s; flex-shrink: 0; }
+            .op-toggle-btn:hover { background: #f1f5f9; }
+            .op-page-title { font-size: 18px; font-weight: 600; color: #1e293b; }
 
-          /* Stats */
-          .ap-stats-row { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 16px; margin-bottom: 24px; }
-          .ap-stat-card  { background: #fff; border: 1px solid #e8edf3; border-top: 4px solid; border-radius: 12px; padding: 18px 20px; display: flex; align-items: center; gap: 14px; }
-          .ap-stat-icon  { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-          .ap-stat-value { font-size: 26px; font-weight: 700; color: #1e293b; font-family: 'DM Mono', monospace; line-height: 1; }
-          .ap-stat-label { font-size: 12px; color: #64748b; margin-top: 4px; }
-          .ap-dash-hint  { display: flex; align-items: flex-start; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #64748b; line-height: 1.5; }
-          .ap-dash-hint svg { flex-shrink: 0; margin-top: 1px; color: #2563eb; }
-          .ap-section-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; }
-          .ap-leave-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 12px; margin-bottom: 18px; }
-          .ap-leave-summary-tight { margin-bottom: 20px; }
-          .ap-leave-summary div { background: #f8fafc; border: 1px solid #e8edf3; border-radius: 10px; padding: 13px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-          .ap-leave-summary span { font-size: 12px; color: #64748b; }
-          .ap-leave-summary strong { font-size: 20px; color: #1e293b; font-family: 'DM Mono', monospace; }
-          .ap-recent-leaves { margin-bottom: 18px; }
-          .ap-recent-list { border: 1px solid #e8edf3; border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
-          .ap-recent-leave { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 14px; background: #fff; border-bottom: 1px solid #f1f5f9; }
-          .ap-recent-leave:last-child { border-bottom: none; }
-          .ap-recent-leave div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-          .ap-recent-leave strong { font-size: 13.5px; color: #1e293b; }
-          .ap-recent-leave span { font-size: 12px; color: #64748b; }
+            .op-profile-card { background: #fff; border-radius: 14px; padding: 24px 28px; border-bottom: 4px solid transparent;border-right: 4px solid transparent;background:linear-gradient(white, white) padding-box,linear-gradient(135deg,#3d1200 0%,#7a2e00 50%,#c96a10 100%) border-box; box-shadow: 0 4px 20px rgba(220,38,38,.08); margin-bottom: 28px; display: flex; align-items: center; gap: 20px; width:100% !important}
+            .op-avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg,#fee2e2,#fecaca); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; color: #dc2626; flex-shrink: 0; font-family: 'DM Mono', monospace; }
+            .op-profile-info { display: flex; flex-direction: column; gap: 4px; }
+            .op-profile-name { font-size: 17px; font-weight: 600; color: #1e293b; }
+            .op-profile-meta { display: flex; gap: 16px; flex-wrap: wrap; }
+            .op-meta-chip { font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 5px; }
+            .op-meta-chip strong { color: #334155; }
+            .ap-role-badge { font-size: 11px; font-weight: 700; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 20px; padding: 2px 10px; margin-left: 8px; letter-spacing: .04em; }
 
-          /* Form */
-          .ap-form-grid { display: flex; flex-direction: column; gap: 18px; }
-          .ap-form-row  { display: grid; gap: 16px; }
-          .ap-col-1 { grid-template-columns: 1fr; }
-          .ap-col-2 { grid-template-columns: 1fr 1fr; }
-          .ap-col-3 { grid-template-columns: 1fr 1fr 1fr; }
-          @media (max-width: 700px) { .ap-col-2, .ap-col-3 { grid-template-columns: 1fr; } }
-          .ap-field        { display: flex; flex-direction: column; gap: 6px; }
-          .ap-field-center { justify-content: flex-start; }
-          .ap-label { font-size: 12.5px; font-weight: 600; color: #475569; }
-          .ap-req   { color: #dc2626; }
-          .ap-input { font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: #1e293b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px; outline: none; transition: border .15s, box-shadow .15s; width: 100%; }
-          .ap-input:focus  { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.1); background: #fff; }
-          .ap-textarea { resize: vertical; min-height: 80px; }
-          .ap-select   { cursor: pointer; }
-          .ap-form-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px; }
-          .ap-btn-primary  { display: inline-flex; align-items: center; gap: 7px; background: #dc2626; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; transition: background .15s, transform .1s; }
-          .ap-btn-primary:hover:not(:disabled)  { background: #b91c1c; }
-          .ap-btn-primary:active:not(:disabled) { transform: scale(.98); }
-          .ap-btn-primary:disabled { opacity: .6; cursor: not-allowed; }
-          .ap-btn-secondary { display: inline-flex; align-items: center; gap: 7px; background: #f1f5f9; color: #475569; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 18px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer; transition: background .15s; }
-          .ap-btn-secondary:hover { background: #e2e8f0; }
-          .ap-mini-spinner  { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+            .op-content-card { background: #fff; border-radius: 14px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,.05); min-height: 300px; }
+            .op-content-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9; }
+            .op-content-icon  { width: 36px; height: 36px; border-radius: 8px; background: #fef2f2; display: flex; align-items: center; justify-content: center; color: #dc2626; }
+            .op-content-title { font-size: 15px; font-weight: 600; color: #1e293b; }
 
-          /* Toggle */
-          .ap-toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; margin-top: 4px; }
-          .ap-toggle input { display: none; }
-          .ap-toggle-track { width: 40px; height: 22px; background: #e2e8f0; border-radius: 99px; position: relative; transition: background .2s; flex-shrink: 0; }
-          .ap-toggle input:checked + .ap-toggle-track { background: #dc2626; }
-          .ap-toggle-thumb { width: 16px; height: 16px; background: #fff; border-radius: 50%; position: absolute; top: 3px; left: 3px; transition: transform .2s; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
-          .ap-toggle input:checked + .ap-toggle-track .ap-toggle-thumb { transform: translateX(18px); }
-          .ap-toggle-label { font-size: 13px; color: #475569; font-weight: 500; }
+            /* ── Filter Bar ── */
+            .tf-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: #f8fafc; border: 1px solid #e8edf3; border-radius: 10px; margin-bottom: 16px; position: fixed; top: 120px; right:50px;z-index: 10; }
+            .tf-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+            .tf-label { font-size: 12px; font-weight: 600; color: #64748b; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+            .tf-input { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 9px; height: 32px; outline: none; transition: border .15s; }
+            .tf-input:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.08); }
+            .tf-date { width: 140px; cursor: pointer; }
+            .tf-select { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 9px; height: 32px; cursor: pointer; outline: none; transition: border .15s; }
+            .tf-select:focus { border-color: #dc2626; }
+            .tf-sep-text { font-size: 12px; color: #94a3b8; }
+            .tf-divider { width: 1px; height: 20px; background: #e2e8f0; flex-shrink: 0; }
+            .tf-clear { display: inline-flex; align-items: center; gap: 5px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 5px 11px; height: 32px; cursor: pointer; white-space: nowrap; transition: background .15s; margin-left: auto; }
+            .tf-clear:hover { background: #fee2e2; }
+            .tf-count { font-size: 12px; color: #64748b; margin-bottom: 12px; margin-top: -6px; }
 
-          /* Recurrence */
-          .ap-recurrence-divider { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; padding: 4px 0 2px; border-top: 1px dashed #e2e8f0; padding-top: 8px; }
-          .ap-recurrence-pills   { display: flex; gap: 8px; flex-wrap: wrap; }
-          .ap-rpill { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f8fafc; color: #64748b; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
-          .ap-rpill:hover  { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
-          .ap-rpill.active { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
-          .ap-weekday-grid { display: flex; gap: 6px; flex-wrap: wrap; }
-          .ap-wday { width: 46px; height: 40px; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f8fafc; color: #64748b; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; }
-          .ap-wday:hover  { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
-          .ap-wday.active { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
-          .ap-anchor-preview { display: flex; align-items: flex-start; gap: 8px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #2563eb; line-height: 1.5; }
-          .ap-anchor-preview svg { flex-shrink: 0; margin-top: 1px; }
-          .ap-anchor-preview strong { color: #1d4ed8; }
+            /* Stats */
+            .ap-stats-row { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 16px; margin-bottom: 24px; }
+            .ap-stat-card  { background: #fff; border: 1px solid #e8edf3; border-top: 4px solid; border-radius: 12px; padding: 18px 20px; display: flex; align-items: center; gap: 14px; }
+            .ap-stat-icon  { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+            .ap-stat-value { font-size: 26px; font-weight: 700; color: #1e293b; font-family: 'DM Mono', monospace; line-height: 1; }
+            .ap-stat-label { font-size: 12px; color: #64748b; margin-top: 4px; }
+            .ap-dash-hint  { display: flex; align-items: flex-start; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #64748b; line-height: 1.5; }
+            .ap-dash-hint svg { flex-shrink: 0; margin-top: 1px; color: #2563eb; }
+            .ap-section-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; }
+            .ap-leave-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 12px; margin-bottom: 18px; }
+            .ap-leave-summary-tight { margin-bottom: 20px; }
+            .ap-leave-summary div { background: #f8fafc; border: 1px solid #e8edf3; border-radius: 10px; padding: 13px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+            .ap-leave-summary span { font-size: 12px; color: #64748b; }
+            .ap-leave-summary strong { font-size: 20px; color: #1e293b; font-family: 'DM Mono', monospace; }
+            .ap-recent-leaves { margin-bottom: 18px; }
+            .ap-recent-list { border: 1px solid #e8edf3; border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
+            .ap-recent-leave { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 14px; background: #fff; border-bottom: 1px solid #f1f5f9; }
+            .ap-recent-leave:last-child { border-bottom: none; }
+            .ap-recent-leave div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+            .ap-recent-leave strong { font-size: 13.5px; color: #1e293b; }
+            .ap-recent-leave span { font-size: 12px; color: #64748b; }
 
-          /* Table */
-          .ap-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #e8edf3; }
-          .ap-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-          .ap-th { padding: 11px 14px; background: #f8fafc; color: #64748b; font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; text-align: left; border-bottom: 1px solid #e8edf3; white-space: nowrap; }
-          .ap-tr { border-bottom: 1px solid #f1f5f9; transition: background .1s; }
-          .ap-tr:last-child { border-bottom: none; }
-          .ap-tr:hover { background: #f8fafc; }
-          .ap-td { padding: 12px 14px; color: #334155; vertical-align: middle; }
-          .ap-td-title { font-weight: 600; color: #1e293b; max-width: 200px; }
-          .ap-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; text-transform: capitalize; white-space: nowrap; }
-          .ap-badge-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-          .ap-pill-blue   { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 8px; text-transform: capitalize; }
-          .ap-pill-orange { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; color: #d97706; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 2px 8px; }
-          .ap-child-badge { display: inline-flex; margin-right: 4px; color: #94a3b8; font-size: 13px; }
-          .ap-del-btn { width: 30px; height: 30px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: background .15s, color .15s, border-color .15s; }
-          .ap-del-btn:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
-          .ap-task-mobile-grid { display: none; }
-          .ap-task-card-mobile { background: #fff; border: 1px solid #e8edf3; border-left: 4px solid #dc2626; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 10px rgba(15,23,42,.04); }
-          .ap-task-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-          .ap-task-card-title { font-size: 14.5px; font-weight: 700; color: #1e293b; line-height: 1.35; }
-          .ap-task-card-sub { font-size: 12px; color: #94a3b8; margin-top: 3px; }
-          .ap-task-card-badges { display: flex; flex-wrap: wrap; gap: 6px; }
-          .ap-task-card-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-          .ap-task-card-meta div { background: #f8fafc; border: 1px solid #e8edf3; border-radius: 8px; padding: 9px 10px; min-width: 0; }
-          .ap-task-card-meta span { display: block; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
-          .ap-task-card-meta strong { display: block; font-size: 12.5px; color: #334155; font-weight: 600; overflow-wrap: anywhere; }
-          .ap-mobile-pill-muted { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; color: #64748b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 2px 8px; text-transform: capitalize; }
+            /* Form */
+            .ap-form-grid { display: flex; flex-direction: column; gap: 18px; }
+            .ap-form-row  { display: grid; gap: 16px; }
+            .ap-col-1 { grid-template-columns: 1fr; }
+            .ap-col-2 { grid-template-columns: 1fr 1fr; }
+            .ap-col-3 { grid-template-columns: 1fr 1fr 1fr; }
+            @media (max-width: 700px) { .ap-col-2, .ap-col-3 { grid-template-columns: 1fr; } }
+            .ap-field        { display: flex; flex-direction: column; gap: 6px; }
+            .ap-field-center { justify-content: flex-start; }
+            .ap-label { font-size: 12.5px; font-weight: 600; color: #475569; }
+            .ap-req   { color: #dc2626; }
+            .ap-input { font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: #1e293b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px; outline: none; transition: border .15s, box-shadow .15s; width: 100%; }
+            .ap-input:focus  { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.1); background: #fff; }
+            .ap-textarea { resize: vertical; min-height: 80px; }
+            .ap-select   { cursor: pointer; }
+            .ap-form-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px; }
+            .ap-btn-primary  { display: inline-flex; align-items: center; gap: 7px; background: #dc2626; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; transition: background .15s, transform .1s; }
+            .ap-btn-primary:hover:not(:disabled)  { background: #b91c1c; }
+            .ap-btn-primary:active:not(:disabled) { transform: scale(.98); }
+            .ap-btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+            .ap-btn-secondary { display: inline-flex; align-items: center; gap: 7px; background: #f1f5f9; color: #475569; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 18px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer; transition: background .15s; }
+            .ap-btn-secondary:hover { background: #e2e8f0; }
+            .ap-mini-spinner  { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
 
-          /* Leave */
-          .ap-leave-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(320px,1fr)); gap: 16px; }
-          .ap-leave-card { background: #fff; border: 1px solid #e8edf3; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 11px; transition: box-shadow .15s; }
-          .ap-leave-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
-          .ap-leave-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-          .ap-leave-title { font-size: 14.5px; font-weight: 700; color: #1e293b; }
-          .ap-leave-sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
-          .ap-leave-status { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; border: 1px solid; white-space: nowrap; }
-          .ap-leave-meta { display: flex; flex-wrap: wrap; gap: 6px; }
-          .ap-leave-meta span { display: inline-flex; align-items: center; font-size: 11.5px; color: #64748b; background: #f8fafc; border: 1px solid #e8edf3; border-radius: 6px; padding: 3px 8px; }
-          .ap-leave-reason { font-size: 12.5px; color: #64748b; line-height: 1.5; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #e2e8f0; }
-          .ap-leave-approvals { display: flex; flex-wrap: wrap; gap: 6px; }
-          .ap-approval-pill { display: inline-flex; font-size: 11.5px; font-weight: 600; color: #64748b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 3px 8px; }
-          .ap-approval-pill.ok { color: #16a34a; background: #f0fdf4; border-color: #bbf7d0; }
-          .ap-approval-pill.no { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
-          .ap-leave-rejection { font-size: 12px; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 7px 10px; line-height: 1.4; }
-          .ap-leave-actions { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
-          .ap-btn-approve, .ap-btn-reject { display: inline-flex; align-items: center; justify-content: center; font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 700; padding: 7px 14px; border-radius: 7px; cursor: pointer; transition: background .15s; border: 1px solid; }
-          .ap-btn-approve { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
-          .ap-btn-approve:hover:not(:disabled) { background: #dcfce7; }
-          .ap-btn-reject  { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
-          .ap-btn-reject:hover:not(:disabled)  { background: #fee2e2; }
-          .ap-btn-approve:disabled, .ap-btn-reject:disabled { opacity: .6; cursor: not-allowed; }
-          .ap-saving, .ap-leave-done { font-size: 12px; color: #94a3b8; font-style: italic; }
+            /* Toggle */
+            .ap-toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; margin-top: 4px; }
+            .ap-toggle input { display: none; }
+            .ap-toggle-track { width: 40px; height: 22px; background: #e2e8f0; border-radius: 99px; position: relative; transition: background .2s; flex-shrink: 0; }
+            .ap-toggle input:checked + .ap-toggle-track { background: #dc2626; }
+            .ap-toggle-thumb { width: 16px; height: 16px; background: #fff; border-radius: 50%; position: absolute; top: 3px; left: 3px; transition: transform .2s; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+            .ap-toggle input:checked + .ap-toggle-track .ap-toggle-thumb { transform: translateX(18px); }
+            .ap-toggle-label { font-size: 13px; color: #475569; font-weight: 500; }
 
-          /* Shared */
-          .op-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; color: #94a3b8; gap: 12px; text-align: center; }
-          .op-empty-text  { font-size: 13.5px; }
-          .op-spinner { width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top-color: #dc2626; border-radius: 50%; animation: spin .7s linear infinite; }
-          @keyframes spin { to { transform: rotate(360deg); } }
+            /* Recurrence */
+            .ap-recurrence-divider { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; padding: 4px 0 2px; border-top: 1px dashed #e2e8f0; padding-top: 8px; }
+            .ap-recurrence-pills   { display: flex; gap: 8px; flex-wrap: wrap; }
+            .ap-rpill { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f8fafc; color: #64748b; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
+            .ap-rpill:hover  { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+            .ap-rpill.active { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+            .ap-weekday-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+            .ap-wday { width: 46px; height: 40px; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f8fafc; color: #64748b; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; }
+            .ap-wday:hover  { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+            .ap-wday.active { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+            .ap-anchor-preview { display: flex; align-items: flex-start; gap: 8px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #2563eb; line-height: 1.5; }
+            .ap-anchor-preview svg { flex-shrink: 0; margin-top: 1px; }
+            .ap-anchor-preview strong { color: #1d4ed8; }
 
-          /* Toast */
-          .ap-toast { position: fixed; bottom: 28px; right: 28px; z-index: 9999; display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 10px; font-size: 13.5px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.15); animation: slideUp .25s ease; }
-          .ap-toast-success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
-          .ap-toast-error   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-          @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+            /* Table */
+            .ap-table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #e8edf3; }
+            .ap-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+            .ap-th { padding: 11px 14px; background: #f8fafc; color: #64748b; font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; text-align: left; border-bottom: 1px solid #e8edf3; white-space: nowrap; }
+            .ap-tr { border-bottom: 1px solid #f1f5f9; transition: background .1s; }
+            .ap-tr:last-child { border-bottom: none; }
+            .ap-tr:hover { background: #f8fafc; }
+            .ap-td { padding: 12px 14px; color: #334155; vertical-align: middle; }
+            .ap-td-title { font-weight: 600; color: #1e293b; max-width: 200px; }
+            .ap-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; text-transform: capitalize; white-space: nowrap; }
+            .ap-badge-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+            .ap-pill-blue   { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 8px; text-transform: capitalize; }
+            .ap-pill-orange { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; color: #d97706; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 2px 8px; }
+            .ap-child-badge { display: inline-flex; margin-right: 4px; color: #94a3b8; font-size: 13px; }
+            .ap-del-btn { width: 30px; height: 30px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: background .15s, color .15s, border-color .15s; }
+            .ap-del-btn:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+            .ap-task-mobile-grid { display: none; }
+            .ap-task-card-mobile { background: #fff; border: 1px solid #e8edf3; border-left: 4px solid #dc2626; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 10px rgba(15,23,42,.04); }
+            .ap-task-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+            .ap-task-card-title { font-size: 14.5px; font-weight: 700; color: #1e293b; line-height: 1.35; }
+            .ap-task-card-sub { font-size: 12px; color: #94a3b8; margin-top: 3px; }
+            .ap-task-card-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+            .ap-task-card-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+            .ap-task-card-meta div { background: #f8fafc; border: 1px solid #e8edf3; border-radius: 8px; padding: 9px 10px; min-width: 0; }
+            .ap-task-card-meta span { display: block; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
+            .ap-task-card-meta strong { display: block; font-size: 12.5px; color: #334155; font-weight: 600; overflow-wrap: anywhere; }
+            .ap-mobile-pill-muted { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; color: #64748b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 2px 8px; text-transform: capitalize; }
 
-          /* FAB */
-          .ap-fab { position: fixed; bottom: 32px; right: 32px; z-index: 999; width: 52px; height: 52px; border-radius: 50%; background: #dc2626; color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(220,38,38,.4); transition: transform .2s, box-shadow .2s; }
-          .ap-fab:hover  { transform: scale(1.08); box-shadow: 0 6px 28px rgba(220,38,38,.5); }
-          .ap-fab:active { transform: scale(.96); }
+            /* Leave */
+            .ap-leave-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(320px,1fr)); gap: 16px; }
+            .ap-leave-card { background: #fff; border: 1px solid #e8edf3; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 11px; transition: box-shadow .15s; }
+            .ap-leave-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+            .ap-leave-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+            .ap-leave-title { font-size: 14.5px; font-weight: 700; color: #1e293b; }
+            .ap-leave-sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+            .ap-leave-status { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; border: 1px solid; white-space: nowrap; }
+            .ap-leave-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+            .ap-leave-meta span { display: inline-flex; align-items: center; font-size: 11.5px; color: #64748b; background: #f8fafc; border: 1px solid #e8edf3; border-radius: 6px; padding: 3px 8px; }
+            .ap-leave-reason { font-size: 12.5px; color: #64748b; line-height: 1.5; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #e2e8f0; }
+            .ap-leave-approvals { display: flex; flex-wrap: wrap; gap: 6px; }
+            .ap-approval-pill { display: inline-flex; font-size: 11.5px; font-weight: 600; color: #64748b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 3px 8px; }
+            .ap-approval-pill.ok { color: #16a34a; background: #f0fdf4; border-color: #bbf7d0; }
+            .ap-approval-pill.no { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
+            .ap-leave-rejection { font-size: 12px; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 7px 10px; line-height: 1.4; }
+            .ap-leave-actions { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+            .ap-btn-approve, .ap-btn-reject { display: inline-flex; align-items: center; justify-content: center; font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 700; padding: 7px 14px; border-radius: 7px; cursor: pointer; transition: background .15s; border: 1px solid; }
+            .ap-btn-approve { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+            .ap-btn-approve:hover:not(:disabled) { background: #dcfce7; }
+            .ap-btn-reject  { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+            .ap-btn-reject:hover:not(:disabled)  { background: #fee2e2; }
+            .ap-btn-approve:disabled, .ap-btn-reject:disabled { opacity: .6; cursor: not-allowed; }
+            .ap-saving, .ap-leave-done { font-size: 12px; color: #94a3b8; font-style: italic; }
 
-          /* Modal */
-          .ap-modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(15,23,42,.45); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 20px; }
-          .ap-modal { background: #fff; border-radius: 16px; width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2); display: flex; flex-direction: column; }
-          .ap-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid #f1f5f9; position: sticky; top: 0; background: #fff; z-index: 1; border-radius: 16px 16px 0 0; }
-          .ap-modal-title { font-size: 16px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 9px; }
-          .ap-modal-title-icon { width: 32px; height: 32px; border-radius: 8px; background: #fef2f2; display: flex; align-items: center; justify-content: center; color: #dc2626; }
-          .ap-modal-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; transition: background .15s; }
-          .ap-modal-close:hover { background: #f1f5f9; }
-          .ap-modal-body { padding: 24px; }
+            /* Shared */
+            .op-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; color: #94a3b8; gap: 12px; text-align: center; }
+            .op-empty-text  { font-size: 13.5px; }
+            .op-spinner { width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top-color: #dc2626; border-radius: 50%; animation: spin .7s linear infinite; }
+            @keyframes spin { to { transform: rotate(360deg); } }
 
-          @media (max-width: 900px) {
-            .op-main { padding: 22px 22px 28px; }
-            .op-content-card { padding: 22px; border-radius: 12px; }
-            .op-profile-card { padding: 20px 22px; align-items: flex-start; }
-            .ap-stats-row { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
-            .ap-leave-grid { grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); }
-            .tf-date { width: 120px; }
-          }
+            /* Toast */
+            .ap-toast { position: fixed; bottom: 28px; right: 28px; z-index: 9999; display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 10px; font-size: 13.5px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.15); animation: slideUp .25s ease; }
+            .ap-toast-success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+            .ap-toast-error   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+            @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
 
-          @media (max-width: 760px) {
-            .op-body { display: block; min-height: calc(100vh - 60px); }
-            .op-sidebar { position: fixed; top: 0; left: 0; z-index: 10020; height: 100vh; width: min(84vw, 300px); min-width: 0; transform: translateX(0); opacity: 1; box-shadow: 12px 0 34px rgba(15,23,42,.18); transition: transform .22s ease, opacity .18s ease; }
-            .op-sidebar.collapsed { width: min(84vw, 300px); min-width: 0; transform: translateX(-105%); opacity: 0; pointer-events: none; }
-            .op-sidebar-close { display: inline-flex; }
-            .op-sidebar-backdrop { display: block; position: fixed; inset: 0; z-index: 10010; background: rgba(15,23,42,.38); backdrop-filter: blur(2px); border: none; padding: 0; }
-            .op-main { padding: 16px 14px 24px; overflow: visible; }
-            .op-topbar { margin-bottom: 16px; gap: 10px; }
-            .op-toggle-btn { width: 38px; height: 38px; }
-            .op-profile-card { margin-bottom: 16px; padding: 16px; border-radius: 10px; gap: 12px; }
-            .op-avatar { width: 44px; height: 44px; font-size: 18px; }
-            .op-content-card { padding: 16px; border-radius: 10px; min-height: 240px; }
-            .op-content-header { margin-bottom: 16px; padding-bottom: 12px; }
-            .ap-stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-            .ap-stats-row .ap-stat-card:last-child { grid-column: 1 / -1; }
-            .ap-leave-summary { grid-template-columns: 1fr; gap: 10px; margin-bottom: 16px; }
-            .ap-stat-card { padding: 15px 16px; border-radius: 10px; }
-            .ap-stat-value { font-size: 23px; }
-            .ap-recent-leave { align-items: flex-start; flex-direction: column; gap: 8px; }
-            .ap-form-grid { gap: 14px; }
-            .ap-form-actions { justify-content: stretch; flex-direction: column-reverse; }
-            .ap-btn-primary, .ap-btn-secondary { width: 100%; justify-content: center; }
-            .ap-recurrence-pills { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-            .ap-rpill { justify-content: center; padding: 9px 10px; }
-            .ap-weekday-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); }
-            .ap-wday { width: 100%; }
-            .ap-table-wrap { display: none; }
-            .ap-task-mobile-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-            .ap-task-card-meta { grid-template-columns: 1fr; }
-            .ap-leave-grid { grid-template-columns: 1fr; gap: 12px; }
-            .ap-leave-card { padding: 16px; border-radius: 10px; }
-            .ap-leave-card-top { flex-direction: column; }
-            .ap-leave-actions { flex-direction: column; align-items: stretch; }
-            .ap-btn-approve, .ap-btn-reject { width: 100%; padding: 9px 14px; }
-            .ap-fab { bottom: 20px; right: 16px; width: 48px; height: 48px; }
-            .ap-modal-backdrop { padding: 0; align-items: flex-end; }
-            .ap-modal { border-radius: 16px 16px 0 0; max-height: 92vh; }
-            .ap-toast { left: 14px; right: 14px; bottom: 16px; justify-content: center; }
-            .tf-bar { gap: 6px; padding: 10px 12px; }
-            .tf-divider { display: none; }
-            .tf-date { width: 100%; }
-            .tf-group { width: 100%; }
-            .tf-select { width: 100%; }
-            .tf-clear { width: 100%; justify-content: center; margin-left: 0; }
-          }
+            /* FAB */
+            .ap-fab { position: fixed; bottom: 32px; right: 32px; z-index: 999; width: 52px; height: 52px; border-radius: 50%; background: #dc2626; color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(220,38,38,.4); transition: transform .2s, box-shadow .2s; }
+            .ap-fab:hover  { transform: scale(1.08); box-shadow: 0 6px 28px rgba(220,38,38,.5); }
+            .ap-fab:active { transform: scale(.96); }
 
-          @media (max-width: 380px) {
-            .op-main { padding: 12px 10px 20px; }
-            .op-content-card, .op-profile-card { padding: 14px; }
-            .ap-recurrence-pills { grid-template-columns: 1fr; }
-            .ap-weekday-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
-          }
-            .op-header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-            .op-content-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; }
+            /* Modal */
+            .ap-modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(15,23,42,.45); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+            .ap-modal { background: #fff; border-radius: 16px; width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.2); display: flex; flex-direction: column; }
+            .ap-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid #f1f5f9; position: sticky; top: 0; background: #fff; z-index: 1; border-radius: 16px 16px 0 0; }
+            .ap-modal-title { font-size: 16px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 9px; }
+            .ap-modal-title-icon { width: 32px; height: 32px; border-radius: 8px; background: #fef2f2; display: flex; align-items: center; justify-content: center; color: #dc2626; }
+            .ap-modal-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; transition: background .15s; }
+            .ap-modal-close:hover { background: #f1f5f9; }
+            .ap-modal-body { padding: 24px; }
 
-            .tf-bar-inline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; }
-            .tf-mobile-btn { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; cursor: pointer; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
-            .tf-mobile-btn.active { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
-            .tf-mobile-badge { position: absolute; top: -4px; right: -4px; width: 8px; height: 8px; background: #dc2626; border-radius: 50%; }
-            .tf-popup { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 14px; width: 290px; }
+            @media (max-width: 900px) {
+              .op-main { padding: 22px 22px 28px; }
+              .op-content-card { padding: 22px; border-radius: 12px; }
+              .op-profile-card { padding: 20px 22px; align-items: flex-start; }
+              .ap-stats-row { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+              .ap-leave-grid { grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); }
+              .tf-date { width: 120px; }
+            }
 
             @media (max-width: 760px) {
-              .tf-bar-inline { display: none; }
-              .tf-mobile-btn { display: inline-flex; }
-              .tf-popup .tf-group { width: 100%; }
-              .tf-popup .tf-select, .tf-popup .tf-date { width: 100%; }
-              .tf-popup .tf-clear { width: 100%; justify-content: center; margin-left: 0; }
-              .tf-popup .tf-divider { display: none; }
+              .op-body { display: block; min-height: calc(100vh - 60px); background: #c9d0d4d0; }
+              .op-sidebar { position: fixed; top: 0; left: 0; z-index: 10020; height: 100vh; width: min(84vw, 300px); min-width: 0; transform: translateX(0); opacity: 1; box-shadow: 12px 0 34px rgba(15,23,42,.18); transition: transform .22s ease, opacity .18s ease; }
+              .op-sidebar.collapsed { width: min(84vw, 300px); min-width: 0; transform: translateX(-105%); opacity: 0; pointer-events: none; }
+              .op-sidebar-close { display: inline-flex; }
+              .op-sidebar-backdrop { display: block; position: fixed; inset: 0; z-index: 10010; background: rgba(15,23,42,.38); backdrop-filter: blur(2px); border: none; padding: 0; }
+              .op-main { padding: 16px 14px 24px; overflow: visible; }
+              .op-topbar { margin-bottom: 16px; gap: 10px; }
+              .op-toggle-btn { width: 38px; height: 38px; }
+              .op-profile-card { margin-bottom: 16px; padding: 16px; border-radius: 10px; gap: 12px; }
+              .op-avatar { width: 44px; height: 44px; font-size: 18px; }
+              .op-content-card { padding: 16px; border-radius: 10px; min-height: 240px; }
+              .op-content-header { margin-bottom: 16px; padding-bottom: 12px; }
+              .ap-stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+              .ap-stats-row .ap-stat-card:last-child { grid-column: 1 / -1; }
+              .ap-leave-summary { grid-template-columns: 1fr; gap: 10px; margin-bottom: 16px; }
+              .ap-stat-card { padding: 15px 16px; border-radius: 10px; }
+              .ap-stat-value { font-size: 23px; }
+              .ap-recent-leave { align-items: flex-start; flex-direction: column; gap: 8px; }
+              .ap-form-grid { gap: 14px; }
+              .ap-form-actions { justify-content: stretch; flex-direction: column-reverse; }
+              .ap-btn-primary, .ap-btn-secondary { width: 100%; justify-content: center; }
+              .ap-recurrence-pills { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+              .ap-rpill { justify-content: center; padding: 9px 10px; }
+              .ap-weekday-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); }
+              .ap-wday { width: 100%; }
+              .ap-table-wrap { display: none; }
+              .ap-task-mobile-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+              .ap-task-card-meta { grid-template-columns: 1fr; }
+              .ap-leave-grid { grid-template-columns: 1fr; gap: 12px; }
+              .ap-leave-card { padding: 16px; border-radius: 10px; }
+              .ap-leave-card-top { flex-direction: column; }
+              .ap-leave-actions { flex-direction: column; align-items: stretch; }
+              .ap-btn-approve, .ap-btn-reject { width: 100%; padding: 9px 14px; }
+              .ap-fab { bottom: 20px; right: 16px; width: 48px; height: 48px; }
+              .ap-modal-backdrop { padding: 0; align-items: flex-end; }
+              .ap-modal { border-radius: 16px 16px 0 0; max-height: 92vh; }
+              .ap-toast { left: 14px; right: 14px; bottom: 16px; justify-content: center; }
+              .tf-bar { gap: 6px; padding: 10px 12px; }
+              .tf-divider { display: none; }
+              .tf-date { width: 100%; }
+              .tf-group { width: 100%; }
+              .tf-select { width: 100%; }
+              .tf-clear { width: 100%; justify-content: center; margin-left: 0; }
             }
-          .op-nav-section { font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: #cbd5e1; padding: 12px 12px 4px; }
 
-          .ap-edit-btn { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid #bfdbfe; background: #eff6ff; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: #2563eb; transition: background .15s; }
-          .ap-edit-btn:hover { background: #dbeafe; }
-        `}</style>
+            @media (max-width: 380px) {
+              .op-main { padding: 12px 10px 20px; }
+              .op-content-card, .op-profile-card { padding: 14px; }
+              .ap-recurrence-pills { grid-template-columns: 1fr; }
+              .ap-weekday-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+            }
+              .op-header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+              .op-content-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; }
 
-        <div className="op-root">
-          <Navbar />
+              .tf-bar-inline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; background: #c9d0d4d0;padding: 10px;border-radius: 10px;}
+              .tf-mobile-btn { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; cursor: pointer; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
+              .tf-mobile-btn.active { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+              .tf-mobile-badge { position: absolute; top: -4px; right: -4px; width: 8px; height: 8px; background: #dc2626; border-radius: 50%; }
+              .tf-popup { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 14px; width: 290px; }
 
-          {toast && (
-            <div className={`ap-toast ap-toast-${toast.type}`}>
-              {toast.type === "success"
-                ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              @media (max-width: 760px) {
+                .tf-bar-inline { display: none; }
+                .tf-mobile-btn { display: inline-flex; }
+                .tf-popup .tf-group { width: 100%; }
+                .tf-popup .tf-select, .tf-popup .tf-date { width: 100%; }
+                .tf-popup .tf-clear { width: 100%; justify-content: center; margin-left: 0; }
+                .tf-popup .tf-divider { display: none; }
               }
-              {toast.msg}
-            </div>
-          )}
+            .op-nav-section { font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: #000000; padding: 12px 12px 4px; }
 
-          <div className="op-body">
-            {sidebarOpen && (
-              <button className="op-sidebar-backdrop" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} />
+            .ap-edit-btn { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid #bfdbfe; background: #eff6ff; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: #2563eb; transition: background .15s; }
+            .ap-edit-btn:hover { background: #dbeafe; }
+          `}</style>
+
+          <div className="op-root">
+            <Navbar onMenuToggle={() => setSidebarOpen(p => !p)} menuOpen={sidebarOpen} />
+
+            {toast && (
+              <div className={`ap-toast ap-toast-${toast.type}`}>
+                {toast.type === "success"
+                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                }
+                {toast.msg}
+              </div>
             )}
-            <aside className={`op-sidebar${sidebarOpen ? "" : " collapsed"}`}>
-              <div className="op-sidebar-header">
-                <span className="op-sidebar-label">Admin Panel</span>
-                <button className="op-sidebar-close" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
-              </div>
-              <nav className="op-nav">
-                {NAV_ITEMS.slice(0, 4).map((item) => (
-                  <button key={item.key} className={`op-nav-item${activeTab === item.key ? " active" : ""}`} onClick={() => handleNavClick(item.key)}>
-                    <span className="op-nav-icon">{item.icon}</span>
-                    {item.label}
-                    {item.key === "leave-requests" && leavePendingForAdmin > 0 && (
-                      <span className="op-nav-badge">{leavePendingForAdmin}</span>
-                    )}
-                  </button>
-                ))}
-                <span className="op-nav-section">Employee Management</span>
-                {NAV_ITEMS.slice(4).map((item) => (
-                  <button key={item.key} className={`op-nav-item${activeTab === item.key ? " active" : ""}`} onClick={() => handleNavClick(item.key)}>
-                    <span className="op-nav-icon">{item.icon}</span>
-                    {item.label}
-                  </button>
-                ))}
-              </nav>
-            </aside>
 
-            <main className="op-main">
-              <div className="op-topbar">
-                <button className="op-toggle-btn" onClick={() => setSidebarOpen((p) => !p)} aria-label="Toggle sidebar">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-                  </svg>
-                </button>
-                
-              <div className="op-profile-card">
-                <div className="op-avatar">{user.name?.charAt(0).toUpperCase()}</div>
-                <div className="op-profile-info">
-                  <div className="op-profile-name">
-                    {user.name}<span className="ap-role-badge">Admin</span>
-                  </div>
-                  {/* <div className="op-profile-meta">
-                    <span className="op-meta-chip"><strong>Username:</strong> {user.user_name}</span>
-                    <span className="op-meta-chip"><strong>Designation:</strong> {user.designation}</span>
-                    <span className="op-meta-chip"><strong>Site:</strong> {user.site_name || "Not Assigned"}</span>
-                    <span className="op-meta-chip"><strong>Role:</strong> {user.role || "Not Assigned"}</span>
-                  </div> */}
-                </div>
-              </div>
-              </div>
-{/* 
-              <div className="op-profile-card">
-                <div className="op-avatar">{user.name?.charAt(0).toUpperCase()}</div>
-                <div className="op-profile-info">
-                  <div className="op-profile-name">
-                    {user.name}<span className="ap-role-badge">Admin</span>
-                  </div>
-                  <div className="op-profile-meta">
-                    <span className="op-meta-chip"><strong>Username:</strong> {user.user_name}</span>
-                    <span className="op-meta-chip"><strong>Designation:</strong> {user.designation}</span>
-                    <span className="op-meta-chip"><strong>Site:</strong> {user.site_name || "Not Assigned"}</span>
-                    <span className="op-meta-chip"><strong>Role:</strong> {user.role || "Not Assigned"}</span>
-                  </div>
-                </div>
-              </div> */}
-
-              <div className="op-content-card">
-                <div className="op-content-header">
-                  <div className="op-header-left">
-                    <div className="op-content-icon">{activeItem?.icon}</div>
-                    <span className="op-content-title">{activeItem?.label}</span>
-                  </div>
-                  {activeTab === "all-tasks" && (
-                <TaskFilterBar
-                  filters={taskFilters}
-                  onChange={(key, val) => setTaskFilters(prev => ({ ...prev, [key]: val }))}
-                  onClear={() => setTaskFilters({ ...EMPTY_TASK_FILTERS })}
-                  sites={tfSites}
-                  priorities={tfPriorities}
-                  statuses={tfStatuses}
-                  assignees={tfAssignees}
-                  inline={true}
-                  mobileOpen={mobileFilterOpen}
-                  onMobileToggle={() => setMobileFilterOpen(p => !p)}
-                />
+            <div className="op-body">
+              {sidebarOpen && (
+                <button className="op-sidebar-backdrop" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)} />
               )}
-                </div>
-                {renderContent()}
-              </div>
-            </main>
-          </div>
-
-          {/* FAB — dashboard and all-tasks tabs */}
-          {(activeTab === "dashboard" || activeTab === "all-tasks") && (
-            <button className="ap-fab" onClick={() => setShowTaskModal(true)} title="Assign new task">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 5v14M5 12h14"/>
-              </svg>
-            </button>
-          )}
-
-          {/* Assign Task Modal */}
-          {showTaskModal && (
-            <div className="ap-modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowTaskModal(false); }}>
-              <div className="ap-modal">
-                <div className="ap-modal-header">
-                  <div className="ap-modal-title">
-                    <div className="ap-modal-title-icon">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                    </div>
-                    Assign New Task
-                  </div>
-                  <button className="ap-modal-close" onClick={() => setShowTaskModal(false)}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <aside className={`op-sidebar${sidebarOpen ? "" : " collapsed"}`}>
+                <div className="op-sidebar-header">
+                  <span className="op-sidebar-label">Admin Panel</span>
+                  <button className="op-sidebar-close" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
                   </button>
                 </div>
-                <div className="ap-modal-body">
-                  <TaskForm
-                    form={form}
-                    handleFormChange={handleFormChange}
-                    setForm={setForm}
-                    handleSubmit={handleSubmit}
-                    submitting={submitting}
-                    onSuccess={() => setShowTaskModal(false)}
+                <nav className="op-nav">
+                  {NAV_ITEMS.slice(0, 6).map((item) => (
+                    <button
+                      key={item.key}
+                      className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
+                      onClick={() => handleNavClick(item.key)}
+                    >
+                      <span className="op-nav-icon">{item.icon}</span>
+                      {item.label}
+                      {item.key === "leave-requests" && leavePendingForAdmin > 0 && (
+                        <span className="op-nav-badge">{leavePendingForAdmin}</span>
+                      )}
+                      {item.key === "reschedule-requests" && reschedPending > 0 && (
+                        <span className="op-nav-badge">{reschedPending}</span>
+                      )}
+                    </button>
+                  ))}
+                  <span className="op-nav-section">Employee Management</span>
+                  {NAV_ITEMS.slice(6).map((item) => (
+                    <button
+                      key={item.key}
+                      className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
+                      onClick={() => handleNavClick(item.key)}
+                    >
+                      <span className="op-nav-icon">{item.icon}</span>
+                      {item.label}
+                    </button>
+                  ))}
+                </nav>
+              </aside>
+
+              <main className="op-main">
+                
+                <div className="op-content-card">
+                  <div className="op-content-header">
+                    <div className="op-header-left">
+                      <div className="op-content-icon">{activeItem?.icon}</div>
+                      <span className="op-content-title">{activeItem?.label}</span>
+                    </div>
+                    {activeTab === "all-tasks" && (
+                  <TaskFilterBar
+                    filters={taskFilters}
+                    onChange={(key, val) => setTaskFilters(prev => ({ ...prev, [key]: val }))}
+                    onClear={() => setTaskFilters({ ...EMPTY_TASK_FILTERS })}
+                    sites={tfSites}
+                    priorities={tfPriorities}
+                    statuses={tfStatuses}
+                    assignees={tfAssignees}
+                    inline={true}
+                    mobileOpen={mobileFilterOpen}
+                    onMobileToggle={() => setMobileFilterOpen(p => !p)}
                   />
+                )}
+                  </div>
+                  {renderContent()}
+                </div>
+              </main>
+            </div>
+
+            {/* FAB — dashboard and all-tasks tabs */}
+            {(activeTab === "dashboard" || activeTab === "all-tasks") && (
+              <button className="ap-fab" onClick={() => setShowTaskModal(true)} title="Assign new task">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12h14"/>
+                </svg>
+              </button>
+            )}
+
+            {/* Assign Task Modal */}
+            {showTaskModal && (
+              <div className="ap-modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) setShowTaskModal(false); }}>
+                <div className="ap-modal">
+                  <div className="ap-modal-header">
+                    <div className="ap-modal-title">
+                      <div className="ap-modal-title-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                      </div>
+                      Assign New Task
+                    </div>
+                    <button className="ap-modal-close" onClick={() => setShowTaskModal(false)}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                  <div className="ap-modal-body">
+                    <TaskForm
+                      form={form}
+                      handleFormChange={handleFormChange}
+                      setForm={setForm}
+                      handleSubmit={handleSubmit}
+                      submitting={submitting}
+                      onSuccess={() => setShowTaskModal(false)}
+                    />
+                  </div>
                 </div>
               </div>
+            )}
+          </div>
+          {rejectModal && (
+    <div
+      style={{
+        position:"fixed", inset:0, zIndex:10040,
+        background:"rgba(15,23,42,.5)", backdropFilter:"blur(4px)",
+        display:"flex", alignItems:"center", justifyContent:"center", padding:20,
+      }}
+      onClick={e => { if (e.target===e.currentTarget) setRejectModal(null); }}
+    >
+      <div style={{
+        background:"#fff", borderRadius:16, width:"100%", maxWidth:460,
+        boxShadow:"0 24px 64px rgba(0,0,0,.22)", display:"flex", flexDirection:"column",
+        overflow:"hidden",
+      }}>
+        {/* Header */}
+        <div style={{
+          display:"flex", alignItems:"center", gap:12,
+          padding:"18px 22px 14px", borderBottom:"1px solid #f1f5f9",
+        }}>
+          <div style={{
+            width:36, height:36, borderRadius:10, flexShrink:0,
+            background:"#fef2f2", display:"flex", alignItems:"center", justifyContent:"center",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </div>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:15, fontWeight:700, color:"#1e293b" }}>Reject Reschedule Request</div>
+            <div style={{ fontSize:12, color:"#94a3b8", marginTop:2 }}>
+              {rejectModal.req.tasks?.title || `Task #${rejectModal.req.task_id}`}
+              {" · "}Requested by <strong style={{ color:"#64748b" }}>{rejectModal.req.requested_by}</strong>
             </div>
-          )}
+          </div>
+          <button
+            onClick={() => setRejectModal(null)}
+            style={{
+              width:30, height:30, borderRadius:8, border:"1px solid #e2e8f0",
+              background:"#fff", cursor:"pointer", display:"flex",
+              alignItems:"center", justifyContent:"center", color:"#94a3b8", flexShrink:0,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
-      </>
-    );
-  }
+  
+        {/* Request summary */}
+        <div style={{ padding:"16px 22px 0" }}>
+          <div style={{
+            background:"#f8fafc", border:"1px solid #e8edf3", borderRadius:10,
+            padding:"12px 14px", display:"flex", flexWrap:"wrap", gap:12,
+          }}>
+            <div style={{ fontSize:12, color:"#64748b" }}>
+              Current due:
+              <strong style={{ color:"#1e293b", marginLeft:5 }}>
+                {rejectModal.req.current_due
+                  ? new Date(rejectModal.req.current_due+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})
+                  : "—"}
+              </strong>
+            </div>
+            <div style={{ fontSize:12, color:"#7c3aed" }}>
+              Requested:
+              <strong style={{ marginLeft:5 }}>
+                {new Date(rejectModal.req.requested_date+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}
+              </strong>
+            </div>
+            {rejectModal.req.reason && (
+              <div style={{ width:"100%", fontSize:12, color:"#64748b", fontStyle:"italic" }}>
+                "{rejectModal.req.reason}"
+              </div>
+            )}
+          </div>
+        </div>
+  
+        {/* Reason textarea */}
+        <div style={{ padding:"16px 22px", display:"flex", flexDirection:"column", gap:6 }}>
+          <label style={{ fontSize:12.5, fontWeight:600, color:"#475569" }}>
+            Reason for Rejection <span style={{ color:"#dc2626" }}>*</span>
+          </label>
+          <textarea
+            rows={3}
+            placeholder="Explain why this reschedule request is being rejected…"
+            autoFocus
+            style={{
+              fontFamily:"'DM Sans',sans-serif", fontSize:13.5, color:"#1e293b",
+              background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:8,
+              padding:"9px 12px", outline:"none", width:"100%", resize:"vertical",
+              minHeight:90, transition:"border .15s",
+            }}
+            value={rejectModal.reason}
+            onChange={e => setRejectModal(p => ({ ...p, reason: e.target.value }))}
+            onFocus={e => { e.target.style.borderColor="#dc2626"; e.target.style.boxShadow="0 0 0 3px rgba(220,38,38,.1)"; }}
+            onBlur={e  => { e.target.style.borderColor="#e2e8f0"; e.target.style.boxShadow="none"; }}
+          />
+          <span style={{ fontSize:11.5, color:"#94a3b8" }}>
+            This message will be shown to the employee.
+          </span>
+        </div>
+  
+        {/* Footer buttons */}
+        <div style={{
+          display:"flex", justifyContent:"flex-end", gap:10,
+          padding:"12px 22px 18px", borderTop:"1px solid #f1f5f9",
+        }}>
+          <button
+            onClick={() => setRejectModal(null)}
+            style={{
+              display:"inline-flex", alignItems:"center", gap:6,
+              background:"#f1f5f9", color:"#475569",
+              fontFamily:"'DM Sans',sans-serif", fontSize:13.5, fontWeight:600,
+              padding:"9px 18px", borderRadius:8, border:"1px solid #e2e8f0", cursor:"pointer",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleRejectConfirm}
+            disabled={!rejectModal.reason.trim()}
+            style={{
+              display:"inline-flex", alignItems:"center", gap:7,
+              background: rejectModal.reason.trim() ? "#dc2626" : "#f1f5f9",
+              color:       rejectModal.reason.trim() ? "#fff"    : "#94a3b8",
+              fontFamily:"'DM Sans',sans-serif", fontSize:13.5, fontWeight:600,
+              padding:"9px 20px", borderRadius:8, border:"none",
+              cursor: rejectModal.reason.trim() ? "pointer" : "not-allowed",
+              transition:"background .15s, color .15s",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            Confirm Rejection
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+        </>
+      );
+    }

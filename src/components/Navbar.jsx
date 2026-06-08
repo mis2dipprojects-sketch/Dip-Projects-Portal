@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png"; // adjust path to where you place logo.jpeg
 
-export default function Navbar() {
+export default function Navbar({ onMenuToggle, menuOpen }) {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
 
@@ -46,7 +46,7 @@ export default function Navbar() {
           width: 60px;
           object-fit: contain;
           flex-shrink: 0;
-          background: white;
+          background: #ffffffcc;
           padding: 4px;
           border-radius: 30px;
         }
@@ -198,12 +198,47 @@ export default function Navbar() {
   .navbar-logout span { display: none; }
   .navbar-logout svg { stroke: #3d1200; }
 }
-
+.navbar-ham {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  border: 1.5px solid rgba(255,255,255,.25);
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s;
+  margin-left: 6px;
+}
+.navbar-ham:hover { background: rgba(255,255,255,.2); }
+.navbar-ham:active { background: rgba(255,255,255,.28); }
+@media (max-width: 600px) {
+  .navbar-ham { width: 34px; height: 34px; }
+}
 
       `}</style>
 
       <nav className="app-navbar">
+        {/* <div className="navbar-left">
+          <img src={logo} alt="Logo" className="navbar-logo" />
+          <div className="navbar-brand-text">
+            <div className="navbar-title">{portalName}</div>
+            <div className="navbar-tagline">Quality + Quantity · On Time · Every Time</div>
+          </div>
+        </div> */}
+
         <div className="navbar-left">
+          {onMenuToggle && (
+            <button className="navbar-ham" onClick={onMenuToggle} aria-label="Toggle sidebar">
+              {menuOpen
+                ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+              }
+            </button>
+          )}
           <img src={logo} alt="Logo" className="navbar-logo" />
           <div className="navbar-brand-text">
             <div className="navbar-title">{portalName}</div>

@@ -145,12 +145,21 @@ export default function Login() {
       return;
     }
 
+    // const userData = {
+    //   ...userDetail,
+    //   password: undefined, // never store the hash in localStorage
+    //   site_name: userPortal?.site_name || "",
+    //   role: userPortal?.role || "",
+    // };
     const userData = {
       ...userDetail,
-      password: undefined, // never store the hash in localStorage
+      password: undefined,
       site_name: userPortal?.site_name || "",
-      role: userPortal?.role || "",
+      role: userPortal?.role || userDetail.role || "",
+      designation: userDetail.designation || "",
     };
+    // Verify id exists
+    console.log("Stored user id:", userDetail.id);
 
     localStorage.setItem("user", JSON.stringify(userData));
     redirectUser(userData.role);

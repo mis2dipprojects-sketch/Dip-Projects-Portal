@@ -1,18 +1,3 @@
-// imageUtils.js
-// Handles HEIC/HEIF conversion + image compression for iOS and large images.
-// Works entirely in the browser — no server needed.
-//
-// INSTALL HEIC SUPPORT:
-//   npm install heic2any
-//
-// USAGE:
-//   import { processImage, processImageFiles } from "./imageUtils";
-//
-//   // Single file → { dataUrl, blob, fileName, width, height, sizeKb }
-//   const result = await processImage(file);
-//
-//   // Multiple files at once
-//   const results = await processImageFiles(fileList);
 
 // ─── config ────────────────────────────────────────────────────────────────
 

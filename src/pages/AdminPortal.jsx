@@ -529,6 +529,48 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
               </label>
             </div>
           </div>
+          {/* Audio attachment */}
+<div className="ap-form-row ap-col-2">
+  <div className="ap-field">
+    <label className="ap-label">
+      Audio Instruction
+      <span className="ap-optional" style={{fontSize:11,fontWeight:500,color:"#94a3b8",background:"#f1f5f9",borderRadius:4,padding:"1px 6px",marginLeft:6}}>optional</span>
+    </label>
+    <div style={{display:"flex",alignItems:"center",gap:10,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:8,padding:"8px 12px"}}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      <input
+        type="file"
+        accept="audio/*"
+        style={{flex:1,fontSize:12.5,color:"#475569",background:"transparent",border:"none",outline:"none",cursor:"pointer"}}
+        onChange={e => setForm(p => ({...p, _audioFile: e.target.files[0] || null}))}
+      />
+    </div>
+    {form._audioFile && (
+      <span style={{fontSize:11.5,color:"#16a34a"}}>✓ {form._audioFile.name}</span>
+    )}
+    <span style={{fontSize:11.5,color:"#94a3b8"}}>MP3, WAV, M4A supported. Max 50MB.</span>
+  </div>
+
+  <div className="ap-field">
+    <label className="ap-label">
+      Document Attachment
+      <span className="ap-optional" style={{fontSize:11,fontWeight:500,color:"#94a3b8",background:"#f1f5f9",borderRadius:4,padding:"1px 6px",marginLeft:6}}>optional</span>
+    </label>
+    <div style={{display:"flex",alignItems:"center",gap:10,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:8,padding:"8px 12px"}}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <input
+        type="file"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg"
+        style={{flex:1,fontSize:12.5,color:"#475569",background:"transparent",border:"none",outline:"none",cursor:"pointer"}}
+        onChange={e => setForm(p => ({...p, _docFile: e.target.files[0] || null}))}
+      />
+    </div>
+    {form._docFile && (
+      <span style={{fontSize:11.5,color:"#16a34a"}}>✓ {form._docFile.name}</span>
+    )}
+    <span style={{fontSize:11.5,color:"#94a3b8"}}>PDF, Word, Excel, images supported. Max 20MB.</span>
+  </div>
+</div>
           <div className="ap-form-row ap-col-1">
             <div className="ap-field">
               <label className="ap-label">Description</label>
@@ -966,54 +1008,73 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
         }));
       };
 
-      const handleSubmit = async () => {
-        if (!form.title.trim())       return showToast("error","Title is required.");
-        if (!form.assigned_to.trim()) return showToast("error","Assigned To is required.");
-        if (form.is_recurring && !form.recurrence) return showToast("error","Please select a recurrence pattern.");
+const handleSubmit = async () => {
+  if (!form.title.trim())       return showToast("error","Title is required.");
+  if (!form.assigned_to.trim()) return showToast("error","Assigned To is required.");
+  if (form.is_recurring && !form.recurrence) return showToast("error","Please select a recurrence pattern.");
 
-        const anchor = form.is_recurring ? buildAnchor(form) : null;
-        setSubmitting(true);
-        const payload = {
-          title:             form.title.trim(),
-          description:       form.description.trim() || null,
-          assigned_to:       form.assigned_to.trim(),
-          site_name:         form.site_name.trim() || null,
-          assigned_by:       user.user_name,
-          priority:          form.priority,
-          status:            form.status,
-          due_date:          form.due_date || null,
-          is_recurring:      form.is_recurring,
-          recurrence:        form.is_recurring ? form.recurrence : null,
-          recurrence_anchor: anchor,
-          last_generated_date: null,
-          parent_task_id:    null,
-          reschedule_allowed: form.reschedule_allowed || false,
-        };
-        // const { error } = await supabase.from("tasks").insert([payload]);
-        const { data: insertedTask, error } = await supabase
-  .from("tasks")
-  .insert([payload])
-  .select("id")
-  .single();
-        setSubmitting(false);
-        if (error) {
-          showToast("error","Failed to assign task. " + error.message);
-          return false;
-        } else {
-          const desc = form.is_recurring ? anchorDescription(form.recurrence, anchor) : null;
-          showToast("success", `Task "${form.title}" assigned${desc ? ` — repeats ${desc}` : ""}!`);
-          setForm({ ...EMPTY_FORM });
-          fetchAllTasks();
-          // After successful task insert:
-            if (form.enable_checkpoints) {
-              await supabase
-                .from("tasks")
-                .update({ has_checkpoints: true })
-                .eq("id", insertedTask.id); // use the returned id from insert
-            }
-          return true;
-        }
-      };
+  const anchor = form.is_recurring ? buildAnchor(form) : null;
+  setSubmitting(true);
+
+  // Upload audio if provided
+  let audio_url = null;
+  if (form._audioFile) {
+    const ext  = form._audioFile.name.split(".").pop();
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("task-audio").upload(path, form._audioFile);
+    if (upErr) { setSubmitting(false); return showToast("error","Audio upload failed: " + upErr.message); }
+    const { data: urlData } = supabase.storage.from("task-audio").getPublicUrl(path);
+    audio_url = urlData.publicUrl;
+  }
+
+  // Upload document if provided
+  let document_url = null;
+  if (form._docFile) {
+    const ext  = form._docFile.name.split(".").pop();
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("task-documents").upload(path, form._docFile);
+    if (upErr) { setSubmitting(false); return showToast("error","Document upload failed: " + upErr.message); }
+    const { data: urlData } = supabase.storage.from("task-documents").getPublicUrl(path);
+    document_url = urlData.publicUrl;
+  }
+
+  const payload = {
+    title:             form.title.trim(),
+    description:       form.description.trim() || null,
+    assigned_to:       form.assigned_to.trim(),
+    site_name:         form.site_name.trim() || null,
+    assigned_by:       user.user_name,
+    priority:          form.priority,
+    status:            form.status,
+    due_date:          form.due_date || null,
+    is_recurring:      form.is_recurring,
+    recurrence:        form.is_recurring ? form.recurrence : null,
+    recurrence_anchor: anchor,
+    last_generated_date: null,
+    parent_task_id:    null,
+    reschedule_allowed: form.reschedule_allowed || false,
+    audio_url,
+    document_url,
+  };
+
+  const { data: insertedTask, error } = await supabase.from("tasks").insert([payload]).select("id").single();
+  setSubmitting(false);
+
+  if (error) {
+    showToast("error","Failed to assign task. " + error.message);
+    return false;
+  }
+
+  if (form.enable_checkpoints) {
+    await supabase.from("tasks").update({ has_checkpoints: true }).eq("id", insertedTask.id);
+  }
+
+  const desc = form.is_recurring ? anchorDescription(form.recurrence, anchor) : null;
+  showToast("success", `Task "${form.title}" assigned${desc ? ` — repeats ${desc}` : ""}!`);
+  setForm({ ...EMPTY_FORM });
+  fetchAllTasks();
+  return true;
+};
 
       const handleDelete = async (id) => {
         if (!window.confirm("Delete this task?")) return;
@@ -1067,21 +1128,20 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
         showToast("success", "Reschedule rejected.");
       };
 
-      const handleLeaveAction = async (leave, approved) => {
-        const reason = approved ? null : window.prompt("Reason for rejecting this leave?") || "Rejected by admin";
-        setUpdatingLeaveId(leave.id);
-        const payload = {
-          admin_approved:   approved,
-          approved_by:      approved ? user.user_name : null,
-          rejection_reason: approved ? null : reason,
-          status:           approved ? "Approved" : "Rejected",
+        const handleLeaveAction = async (leave, approved) => {
+          setUpdatingLeaveId(leave.id);
+          const payload = {
+            admin_approved:   approved,
+            approved_by:      approved ? user.user_name : null,
+            rejection_reason: null,
+            status:           approved ? "Approved" : "Rejected",
+          };
+          const { error } = await supabase.from("leaves").update(payload).eq("id", leave.id);
+          setUpdatingLeaveId(null);
+          if (error) { showToast("error","Failed to update leave. " + error.message); return; }
+          setAllLeaves((prev) => prev.map((item) => item.id === leave.id ? { ...item, ...payload } : item));
+          showToast("success", approved ? "Leave approved." : "Leave rejected.");
         };
-        const { error } = await supabase.from("leaves").update(payload).eq("id", leave.id);
-        setUpdatingLeaveId(null);
-        if (error) { showToast("error","Failed to update leave. " + error.message); return; }
-        setAllLeaves((prev) => prev.map((item) => item.id === leave.id ? { ...item, ...payload } : item));
-        showToast("success", approved ? "Leave approved." : "Leave rejected.");
-      };
 
       if (!user) return <h2 style={{ textAlign:"center", marginTop:80, color:"#94a3b8" }}>Loading…</h2>;
 
@@ -2142,6 +2202,7 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
               .recurring-desktop-bar { display: none; }
               .tf-bar{display:none;}
             }
+              
           `}</style>
 
           <div className="op-root">

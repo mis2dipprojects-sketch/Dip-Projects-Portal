@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabase";
-
 // ── helpers (copied from AdminPortal) ────────────────────────────────────────
 const WEEKDAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const MONTHS   = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -11,7 +10,7 @@ export const EMPTY_FORM = {
   title: "", description: "", assigned_to: "", site_name: "", priority: "medium",
   due_date: "", status: "pending", is_recurring: false, recurrence: "",
   anchor_weekday: "1", anchor_day: "1", anchor_month: "1", anchor_month_day: "1",
-  reschedule_allowed: false, enable_checkpoints: false,
+  reschedule_allowed: false, enable_checkpoints: false,_audioFile: null, _docFile: null,
 };
 
 function daysInMonth(month) {
@@ -44,7 +43,7 @@ function anchorDescription(recurrence, anchor) {
 function ordinal(n) {
   if (n >= 11 && n <= 13) return "th";
   switch (n % 10) { case 1: return "st"; case 2: return "nd"; case 3: return "rd"; default: return "th"; }
-}
+} 
 // ── CheckpointManager ─────────────────────────────────────────────────────────
 export function CheckpointManager({ taskTitle, onCountChange }) {
   const [items, setItems]       = useState([]);   // { id, checkpoint, isNew, editing, draft }
@@ -199,6 +198,103 @@ export function CheckpointManager({ taskTitle, onCountChange }) {
             : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add</>}
         </button>
       </div>
+    </div>
+  );
+}
+
+function AudioRecorder({ onRecorded }) {
+  const [state, setState]         = useState("idle");    // idle | recording | recorded
+  const [seconds, setSeconds]     = useState(0);
+  const [audioURL, setAudioURL]   = useState(null);
+  const [audioFile, setAudioFile] = useState(null);
+  const mediaRef   = useRef(null);
+  const chunksRef  = useRef([]);
+  const timerRef   = useRef(null);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      mediaRef.current = mr;
+      chunksRef.current = [];
+      mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const url  = URL.createObjectURL(blob);
+        const file = new File([blob], `recording-${Date.now()}.webm`, { type: "audio/webm" });
+        setAudioURL(url);
+        setAudioFile(file);
+        onRecorded(file);
+        setState("recorded");
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mr.start();
+      setState("recording");
+      setSeconds(0);
+      timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
+    } catch {
+      alert("Microphone access denied. Please allow microphone permission.");
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRef.current?.stop();
+    clearInterval(timerRef.current);
+  };
+
+  const discard = () => {
+    setAudioURL(null);
+    setAudioFile(null);
+    setSeconds(0);
+    setState("idle");
+    onRecorded(null);
+  };
+
+  const fmt = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+
+  if (state === "idle") return (
+    <button type="button" onClick={startRecording}
+      style={{display:"flex",alignItems:"center",gap:10,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:8,padding:"11px 14px",cursor:"pointer",width:"100%",transition:"border .15s"}}
+      onMouseEnter={e=>e.currentTarget.style.borderColor="#dc2626"}
+      onMouseLeave={e=>e.currentTarget.style.borderColor="#e2e8f0"}
+    >
+      <span style={{width:32,height:32,borderRadius:"50%",background:"#fef2f2",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </span>
+      <span style={{fontSize:13,color:"#64748b",fontWeight:500}}>Click to start recording</span>
+    </button>
+  );
+
+  if (state === "recording") return (
+    <div style={{display:"flex",alignItems:"center",gap:12,background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"11px 14px"}}>
+      {/* Pulsing red dot */}
+      <span style={{width:10,height:10,borderRadius:"50%",background:"#dc2626",flexShrink:0,animation:"pulse 1s ease-in-out infinite"}}/>
+      <style>{`@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}`}</style>
+      <span style={{fontSize:13,fontWeight:600,color:"#dc2626",flex:1}}>Recording… {fmt(seconds)}</span>
+      <button type="button" onClick={stopRecording}
+        style={{display:"inline-flex",alignItems:"center",gap:6,background:"#dc2626",color:"#fff",border:"none",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12.5,fontWeight:600}}
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+        Stop
+      </button>
+    </div>
+  );
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:8,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:8,padding:"12px 14px"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+          <span style={{fontSize:13,fontWeight:600,color:"#15803d"}}>Recorded ({fmt(seconds)})</span>
+        </div>
+        <button type="button" onClick={discard}
+          style={{display:"inline-flex",alignItems:"center",gap:5,background:"#fef2f2",color:"#dc2626",border:"1px solid #fecaca",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:12,fontWeight:600}}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Discard
+        </button>
+      </div>
+      <audio controls src={audioURL} style={{width:"100%",height:36,borderRadius:6,outline:"none"}}/>
     </div>
   );
 }
@@ -388,6 +484,52 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
             </div>
           </div>
         )}
+
+      {/* ── Audio + Document attachments ── */}
+<div className="ap-form-row ap-col-2">
+  {/* ── Audio Recording ── */}
+<div className="ap-field">
+  <label className="ap-label">
+    Audio Instruction
+    <span style={{fontSize:11,fontWeight:500,color:"#94a3b8",background:"#f1f5f9",borderRadius:4,padding:"1px 6px",marginLeft:6}}>optional</span>
+  </label>
+  <AudioRecorder onRecorded={(file) => setForm(p => ({...p, _audioFile: file}))} />
+  <span style={{fontSize:11.5,color:"#94a3b8"}}>Record a voice instruction for this task.</span>
+</div>
+
+  <div className="ap-field">
+    <label className="ap-label">
+      Document Attachment
+      <span style={{fontSize:11,fontWeight:500,color:"#94a3b8",background:"#f1f5f9",borderRadius:4,padding:"1px 6px",marginLeft:6}}>optional</span>
+    </label>
+    <label style={{display:"flex",alignItems:"center",gap:10,background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:8,padding:"10px 12px",cursor:"pointer",transition:"border .15s"}}
+      onMouseEnter={e=>e.currentTarget.style.borderColor="#dc2626"}
+      onMouseLeave={e=>e.currentTarget.style.borderColor="#e2e8f0"}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+      <span style={{flex:1,fontSize:13,color: form._docFile ? "#16a34a" : "#94a3b8",fontWeight: form._docFile ? 600 : 400}}>
+        {form._docFile ? `✓ ${form._docFile.name}` : "Click to attach document…"}
+      </span>
+      <input
+        type="file"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg"
+        style={{display:"none"}}
+        onChange={e => setForm(p => ({...p, _docFile: e.target.files[0] || null}))}
+      />
+    </label>
+    {form._docFile && (
+      <button
+        type="button"
+        onClick={() => setForm(p => ({...p, _docFile: null}))}
+        style={{alignSelf:"flex-start",fontSize:11.5,color:"#dc2626",background:"none",border:"none",cursor:"pointer",padding:0,display:"flex",alignItems:"center",gap:4}}
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Remove document
+      </button>
+    )}
+    <span style={{fontSize:11.5,color:"#94a3b8"}}>PDF, Word, Excel, images. Max 20MB.</span>
+  </div>
+</div>
 
         {/* ── Actions ── */}
         <div className="ap-form-row ap-col-1 ap-form-actions">

@@ -249,16 +249,28 @@
   }
 
   // ── TaskCard ───────────────────────────────────────────────────────────────
-function TaskCard({ task, onStatusChange, updating, onReschedule }) {
+function TaskCard({ task, onStatusChange, updating, onReschedule, onClick }) {
   const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
   const s = STATUS_STYLES[task.status]     || STATUS_STYLES.pending;
   return (
-    <div className="op-task-card">
+    <div className="op-task-card" onClick={() => onClick?.(task)} style={{cursor:"pointer"}}>
       <div className="op-task-top">
         <div className="op-task-title">{task.title}</div>
-        <span className="op-badge" style={{ background:p.bg, color:p.color }}>
-          <span className="op-badge-dot" style={{ background:p.dot }}/>{task.priority}
-        </span>
+        <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+          {task.audio_url && (
+            <span title="Has audio" style={{color:"#7c3aed",display:"flex",alignItems:"center"}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+            </span>
+          )}
+          {task.document_url && (
+            <span title="Has document" style={{color:"#2563eb",display:"flex",alignItems:"center"}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </span>
+          )}
+          <span className="op-badge" style={{ background:p.bg, color:p.color }}>
+            <span className="op-badge-dot" style={{ background:p.dot }}/>{task.priority}
+          </span>
+        </div>
       </div>
       {task.description && <p className="op-task-desc">{task.description}</p>}
       <div className="op-task-meta">
@@ -286,7 +298,6 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
             {task.recurrence}
           </span>
         )}
-        {/* Reschedule allowed badge */}
         {task.reschedule_allowed && (
           <span className="op-meta-pill" style={{ color:"#7c3aed", background:"#f5f3ff", borderColor:"#e0e7ff" }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -294,16 +305,25 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
           </span>
         )}
       </div>
-      <div className="op-task-footer">
-        <select className="op-status-select" style={{ background:s.bg, color:s.color }} value={task.status} disabled={updating===task.id} onChange={(e)=>onStatusChange(task.id,e.target.value)}>
+      <div className="op-task-footer" onClick={e => e.stopPropagation()}>
+        <select
+          className="op-status-select"
+          style={{ background:s.bg, color:s.color }}
+          value={task.status}
+          disabled={updating === task.id}
+          onChange={e => onStatusChange(task.id, e.target.value, e)}
+        >
           <option value="pending">Pending</option>
           <option value="in_progress">In Progress</option>
           <option value="completed">Completed</option>
         </select>
-        {updating===task.id && <span className="op-saving">saving…</span>}
-        {/* Reschedule request button — only shown when allowed */}
+        {updating === task.id && <span className="op-saving">saving…</span>}
         {task.reschedule_allowed && task.status !== "completed" && (
-          <button className="op-reschedule-btn" onClick={() => onReschedule(task)} title="Request reschedule">
+          <button
+            className="op-reschedule-btn"
+            onClick={e => { e.stopPropagation(); onReschedule(task); }}
+            title="Request reschedule"
+          >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             Reschedule
           </button>
@@ -313,32 +333,36 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
   );
 }
 
-  function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filters, onFilterChange, onFilterClear, showAssignedBy, allTasks, onReschedule }) {
-    const filtered = applyFilters(tasks, filters);
-    const hasActiveFilters = Object.values(filters).some(v => v !== "");
-
-    if (loading) return <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading tasks…</p></div>;
-
-    return (
-      <>
-        {hasActiveFilters && (
-          <p className="tf-count">Showing {filtered.length} of {tasks.length} task{tasks.length !== 1 ? "s" : ""}</p>
-        )}  
-        {filtered.length === 0 ? (
-          <div className="op-empty-state">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.3}}><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="13" y2="13"/></svg>
-            <p className="op-empty-text">{hasActiveFilters ? "No tasks match the current filters." : emptyText}</p>
-          </div>
-        ) : (
-          <div className="op-task-grid">
-            {filtered.map(t => (
-              <TaskCard key={t.id} task={t} onStatusChange={onStatusChange} updating={updatingId} onReschedule={onReschedule}/>
-            ))}
-          </div>
-        )}
-      </>
-    );
-  }
+function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filters, onFilterChange, onFilterClear, showAssignedBy, allTasks, onReschedule, onDetailClick }) {
+  const filtered = applyFilters(tasks, filters);
+  const hasActiveFilters = Object.values(filters).some(v => v !== "");
+  if (loading) return <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading tasks…</p></div>;
+  return (
+    <>
+      {hasActiveFilters && (
+        <p className="tf-count">Showing {filtered.length} of {tasks.length} task{tasks.length !== 1 ? "s" : ""}</p>
+      )}
+      {filtered.length === 0 ? (
+        <div className="op-empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.3}}><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="13" y2="13"/></svg>
+          <p className="op-empty-text">{hasActiveFilters ? "No tasks match the current filters." : emptyText}</p>
+        </div>
+      ) : (
+        <div className="op-task-grid">
+          {filtered.map(t => (
+            <TaskCard
+              key={t.id} task={t}
+              onStatusChange={onStatusChange}
+              updating={updatingId}
+              onReschedule={onReschedule}
+              onClick={onDetailClick}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
 
   // ── Leave Card ─────────────────────────────────────────────────────────────
   function LeaveCard({ leave, showActions, onProxyAction }) {
@@ -408,6 +432,8 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
     const [rescheduleSub, setRescheduleSub]   = useState(false);
     const [myReschedules, setMyReschedules]       = useState([]);
     const [loadingReschedules, setLoadingReschedules] = useState(false);
+
+    const [detailTask, setDetailTask]           = useState(null); // for task detail popup
 
     const [checklistModal, setChecklistModal] = useState(null);
     const [checkpoints, setCheckpoints]       = useState([]);
@@ -506,51 +532,52 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
     };
 
     const handleChecklistConfirm = async () => {
-        const allChecked = checkpoints.every(cp => checkedItems[cp.id]);
-        if (!allChecked) return showToast("error", "Please tick all checklist items before completing.");
+  if (!checkpoints.every(cp => checkedItems[cp.id]))
+    return showToast("error", "Please tick all checklist items first.");
 
-        const taskId = checklistModal.id;
-        setUpdatingId(taskId);
-        setChecklistModal(null);
+  const taskId = checklistModal.id;
+  setChecklistModal(null);
+  setUpdatingId(taskId);
 
-        const { error } = await supabase.from("tasks").update({ status: "completed" }).eq("id", taskId);
-        if (!error) {
-          const patch = (list) => list.map(t => t.id === taskId ? { ...t, status: "completed" } : t);
-          setMyTasks(p => patch(p));
-          setRecurringTasks(p => patch(p));
-          setDelegatedTasks(p => patch(p));
-          showToast("success", "Task marked as completed!");
-        } else {
-          showToast("error", "Failed to update task: " + error.message);
-        }
-        setUpdatingId(null);
-      };
-    const handleStatusChange = async (taskId, newStatus) => {
-      const task = [...myTasks, ...recurringTasks, ...delegatedTasks].find(t => t.id === taskId);
-      
-      if (newStatus === "completed" && task?.has_checkpoints) {
-        setFetchingCPs(true);
-        const { data } = await supabase
-          .from("checkpoints")
-          .select("id, checkpoint")
-          .eq("task_type", task.title);
-        setCheckpoints(data || []);
-        setCheckedItems({});
-        setChecklistModal(task);
-        setFetchingCPs(false);
-        return;
-      }
+  const { error } = await supabase.from("tasks").update({ status: "completed" }).eq("id", taskId);
+  if (!error) {
+    const patch = list => list.map(t => t.id === taskId ? {...t, status: "completed"} : t);
+    setMyTasks(p => patch(p));
+    setRecurringTasks(p => patch(p));
+    setDelegatedTasks(p => patch(p));
+    showToast("success", "Task marked as completed!");
+  } else {
+    showToast("error", "Failed: " + error.message);
+  }
+  setUpdatingId(null);
+};
+    const handleStatusChange = async (taskId, newStatus, e) => {
+  e?.stopPropagation(); // prevent card click from firing
+  const task = [...myTasks, ...recurringTasks, ...delegatedTasks].find(t => t.id === taskId);
 
-      setUpdatingId(taskId);
-      const { error } = await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
-      if (!error) {
-        const patch = (list) => list.map(t => t.id === taskId ? { ...t, status: newStatus } : t);
-        setMyTasks(p => patch(p));
-        setRecurringTasks(p => patch(p));
-        setDelegatedTasks(p => patch(p));
-      }
-      setUpdatingId(null);
-    };
+  if (newStatus === "completed" && task?.has_checkpoints) {
+    setFetchingCPs(true);
+    const { data } = await supabase
+      .from("checkpoints")
+      .select("id, checkpoint")
+      .eq("task_type", task.title);
+    setCheckpoints(data || []);
+    setCheckedItems({});
+    setChecklistModal(task);
+    setFetchingCPs(false);
+    return;
+  }
+
+  setUpdatingId(taskId);
+  const { error } = await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
+  if (!error) {
+    const patch = list => list.map(t => t.id === taskId ? {...t, status: newStatus} : t);
+    setMyTasks(p => patch(p));
+    setRecurringTasks(p => patch(p));
+    setDelegatedTasks(p => patch(p));
+  }
+  setUpdatingId(null);
+};
 
     const markReschedulesRead = async () => {
       const unreadIds = myReschedules
@@ -677,6 +704,7 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
             showAssignedBy={false}
             allTasks={myTasks}
             onReschedule={(task) => { setRescheduleTask(task); setRescheduleForm({ requested_date: "", reason: "" }); }}
+            onDetailClick={(task) => setDetailTask(task)}
           />;
 
         case "recurring-tasks":
@@ -690,6 +718,7 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
             showAssignedBy={false}
             allTasks={recurringTasks}
             onReschedule={(task) => { setRescheduleTask(task); setRescheduleForm({ requested_date: "", reason: "" }); }}
+            onDetailClick={(task) => setDetailTask(task)}
           />;
 
         case "delegated-tasks":
@@ -703,6 +732,7 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
             showAssignedBy={true}
             allTasks={delegatedMixed}
             onReschedule={(task) => { setRescheduleTask(task); setRescheduleForm({ requested_date: "", reason: "" }); }}
+            onDetailClick={(task) => setDetailTask(task)}
           />;
 
         case "apply-leave":
@@ -754,6 +784,7 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
                 </div>
               </div>
             </div>
+            
           );
 
         case "my-leaves":
@@ -1419,7 +1450,125 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
       </div>
     </div>
   </div>
-)}{checklistModal && (
+)}
+{detailTask && (
+  <div
+    style={{position:"fixed",inset:0,zIndex:10030,background:"rgba(15,23,42,.45)",backdropFilter:"blur(3px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}
+    onClick={e => { if (e.target===e.currentTarget) setDetailTask(null); }}
+  >
+    <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:540,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,.2)",display:"flex",flexDirection:"column"}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,padding:"18px 22px 14px",borderBottom:"1px solid #f1f5f9",position:"sticky",top:0,background:"#fff",zIndex:1,borderRadius:"16px 16px 0 0"}}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:16,fontWeight:700,color:"#1e293b",lineHeight:1.3}}>{detailTask.title}</div>
+          {detailTask.site_name && <div style={{fontSize:12,color:"#94a3b8",marginTop:3}}>{detailTask.site_name}</div>}
+        </div>
+        <button
+          onClick={() => setDetailTask(null)}
+          style={{width:30,height:30,borderRadius:8,border:"1px solid #e2e8f0",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#64748b",flexShrink:0}}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      {/* Body */}
+      <div style={{padding:"20px 22px",display:"flex",flexDirection:"column",gap:18}}>
+
+        {/* Status + Priority row */}
+        <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+          {(() => { const p=PRIORITY_STYLES[detailTask.priority]||PRIORITY_STYLES.medium; return (
+            <span style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:12,fontWeight:700,padding:"4px 10px",borderRadius:20,background:p.bg,color:p.color}}>
+              <span style={{width:7,height:7,borderRadius:"50%",background:p.dot,flexShrink:0}}/>
+              {detailTask.priority} priority
+            </span>
+          );})()}
+          {(() => { const s=STATUS_STYLES[detailTask.status]||STATUS_STYLES.pending; return (
+            <span style={{display:"inline-flex",alignItems:"center",fontSize:12,fontWeight:700,padding:"4px 10px",borderRadius:20,background:s.bg,color:s.color}}>
+              {detailTask.status?.replace("_"," ").replace(/\b\w/g,c=>c.toUpperCase())}
+            </span>
+          );})()}
+          {detailTask.is_recurring && detailTask.recurrence && (
+            <span style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:12,fontWeight:600,padding:"4px 10px",borderRadius:20,background:"#eff6ff",color:"#2563eb"}}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+              {detailTask.recurrence}
+            </span>
+          )}
+          {detailTask.has_checkpoints && (
+            <span style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:12,fontWeight:600,padding:"4px 10px",borderRadius:20,background:"#f0fdf4",color:"#16a34a"}}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              Has checklist
+            </span>
+          )}
+        </div>
+
+        {/* Meta grid */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          {[
+            {label:"Assigned By", value: detailTask.assigned_by || "—"},
+            {label:"Due Date",    value: detailTask.due_date ? new Date(detailTask.due_date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}) : "—"},
+            {label:"Site",        value: detailTask.site_name || "—"},
+            {label:"Created",     value: detailTask.created_at ? new Date(detailTask.created_at).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}) : "—"},
+          ].map(({label,value}) => (
+            <div key={label} style={{background:"#f8fafc",border:"1px solid #e8edf3",borderRadius:8,padding:"10px 12px"}}>
+              <div style={{fontSize:10,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",color:"#94a3b8",marginBottom:4}}>{label}</div>
+              <div style={{fontSize:13,fontWeight:600,color:"#334155"}}>{value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Description */}
+        {detailTask.description && (
+          <div style={{background:"#f8fafc",border:"1px solid #e8edf3",borderRadius:10,padding:"14px 16px"}}>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",color:"#94a3b8",marginBottom:8}}>Description</div>
+            <p style={{fontSize:13.5,color:"#475569",lineHeight:1.6,margin:0}}>{detailTask.description}</p>
+          </div>
+        )}
+
+        {/* Audio player */}
+        {detailTask.audio_url && (
+          <div style={{background:"#f5f3ff",border:"1px solid #e0e7ff",borderRadius:10,padding:"14px 16px"}}>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",color:"#7c3aed",marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              Audio Instruction
+            </div>
+            <audio
+              controls
+              src={detailTask.audio_url}
+              style={{width:"100%",borderRadius:8,outline:"none"}}
+            >
+              Your browser does not support audio playback.
+            </audio>
+          </div>
+        )}
+
+        {/* Document */}
+        {detailTask.document_url && (
+          <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:10,padding:"14px 16px"}}>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",color:"#2563eb",marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Attached Document
+            </div>
+            
+              <a href={detailTask.document_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{display:"inline-flex",alignItems:"center",gap:8,background:"#2563eb",color:"#fff",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,padding:"9px 16px",borderRadius:8,textDecoration:"none",transition:"background .15s"}}
+              onMouseEnter={e=>e.currentTarget.style.background="#1d4ed8"}
+              onMouseLeave={e=>e.currentTarget.style.background="#2563eb"}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Open / Download Document
+            </a>
+          </div>
+        )}
+
+      </div>
+    </div>
+  </div>
+)}
+
+
+{checklistModal && (
   <div
     style={{ position:"fixed", inset:0, zIndex:10030, background:"rgba(15,23,42,.45)", backdropFilter:"blur(3px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
     onClick={e => { if (e.target === e.currentTarget) setChecklistModal(null); }}
@@ -1523,8 +1672,12 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
         </button>
       </div>
     </div>
-  </div>
+  </div>  
 )}
+
+
+
+
       </>
     );
   } 

@@ -332,7 +332,7 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
       );
     }
 
-    return <div className="tf-bar">{fields}</div>;
+    return <div className="tf-bar tf-bar-fixed">{fields}</div>;
   }
     // ── sub-components ─────────────────────────────────────────────────────────
     function StatCard({ label, value, icon, accent }) {
@@ -352,10 +352,45 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
       const s = STATUS_STYLES[task.status]     || STATUS_STYLES.pending;
       return (
         <tr className="ap-tr">
-          <td className="ap-td ap-td-title">
-            {task.parent_task_id && <span className="ap-child-badge" title="Auto-generated instance">↳</span>}
-            {task.title}
-          </td>
+        <td className="ap-td ap-td-title">
+  {task.parent_task_id && <span className="ap-child-badge" title="Auto-generated instance">↳</span>}
+  {task.title}
+  <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+    {task.audio_url && (
+      
+      <a  href={task.audio_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={e => e.stopPropagation()}
+        style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 5, padding: "2px 7px", textDecoration: "none" }}
+        title="Play audio instruction"
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+        Audio
+      </a>
+    )}
+    {task.document_url && (
+      
+      <a  href={task.document_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={e => e.stopPropagation()}
+        style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 5, padding: "2px 7px", textDecoration: "none" }}
+        title="View document"
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        Doc
+      </a>
+    )}
+  </div>
+</td>
           <td className="ap-td">{task.assigned_to}</td>
           <td className="ap-td">{task.site_name || "—"}</td>
           <td className="ap-td">
@@ -386,44 +421,246 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
       );
     }
 
-    function TaskCard({ task, onDelete }) {
-      const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
-      const s = STATUS_STYLES[task.status]     || STATUS_STYLES.pending;
-      const schedule = task.is_recurring
-        ? anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence
-        : task.parent_task_id ? "instance" : "one-time";
+    function RecurringTaskCard({ task, next, p, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
 
-      return (
-        <div className="ap-task-card-mobile">
-          <div className="ap-task-card-head">
-            <div>
-              <div className="ap-task-card-title">
-                {task.parent_task_id && <span className="ap-child-badge" title="Auto-generated instance">↳</span>}
-                {task.title}
-              </div>
-              <div className="ap-task-card-sub">{task.assigned_to || "Unassigned"}</div>
-            </div>
-            <button className="ap-del-btn" onClick={() => onDelete(task.id)} title="Delete" aria-label="Delete task">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-                <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-              </svg>
-            </button>
-          </div>
-          <div className="ap-task-card-badges">
+  return (
+    <div className="ap-task-card-mobile" onClick={() => setExpanded(e => !e)} style={{ cursor: "pointer" }}>
+      {/* Compact header — always visible */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="ap-task-card-title" style={{ marginBottom: 5 }}>{task.title}</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
             <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
-              <span className="ap-badge-dot" style={{ background: p.dot }} />{task.priority}
+              <span className="ap-badge-dot" style={{ background: p.dot }}/>{task.priority}
             </span>
-            <span className="ap-badge" style={{ background: s.bg, color: s.color }}>{task.status?.replace("_"," ")}</span>
-            <span className={task.is_recurring ? "ap-pill-blue" : task.parent_task_id ? "ap-pill-orange" : "ap-mobile-pill-muted"}>{schedule}</span>
+            <span style={{ fontSize: 11.5, color: "#94a3b8" }}>{task.assigned_to}</span>
+            {next?.label && (
+              <span style={{ fontSize: 11.5, color: "#64748b", marginLeft: "auto" }}>
+                {next.label}
+                {next.badge && (
+                  <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700, background: next.bg, color: next.color, borderRadius: 20, padding: "1px 5px" }}>
+                    {next.badge}
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
+          {(task.audio_url || task.document_url) && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10.5, fontWeight: 600, color: "#94a3b8", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 4, padding: "1px 5px", marginTop: 5 }}>
+              📎 {[task.audio_url && "audio", task.document_url && "doc"].filter(Boolean).join(" · ")}
+            </span>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          <button
+            className="ap-del-btn"
+            onClick={e => { e.stopPropagation(); onDelete(task.id); }}
+            title="Delete"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+              <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+          </button>
+          <button
+            style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8" }}
+            onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
+            aria-label={expanded ? "Collapse" : "Expand"}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .2s" }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      {expanded && (
+        <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="ap-task-card-badges">
+            <span className="ap-pill-blue">
+              {anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}
+            </span>
           </div>
           <div className="ap-task-card-meta">
             <div><span>Site</span><strong>{task.site_name || "Not assigned"}</strong></div>
-            <div><span>Due Date</span><strong>{task.due_date ? new Date(task.due_date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}) : "Not set"}</strong></div>
+            <div>
+              <span>Next Due</span>
+              <strong>
+                {next?.label || "—"}
+                {next?.badge && (
+                  <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, background: next.bg, color: next.color, borderRadius: 20, padding: "1px 6px" }}>
+                    {next.badge}
+                  </span>
+                )}
+              </strong>
+            </div>
+          </div>
+          {task.description && (
+            <div style={{ fontSize: 12.5, color: "#64748b", background: "#f8fafc", borderRadius: 6, padding: "8px 10px", borderLeft: "3px solid #e2e8f0", lineHeight: 1.5 }}>
+              {task.description}
+            </div>
+          )}
+          {(task.audio_url || task.document_url) && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {task.audio_url && (
+                
+                <a  href={task.audio_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 7, padding: "6px 12px", textDecoration: "none" }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+                  </svg>
+                  Audio Instruction
+                </a>
+              )}
+              {task.document_url && (
+                
+                <a  href={task.document_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 7, padding: "6px 12px", textDecoration: "none" }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                  Document
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+    function TaskCard({ task, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
+  const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
+  const s = STATUS_STYLES[task.status]     || STATUS_STYLES.pending;
+
+  return (
+    <div className="ap-task-card-mobile" onClick={() => setExpanded(e => !e)} style={{ cursor: "pointer" }}>
+      {/* Compact header — always visible */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="ap-task-card-title" style={{ marginBottom: 5 }}>
+            {task.parent_task_id && <span className="ap-child-badge">↳</span>}
+            {task.title}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center" }}>
+            <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
+              <span className="ap-badge-dot" style={{ background: p.dot }} />{task.priority}
+            </span>
+            <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+              {task.assigned_to || "Unassigned"}
+            </span>
+            {task.due_date && (
+              <span style={{ fontSize: 11.5, color: "#64748b", marginLeft: "auto" }}>
+                {new Date(task.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+              </span>
+            )}
+            {(task.audio_url || task.document_url) && (
+  <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10.5, fontWeight: 600, color: "#94a3b8", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 4, padding: "1px 5px" }}>
+    📎 {[task.audio_url && "audio", task.document_url && "doc"].filter(Boolean).join(" · ")}
+  </span>
+)}
           </div>
         </div>
-      );
-    }
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          <button
+            className="ap-del-btn"
+            onClick={e => { e.stopPropagation(); onDelete(task.id); }}
+            title="Delete"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+              <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+          </button>
+          <button
+            style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", transition: "transform .2s" }}
+            onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
+            aria-label={expanded ? "Collapse" : "Expand"}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .2s" }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      {expanded && (
+        <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="ap-task-card-badges">
+            <span className="ap-badge" style={{ background: s.bg, color: s.color }}>{task.status?.replace("_", " ")}</span>
+            {task.is_recurring
+              ? <span className="ap-pill-blue">{anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}</span>
+              : task.parent_task_id
+                ? <span className="ap-pill-orange">instance</span>
+                : <span className="ap-mobile-pill-muted">one-time</span>}
+          </div>
+          <div className="ap-task-card-meta">
+            <div><span>Site</span><strong>{task.site_name || "Not assigned"}</strong></div>
+            <div><span>Due Date</span><strong>{task.due_date ? new Date(task.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "Not set"}</strong></div>
+          </div>
+          {task.description && (
+            <div style={{ fontSize: 12.5, color: "#64748b", background: "#f8fafc", borderRadius: 6, padding: "8px 10px", borderLeft: "3px solid #e2e8f0", lineHeight: 1.5 }}>
+              {task.description}
+            </div>  
+          )}
+          {(task.audio_url || task.document_url) && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {task.audio_url && (
+                
+                <a  href={task.audio_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 7, padding: "6px 12px", textDecoration: "none" }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+                  </svg>
+                  Audio Instruction
+                </a>
+              )}
+              {task.document_url && (
+                
+                <a  href={task.document_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 7, padding: "6px 12px", textDecoration: "none" }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                  Document
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+          
+                  
+                  
+      )}
+    </div>
+  );
+}
 
     function LeaveStatusBadge({ leave }) {
       const status = computeLeaveStatus(leave);
@@ -773,6 +1010,8 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
       </div>
     );
   }
+
+  
     // ── main component ─────────────────────────────────────────────────────────
     export default function AdminPortal() {
       const [allReschedules, setAllReschedules]         = useState([]);
@@ -1037,7 +1276,7 @@ const handleSubmit = async () => {
     const { data: urlData } = supabase.storage.from("task-documents").getPublicUrl(path);
     document_url = urlData.publicUrl;
   }
-
+ 
   const payload = {
     title:             form.title.trim(),
     description:       form.description.trim() || null,
@@ -1162,10 +1401,18 @@ const handleSubmit = async () => {
       const filteredTasks    = applyTaskFilters(allTasks, taskFilters);
       const hasActiveFilters = Object.values(taskFilters).some(v => v !== "");
 
-      const tfSites      = [...new Set(applyTaskFilters(allTasks, { ...taskFilters, site: "" }).map(t => t.site_name).filter(Boolean))].sort();
-      const tfPriorities = [...new Set(applyTaskFilters(allTasks, { ...taskFilters, priority: "" }).map(t => t.priority).filter(Boolean))].sort();
-      const tfStatuses   = [...new Set(applyTaskFilters(allTasks, { ...taskFilters, status: "" }).map(t => t.status).filter(Boolean))].sort();
-      const tfAssignees = [...new Set(applyTaskFilters(allTasks, { ...taskFilters, assignedTo: "" }).map(t => t.assigned_to).filter(Boolean))].sort();
+// Replace the 4 lines that compute tfSites/tfPriorities/tfStatuses/tfAssignees:
+
+// Each filter sees data filtered by everything EXCEPT itself
+const tasksForSites     = applyTaskFilters(allTasks, { ...taskFilters, site: "" });
+const tasksForPriorities = applyTaskFilters(allTasks, { ...taskFilters, priority: "" });
+const tasksForStatuses  = applyTaskFilters(allTasks, { ...taskFilters, status: "" });
+const tasksForAssignees = applyTaskFilters(allTasks, { ...taskFilters, assignedTo: "" });
+
+const tfSites      = [...new Set(tasksForSites.map(t => t.site_name).filter(Boolean))].sort();
+const tfPriorities = [...new Set(tasksForPriorities.map(t => t.priority).filter(Boolean))].sort();
+const tfStatuses   = [...new Set(tasksForStatuses.map(t => t.status).filter(Boolean))].sort();
+const tfAssignees  = [...new Set(tasksForAssignees.map(t => t.assigned_to).filter(Boolean))].sort();
 
 
       const recurringTasks = allTasks.filter(t => t.is_recurring);
@@ -1287,8 +1534,7 @@ const handleSubmit = async () => {
                 {/* Filter icon button (always visible, especially useful on mobile) */}
                 <div style={{ position:"relative" }}>
                   <button
-                    className={`tf-mobile-btn${recurringMobileFilterOpen ? " active" : ""}`}
-                    style={{ display:"inline-flex" }}
+                    className={`tf-mobile-btn recurring-mobile-filter-btn${recurringMobileFilterOpen ? " active" : ""}`}
                     onClick={() => setRecurringMobileFilterOpen(p => !p)}
                     title="Filter"
                   >
@@ -1391,7 +1637,7 @@ const handleSubmit = async () => {
               </div>
 
               {/* Desktop filter bar — hidden on mobile via CSS */}
-              <div className="tf-bar" style={{ marginBottom:16, position:"static" }}>
+              <div className="tf-bar recurring-desktop-bar" style={{ marginBottom:16,position:"fixed",top:"120px",right:"80px"}}>
                 <div className="tf-group">
                   <span className="tf-label">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1478,7 +1724,32 @@ const handleSubmit = async () => {
                             const p        = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
                             return (
                               <tr key={task.id} className="ap-tr">
-                                <td className="ap-td ap-td-title">{task.title}</td>
+                                <td className="ap-td ap-td-title">
+                                  {task.title}
+                                  <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                                    {task.audio_url && (
+                                      <a href={task.audio_url} target="_blank" rel="noopener noreferrer"
+                                        style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 5, padding: "2px 7px", textDecoration: "none" }}>
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                          <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+                                        </svg>
+                                        Audio
+                                      </a>
+                                    )}
+                                    {task.document_url && (
+                                      <a href={task.document_url} target="_blank" rel="noopener noreferrer"
+                                        style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 5, padding: "2px 7px", textDecoration: "none" }}>
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                          <polyline points="14 2 14 8 20 8"/>
+                                        </svg>
+                                        Doc
+                                      </a>
+                                    )}
+                                  </div>
+                                </td>
                                 <td className="ap-td">{task.assigned_to}</td>
                                 <td className="ap-td">{task.site_name || "—"}</td>
                                 <td className="ap-td">
@@ -1524,52 +1795,22 @@ const handleSubmit = async () => {
 
                     {/* Mobile cards */}
                     <div className="ap-task-mobile-grid">
-                      {filteredRecurring.map(task => {
-                        const nextDate = getNextDueDate(task);
-                        const next     = formatNextDue(nextDate);
-                        const p        = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
-                        return (
-                          <div key={task.id} className="ap-task-card-mobile">
-                            <div className="ap-task-card-head">
-                              <div>
-                                <div className="ap-task-card-title">{task.title}</div>
-                                <div className="ap-task-card-sub">{task.assigned_to}</div>
-                              </div>
-                              <button className="ap-del-btn" onClick={() => handleDelete(task.id)} title="Delete">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                  strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-                                  <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-                                </svg>
-                              </button>
-                            </div>
-                            <div className="ap-task-card-badges">
-                              <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
-                                <span className="ap-badge-dot" style={{ background: p.dot }}/>{task.priority}
-                              </span>
-                              <span className="ap-pill-blue">
-                                {anchorDescription(task.recurrence, task.recurrence_anchor) || task.recurrence}
-                              </span>
-                            </div>
-                            <div className="ap-task-card-meta">
-                              <div><span>Site</span><strong>{task.site_name || "Not assigned"}</strong></div>
-                              <div>
-                                <span>Next Due</span>
-                                <strong>
-                                  {next?.label || "—"}
-                                  {next?.badge && (
-                                    <span style={{ marginLeft:5, fontSize:10, fontWeight:700,
-                                      background: next.bg, color: next.color,
-                                      borderRadius:20, padding:"1px 6px" }}>
-                                      {next.badge}
-                                    </span>
-                                  )}
-                                </strong>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                      <div className="ap-task-mobile-grid">
+                        {filteredRecurring.map(task => {
+                          const nextDate = getNextDueDate(task);
+                          const next     = formatNextDue(nextDate);
+                          const p        = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
+                          return (
+                            <RecurringTaskCard
+                              key={task.id}
+                              task={task}
+                              next={next}
+                              p={p}
+                              onDelete={handleDelete}
+                            />
+                          );
+                        })}
+                      </div>
                     </div>
                   </>
                 )}
@@ -1922,7 +2163,7 @@ const handleSubmit = async () => {
             .op-sidebar.collapsed { width: 0; min-width: 0; opacity: 0; pointer-events: none; }
             .op-sidebar-header { padding: 20px 20px 12px; border-bottom: 1px solid #f0f4f8; display: flex; align-items: center; justify-content: space-between; gap: 12px;}
             
-            .op-sidebar-close { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #64748b; cursor: pointer; align-items: center; justify-content: center; }
+            .op-sidebar-close { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #c9d0d4d0; background: #fff; color: #64748b; cursor: pointer; align-items: center; justify-content: center; }
             .op-sidebar-backdrop { display: none; }
             .op-nav { padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
             .op-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; color: #64748b; font-size: 13.5px; font-weight: 500; white-space: nowrap; border: none; background: transparent; width: 100%; text-align: left; transition: background .15s, color .15s; position: relative; }
@@ -1934,7 +2175,7 @@ const handleSubmit = async () => {
 
             .op-main { flex: 1; padding: 28px 32px; overflow: auto; }
             .op-topbar { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
-            .op-toggle-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; transition: background .15s; flex-shrink: 0; }
+            .op-toggle-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #c9d0d4d0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; transition: background .15s; flex-shrink: 0; }
             .op-toggle-btn:hover { background: #f1f5f9; }
             .op-page-title { font-size: 18px; font-weight: 600; color: #1e293b; }
 
@@ -1953,16 +2194,17 @@ const handleSubmit = async () => {
             .op-content-title { font-size: 15px; font-weight: 600; color: #1e293b; }
 
             /* ── Filter Bar ── */
-            .tf-bar {width:50%; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: #c9d0d4d0; border: 1px solid #e8edf3; border-radius: 10px; margin-bottom: 16px; position: fixed; top: 120px; right:50px;z-index: 10; }
+           .tf-bar {width:50%;display: flex; flex-wrap: wrap; gap: 8px; align-items: center;padding: 10px 14px; background: #c9d0d4dc; border: 1px solid #e8edf3;border-radius: 10px; margin-bottom: 16px;}
+            .tf-bar-fixed {position: fixed; top: 120px; right: 50px; z-index: 10; width: 50%;}
             .tf-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
             .tf-label { font-size: 12px; font-weight: 600; color: #64748b; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-            .tf-input { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 9px; height: 32px; outline: none; transition: border .15s; }
+            .tf-input { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #c9d0d4d0; border-radius: 6px; padding: 5px 9px; height: 32px; outline: none; transition: border .15s; }
             .tf-input:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.08); }
             .tf-date { width: 140px; cursor: pointer; }
-            .tf-select { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 9px; height: 32px; cursor: pointer; outline: none; transition: border .15s; }
+            .tf-select { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #c9d0d4d0; border-radius: 6px; padding: 5px 9px; height: 32px; cursor: pointer; outline: none; transition: border .15s; }
             .tf-select:focus { border-color: #dc2626; }
             .tf-sep-text { font-size: 12px; color: #94a3b8; }
-            .tf-divider { width: 1px; height: 20px; background: #e2e8f0; flex-shrink: 0; }
+            .tf-divider { width: 1px; height: 20px; background: #c9d0d4d0; flex-shrink: 0; }
             .tf-clear { display: inline-flex; align-items: center; gap: 5px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 5px 11px; height: 32px; cursor: pointer; white-space: nowrap; transition: background .15s; margin-left: auto; }
             .tf-clear:hover { background: #fee2e2; }
             .tf-count { font-size: 12px; color: #64748b; margin-bottom: 12px; margin-top: -6px; }
@@ -1973,7 +2215,7 @@ const handleSubmit = async () => {
             .ap-stat-icon  { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
             .ap-stat-value { font-size: 26px; font-weight: 700; color: #1e293b; font-family: 'DM Mono', monospace; line-height: 1; }
             .ap-stat-label { font-size: 12px; color: #64748b; margin-top: 4px; }
-            .ap-dash-hint  { display: flex; align-items: flex-start; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #64748b; line-height: 1.5; }
+            .ap-dash-hint  { display: flex; align-items: flex-start; gap: 8px; background: #f8fafc; border: 1px solid #c9d0d4d0; border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #64748b; line-height: 1.5; }
             .ap-dash-hint svg { flex-shrink: 0; margin-top: 1px; color: #2563eb; }
             .ap-section-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; }
             .ap-leave-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 12px; margin-bottom: 18px; }
@@ -2000,7 +2242,7 @@ const handleSubmit = async () => {
             .ap-field-center { justify-content: flex-start; }
             .ap-label { font-size: 12.5px; font-weight: 600; color: #475569; }
             .ap-req   { color: #dc2626; }
-            .ap-input { font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: #1e293b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px; outline: none; transition: border .15s, box-shadow .15s; width: 100%; }
+            .ap-input { font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: #1e293b; background: #f8fafc; border: 1px solid #c9d0d4d0; border-radius: 8px; padding: 9px 12px; outline: none; transition: border .15s, box-shadow .15s; width: 100%; }
             .ap-input:focus  { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.1); background: #fff; }
             .ap-textarea { resize: vertical; min-height: 80px; }
             .ap-select   { cursor: pointer; }
@@ -2009,27 +2251,27 @@ const handleSubmit = async () => {
             .ap-btn-primary:hover:not(:disabled)  { background: #b91c1c; }
             .ap-btn-primary:active:not(:disabled) { transform: scale(.98); }
             .ap-btn-primary:disabled { opacity: .6; cursor: not-allowed; }
-            .ap-btn-secondary { display: inline-flex; align-items: center; gap: 7px; background: #f1f5f9; color: #475569; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 18px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer; transition: background .15s; }
-            .ap-btn-secondary:hover { background: #e2e8f0; }
+            .ap-btn-secondary { display: inline-flex; align-items: center; gap: 7px; background: #f1f5f9; color: #475569; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 18px; border-radius: 8px; border: 1px solid #c9d0d4d0; cursor: pointer; transition: background .15s; }
+            .ap-btn-secondary:hover { background: #c9d0d4d0; }
             .ap-mini-spinner  { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
 
             /* Toggle */
             .ap-toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; margin-top: 4px; }
             .ap-toggle input { display: none; }
-            .ap-toggle-track { width: 40px; height: 22px; background: #e2e8f0; border-radius: 99px; position: relative; transition: background .2s; flex-shrink: 0; }
+            .ap-toggle-track { width: 40px; height: 22px; background: #c9d0d4d0; border-radius: 99px; position: relative; transition: background .2s; flex-shrink: 0; }
             .ap-toggle input:checked + .ap-toggle-track { background: #dc2626; }
             .ap-toggle-thumb { width: 16px; height: 16px; background: #fff; border-radius: 50%; position: absolute; top: 3px; left: 3px; transition: transform .2s; box-shadow: 0 1px 4px rgba(0,0,0,.2); }
             .ap-toggle input:checked + .ap-toggle-track .ap-toggle-thumb { transform: translateX(18px); }
             .ap-toggle-label { font-size: 13px; color: #475569; font-weight: 500; }
 
             /* Recurrence */
-            .ap-recurrence-divider { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; padding: 4px 0 2px; border-top: 1px dashed #e2e8f0; padding-top: 8px; }
+            .ap-recurrence-divider { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; padding: 4px 0 2px; border-top: 1px dashed #c9d0d4d0; padding-top: 8px; }
             .ap-recurrence-pills   { display: flex; gap: 8px; flex-wrap: wrap; }
-            .ap-rpill { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f8fafc; color: #64748b; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
+            .ap-rpill { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: 1.5px solid #c9d0d4d0; background: #f8fafc; color: #64748b; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
             .ap-rpill:hover  { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
             .ap-rpill.active { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
             .ap-weekday-grid { display: flex; gap: 6px; flex-wrap: wrap; }
-            .ap-wday { width: 46px; height: 40px; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f8fafc; color: #64748b; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; }
+            .ap-wday { width: 46px; height: 40px; border-radius: 8px; border: 1.5px solid #c9d0d4d0; background: #f8fafc; color: #64748b; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; }
             .ap-wday:hover  { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
             .ap-wday.active { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
             .ap-anchor-preview { display: flex; align-items: flex-start; gap: 8px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #2563eb; line-height: 1.5; }
@@ -2050,7 +2292,7 @@ const handleSubmit = async () => {
             .ap-pill-blue   { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 8px; text-transform: capitalize; }
             .ap-pill-orange { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; color: #d97706; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 2px 8px; }
             .ap-child-badge { display: inline-flex; margin-right: 4px; color: #94a3b8; font-size: 13px; }
-            .ap-del-btn { width: 30px; height: 30px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: background .15s, color .15s, border-color .15s; }
+            .ap-del-btn { width: 30px; height: 30px; border-radius: 6px; border: 1px solid #c9d0d4d0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; transition: background .15s, color .15s, border-color .15s; }
             .ap-del-btn:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
             .ap-task-mobile-grid { display: none; }
             .ap-task-card-mobile { background: #fff; border: 1px solid #e8edf3; border-left: 4px solid #dc2626; border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 10px rgba(15,23,42,.04); }
@@ -2062,7 +2304,7 @@ const handleSubmit = async () => {
             .ap-task-card-meta div { background: #f8fafc; border: 1px solid #e8edf3; border-radius: 8px; padding: 9px 10px; min-width: 0; }
             .ap-task-card-meta span { display: block; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
             .ap-task-card-meta strong { display: block; font-size: 12.5px; color: #334155; font-weight: 600; overflow-wrap: anywhere; }
-            .ap-mobile-pill-muted { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; color: #64748b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 2px 8px; text-transform: capitalize; }
+            .ap-mobile-pill-muted { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; color: #64748b; background: #f8fafc; border: 1px solid #c9d0d4d0; border-radius: 6px; padding: 2px 8px; text-transform: capitalize; }
 
             /* Leave */
             .ap-leave-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(320px,1fr)); gap: 16px; }
@@ -2074,9 +2316,9 @@ const handleSubmit = async () => {
             .ap-leave-status { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; border: 1px solid; white-space: nowrap; }
             .ap-leave-meta { display: flex; flex-wrap: wrap; gap: 6px; }
             .ap-leave-meta span { display: inline-flex; align-items: center; font-size: 11.5px; color: #64748b; background: #f8fafc; border: 1px solid #e8edf3; border-radius: 6px; padding: 3px 8px; }
-            .ap-leave-reason { font-size: 12.5px; color: #64748b; line-height: 1.5; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #e2e8f0; }
+            .ap-leave-reason { font-size: 12.5px; color: #64748b; line-height: 1.5; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #c9d0d4d0; }
             .ap-leave-approvals { display: flex; flex-wrap: wrap; gap: 6px; }
-            .ap-approval-pill { display: inline-flex; font-size: 11.5px; font-weight: 600; color: #64748b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 3px 8px; }
+            .ap-approval-pill { display: inline-flex; font-size: 11.5px; font-weight: 600; color: #64748b; background: #f8fafc; border: 1px solid #c9d0d4d0; border-radius: 6px; padding: 3px 8px; }
             .ap-approval-pill.ok { color: #16a34a; background: #f0fdf4; border-color: #bbf7d0; }
             .ap-approval-pill.no { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
             .ap-leave-rejection { font-size: 12px; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 7px 10px; line-height: 1.4; }
@@ -2092,7 +2334,7 @@ const handleSubmit = async () => {
             /* Shared */
             .op-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; color: #94a3b8; gap: 12px; text-align: center; }
             .op-empty-text  { font-size: 13.5px; }
-            .op-spinner { width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top-color: #dc2626; border-radius: 50%; animation: spin .7s linear infinite; }
+            .op-spinner { width: 32px; height: 32px; border: 3px solid #c9d0d4d0; border-top-color: #dc2626; border-radius: 50%; animation: spin .7s linear infinite; }
             @keyframes spin { to { transform: rotate(360deg); } }
 
             /* Toast */
@@ -2112,7 +2354,7 @@ const handleSubmit = async () => {
             .ap-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid #f1f5f9; position: sticky; top: 0; background: #fff; z-index: 1; border-radius: 16px 16px 0 0; }
             .ap-modal-title { font-size: 16px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 9px; }
             .ap-modal-title-icon { width: 32px; height: 32px; border-radius: 8px; background: #fef2f2; display: flex; align-items: center; justify-content: center; color: #dc2626; }
-            .ap-modal-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; transition: background .15s; }
+            .ap-modal-close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #c9d0d4d0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; transition: background .15s; }
             .ap-modal-close:hover { background: #f1f5f9; }
             .ap-modal-body { padding: 24px; }
 
@@ -2180,15 +2422,15 @@ const handleSubmit = async () => {
               .op-header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
               .op-content-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; }
 
-              .tf-bar-inline { position:fixed; top:120px;right:90px;display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; background: #c9d0d4dc;padding: 10px;border-radius: 10px;}
+              .tf-bar-inline { position:fixed; top:120px; right:90px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; background: #c9d0d4dc; padding: 10px; border-radius: 10px; }
               .tf-mobile-btn { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; cursor: pointer; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
               .tf-mobile-btn.active { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
               .tf-mobile-badge { position: absolute; top: -4px; right: -4px; width: 8px; height: 8px; background: #dc2626; border-radius: 50%; }
-              .tf-popup { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200; background: #c9d0d4d0; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 14px; width: 290px; }
+              .tf-popup { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200; background: #c9d0d4d0; border: 1px solid #c9d0d4d0; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 14px; width: 290px; }
 
               @media (max-width: 760px) {
-                .tf-bar-inline { display: none; }
-                .tf-mobile-btn { display: none; }
+                 .tf-bar-inline { display: none !important; }
+                .tf-mobile-btn { display: inline-flex !important; }
                 .tf-popup .tf-group { width: 100%; }
                 .tf-popup .tf-select, .tf-popup .tf-date { width: 100%; }
                 .tf-popup .tf-clear { width: 100%; justify-content: center; margin-left: 0; }
@@ -2199,10 +2441,16 @@ const handleSubmit = async () => {
             .ap-edit-btn { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid #bfdbfe; background: #eff6ff; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: #2563eb; transition: background .15s; }
             .ap-edit-btn:hover { background: #dbeafe; }
             @media (max-width: 760px) {
-              .recurring-desktop-bar { display: none; }
-              .tf-bar{display:none;}
+             .tf-bar-fixed { display: none; }
+            .recurring-desktop-bar { display: none !important; }
             }
-              
+              .recurring-mobile-filter-btn { display: none; }
+              .recurring-desktop-bar { display: flex; }
+
+              @media (max-width: 760px) {
+                .recurring-mobile-filter-btn { display: inline-flex; }
+                .recurring-desktop-bar { display: none !important; }
+              }
           `}</style>
 
           <div className="op-root">
@@ -2273,7 +2521,19 @@ const handleSubmit = async () => {
                     {activeTab === "all-tasks" && (
                   <TaskFilterBar
                     filters={taskFilters}
-                    onChange={(key, val) => setTaskFilters(prev => ({ ...prev, [key]: val }))}
+                    // Replace the onChange prop usage:
+                    onChange={(key, val) => {
+                      setTaskFilters(prev => {
+                        const next = { ...prev, [key]: val };
+                        // Clear filters whose selected value no longer exists in the new filtered set
+                        const base = applyTaskFilters(allTasks, { ...next });
+                        if (next.site      && !base.some(t => t.site_name   === next.site))      next.site = "";
+                        if (next.priority  && !base.some(t => t.priority    === next.priority))  next.priority = "";
+                        if (next.status    && !base.some(t => t.status      === next.status))    next.status = "";
+                        if (next.assignedTo && !base.some(t => t.assigned_to === next.assignedTo)) next.assignedTo = "";
+                        return next;
+                      });
+                    }}
                     onClear={() => setTaskFilters({ ...EMPTY_TASK_FILTERS })}
                     sites={tfSites}
                     priorities={tfPriorities}

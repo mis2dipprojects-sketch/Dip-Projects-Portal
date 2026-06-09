@@ -1002,13 +1002,13 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
           .tf-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: #c9d0d4d0; border: 1px solid #e8edf3; border-radius: 10px; margin-bottom: 16px; position: fixed; top: 120px; right:50px;z-index: 10; }
           .tf-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
           .tf-label { font-size: 12px; font-weight: 600; color: #64748b; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-          .tf-input { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 9px; height: 32px; outline: none; transition: border .15s; }
+          .tf-input { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #c9d0d4d0; border-radius: 6px; padding: 5px 9px; height: 32px; outline: none; transition: border .15s; }
           .tf-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
           .tf-date { width: 140px; cursor: pointer; }
-          .tf-select { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 9px; height: 32px; cursor: pointer; outline: none; transition: border .15s; }
+          .tf-select { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #c9d0d4d0; border-radius: 6px; padding: 5px 9px; height: 32px; cursor: pointer; outline: none; transition: border .15s; }
           .tf-select:focus { border-color: #2563eb; }
           .tf-sep-text { font-size: 12px; color: #94a3b8; }
-          .tf-divider { width: 1px; height: 20px; background: #e2e8f0; flex-shrink: 0; }
+          .tf-divider { width: 1px; height: 20px; background: #c9d0d4d0; flex-shrink: 0; }
           .tf-clear { display: inline-flex; align-items: center; gap: 5px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 5px 11px; height: 32px; cursor: pointer; white-space: nowrap; transition: background .15s; margin-left: auto; }
           .tf-clear:hover { background: #fee2e2; }
           .tf-count { font-size: 12px; color: #64748b; margin-bottom: 12px; margin-top: -6px; }
@@ -1018,7 +1018,7 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
           .op-sidebar.collapsed { width: 0; min-width: 0; opacity: 0; pointer-events: none; }
           .op-sidebar-header { padding: 20px 20px 12px; border-bottom: 1px solid #f0f4f8; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
           
-          .op-sidebar-close { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #64748b; cursor: pointer; align-items: center; justify-content: center; }
+          .op-sidebar-close { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #c9d0d4d0; background: #fff; color: #64748b; cursor: pointer; align-items: center; justify-content: center; }
           .op-sidebar-backdrop { display: none; }
           .op-nav { padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
           .op-nav-section { font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: #000000; padding: 12px 12px 4px; }
@@ -1031,7 +1031,7 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
 
           /* ── Main ── */
           .op-main { flex: 1; padding: 28px 32px; overflow: auto; }
-          .op-toggle-btn {  width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; transition: background .15s; flex-shrink: 0; }
+          .op-toggle-btn {  width: 36px; height: 36px; border-radius: 8px; border: 1px solid #c9d0d4d0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; transition: background .15s; flex-shrink: 0; }
           .op-toggle-btn:hover { background: #f1f5f9; }
           .op-page-title { font-size: 18px; font-weight: 600; color: #1e293b; }
 
@@ -1090,7 +1090,7 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
           .lv-req      { color: #dc2626; }
           .lv-optional { font-size: 11px; font-weight: 500; color: #94a3b8; background: #f1f5f9; border-radius: 4px; padding: 1px 6px; }
           .lv-hint     { font-size: 11.5px; color: #94a3b8; margin-top: -2px; }
-          .lv-input    { font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: #1e293b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px; outline: none; transition: border .15s, box-shadow .15s; width: 100%; }
+          .lv-input    { font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: #1e293b; background: #f8fafc; border: 1px solid #c9d0d4d0; border-radius: 8px; padding: 9px 12px; outline: none; transition: border .15s, box-shadow .15s; width: 100%; }
           .lv-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.1); background: #fff; }
           .lv-select  { cursor: pointer; }
           .lv-textarea { resize: vertical; min-height: 80px; }
@@ -1099,8 +1099,8 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
           .lv-btn-submit { display: inline-flex; align-items: center; gap: 7px; background: #2563eb; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; transition: background .15s; }
           .lv-btn-submit:hover:not(:disabled)  { background: #1d4ed8; }
           .lv-btn-submit:disabled { opacity: .6; cursor: not-allowed; }
-          .lv-btn-reset  { display: inline-flex; align-items: center; gap: 7px; background: #f1f5f9; color: #475569; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 18px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer; transition: background .15s; }
-          .lv-btn-reset:hover { background: #e2e8f0; }
+          .lv-btn-reset  { display: inline-flex; align-items: center; gap: 7px; background: #f1f5f9; color: #475569; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 18px; border-radius: 8px; border: 1px solid #c9d0d4d0; cursor: pointer; transition: background .15s; }
+          .lv-btn-reset:hover { background: #c9d0d4d0; }
 
           /* ── Leave Cards ── */
           .lv-cards-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(320px,1fr)); gap: 16px; }
@@ -1110,7 +1110,7 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
           .lv-card-title { font-size: 14px; font-weight: 700; color: #1e293b; }
           .lv-card-sub   { font-size: 12px; color: #94a3b8; margin-top: 2px; }
           .lv-card-dates { display: flex; flex-wrap: wrap; gap: 6px; }
-          .lv-reason { font-size: 12.5px; color: #64748b; font-style: italic; line-height: 1.5; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #e2e8f0; }
+          .lv-reason { font-size: 12.5px; color: #64748b; font-style: italic; line-height: 1.5; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #c9d0d4d0; }
           .lv-proxy-info { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6366f1; background: #f5f3ff; border: 1px solid #e0e7ff; border-radius: 6px; padding: 5px 10px; font-weight: 500; }
           .lv-rejection  { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 7px 10px; line-height: 1.4; }
           .lv-actions    { display: flex; gap: 8px; margin-top: 4px; }
@@ -1123,7 +1123,7 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
           /* ── Shared ── */
           .op-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; color: #94a3b8; gap: 12px; text-align: center; }
           .op-empty-text  { font-size: 13.5px; }
-          .op-spinner { width: 32px; height: 32px; border: 3px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin .7s linear infinite; }
+          .op-spinner { width: 32px; height: 32px; border: 3px solid #c9d0d4d0; border-top-color: #2563eb; border-radius: 50%; animation: spin .7s linear infinite; }
           .op-mini-spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
           @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -1190,12 +1190,12 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
             .tf-bar-inline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; }
 
             .tf-mobile-btn { display: none; width: 32px; height: 32px; border-radius: 8px;
-              border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; 
+              border: 1px solid #c9d0d4d0; background: #f8fafc; color: #475569; 
               cursor: pointer; align-items: center; justify-content: center; flex-shrink: 0; }
             .tf-mobile-btn.active { background: #eff6ff; border-color: #bfdbfe; color: #2563eb; }
 
             .tf-popup { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200;
-              background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+              background: #fff; border: 1px solid #c9d0d4d0; border-radius: 12px;
               box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 14px; width: 290px; }
 
             /* On desktop hide mobile btn, on mobile hide inline bar and show btn */

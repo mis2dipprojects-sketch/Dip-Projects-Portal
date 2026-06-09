@@ -316,10 +316,10 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
     <>
       {/* ── inject checkpoint styles once ── */}
       <style>{`
-        .cp-root { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:12px; }
+        .cp-root { background:#f8fafc; border:1px solid #c9d0d4d0; border-radius:10px; padding:16px; display:flex; flex-direction:column; gap:12px; }
         .cp-header { display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700; color:#475569; }
         .cp-header strong { color:#1e293b; }
-        .cp-count { margin-left:auto; background:#e2e8f0; color:#64748b; font-size:11px; font-weight:700; border-radius:20px; padding:1px 8px; }
+        .cp-count { margin-left:auto; background:#c9d0d4d0; color:#64748b; font-size:11px; font-weight:700; border-radius:20px; padding:1px 8px; }
         .cp-loading { display:flex; align-items:center; gap:8px; font-size:12.5px; color:#94a3b8; padding:8px 0; }
         .cp-no-items { font-size:12.5px; color:#94a3b8; padding:6px 0; }
         .cp-empty-hint { font-size:12px; color:#94a3b8; font-style:italic; padding:6px 0; }
@@ -333,14 +333,14 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
         .cp-btn:disabled { opacity:.5; cursor:not-allowed; }
         .cp-btn-save   { background:#f0fdf4; color:#16a34a; border-color:#bbf7d0; }
         .cp-btn-save:hover:not(:disabled)   { background:#dcfce7; }
-        .cp-btn-cancel { background:#f8fafc; color:#64748b; border-color:#e2e8f0; }
+        .cp-btn-cancel { background:#f8fafc; color:#64748b; border-color:#c9d0d4d0; }
         .cp-btn-cancel:hover { background:#f1f5f9; }
         .cp-btn-edit   { background:#eff6ff; color:#2563eb; border-color:#bfdbfe; }
         .cp-btn-edit:hover { background:#dbeafe; }
         .cp-btn-delete { background:#fef2f2; color:#dc2626; border-color:#fecaca; }
         .cp-btn-delete:hover:not(:disabled) { background:#fee2e2; }
         .cp-add-row { display:flex; gap:8px; }
-        .cp-add-input { flex:1; font-family:'DM Sans',sans-serif; font-size:13px; color:#1e293b; background:#fff; border:1.5px solid #e2e8f0; border-radius:8px; padding:8px 12px; outline:none; transition:border .15s; }
+        .cp-add-input { flex:1; font-family:'DM Sans',sans-serif; font-size:13px; color:#1e293b; background:#fff; border:1.5px solid #c9d0d4d0; border-radius:8px; padding:8px 12px; outline:none; transition:border .15s; }
         .cp-add-input:focus { border-color:#dc2626; box-shadow:0 0 0 3px rgba(220,38,38,.08); }
         .cp-btn-add { display:inline-flex; align-items:center; gap:6px; font-family:'DM Sans',sans-serif; font-size:12.5px; font-weight:700; padding:8px 14px; border-radius:8px; background:#dc2626; color:#fff; border:none; cursor:pointer; white-space:nowrap; transition:background .15s; }
         .cp-btn-add:hover:not(:disabled) { background:#b91c1c; }

@@ -409,6 +409,11 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
     const [myReschedules, setMyReschedules]       = useState([]);
     const [loadingReschedules, setLoadingReschedules] = useState(false);
 
+    const [checklistModal, setChecklistModal] = useState(null);
+    const [checkpoints, setCheckpoints]       = useState([]);
+    const [checkedItems, setCheckedItems]     = useState({});
+    const [fetchingCPs, setFetchingCPs]       = useState(false);
+
     const [user, setUser]               = useState(null);
     const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === "undefined" ? true : window.innerWidth > 760);
     const [activeTab, setActiveTab]     = useState("my-tasks");
@@ -500,12 +505,49 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
       }
     };
 
+    const handleChecklistConfirm = async () => {
+        const allChecked = checkpoints.every(cp => checkedItems[cp.id]);
+        if (!allChecked) return showToast("error", "Please tick all checklist items before completing.");
+
+        const taskId = checklistModal.id;
+        setUpdatingId(taskId);
+        setChecklistModal(null);
+
+        const { error } = await supabase.from("tasks").update({ status: "completed" }).eq("id", taskId);
+        if (!error) {
+          const patch = (list) => list.map(t => t.id === taskId ? { ...t, status: "completed" } : t);
+          setMyTasks(p => patch(p));
+          setRecurringTasks(p => patch(p));
+          setDelegatedTasks(p => patch(p));
+          showToast("success", "Task marked as completed!");
+        } else {
+          showToast("error", "Failed to update task: " + error.message);
+        }
+        setUpdatingId(null);
+      };
     const handleStatusChange = async (taskId, newStatus) => {
+      const task = [...myTasks, ...recurringTasks, ...delegatedTasks].find(t => t.id === taskId);
+      
+      if (newStatus === "completed" && task?.has_checkpoints) {
+        setFetchingCPs(true);
+        const { data } = await supabase
+          .from("checkpoints")
+          .select("id, checkpoint")
+          .eq("task_type", task.title);
+        setCheckpoints(data || []);
+        setCheckedItems({});
+        setChecklistModal(task);
+        setFetchingCPs(false);
+        return;
+      }
+
       setUpdatingId(taskId);
-      const { error } = await supabase.from("tasks").update({status:newStatus}).eq("id",taskId);
+      const { error } = await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
       if (!error) {
-        const patch = (list) => list.map(t => t.id===taskId ? {...t,status:newStatus} : t);
-        setMyTasks(p=>patch(p)); setRecurringTasks(p=>patch(p)); setDelegatedTasks(p=>patch(p));
+        const patch = (list) => list.map(t => t.id === taskId ? { ...t, status: newStatus } : t);
+        setMyTasks(p => patch(p));
+        setRecurringTasks(p => patch(p));
+        setDelegatedTasks(p => patch(p));
       }
       setUpdatingId(null);
     };
@@ -1373,6 +1415,111 @@ function TaskCard({ task, onStatusChange, updating, onReschedule }) {
             ? <><span style={{ display:"inline-block", width:13, height:13, border:"2px solid rgba(255,255,255,.4)", borderTopColor:"#fff", borderRadius:"50%", animation:"spin .6s linear infinite" }}/> Submitting…</>
             : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg> Submit Request</>
           }
+        </button>
+      </div>
+    </div>
+  </div>
+)}{checklistModal && (
+  <div
+    style={{ position:"fixed", inset:0, zIndex:10030, background:"rgba(15,23,42,.45)", backdropFilter:"blur(3px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+    onClick={e => { if (e.target === e.currentTarget) setChecklistModal(null); }}
+  >
+    <div style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:500, boxShadow:"0 20px 60px rgba(0,0,0,.2)", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 22px 14px", borderBottom:"1px solid #f1f5f9" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ width:32, height:32, borderRadius:8, background:"#f0fdf4", display:"flex", alignItems:"center", justifyContent:"center", color:"#16a34a" }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          </div>
+          <span style={{ fontSize:15, fontWeight:700, color:"#1e293b" }}>Complete Checklist</span>
+        </div>
+        <button
+          onClick={() => setChecklistModal(null)}
+          style={{ width:30, height:30, borderRadius:8, border:"1px solid #e2e8f0", background:"#fff", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#64748b" }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding:"20px 22px", display:"flex", flexDirection:"column", gap:16 }}>
+        
+        {/* Task info */}
+        <div style={{ background:"#f8fafc", border:"1px solid #e8edf3", borderRadius:10, padding:"12px 14px" }}>
+          <div style={{ fontSize:13.5, fontWeight:700, color:"#1e293b" }}>{checklistModal.title}</div>
+          {checklistModal.site_name && (
+            <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>{checklistModal.site_name}</div>
+          )}
+        </div>
+
+        {/* Info banner */}
+        <div style={{ display:"flex", alignItems:"flex-start", gap:9, background:"#fffbeb", border:"1px solid #fde68a", borderRadius:8, padding:"10px 13px", fontSize:12.5, color:"#92400e", lineHeight:1.5 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0, marginTop:1 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>Tick all items below to confirm this task is complete before submitting.</span>
+        </div>
+
+        {/* Checklist items */}
+        {fetchingCPs ? (
+          <div style={{ display:"flex", justifyContent:"center", padding:"16px 0" }}>
+            <div className="op-spinner"/>
+          </div>
+        ) : checkpoints.length === 0 ? (
+          <div style={{ textAlign:"center", color:"#94a3b8", fontSize:13, padding:"12px 0" }}>No checklist items found.</div>
+        ) : (
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {checkpoints.map((cp, i) => {
+              const checked = !!checkedItems[cp.id];
+              return (
+                <label
+                  key={cp.id}
+                  style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"12px 14px", borderRadius:10, border:`1px solid ${checked ? "#bbf7d0" : "#e8edf3"}`, background: checked ? "#f0fdf4" : "#fafafa", cursor:"pointer", transition:"all .15s" }}
+                >
+                  <div style={{ position:"relative", flexShrink:0, marginTop:1 }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={e => setCheckedItems(prev => ({ ...prev, [cp.id]: e.target.checked }))}
+                      style={{ width:18, height:18, accentColor:"#16a34a", cursor:"pointer" }}
+                    />
+                  </div>
+                  <span style={{ fontSize:13.5, color: checked ? "#15803d" : "#334155", fontWeight: checked ? 600 : 400, lineHeight:1.5, textDecoration: checked ? "none" : "none" }}>
+                    {i + 1}. {cp.checkpoint}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Progress indicator */}
+        {checkpoints.length > 0 && (
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ flex:1, height:6, background:"#e8edf3", borderRadius:99, overflow:"hidden" }}>
+              <div style={{ height:"100%", background:"#16a34a", borderRadius:99, width:`${(Object.values(checkedItems).filter(Boolean).length / checkpoints.length) * 100}%`, transition:"width .2s" }}/>
+            </div>
+            <span style={{ fontSize:12, fontWeight:600, color:"#64748b", flexShrink:0 }}>
+              {Object.values(checkedItems).filter(Boolean).length}/{checkpoints.length}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{ display:"flex", justifyContent:"flex-end", gap:10, padding:"14px 22px 18px", borderTop:"1px solid #f1f5f9" }}>
+        <button
+          onClick={() => setChecklistModal(null)}
+          style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#f1f5f9", color:"#475569", fontFamily:"'DM Sans',sans-serif", fontSize:13.5, fontWeight:600, padding:"9px 16px", borderRadius:8, border:"1px solid #e2e8f0", cursor:"pointer" }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleChecklistConfirm}
+          disabled={checkpoints.length === 0 || Object.values(checkedItems).filter(Boolean).length < checkpoints.length}
+          style={{ display:"inline-flex", alignItems:"center", gap:7, background:"#16a34a", color:"#fff", fontFamily:"'DM Sans',sans-serif", fontSize:13.5, fontWeight:600, padding:"9px 20px", borderRadius:8, border:"none", cursor: checkpoints.every(cp => checkedItems[cp.id]) ? "pointer" : "not-allowed", opacity: checkpoints.every(cp => checkedItems[cp.id]) ? 1 : 0.5, transition:"opacity .15s" }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+          Mark as Completed
         </button>
       </div>
     </div>

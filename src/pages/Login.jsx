@@ -78,92 +78,137 @@ export default function Login() {
   };
 
   // ─── Login (bcrypt compare) ──────────────────────────────────────────────────
+  // const login = async () => {
+  //   clearAlerts();
+
+  //   if (!username.trim() || !password.trim()) {
+  //     setError("Please enter your username and password.");
+  //     return;
+  //   }
+
+  //   setLoading(true);
+
+  //   // Fetch the user row (including the hashed password)
+  //   const { data: userDetail, error: detailError } = await supabase
+  //     .from("user_details")
+  //     .select("*")
+  //     .eq("user_name", username.trim())
+  //     .single();
+
+  //   if (detailError || !userDetail) {
+  //     setLoading(false);
+  //     setError("Invalid username or password. Please try again.");
+  //     return;
+  //   }
+
+  //   // Compare entered password against stored hash
+  //   // Falls back to plain-text comparison for accounts not yet migrated
+  //   let passwordMatch = false;
+  //   const storedPassword = userDetail.password || "";
+
+  //   //==========FOR HASHED PASSWORD============================
+  //   // if (storedPassword.startsWith("$2")) {
+  //   //   // bcrypt hash — do a proper compare
+  //   //   passwordMatch = await bcrypt.compare(password, storedPassword);
+  //   // } else {
+  //   //   // Plain-text (legacy) — compare directly, then migrate to hash
+  //   //   passwordMatch = storedPassword === password;
+
+  //   //   if (passwordMatch) {
+  //   //     // Silently upgrade to hashed password on first login
+  //   //     const hash = await bcrypt.hash(password, 12);
+  //   //     await supabase
+  //   //       .from("user_details")
+  //   //       .update({ password: hash })
+  //   //       .eq("id", userDetail.id);
+  //   //   }
+  //   // }
+  //   passwordMatch = storedPassword === password;
+
+  //   if (!passwordMatch) {
+  //     setLoading(false);
+  //     setError("Invalid username or password. Please try again.");
+  //     return;
+  //   }
+
+  //   // Load portal details from users table
+  //   const { data: userPortal, error: portalError } = await supabase
+  //     .from("users")
+  //     .select("site_name, role")
+  //     .eq("user_name", userDetail.user_name)
+  //     .single();
+
+  //   setLoading(false);
+
+  //   if (portalError) {
+  //     setError("Could not load portal details. Please contact support.");
+  //     return;
+  //   }
+
+  //   // const userData = {
+  //   //   ...userDetail,
+  //   //   password: undefined, // never store the hash in localStorage
+  //   //   site_name: userPortal?.site_name || "",
+  //   //   role: userPortal?.role || "",
+  //   // };
+  //   const userData = {
+  //     ...userDetail,
+  //     password: undefined,
+  //     site_name: userPortal?.site_name || "",
+  //     role: userPortal?.role || userDetail.role || "",
+  //     designation: userDetail.designation || "",
+  //   };
+  //   // Verify id exists
+  //   console.log("Stored user id:", userDetail.id);
+
+  //   localStorage.setItem("user", JSON.stringify(userData));
+  //   redirectUser(userData.role);
+  // };
   const login = async () => {
-    clearAlerts();
+  clearAlerts();
+  if (!username.trim() || !password.trim()) {
+    setError("Please enter your username and password.");
+    return;
+  }
+  setLoading(true);
 
-    if (!username.trim() || !password.trim()) {
-      setError("Please enter your username and password.");
-      return;
-    }
+  // ← Query new `users` table
+  const { data: userRow, error: userError } = await supabase
+    .from("user_details")
+    .select("*")
+    .eq("username", username.trim())
+    .single();
 
-    setLoading(true);
-
-    // Fetch the user row (including the hashed password)
-    const { data: userDetail, error: detailError } = await supabase
-      .from("user_details")
-      .select("*")
-      .eq("user_name", username.trim())
-      .single();
-
-    if (detailError || !userDetail) {
-      setLoading(false);
-      setError("Invalid username or password. Please try again.");
-      return;
-    }
-
-    // Compare entered password against stored hash
-    // Falls back to plain-text comparison for accounts not yet migrated
-    let passwordMatch = false;
-    const storedPassword = userDetail.password || "";
-
-    //==========FOR HASHED PASSWORD============================
-    // if (storedPassword.startsWith("$2")) {
-    //   // bcrypt hash — do a proper compare
-    //   passwordMatch = await bcrypt.compare(password, storedPassword);
-    // } else {
-    //   // Plain-text (legacy) — compare directly, then migrate to hash
-    //   passwordMatch = storedPassword === password;
-
-    //   if (passwordMatch) {
-    //     // Silently upgrade to hashed password on first login
-    //     const hash = await bcrypt.hash(password, 12);
-    //     await supabase
-    //       .from("user_details")
-    //       .update({ password: hash })
-    //       .eq("id", userDetail.id);
-    //   }
-    // }
-    passwordMatch = storedPassword === password;
-
-    if (!passwordMatch) {
-      setLoading(false);
-      setError("Invalid username or password. Please try again.");
-      return;
-    }
-
-    // Load portal details from users table
-    const { data: userPortal, error: portalError } = await supabase
-      .from("users")
-      .select("site_name, role")
-      .eq("user_name", userDetail.user_name)
-      .single();
-
+  if (userError || !userRow) {
     setLoading(false);
+    setError("Invalid username or password. Please try again.");
+    return;
+  }
 
-    if (portalError) {
-      setError("Could not load portal details. Please contact support.");
-      return;
-    }
+  // Plain-text compare (swap for bcrypt when ready)
+  if (userRow.password !== password) {
+    setLoading(false);
+    setError("Invalid username or password. Please try again.");
+    return;
+  }
 
-    // const userData = {
-    //   ...userDetail,
-    //   password: undefined, // never store the hash in localStorage
-    //   site_name: userPortal?.site_name || "",
-    //   role: userPortal?.role || "",
-    // };
-    const userData = {
-      ...userDetail,
-      password: undefined,
-      site_name: userPortal?.site_name || "",
-      role: userPortal?.role || userDetail.role || "",
-      designation: userDetail.designation || "",
-    };
-    // Verify id exists
-    console.log("Stored user id:", userDetail.id);
+  setLoading(false);
 
-    localStorage.setItem("user", JSON.stringify(userData));
-    redirectUser(userData.role);
+  const userData = {
+    id:          userRow.id,
+    user_name:   userRow.username,   // keep user_name key so all portals work
+    name:        userRow.name,
+    role:        userRow.role,
+    department:  userRow.department,
+    status:      userRow.status,
+    site_name:   userRow.site_name || "",
+    designation: userRow.role || "", // fallback
   };
+
+  console.log("Logged in user:", userData);
+  localStorage.setItem("user", JSON.stringify(userData));
+  redirectUser(userData.role);
+};
 
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (

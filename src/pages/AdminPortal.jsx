@@ -2,7 +2,7 @@
     import Navbar from "../components/Navbar";
     import { supabase } from "../supabase";
     import { useRecurringTasks } from "../hooks/useRecurringTasks";
-
+import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithcheckpoints.jsx";
   const NAV_ITEMS = [
     {
       key: "dashboard",
@@ -110,12 +110,12 @@
     const WEEKDAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
     const MONTHS   = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-    const EMPTY_FORM = {
-      title: "", description: "", assigned_to: "", site_name: "", priority: "medium",
-      due_date: "", status: "pending", is_recurring: false, recurrence: "",
-      anchor_weekday: "1", anchor_day: "1", anchor_month: "1", anchor_month_day: "1",
-      reschedule_allowed: false,
-    };
+    // const EMPTY_FORM = {
+    //   title: "", description: "", assigned_to: "", site_name: "", priority: "medium",
+    //   due_date: "", status: "pending", is_recurring: false, recurrence: "",
+    //   anchor_weekday: "1", anchor_day: "1", anchor_month: "1", anchor_month_day: "1",
+    //   reschedule_allowed: false,  enable_checkpoints: false,
+    // };
 
     const EMPTY_TASK_FILTERS = { dateFrom: "", dateTo: "", assignedTo: "", site: "", priority: "", status: "" };
     // ── helpers ────────────────────────────────────────────────────────────────
@@ -435,7 +435,7 @@
       );
     }
 
-    function LeaveRequestCard({ leave, onAction, updating }) {
+    function LeaveRequestCard({ leave, onAction, updating}) {
       const status = computeLeaveStatus(leave);
       const days = getLeaveDays(leave);
       const managedByHead = isSiteEngineerLeave(leave);
@@ -802,7 +802,7 @@
           let headsBySite = {};
 
           if (userNames.length) {
-            const { data: users } = await supabase.from("users").select("user_name, role, site_name").in("user_name", userNames);
+            const { data: users } = await supabase.from("user_details").select("user_name, role, site_name").in("user_name", userNames);
             usersByName = (users || []).reduce((map, item) => ({ ...map, [item.user_name]: item }), {});
             siteNames = [...new Set([...siteNames, ...(users || []).map((u) => u.site_name).filter(Boolean)])];
           }
@@ -821,9 +821,18 @@
         setLoadingLeaves(false);
       }, []);
 
+      // const fetchEmployees = useCallback(async () => {
+      //   setLoadingEmployees(true);
+      //   const { data } = await supabase.from("user_details").select("*").order("name", { ascending: true });
+      //   setEmployees(data || []);
+      //   setLoadingEmployees(false);
+      // }, []);
       const fetchEmployees = useCallback(async () => {
         setLoadingEmployees(true);
-        const { data } = await supabase.from("user_details").select("*").order("name", { ascending: true });
+        const { data } = await supabase
+          .from("user_details")        // ← must be "users" not "user_details"
+          .select("*")
+          .order("name", { ascending: true });
         setEmployees(data || []);
         setLoadingEmployees(false);
       }, []);
@@ -833,49 +842,101 @@
       setEmpForm(prev => ({ ...prev, [name]: value }));
     };
 
+    // const handleEmpSubmit = async () => {
+    //   if (!empForm.name.trim() || !empForm.user_name.trim() || !empForm.password.trim() || !empForm.department.trim() || !empForm.designation.trim())
+    //     return showToast("error", "Please fill all fields.");
+
+    //   setEmpSubmitting(true);
+    //   if (editingEmployee) {
+    //   const { error } = await supabase.from("user_details").update({
+    //     name:        empForm.name.trim(),
+    //     user_name:   empForm.user_name.trim(),
+    //     password:    empForm.password.trim(),
+    //     department:  empForm.department.trim(),
+    //     designation: empForm.designation.trim(),
+    //   }).eq("id", editingEmployee.id);
+    //   setEmpSubmitting(false);
+    //   if (error) return showToast("error", "Failed to update. " + error.message);
+    //   showToast("success", "Employee updated successfully!");
+    // } else {
+    //   const { error } = await supabase.from("user_details").insert([{
+    //     name:        empForm.name.trim(),
+    //     user_name:   empForm.user_name.trim(),
+    //     password:    empForm.password.trim(),
+    //     department:  empForm.department.trim(),
+    //     designation: empForm.designation.trim(),
+    //   }]);
+    //   setEmpSubmitting(false);
+    //   if (error) return showToast("error", "Failed to save. " + error.message);
+    //   showToast("success", "Employee saved successfully!");
+    // }
+    //   setEmpForm({ name:"", user_name:"", password:"", department:"", designation:"" });
+    //   setEditingEmployee(null);
+    //   fetchEmployees();
+    //   setActiveTab("manage-employees");
+    // };
     const handleEmpSubmit = async () => {
-      if (!empForm.name.trim() || !empForm.user_name.trim() || !empForm.password.trim() || !empForm.department.trim() || !empForm.designation.trim())
-        return showToast("error", "Please fill all fields.");
+      if (!empForm.name.trim() || !empForm.username.trim() || !empForm.password.trim() || !empForm.role.trim())
+        return showToast("error", "Please fill all required fields.");
 
       setEmpSubmitting(true);
+
       if (editingEmployee) {
-      const { error } = await supabase.from("user_details").update({
-        name:        empForm.name.trim(),
-        user_name:   empForm.user_name.trim(),
-        password:    empForm.password.trim(),
-        department:  empForm.department.trim(),
-        designation: empForm.designation.trim(),
-      }).eq("id", editingEmployee.id);
-      setEmpSubmitting(false);
-      if (error) return showToast("error", "Failed to update. " + error.message);
-      showToast("success", "Employee updated successfully!");
-    } else {
-      const { error } = await supabase.from("user_details").insert([{
-        name:        empForm.name.trim(),
-        user_name:   empForm.user_name.trim(),
-        password:    empForm.password.trim(),
-        department:  empForm.department.trim(),
-        designation: empForm.designation.trim(),
-      }]);
-      setEmpSubmitting(false);
-      if (error) return showToast("error", "Failed to save. " + error.message);
-      showToast("success", "Employee saved successfully!");
-    }
-      setEmpForm({ name:"", user_name:"", password:"", department:"", designation:"" });
+        const { error } = await supabase.from("user_details").update({
+          name:       empForm.name.trim(),
+          username:   empForm.username.trim(),
+          password:   empForm.password.trim(),
+          role:       empForm.role.trim(),
+          department: empForm.department.trim(),
+          site_name:  empForm.site_name.trim() || null,
+          status:     empForm.status || "active",
+        }).eq("id", editingEmployee.id);
+        setEmpSubmitting(false);
+        if (error) return showToast("error", "Failed to update. " + error.message);
+        showToast("success", "Employee updated successfully!");
+      } else {
+        const { error } = await supabase.from("user_details").insert([{
+          name:       empForm.name.trim(),
+          username:   empForm.username.trim(),
+          password:   empForm.password.trim(),
+          role:       empForm.role.trim(),
+          department: empForm.department.trim(),
+          site_name:  empForm.site_name.trim() || null,
+          status:     empForm.status || "active",
+        }]);
+        setEmpSubmitting(false);
+        if (error) return showToast("error", "Failed to save. " + error.message);
+        showToast("success", "Employee added successfully!");
+      }
+
+      setEmpForm({ name:"", username:"", password:"", role:"", department:"", site_name:"", status:"active" });
       setEditingEmployee(null);
       fetchEmployees();
       setActiveTab("manage-employees");
     };
 
+    // const handleEmpEdit = (emp) => {
+    //   setEditingEmployee(emp);
+    //   setEmpForm({ name: emp.name, user_name: emp.user_name, password: emp.password || "", department: emp.department || "", designation: emp.designation || "" });
+    //   setActiveTab("add-employee");
+    // };
     const handleEmpEdit = (emp) => {
-      setEditingEmployee(emp);
-      setEmpForm({ name: emp.name, user_name: emp.user_name, password: emp.password || "", department: emp.department || "", designation: emp.designation || "" });
-      setActiveTab("add-employee");
-    };
+  setEditingEmployee(emp);
+  setEmpForm({
+    name:       emp.name || "",
+    username:   emp.username || "",
+    password:   emp.password || "",
+    role:       emp.role || "",
+    department: emp.department || "",
+    site_name:  emp.site_name || "",
+    status:     emp.status || "active",
+  });
+  setActiveTab("add-employee");
+};
 
     const handleEmpDelete = async (id) => {
       if (!window.confirm("Delete this employee?")) return;
-      await supabase.from("user_details").delete().eq("id", id);
+      await supabase.from("user").delete().eq("id", id);
       setEmployees(p => p.filter(e => e.id !== id));
       showToast("success", "Employee deleted.");
     };
@@ -928,7 +989,12 @@
           parent_task_id:    null,
           reschedule_allowed: form.reschedule_allowed || false,
         };
-        const { error } = await supabase.from("tasks").insert([payload]);
+        // const { error } = await supabase.from("tasks").insert([payload]);
+        const { data: insertedTask, error } = await supabase
+  .from("tasks")
+  .insert([payload])
+  .select("id")
+  .single();
         setSubmitting(false);
         if (error) {
           showToast("error","Failed to assign task. " + error.message);
@@ -938,6 +1004,13 @@
           showToast("success", `Task "${form.title}" assigned${desc ? ` — repeats ${desc}` : ""}!`);
           setForm({ ...EMPTY_FORM });
           fetchAllTasks();
+          // After successful task insert:
+            if (form.enable_checkpoints) {
+              await supabase
+                .from("tasks")
+                .update({ has_checkpoints: true })
+                .eq("id", insertedTask.id); // use the returned id from insert
+            }
           return true;
         }
       };
@@ -1097,12 +1170,13 @@
 
           case "assign-task":
             return (
-              <TaskForm
+              <TaskFormWithCheckpoints         
                 form={form}
                 handleFormChange={handleFormChange}
                 setForm={setForm}
                 handleSubmit={handleSubmit}
                 submitting={submitting}
+                onSuccess={() => setShowTaskModal(false)}
               />
             );
 
@@ -1166,7 +1240,7 @@
                     {Object.values(recurringFilters).some(v => v !== "" && v !== false) && (
                       <span className="tf-mobile-badge"/>
                     )}
-                  </button>
+                  </button> 
 
                   {/* Dropdown filter panel */}
                   {recurringMobileFilterOpen && (
@@ -1466,130 +1540,196 @@
               </>
             );
 
-          case "manage-employees":
-            return loadingEmployees ? (
-              <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading employees…</p></div>
-            ) : employees.length === 0 ? (
-              <div className="op-empty-state">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                <p className="op-empty-text">No employees found.</p>
-                <button className="ap-btn-primary" style={{ marginTop:4 }} onClick={() => setActiveTab("add-employee")}>Add Employee</button>
-              </div>
-            ) : (
-              <>
-                {/* Desktop table */}
-                <div className="ap-table-wrap">
-                  <table className="ap-table">
-                    <thead>
-                      <tr>
-                        {["#","Name","Username","Department","Designation","Role","Status","Actions"].map(h => (
-                          <th key={h} className="ap-th">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {employees.map((emp, idx) => (
-                        <tr key={emp.id} className="ap-tr">
-                          <td className="ap-td" style={{ color:"#94a3b8", fontSize:12 }}>{idx + 1}</td>
-                          <td className="ap-td ap-td-title">{emp.name || "—"}</td>
-                          <td className="ap-td" style={{ fontFamily:"'DM Mono',monospace", fontSize:12.5 }}>{emp.user_name || "—"}</td>
-                          <td className="ap-td">{emp.department || "—"}</td>
-                          <td className="ap-td">{emp.designation || "—"}</td>
-                          <td className="ap-td">
-                            {emp.role
-                              ? <span className="ap-pill-blue">{emp.role}</span>
-                              : <span style={{ color:"#94a3b8", fontSize:12 }}>—</span>}
-                          </td>
-                          <td className="ap-td">{emp.status|| "—"}</td>
-                          <td className="ap-td">
-                            <div style={{ display:"flex", gap:6 }}>
-                              <button className="ap-edit-btn" onClick={() => handleEmpEdit(emp)}>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                Edit
-                              </button>
-                              <button className="ap-del-btn" onClick={() => handleEmpDelete(emp.id)} title="Delete">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+          // case "manage-employees":
+          //   return loadingEmployees ? (
+          //     <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading employees…</p></div>
+          //   ) : employees.length === 0 ? (
+          //     <div className="op-empty-state">
+          //       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          //       <p className="op-empty-text">No employees found.</p>
+          //       <button className="ap-btn-primary" style={{ marginTop:4 }} onClick={() => setActiveTab("add-employee")}>Add Employee</button>
+          //     </div>
+          //   ) : (
+          //     <>
+          //       {/* Desktop table */}
+          //       <div className="ap-table-wrap">
+          //         <table className="ap-table">
+          //           <thead>
+          //             <tr>
+          //               {["#","Name","Username","Department","Designation","Role","Status","Actions"].map(h => (
+          //                 <th key={h} className="ap-th">{h}</th>
+          //               ))}
+          //             </tr>
+          //           </thead>
+          //           <tbody>
+          //             {employees.map((emp, idx) => (
+          //               <tr key={emp.id} className="ap-tr">
+          //                 <td className="ap-td" style={{ color:"#94a3b8", fontSize:12 }}>{idx + 1}</td>
+          //                 <td className="ap-td ap-td-title">{emp.name || "—"}</td>
+          //                 <td className="ap-td" style={{ fontFamily:"'DM Mono',monospace", fontSize:12.5 }}>{emp.user_name || "—"}</td>
+          //                 <td className="ap-td">{emp.department || "—"}</td>
+          //                 <td className="ap-td">{emp.designation || "—"}</td>
+          //                 <td className="ap-td">
+          //                   {emp.role
+          //                     ? <span className="ap-pill-blue">{emp.role}</span>
+          //                     : <span style={{ color:"#94a3b8", fontSize:12 }}>—</span>}
+          //                 </td>
+          //                 <td className="ap-td">{emp.status|| "—"}</td>
+          //                 <td className="ap-td">
+          //                   <div style={{ display:"flex", gap:6 }}>
+          //                     <button className="ap-edit-btn" onClick={() => handleEmpEdit(emp)}>
+          //                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          //                       Edit
+          //                     </button>
+          //                     <button className="ap-del-btn" onClick={() => handleEmpDelete(emp.id)} title="Delete">
+          //                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          //                     </button>
+          //                   </div>
+          //                 </td>
+          //               </tr>
+          //             ))}
+          //           </tbody>
+          //         </table>
+          //       </div>
 
-                {/* Mobile cards */}
-                <div className="ap-task-mobile-grid">
-                  {employees.map(emp => (
-                    <div key={emp.id} className="ap-task-card-mobile">
-                      <div className="ap-task-card-head">
-                        <div>
-                          <div className="ap-task-card-title">{emp.name || "—"}</div>
-                          <div className="ap-task-card-sub" style={{ fontFamily:"'DM Mono',monospace" }}>{emp.user_name || "—"}</div>
-                        </div>
-                        <div style={{ display:"flex", gap:6 }}>
-                          <button className="ap-edit-btn" onClick={() => handleEmpEdit(emp)}>
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                          </button>
-                          <button className="ap-del-btn" onClick={() => handleEmpDelete(emp.id)}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                          </button>
-                        </div>
-                      </div>
-                      <div className="ap-task-card-meta">
-                        <div><span>Department</span><strong>{emp.department || "—"}</strong></div>
-                        <div><span>Designation</span><strong>{emp.designation || "—"}</strong></div>
-                        <div><span>Role</span><strong>{emp.role || "—"}</strong></div>
-                        <div><span>Site</span><strong>{emp.site_name || "—"}</strong></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            );
+          //       {/* Mobile cards */}
+          //       <div className="ap-task-mobile-grid">
+          //         {employees.map(emp => (
+          //           <div key={emp.id} className="ap-task-card-mobile">
+          //             <div className="ap-task-card-head">
+          //               <div>
+          //                 <div className="ap-task-card-title">{emp.name || "—"}</div>
+          //                 <div className="ap-task-card-sub" style={{ fontFamily:"'DM Mono',monospace" }}>{emp.user_name || "—"}</div>
+          //               </div>
+          //               <div style={{ display:"flex", gap:6 }}>
+          //                 <button className="ap-edit-btn" onClick={() => handleEmpEdit(emp)}>
+          //                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          //                 </button>
+          //                 <button className="ap-del-btn" onClick={() => handleEmpDelete(emp.id)}>
+          //                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          //                 </button>
+          //               </div>
+          //             </div>
+          //             <div className="ap-task-card-meta">
+          //               <div><span>Department</span><strong>{emp.department || "—"}</strong></div>
+          //               <div><span>Designation</span><strong>{emp.designation || "—"}</strong></div>
+          //               <div><span>Role</span><strong>{emp.role || "—"}</strong></div>
+          //               <div><span>Site</span><strong>{emp.site_name || "—"}</strong></div>
+          //             </div>
+          //           </div>
+          //         ))}
+          //       </div>
+          //     </>
+          //   );
+            // case "add-employee":
+            //   return (
+            //     <div className="ap-form-grid">
+            //       <div className="ap-form-row ap-col-2">
+            //         <div className="ap-field">
+            //           <label className="ap-label">Full Name <span className="ap-req">*</span></label>
+            //           <input className="ap-input" name="name" value={empForm.name} onChange={handleEmpFormChange} placeholder="e.g. John Doe"/>
+            //         </div>
+            //         <div className="ap-field">
+            //           <label className="ap-label">Username <span className="ap-req">*</span></label>
+            //           <input className="ap-input" name="user_name" value={empForm.user_name} onChange={handleEmpFormChange} placeholder="e.g. john_doe" disabled={!!editingEmployee}/>
+            //         </div>
+            //       </div>
+            //       <div className="ap-form-row ap-col-2">
+            //         <div className="ap-field">
+            //           <label className="ap-label">Password <span className="ap-req">*</span></label>
+            //           <input className="ap-input" type="password" name="password" value={empForm.password} onChange={handleEmpFormChange} placeholder="••••••••"/>
+            //         </div>
+            //         <div className="ap-field">
+            //           <label className="ap-label">Department <span className="ap-req">*</span></label>
+            //           <input className="ap-input" name="department" value={empForm.department} onChange={handleEmpFormChange} placeholder="e.g. Engineering"/>
+            //         </div>
+            //       </div>
+            //       <div className="ap-form-row ap-col-2">
+            //         <div className="ap-field">
+            //           <label className="ap-label">Designation <span className="ap-req">*</span></label>
+            //           <input className="ap-input" name="designation" value={empForm.designation} onChange={handleEmpFormChange} placeholder="e.g. Site Engineer"/>
+            //         </div>
+            //       </div>
+            //       <div className="ap-form-row ap-col-1 ap-form-actions">
+            //         <button className="ap-btn-secondary" onClick={() => {
+            //           setEmpForm({ name:"", user_name:"", password:"", department:"", designation:"" });
+            //           setEditingEmployee(null);
+            //         }}>Reset</button>
+            //         <button className="ap-btn-primary" onClick={handleEmpSubmit} disabled={empSubmitting}>
+            //           {empSubmitting
+            //             ? <><span className="ap-mini-spinner"/> Saving…</>
+            //             : editingEmployee ? "Update Employee" : "Save Employee"
+            //           }
+            //         </button>
+            //       </div>
+            //     </div>
+            //   );
+            
             case "add-employee":
-              return (
-                <div className="ap-form-grid">
-                  <div className="ap-form-row ap-col-2">
-                    <div className="ap-field">
-                      <label className="ap-label">Full Name <span className="ap-req">*</span></label>
-                      <input className="ap-input" name="name" value={empForm.name} onChange={handleEmpFormChange} placeholder="e.g. John Doe"/>
-                    </div>
-                    <div className="ap-field">
-                      <label className="ap-label">Username <span className="ap-req">*</span></label>
-                      <input className="ap-input" name="user_name" value={empForm.user_name} onChange={handleEmpFormChange} placeholder="e.g. john_doe" disabled={!!editingEmployee}/>
-                    </div>
+            return (
+              <div className="ap-form-grid">
+                <div className="ap-form-row ap-col-2">
+                  <div className="ap-field">
+                    <label className="ap-label">Full Name <span className="ap-req">*</span></label>
+                    <input className="ap-input" name="name" value={empForm.name} onChange={handleEmpFormChange} placeholder="e.g. John Doe"/>
                   </div>
-                  <div className="ap-form-row ap-col-2">
-                    <div className="ap-field">
-                      <label className="ap-label">Password <span className="ap-req">*</span></label>
-                      <input className="ap-input" type="password" name="password" value={empForm.password} onChange={handleEmpFormChange} placeholder="••••••••"/>
-                    </div>
-                    <div className="ap-field">
-                      <label className="ap-label">Department <span className="ap-req">*</span></label>
-                      <input className="ap-input" name="department" value={empForm.department} onChange={handleEmpFormChange} placeholder="e.g. Engineering"/>
-                    </div>
-                  </div>
-                  <div className="ap-form-row ap-col-2">
-                    <div className="ap-field">
-                      <label className="ap-label">Designation <span className="ap-req">*</span></label>
-                      <input className="ap-input" name="designation" value={empForm.designation} onChange={handleEmpFormChange} placeholder="e.g. Site Engineer"/>
-                    </div>
-                  </div>
-                  <div className="ap-form-row ap-col-1 ap-form-actions">
-                    <button className="ap-btn-secondary" onClick={() => {
-                      setEmpForm({ name:"", user_name:"", password:"", department:"", designation:"" });
-                      setEditingEmployee(null);
-                    }}>Reset</button>
-                    <button className="ap-btn-primary" onClick={handleEmpSubmit} disabled={empSubmitting}>
-                      {empSubmitting
-                        ? <><span className="ap-mini-spinner"/> Saving…</>
-                        : editingEmployee ? "Update Employee" : "Save Employee"
-                      }
-                    </button>
+                  <div className="ap-field">
+                    <label className="ap-label">Username <span className="ap-req">*</span></label>
+                    <input className="ap-input" name="username" value={empForm.username} onChange={handleEmpFormChange} placeholder="e.g. john_doe" disabled={!!editingEmployee}/>
                   </div>
                 </div>
-              );
+                <div className="ap-form-row ap-col-2">
+                  <div className="ap-field">
+                    <label className="ap-label">Password <span className="ap-req">*</span></label>
+                    <input className="ap-input" type="password" name="password" value={empForm.password} onChange={handleEmpFormChange} placeholder="••••••••"/>
+                  </div>
+                  <div className="ap-field">
+                    <label className="ap-label">Role <span className="ap-req">*</span></label>
+                    <select className="ap-input ap-select" name="role" value={empForm.role} onChange={handleEmpFormChange}>
+                      <option value="">Select role…</option>
+                      <option value="admin">Admin</option>
+                      <option value="site engineer">Site Engineer</option>
+                      <option value="project head">Project Head</option>
+                      <option value="engineer office">Engineer Office</option>
+                      <option value="mdo office">MDO Office</option>
+                      <option value="hr">HR</option>
+                      <option value="client">Client</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="ap-form-row ap-col-2">
+                  <div className="ap-field">
+                    <label className="ap-label">Department</label>
+                    <input className="ap-input" name="department" value={empForm.department} onChange={handleEmpFormChange} placeholder="e.g. Engineering"/>
+                  </div>
+                  <div className="ap-field">
+                    <label className="ap-label">Site Name</label>
+                    <input className="ap-input" name="site_name" value={empForm.site_name} onChange={handleEmpFormChange} placeholder="e.g. Site A"/>
+                  </div>
+                </div>
+                <div className="ap-form-row ap-col-2">
+                  <div className="ap-field">
+                    <label className="ap-label">Status</label>
+                    <select className="ap-input ap-select" name="status" value={empForm.status} onChange={handleEmpFormChange}>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="ap-form-row ap-col-1 ap-form-actions">
+                  <button className="ap-btn-secondary" onClick={() => {
+                    setEmpForm({ name:"", username:"", password:"", role:"", department:"", site_name:"", status:"active" });
+                    setEditingEmployee(null);
+                  }}>Reset</button>
+                  <button className="ap-btn-primary" onClick={handleEmpSubmit} disabled={empSubmitting}>
+                    {empSubmitting
+                      ? <><span className="ap-mini-spinner"/> Saving…</>
+                      : editingEmployee ? "Update Employee" : "Add Employee"
+                    }
+                  </button>
+                </div>
+              </div>
+            );  
 
             case "manage-employees":
               return loadingEmployees ? (
@@ -1606,15 +1746,28 @@
                   <div className="ap-table-wrap">
                     <table className="ap-table">
                       <thead>
-                        <tr>{["Name","Username","Department","Designation","Actions"].map(h => <th key={h} className="ap-th">{h}</th>)}</tr>
+                        <tr>{["#","Name","Username","Role","Department","Site","Status","Actions"].map(h => (
+                          <th key={h} className="ap-th">{h}</th>
+                        ))}</tr>
                       </thead>
                       <tbody>
-                        {employees.map(emp => (
+                        {employees.map((emp,idx) => (
                           <tr key={emp.id} className="ap-tr">
-                            <td className="ap-td ap-td-title">{emp.name}</td>
-                            <td className="ap-td" style={{ fontFamily:"'DM Mono', monospace", fontSize:12.5 }}>{emp.user_name}</td>
-                            <td className="ap-td">{emp.department || "—"}</td>
-                            <td className="ap-td">{emp.designation || "—"}</td>
+                           <td className="ap-td" style={{ color:"#94a3b8", fontSize:12 }}>{idx + 1}</td>
+                          <td className="ap-td ap-td-title">{emp.name || "—"}</td>
+                          <td className="ap-td" style={{ fontFamily:"'DM Mono',monospace", fontSize:12.5 }}>{emp.username || "—"}</td>
+                          <td className="ap-td">
+                            {emp.role ? <span className="ap-pill-blue">{emp.role}</span> : <span style={{ color:"#94a3b8" }}>—</span>}
+                          </td>
+                          <td className="ap-td">{emp.department || "—"}</td>
+                          <td className="ap-td">{emp.site_name || "—"}</td>
+                          <td className="ap-td">
+                            <span style={{
+                              fontSize:11, fontWeight:600, padding:"2px 8px", borderRadius:20,
+                              background: emp.status === "active" ? "#f0fdf4" : "#f1f5f9",
+                              color: emp.status === "active" ? "#16a34a" : "#64748b",
+                            }}>{emp.status || "—"}</span>
+                          </td>
                             <td className="ap-td">
                               <div style={{ display:"flex", gap:6 }}>
                                 <button className="ap-edit-btn" onClick={() => handleEmpEdit(emp)}>
@@ -1708,7 +1861,7 @@
             .op-sidebar { width: 240px; min-width: 240px; background: #fff; border-right: 1px solid #e8edf3; display: flex; flex-direction: column; transition: width .25s cubic-bezier(.4,0,.2,1), min-width .25s, opacity .2s; overflow: hidden; box-shadow: 2px 0 12px rgba(0,0,0,.04); position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; }
             .op-sidebar.collapsed { width: 0; min-width: 0; opacity: 0; pointer-events: none; }
             .op-sidebar-header { padding: 20px 20px 12px; border-bottom: 1px solid #f0f4f8; display: flex; align-items: center; justify-content: space-between; gap: 12px;}
-            .op-sidebar-label  { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #000000; }
+            
             .op-sidebar-close { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #64748b; cursor: pointer; align-items: center; justify-content: center; }
             .op-sidebar-backdrop { display: none; }
             .op-nav { padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
@@ -1740,7 +1893,7 @@
             .op-content-title { font-size: 15px; font-weight: 600; color: #1e293b; }
 
             /* ── Filter Bar ── */
-            .tf-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: #f8fafc; border: 1px solid #e8edf3; border-radius: 10px; margin-bottom: 16px; position: fixed; top: 120px; right:50px;z-index: 10; }
+            .tf-bar {width:50%; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: #c9d0d4d0; border: 1px solid #e8edf3; border-radius: 10px; margin-bottom: 16px; position: fixed; top: 120px; right:50px;z-index: 10; }
             .tf-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
             .tf-label { font-size: 12px; font-weight: 600; color: #64748b; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
             .tf-input { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 9px; height: 32px; outline: none; transition: border .15s; }
@@ -1967,15 +2120,15 @@
               .op-header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
               .op-content-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; }
 
-              .tf-bar-inline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; background: #c9d0d4d0;padding: 10px;border-radius: 10px;}
+              .tf-bar-inline { position:fixed; top:120px;right:90px;display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; background: #c9d0d4dc;padding: 10px;border-radius: 10px;}
               .tf-mobile-btn { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; cursor: pointer; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
               .tf-mobile-btn.active { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
               .tf-mobile-badge { position: absolute; top: -4px; right: -4px; width: 8px; height: 8px; background: #dc2626; border-radius: 50%; }
-              .tf-popup { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 14px; width: 290px; }
+              .tf-popup { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200; background: #c9d0d4d0; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 14px; width: 290px; }
 
               @media (max-width: 760px) {
                 .tf-bar-inline { display: none; }
-                .tf-mobile-btn { display: inline-flex; }
+                .tf-mobile-btn { display: none; }
                 .tf-popup .tf-group { width: 100%; }
                 .tf-popup .tf-select, .tf-popup .tf-date { width: 100%; }
                 .tf-popup .tf-clear { width: 100%; justify-content: center; margin-left: 0; }
@@ -2010,7 +2163,7 @@
               )}
               <aside className={`op-sidebar${sidebarOpen ? "" : " collapsed"}`}>
                 <div className="op-sidebar-header">
-                  <span className="op-sidebar-label">Admin Panel</span>
+                  
                   <button className="op-sidebar-close" aria-label="Close sidebar" onClick={() => setSidebarOpen(false)}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
                       <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -2101,7 +2254,7 @@
                     </button>
                   </div>
                   <div className="ap-modal-body">
-                    <TaskForm
+                    <TaskFormWithCheckpoints
                       form={form}
                       handleFormChange={handleFormChange}
                       setForm={setForm}

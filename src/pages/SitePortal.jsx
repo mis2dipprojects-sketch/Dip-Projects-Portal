@@ -1056,8 +1056,7 @@ export default function SitePortal() {
       case "my-reports":     return <MyReports user={user}/>;
       default: return null;
     }
-  };
-
+  }; 
   return (
     <>
       <style>{CSS}</style>

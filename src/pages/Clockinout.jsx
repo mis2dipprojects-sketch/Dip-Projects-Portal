@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 // ─── Config: expected shift times ────────────────────────────────────────────
 const SHIFT_START = "09:00"; // HH:MM — on-time threshold for clock-in
-const SHIFT_END   = "18:00"; // HH:MM — on-time threshold for clock-out
+const SHIFT_END   = "19:00"; // HH:MM — on-time threshold for clock-out
 
 // ─── Extra CSS — append to your existing CSS string ──────────────────────────
 export const CLOCK_CSS = `
@@ -1056,7 +1056,7 @@ const fetchMonth = useCallback(async () => {
   // Only mark past days (not today or future) that have no record and aren't weekends
   if (ds >= todayStr) return false;               // today/future = not absent yet
   const dayOfWeek = new Date(ds + "T00:00:00").getDay();
-  if (dayOfWeek === 0 || dayOfWeek === 6) return false; // skip Sunday(0) & Saturday(6)
+  //if (dayOfWeek === 0 || dayOfWeek === 6) return false; // skip Sunday(0) & Saturday(6)
   return !attMap[ds];                              // no record = absent
 }
 

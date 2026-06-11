@@ -21,7 +21,39 @@ const MONTHS = ["January","February","March","April","May","June","July","August
 const WDAYS  = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 const LEAVE_TYPES = ["Casual Leave","Sick Leave","Earned Leave","Maternity Leave","Paternity Leave","Compensatory Leave","Unpaid Leave"];
+const DARK_CSS = `
+[data-theme="dark"]{
+  --ink:#f0ede8;--ink2:#b5afa6;--ink3:#6e6860;
+  --paper:#1a1916;--surface:#141311;
+  --line:#2a2724;--line2:#353229;
+  --amber:#f59e0b;--amber2:#fbbf24;
+  --amber-bg:#1c1505;--amber-line:#451a03;
+  --red:#f87171;--green:#4ade80;--blue:#60a5fa;
+}
+[data-theme="dark"] body,
+[data-theme="dark"] #root{background:#0e0d0b;}
+[data-theme="dark"] .tb{background:#0a0906;}
+[data-theme="dark"] .tbl tr:hover td{background:#1e1c18;}
+[data-theme="dark"] .stat-card{background:#1a1916;}
+[data-theme="dark"] .clock-status{background:#1a1916;}
+[data-theme="dark"] .att-summary{background:#1a1916;}
+[data-theme="dark"] .lv-item{background:#1a1916;}
+[data-theme="dark"] .info-banner{background:#0c1d38;border-color:#1e3a5f;color:#60a5fa;}
+[data-theme="dark"] .warn-banner{background:#1c1505;border-color:#451a03;color:#fbbf24;}
 
+.theme-toggle-row{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--paper);transition:all .2s;cursor:pointer;}
+.theme-toggle-row:hover{background:var(--amber-bg);}
+.theme-toggle-label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink2);}
+.toggle-pill{width:40px;height:22px;border-radius:11px;background:var(--line2);
+  border:none;cursor:pointer;position:relative;transition:background .25s;flex-shrink:0;}
+.toggle-pill.on{background:var(--amber);}
+.toggle-dot{width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;
+  top:3px;left:3px;transition:transform .25s;box-shadow:0 1px 3px rgba(0,0,0,.25);}
+.toggle-pill.on .toggle-dot{transform:translateX(18px);}
+.sb-bottom{padding:10px;border-top:1px solid var(--line);margin-top:auto;}
+`;
 // ─── CSS ─────────────────────────────────────────────────────────────────────
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -1041,7 +1073,7 @@ export default function SitePortal() {
 
   if (!user) return (
     <>
-      <style>{CSS}</style>
+      <style>{CSS}{DARK_CSS}</style>
       <div className="loading" style={{minHeight:"100vh"}}><div className="spinner"/><span>Loading user…</span></div>
     </>
   );

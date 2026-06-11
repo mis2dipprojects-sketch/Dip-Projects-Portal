@@ -153,7 +153,7 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
           </span>
           <select className="tf-select" value={filters.status} onChange={e => onChange("status", e.target.value)}>
-            <option value="">All statuses</option>
+            <option value="">All status</option>
             {statuses.map(s => <option key={s} value={s}>{s.replace("_"," ").replace(/\b\w/g, c => c.toUpperCase())}</option>)}
           </select>
         </div>
@@ -535,26 +535,68 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
   if (!checkpoints.every(cp => checkedItems[cp.id]))
     return showToast("error", "Please tick all checklist items first.");
 
-  const taskId = checklistModal.id;
+  const task = checklistModal;
+  const taskId = task.id;
   setChecklistModal(null);
   setUpdatingId(taskId);
 
   const { error } = await supabase.from("tasks").update({ status: "completed" }).eq("id", taskId);
   if (!error) {
-    const patch = list => list.map(t => t.id === taskId ? {...t, status: "completed"} : t);
+    const patch = list => list.map(t => t.id === taskId ? { ...t, status: "completed" } : t);
     setMyTasks(p => patch(p));
     setRecurringTasks(p => patch(p));
     setDelegatedTasks(p => patch(p));
-    showToast("success", "Task marked as completed!");
+
+    // Spawn next recurring instance if applicable
+    if (task?.is_recurring) {
+      const nextDue = getNextDueDate(task.due_date, task.recurrence);
+      const { data: newTask, error: insertErr } = await supabase.from("tasks").insert([{
+        title:              task.title,
+        description:        task.description        || null,
+        assigned_to:        task.assigned_to,
+        assigned_by:        task.assigned_by         || null,
+        site_name:          task.site_name           || null,
+        priority:           task.priority            || "medium",
+        status:             "pending",
+        is_recurring:       true,
+        recurrence:         task.recurrence,
+        due_date:           nextDue,
+        audio_url:          task.audio_url           || null,
+        document_url:       task.document_url        || null,
+        has_checkpoints:    task.has_checkpoints     || false,
+        reschedule_allowed: task.reschedule_allowed  || false,
+      }]).select().single();
+
+      if (!insertErr && newTask) {
+        setRecurringTasks(p => [...p, newTask]);
+        showToast("success", `Completed! Next instance due ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })}.`);
+      } else {
+        showToast("success", "Task marked as completed!");
+      }
+    } else {
+      showToast("success", "Task marked as completed!");
+    }
   } else {
     showToast("error", "Failed: " + error.message);
   }
   setUpdatingId(null);
 };
-    const handleStatusChange = async (taskId, newStatus, e) => {
-  e?.stopPropagation(); // prevent card click from firing
+    const getNextDueDate = (currentDue, recurrence) => {
+  const base = currentDue ? new Date(currentDue + "T00:00:00") : new Date();
+  switch ((recurrence || "").toLowerCase()) {
+    case "daily":   base.setDate(base.getDate() + 1);   break;
+    case "weekly":  base.setDate(base.getDate() + 7);   break;
+    case "monthly": base.setMonth(base.getMonth() + 1); break;
+    default:        base.setDate(base.getDate() + 1);
+  }
+  return base.toISOString().split("T")[0];
+};
+
+const handleStatusChange = async (taskId, newStatus, e) => {
+  e?.stopPropagation();
   const task = [...myTasks, ...recurringTasks, ...delegatedTasks].find(t => t.id === taskId);
 
+  // Checklist gate
   if (newStatus === "completed" && task?.has_checkpoints) {
     setFetchingCPs(true);
     const { data } = await supabase
@@ -570,11 +612,41 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
 
   setUpdatingId(taskId);
   const { error } = await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
+
   if (!error) {
-    const patch = list => list.map(t => t.id === taskId ? {...t, status: newStatus} : t);
+    const patch = list => list.map(t => t.id === taskId ? { ...t, status: newStatus } : t);
     setMyTasks(p => patch(p));
     setRecurringTasks(p => patch(p));
     setDelegatedTasks(p => patch(p));
+
+    // ── If a recurring task is completed, spawn the next instance ──
+    if (newStatus === "completed" && task?.is_recurring) {
+      const nextDue = getNextDueDate(task.due_date, task.recurrence);
+      const { data: newTask, error: insertErr } = await supabase.from("tasks").insert([{
+        title:             task.title,
+        description:       task.description       || null,
+        assigned_to:       task.assigned_to,
+        assigned_by:       task.assigned_by        || null,
+        site_name:         task.site_name          || null,
+        priority:          task.priority           || "medium",
+        status:            "pending",
+        is_recurring:      true,
+        recurrence:        task.recurrence,
+        due_date:          nextDue,
+        audio_url:         task.audio_url          || null,  // ← copies audio
+        document_url:      task.document_url       || null,  // ← copies doc
+        has_checkpoints:   task.has_checkpoints    || false,
+        reschedule_allowed: task.reschedule_allowed || false,
+      }]).select().single();
+
+      if (!insertErr && newTask) {
+        setRecurringTasks(p => [...p, newTask]);
+        showToast("success", `Task completed! Next instance created for ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })}.`);
+      } else {
+        showToast("success", "Task marked complete.");
+        if (insertErr) console.error("Failed to spawn next instance:", insertErr.message);
+      }
+    }
   }
   setUpdatingId(null);
 };

@@ -1398,16 +1398,17 @@ const handleSubmit = async () => {
       const recentLeaves = allLeaves.slice(0, 4);
 
       // Filtered tasks for the all-tasks tab
-      const filteredTasks    = applyTaskFilters(allTasks, taskFilters);
+      const nonRecurringTasks = allTasks.filter(t => !t.is_recurring);
+      const filteredTasks = applyTaskFilters(nonRecurringTasks, taskFilters);
       const hasActiveFilters = Object.values(taskFilters).some(v => v !== "");
 
 // Replace the 4 lines that compute tfSites/tfPriorities/tfStatuses/tfAssignees:
 
 // Each filter sees data filtered by everything EXCEPT itself
-const tasksForSites     = applyTaskFilters(allTasks, { ...taskFilters, site: "" });
-const tasksForPriorities = applyTaskFilters(allTasks, { ...taskFilters, priority: "" });
-const tasksForStatuses  = applyTaskFilters(allTasks, { ...taskFilters, status: "" });
-const tasksForAssignees = applyTaskFilters(allTasks, { ...taskFilters, assignedTo: "" });
+const tasksForSites      = applyTaskFilters(nonRecurringTasks, { ...taskFilters, site: "" });
+const tasksForPriorities = applyTaskFilters(nonRecurringTasks, { ...taskFilters, priority: "" });
+const tasksForStatuses   = applyTaskFilters(nonRecurringTasks, { ...taskFilters, status: "" });
+const tasksForAssignees  = applyTaskFilters(nonRecurringTasks, { ...taskFilters, assignedTo: "" });
 
 const tfSites      = [...new Set(tasksForSites.map(t => t.site_name).filter(Boolean))].sort();
 const tfPriorities = [...new Set(tasksForPriorities.map(t => t.priority).filter(Boolean))].sort();
@@ -1493,7 +1494,7 @@ const tfAssignees  = [...new Set(tasksForAssignees.map(t => t.assigned_to).filte
           ) : (
             <>
               {hasActiveFilters && (
-                <p className="tf-count">Showing {filteredTasks.length} of {allTasks.length} task{allTasks.length !== 1 ? "s" : ""}</p>
+                <p className="tf-count">Showing {filteredTasks.length} of {nonRecurringTasks.length} task{nonRecurringTasks.length !== 1 ? "s" : ""}</p>
               )}
               {filteredTasks.length === 0 ? (
                 <div className="op-empty-state">

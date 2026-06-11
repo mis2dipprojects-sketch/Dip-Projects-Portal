@@ -92,7 +92,7 @@ border:2px solid transparent;border-radius:12px;color:#6b2d0f;cursor:pointer;fon
 .sec-body { padding:16px 0px 16px 0px; background: linear-gradient(
     to bottom,
     #ffffff,
-    
+    #ffffff,
     rgba(0,0,0,0.05)
 ); }
 
@@ -564,36 +564,56 @@ function buildPhotosHtml(photos) {
   const valid = (photos || []).filter(p => p.supabaseUrl || p.data);
   if (!valid.length) return "";
 
-  // Return pairs — each pair will be rendered as its own chunk
-  // We mark with a data attribute so generateEveningPdf can split them
   let html = "";
   for (let i = 0; i < valid.length; i += 2) {
     const pair = valid.slice(i, i + 2);
-    html += `<div class="photo-pair" style="display:grid;grid-template-columns:${pair.length === 1 ? '1fr' : '1fr 1fr'};gap:16px;margin-bottom:16px;page-break-inside:avoid;break-inside:avoid;">`;
-    pair.forEach(ph => {
+    // Always 2-column grid — second cell empty if odd
+    html += `<div class="photo-pair" style="
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px;
+      margin-bottom:16px;
+      page-break-inside:avoid;
+      break-inside:avoid;
+    ">`;
+
+    // First photo
+    const ph1 = pair[0];
+    html += `
+      <div style="border:1px solid #cbd5e1;overflow:hidden;">
+        <img src="${ph1.supabaseUrl || ph1.data}"
+          style="width:100%;height:260px;object-fit:cover;display:block;"
+          crossorigin="anonymous">
+        <div style="
+          padding:8px 12px;font-size:13px;font-weight:600;
+          text-align:center;color:#334155;background:#f8fafc;
+          border-top:1px solid #cbd5e1;width:100%;box-sizing:border-box;
+        ">${ph1.caption ? esc(ph1.caption) : "&nbsp;"}</div>
+      </div>`;
+
+    // Second photo — or empty placeholder to maintain grid
+    if (pair[1]) {
+      const ph2 = pair[1];
       html += `
-        <div style="border:1px solid #cbd5e1;overflow:hidden;break-inside:avoid;">
-          <img src="${ph.supabaseUrl || ph.data}"
+        <div style="border:1px solid #cbd5e1;overflow:hidden;">
+          <img src="${ph2.supabaseUrl || ph2.data}"
             style="width:100%;height:260px;object-fit:cover;display:block;"
             crossorigin="anonymous">
           <div style="
-            padding:8px 12px;
-            font-size:13px;
-            font-weight:600;
-            text-align:center;
-            color:#334155;
-            background:#f8fafc;
-            border-top:1px solid #cbd5e1;
-            width:100%;
-            box-sizing:border-box;
-          ">${ph.caption ? esc(ph.caption) : "&nbsp;"}</div>
+            padding:8px 12px;font-size:13px;font-weight:600;
+            text-align:center;color:#334155;background:#f8fafc;
+            border-top:1px solid #cbd5e1;width:100%;box-sizing:border-box;
+          ">${ph2.caption ? esc(ph2.caption) : "&nbsp;"}</div>
         </div>`;
-    });
+    } else {
+      // Empty cell — keeps layout consistent
+      html += `<div style="border:1px solid transparent;"></div>`;
+    }
+
     html += `</div>`;
   }
   return html;
 }
-
 // ─── Full PDF HTML builder ────────────────────────────────────────────────────
 function buildEveningPdfHtml(payload) {
   _secNum = 0;
@@ -699,10 +719,28 @@ async function getLogoAsBase64(url) {
     img.src = url;
   });
 }
+let LOGO_BASE64 = null;
+async function getLogoBase64() {
+  if (LOGO_BASE64) return LOGO_BASE64;
+  return new Promise(resolve => {
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width  = img.naturalWidth  || 200;
+      canvas.height = img.naturalHeight || 200;
+      canvas.getContext("2d").drawImage(img, 0, 0);
+      LOGO_BASE64 = canvas.toDataURL("image/png");
+      resolve(LOGO_BASE64);
+    };
+    img.onerror = () => resolve(null);
+    img.src = LOGO_URL; // ← uses the imported local asset
+  });
+}
 async function generateEveningPdf(payload, onProgress) {
   
   await ensurePdfDeps();
-  const logoBase64 = await getLogoAsBase64(LOGO_URL);
+   const logoBase64 = await getLogoBase64();
   const { jsPDF } = window.jspdf;
   const A4_W = 210, A4_H = 297, MARGIN = 10;
   const CONTENT_W = A4_W - MARGIN * 2;
@@ -715,54 +753,54 @@ async function generateEveningPdf(payload, onProgress) {
 async function renderChunk(html) {
   const wrap = document.createElement("div");
   Object.assign(wrap.style, {
-    position: "relative",
-    top: "0",
-    left: "-9999px",
+    position:   "relative",
+    top:        "0",
+    left:       "-9999px",
     width:      "794px",
     background: "#fff",
     zIndex:     "-1",
     fontFamily: "'Segoe UI',Arial,sans-serif",
+    overflow:   "hidden",
   });
+  wrap.style.position = "fixed"; // keep off-screen
 
-  // Inject CSS
+  // CSS
   const style = document.createElement("style");
   style.textContent = PDF_CSS;
   wrap.appendChild(style);
 
-  // Watermark layer — centered, low opacity, behind content
-  const watermark = document.createElement("div");
+  // Watermark — only if logo loaded successfully
+  if (logoBase64) {
+  const wm = document.createElement("div");
+  Object.assign(wm.style, {
+    position:        "absolute",
+    top:             "0",
+    left:            "0",
+    width:           "794px",
+    height:          "1123px",   // A4 at 96dpi
+    display:         "flex",
+    alignItems:      "center",
+    justifyContent:  "center",
+    pointerEvents:   "none",
+    zIndex:          "0",
+    overflow:        "hidden",
+  });
+  const wmImg = document.createElement("img");
+  wmImg.src = logoBase64;
+  Object.assign(wmImg.style, {
+    width:     "500px",
+    height:    "500px",
+    objectFit: "contain",
+    opacity:   "0.06",
+    filter:    "grayscale(100%)",
+    flexShrink: "0",
+  });
+  wm.appendChild(wmImg);
+  wrap.appendChild(wm);
+}
 
-Object.assign(watermark.style, {
-  position: "absolute",
-  inset: "0",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  pointerEvents: "none",
-  overflow: "hidden",
-  zIndex: "1"
-});
 
-watermark.innerHTML = `
-  <img
-    src="${LOGO_URL}"
-    crossorigin="anonymous"
-    style="
-      width:420px;
-      height:420px;
-      object-fit:contain;
-      opacity:0.04;
-      filter:grayscale(100%);
-      position:absolute;
-      top:90%;
-      left:50%;
-      transform:translate(-50%, -50%);
-    "
-  />
-`;
-  wrap.appendChild(watermark);
-
-  // Content layer — sits above watermark
+  // Content
   const inner = document.createElement("div");
   inner.style.position = "relative";
   inner.style.zIndex   = "1";
@@ -771,7 +809,7 @@ watermark.innerHTML = `
 
   document.body.appendChild(wrap);
 
-  // Wait for all images (logo + content photos)
+  // Wait for ALL images including watermark
   const imgs = Array.from(wrap.querySelectorAll("img"));
   await Promise.all(imgs.map(img =>
     img.complete
@@ -859,16 +897,14 @@ watermark.innerHTML = `
     hour: "2-digit", minute: "2-digit"
   });
 
-
 // Then build coverHtml AFTER, using logoBase64:
 const coverHtml = `
   <div class="cover">
     <div class="cover-top-bar">
       <div style="display:flex;align-items:center;gap:14px;">
-        <img
-          src="${logoBase64}"
-          style="width:52px;height:52px;object-fit:contain;flex-shrink:0;display:block;"
-        >
+        <img src="${logoBase64 || ""}"
+  style="width:48px;height:48px;object-fit:contain;flex-shrink:0;${!logoBase64 ? 'display:none' : ''}"
+  crossorigin="anonymous">
         <div>
           <div class="brand-name">DIP Projects</div>
           <div class="brand-sub">Civil Project Management Consultants</div>
@@ -1015,9 +1051,16 @@ async function dbInsert(table, payload) {
   return !error;
 }
 async function getEngineersForSite(site) {
-  const { data } = await supabase.from("dpr_engineers").select("name").eq("site_name",site).order("name");
-  return (data||[]).map(r => r.name);
+  const { data } = await supabase
+    .from("user_site_assignments")
+    .select("user_details(name)")
+    .eq("site_name", site);
+  return (data || [])
+    .map(r => r.user_details?.name)
+    .filter(Boolean)
+    .sort();
 }
+
 // async function getManpowerTypes(scope, workCat) {
 //   let q = supabase.from("dpr_manpower_types").select("name,scope,work_category").order("name");
 //   if (scope) q = q.eq("scope", scope.toUpperCase());
@@ -1163,9 +1206,24 @@ function SelectWithAdd({ value, onChange, options, placeholder, onAdd }) {
 
 function SectionBlock({ title, children, defaultOpen=false }) {
   const [open, setOpen] = useState(defaultOpen);
+  const ref = useRef(null);
+
+  const handleToggle = () => {
+    const opening = !open;
+    setOpen(opening);
+    if (opening) {
+      setTimeout(() => {
+        const el = ref.current;
+        if (!el) return;
+        const top = el.getBoundingClientRect().top + window.scrollY - 80; // 80px offset for sticky header
+        window.scrollTo({ top, behavior: "smooth" });
+      }, 50);
+    }
+  };
+
   return (
-    <div className="sec-block">
-      <button className="sec-collapser" onClick={()=>setOpen(p=>!p)}>
+    <div className="sec-block" ref={ref}>
+      <button className="sec-collapser" onClick={handleToggle}>
         <span>{title}</span>
         <svg className={`chevron${open?" open":""}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
@@ -1695,52 +1753,61 @@ function AddCategoryPopup({ onSave, onClose }) {
   );
 }
 function EquipmentSection({ list, setList }) {
-  const [master,  setMaster]  = useState({ client:[], contractor:[] });
-  const [source,  setSource]  = useState("");
-  const [name,    setName]    = useState("");
-  const [qty,     setQty]     = useState("");
-  const [unit,    setUnit]    = useState("");
-  const [showAdd, setShowAdd] = useState(false);
-  const [editIdx, setEditIdx] = useState(null);
-  const [editRow, setEditRow] = useState(null);
+  const [master,   setMaster]   = useState({ client: [], contractor: [] });
+  const [source,   setSource]   = useState("");
+  const [name,     setName]     = useState("");
+  const [qty,      setQty]      = useState("");
+  const [unit,     setUnit]     = useState("");
+  const [showAdd,  setShowAdd]  = useState(false);
+  const [editIdx,  setEditIdx]  = useState(null);
+  const [editRow,  setEditRow]  = useState(null);
+  const [units,    setUnits]    = useState([]);
 
-  useEffect(()=>{
-    supabase.from("dpr_equipment").select("*").order("name").then(({data})=>{
-      const grp={client:[],contractor:[]};
-      (data||[]).forEach(e=>{ if(grp[e.source]) grp[e.source].push(e); });
-      setMaster(grp);
-    });
-  },[]);
+  useEffect(() => {
+  supabase.from("dpr_equipment").select("*").order("name").then(({ data }) => {
+    const grp = { client: [], contractor: [] };
+    (data || []).forEach(e => { if (grp[e.source]) grp[e.source].push(e); });
+    setMaster(grp);
+  });
+  dbFetch("dpr_equipment_units").then(setUnits);
+}, []);
 
-  const srcOpts  = source && master[source] ? [...new Set(master[source].map(e=>e.name))] : [];
-  const unitOpts = source && name ? [...new Set(master[source]?.filter(e=>e.name===name).map(e=>e.unit))] : [];
+  // Equipment names for selected source
+  const srcOpts = source && master[source]
+    ? [...new Set(master[source].map(e => e.name))]
+    : [];
 
-const add = () => {
-  if (!source || !name || !qty || !unit) return;
-  const n = v => (v || "").toString().trim().toLowerCase();
-
-  const dupIdx = list.findIndex(r =>
-    n(r.source) === n(source) &&
-    n(r.name)   === n(name)   &&
-    n(r.unit)   === n(unit)
-  );
-
-  if (dupIdx >= 0) {
-    setList(p => p.map((r, i) =>
-      i === dupIdx ? { ...r, qty: Number(r.qty) + Number(qty) } : r
-    ));
-  } else {
-    setList(p => [...p, { source, name, qty, unit }]);
-  }
-  setName(""); setQty(""); setUnit("");
+  // When equipment name changes, auto-fill unit from master
+const handleNameChange = val => {
+  if (val === "__add") { setShowAdd(true); return; }
+  setName(val);
 };
+
+  const add = () => {
+    if (!source || !name || !qty || !unit) return;
+    const n = v => (v || "").toString().trim().toLowerCase();
+    const dupIdx = list.findIndex(r =>
+      n(r.source) === n(source) &&
+      n(r.name)   === n(name)   &&
+      n(r.unit)   === n(unit)
+    );
+    if (dupIdx >= 0) {
+      setList(p => p.map((r, i) =>
+        i === dupIdx ? { ...r, qty: Number(r.qty) + Number(qty) } : r
+      ));
+    } else {
+      setList(p => [...p, { source, name, qty, unit }]);
+    }
+    setName(""); setQty(""); setUnit("");
+  };
 
   return (
     <div>
-      <div className="grid3" style={{marginBottom:12}}>
+      <div className="grid3" style={{ marginBottom: 12 }}>
         <div className="fg">
           <label className="flabel">Source</label>
-          <select className="finput" value={source} onChange={e=>{setSource(e.target.value);setName("");setUnit("");}}>
+          <select className="finput" value={source}
+            onChange={e => { setSource(e.target.value); setName(""); setUnit(""); }}>
             <option value="">Select Source</option>
             <option value="client">Client</option>
             <option value="contractor">Contractor</option>
@@ -1748,32 +1815,47 @@ const add = () => {
         </div>
         <div className="fg">
           <label className="flabel">Equipment</label>
-          <select className="finput" value={name} onChange={e=>{ if(e.target.value==="__add") setShowAdd(true); else { setName(e.target.value); const u=master[source]?.find(eq=>eq.name===e.target.value)?.unit; if(u) setUnit(u); } }}>
-            <option value="">{source?"Select Equipment":"Select source first"}</option>
-            {srcOpts.map(n=><option key={n} value={n}>{n}</option>)}
+          <select className="finput" value={name}
+            onChange={e => handleNameChange(e.target.value)}>
+            <option value="">{source ? "Select Equipment" : "Select source first"}</option>
+            {srcOpts.map(n => <option key={n} value={n}>{n}</option>)}
             <option value="__add">➕ Add New…</option>
           </select>
         </div>
         <div className="fg">
           <label className="flabel">Qty</label>
-          <input className="finput" type="number" min="0" value={qty} onChange={e=>setQty(e.target.value)} placeholder="0"/>
+          <input className="finput" type="number" min="0" value={qty}
+            onChange={e => setQty(e.target.value)} placeholder="0" />
         </div>
         <div className="fg">
           <label className="flabel">Unit</label>
-          <select className="finput" value={unit} onChange={e=>setUnit(e.target.value)}>
-            <option value="">Select Unit</option>
-            {unitOpts.map(u=><option key={u} value={u}>{u}</option>)}
-          </select>
+          <SelectWithAdd
+            value={unit}
+            onChange={setUnit}
+            options={units}
+            placeholder="Select Unit"
+            onAdd={async nm => {
+              await dbInsert("dpr_equipment_units", { name: nm });
+              setUnits(await dbFetch("dpr_equipment_units"));
+              setUnit(nm);
+            }} />
         </div>
       </div>
-      <button className="btn btn-green btn-sm" onClick={add} disabled={!source||!name||!qty||!unit}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+
+      <button className="btn btn-green btn-sm" onClick={add}
+        disabled={!source || !name || !qty || !unit}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
         Add Equipment
       </button>
-      {list.length>0 && (
+
+      {list.length > 0 && (
         <div className="tbl-wrap">
           <table className="tbl">
-            <thead><tr><th>Source</th><th>Equipment</th><th>Qty</th><th>Unit</th><th></th></tr></thead>
+            <thead>
+              <tr><th>Source</th><th>Equipment</th><th>Qty</th><th>Unit</th><th></th></tr>
+            </thead>
             <tbody>
               {list.map((e, i) => (
                 editIdx === i ? (
@@ -1798,25 +1880,28 @@ const add = () => {
                         onChange={ev => setEditRow(p => ({ ...p, qty: ev.target.value }))} />
                     </td>
                     <td>
-                      <input className="finput" style={{ padding: "5px 8px", fontSize: 12, width: 80 }}
+                      <input className="finput"
+                        style={{ padding: "5px 8px", fontSize: 12, width: 80 }}
                         value={editRow.unit}
                         onChange={ev => setEditRow(p => ({ ...p, unit: ev.target.value }))} />
                     </td>
                     <td>
                       <div style={{ display: "flex", gap: 4 }}>
-                        <button className="btn btn-orange btn-sm" style={{ padding: "5px 10px", fontSize: 11 }}
+                        <button className="btn btn-orange btn-sm"
+                          style={{ padding: "5px 10px", fontSize: 11 }}
                           onClick={() => {
                             setList(p => p.map((r, j) => j === i ? { ...editRow } : r));
                             setEditIdx(null); setEditRow(null);
                           }}>✓</button>
-                        <button className="btn btn-out btn-sm" style={{ padding: "5px 10px", fontSize: 11 }}
+                        <button className="btn btn-out btn-sm"
+                          style={{ padding: "5px 10px", fontSize: 11 }}
                           onClick={() => { setEditIdx(null); setEditRow(null); }}>✕</button>
                       </div>
                     </td>
                   </tr>
                 ) : (
                   <tr key={i}>
-                    <td>{e.source}</td>
+                    <td style={{ textTransform: "capitalize" }}>{e.source}</td>
                     <td>{e.name}</td>
                     <td>{e.qty}</td>
                     <td>{e.unit}</td>
@@ -1825,14 +1910,14 @@ const add = () => {
                         <button className="btn btn-out btn-sm btn-icon" title="Edit"
                           onClick={() => { setEditIdx(i); setEditRow({ ...e }); }}>
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
                         </button>
                         <button className="btn btn-red btn-sm btn-icon" title="Remove"
                           onClick={() => setList(p => p.filter((_, j) => j !== i))}>
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                            <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" />
                           </svg>
                         </button>
                       </div>
@@ -1844,18 +1929,24 @@ const add = () => {
           </table>
         </div>
       )}
+
       {showAdd && (
         <AddPopup title="Add New Equipment" placeholder="Equipment name"
-          extraFields={[{key:"unit",label:"Unit",placeholder:"hrs, trip, etc."}]}
-          onSave={async (nm,extra)=>{
-            if(!source||!extra.unit) return;
-            await dbInsert("dpr_equipment",{name:nm,unit:extra.unit,source});
-            const {data} = await supabase.from("dpr_equipment").select("*").order("name");
-            const grp={client:[],contractor:[]};
-            (data||[]).forEach(e=>{ if(grp[e.source]) grp[e.source].push(e); });
-            setMaster(grp); setName(nm); setUnit(extra.unit); setShowAdd(false);
+          extraFields={[
+            { key: "unit", label: "Unit", placeholder: "e.g. HRS, TRIP, NOS" },
+          ]}
+          onSave={async (nm, extra) => {
+            if (!source || !extra.unit) return;
+            await dbInsert("dpr_equipment", { name: nm, unit: extra.unit, source });
+            const { data } = await supabase.from("dpr_equipment").select("*").order("name");
+            const grp = { client: [], contractor: [] };
+            (data || []).forEach(e => { if (grp[e.source]) grp[e.source].push(e); });
+            setMaster(grp);
+            setName(nm);
+            setUnit(extra.unit);
+            setShowAdd(false);
           }}
-          onClose={()=>setShowAdd(false)}/>
+          onClose={() => setShowAdd(false)} />
       )}
     </div>
   );
@@ -2168,27 +2259,36 @@ function DprForm({user}) {
     });
   }
 }, [site, engineer, reportType]);
-
 useEffect(() => {
   (async () => {
     setLoadingSites(true);
-    // Set engineer name from logged-in user
     setEngineer(user?.name || "");
 
-    // Fetch all sites assigned to this user via dpr_engineers table
-    const { data } = await supabase
-      .from("dpr_engineers")
-      .select("site_name")
-      .eq("name", user?.name || "");
+    let sites = [];
 
-    const sites = (data || []).map(r => r.site_name).filter(Boolean);
+    // user.id is already available from login — no need to re-fetch user_details
+   if (user?.id) {
+  const { data: assignments, error } = await supabase
+    .from("user_site_assignments")
+    .select("site_name")
+    .eq("user_id", user.id);
+
+  console.log("user.id:", user.id);
+  console.log("assignments:", assignments);
+  console.log("error:", error);
+
+  sites = (assignments || []).map(r => r.site_name).filter(Boolean);
+}
+
+    // Fallback to user profile site_name if no assignments found
+    if (sites.length === 0 && user?.site_name) {
+      sites = [user.site_name];
+    }
 
     if (sites.length === 1) {
-      setSite(sites[0]); // auto-select if only one
-    } else if (sites.length === 0 && user?.site_name) {
-      setSite(user.site_name); // fallback to user profile site
-      sites.push(user.site_name);
+      setSite(sites[0]);
     }
+
     setUserSites(sites);
     setLoadingSites(false);
   })();
@@ -2380,6 +2480,44 @@ async function getLastMorningPayload(site, engineer) {
     .maybeSingle();
   return data?.payload || null;
 }
+const handleSharePdfWhatsApp = async () => {
+  if (!pdfUrl) {
+    showToast("err", "Generate the Evening DPR first.");
+    return;
+  }
+
+  try {
+    // Fetch the PDF blob
+    const response = await fetch(pdfUrl);
+    const blob = await response.blob();
+    const safeSite = (site || "site").replace(/[\s/\\:*?"<>|]/g, "_");
+    const fileName = `DPR_Evening_${safeSite}_${date}.pdf`;
+    const file = new File([blob], fileName, { type: "application/pdf" });
+
+    // Use Web Share API if available (mobile browsers)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        title:  `Evening DPR - ${site} - ${fmtDate(date)}`,
+        text:   `Please find attached the Evening DPR for ${site} dated ${fmtDate(date)}.`,
+        files:  [file],
+      });
+    } else {
+      // Desktop fallback: open WhatsApp Web with a message, user attaches manually
+      showToast("ok", "PDF downloaded. Please attach it manually in WhatsApp.");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.click();
+      setTimeout(() => {
+        window.open("https://web.whatsapp.com", "_blank");
+      }, 1000);
+    }
+  } catch (err) {
+    if (err.name !== "AbortError") {
+      showToast("err", "Could not share: " + err.message);
+    }
+  }
+};
 const handleWhatsApp = async () => {
   if (!site || !engineer || !summary.trim()) {
     showToast("err", "Site, engineer and work summary are required.");
@@ -2424,12 +2562,27 @@ const handleWhatsApp = async () => {
       <div className="success-sub">
         {reportType==="morning"
           ? "Morning report saved to database successfully."
-          : "PDF and photos stored in Supabase. Report record saved to dpr_reports."}
+          : "Download a PDF copy of this report or share it instantly via WhatsApp."}
       </div>
-      {pdfUrl && <a className="btn btn-orange" href={pdfUrl} target="_blank" rel="noopener noreferrer">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download PDF
-      </a>}
+
+      {pdfUrl && (
+  <>
+    <a className="btn btn-orange" href={pdfUrl} target="_blank" rel="noopener noreferrer">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Download PDF
+    </a>
+
+    <button className="btn btn-whatsapp" onClick={handleSharePdfWhatsApp}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+      </svg>
+      Share to WhatsApp
+    </button>
+  </>
+)}
       <button className="btn btn-out" onClick={resetForm}>Submit Another Report</button>
     </div>
   );

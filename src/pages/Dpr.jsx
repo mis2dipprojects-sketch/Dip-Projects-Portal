@@ -54,11 +54,8 @@ const CSS = `
 body { background:var(--bg); font-family:var(--font); color:var(--ink); }
 .dpr-root { min-height:100vh; background:var(--bg); padding:24px 16px 48px; }
 .dpr-inner { max-width:1500px; margin:0 auto; }
-.dpr-card { background:var(--card); border:1px solid var(--border2); border-radius:var(--radius); padding:24px; box-shadow:var(--shadow); }
-
 .rtype-row { display:grid; grid-template-columns:1fr 1fr; gap:0; border:1.5px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:22px; }
-.rtype-btn { flex:1; padding:12px; border:none; background:transparent; font-family:var(--font); font-size:13.5px; font-weight:700; cursor:pointer; color:var(--ink3); transition:all .18s; }
-.rtype-btn.morning.act { background:var(--grad); color:#fff; }
+.rtype-btn { flex:1; padding:11px 8px; border:none; background:transparent; font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; color:var(--ink3); transition:all .18s; white-space:nowrap; line-height:1.2; }.rtype-btn.morning.act { background:var(--grad); color:#fff; }
 .rtype-btn.evening.act { background:var(--grad); color:#fff; }
 
 .fg { display:flex; flex-direction:column; gap:5px; }
@@ -75,15 +72,12 @@ select.finput { cursor:pointer; }
 .col3 { grid-column:span 3; }
 @media(max-width:640px) { .grid2,.grid3 { grid-template-columns:1fr; } .col2,.col3 { grid-column:span 1; } }
 
-.sec-block { border:1.5px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:14px; }
+.sec-block { border-radius:8px; overflow:hidden; margin-bottom:14px; }
 .sec-collapser{
 display:flex;
 align-items:center;
 justify-content:space-between;
-
 padding:12px 16px;
-
-
 background:
         linear-gradient(#fff,#fff) padding-box,
         var(--grad) border-box;
@@ -95,7 +89,12 @@ border:2px solid transparent;border-radius:12px;color:#6b2d0f;cursor:pointer;fon
 }
 .sec-collapser .chevron { transition:transform .2s; }
 .sec-collapser .chevron.open { transform:rotate(180deg); }
-.sec-body { padding:16px; background:var(--card); }
+.sec-body { padding:16px; background: linear-gradient(
+    to bottom,
+    #ffffff,
+    
+    rgba(0,0,0,0.05)
+); }
 
 .btn { display:inline-flex; align-items:center; gap:7px; font-family:var(--font); font-size:13px; font-weight:700; padding:10px 18px; border-radius:8px; border:none; cursor:pointer; transition:all .15s; }
 .btn-orange { background:var(--grad); color:#fff; box-shadow:0 3px 10px rgba(107,45,15,.25); }
@@ -178,11 +177,14 @@ border:2px solid transparent;border-radius:12px;color:#6b2d0f;cursor:pointer;fon
 .step-pending { background:#f8fafc; color:#94a3b8; }
 
 @media(max-width:600px) {
-  .dpr-root { padding:12px 8px 40px; }
-  .dpr-card { padding:1px;}
+  .dpr-root { padding:8px 6px 40px; }
   .cement-row { grid-template-columns:1fr; }
   .act-row { flex-direction:column-reverse; }
   .act-row .btn { width:100%; justify-content:center; }
+  .grid2 { grid-template-columns:1fr; }
+  .grid3 { grid-template-columns:1fr; }
+  .col2,.col3 { grid-column:span 1; }
+  .rtype-btn { font-size:12px; padding:11px 6px; }
 }
 `;
 
@@ -2533,7 +2535,7 @@ const handleWhatsApp = async () => {
         <SectionBlock title="11. Work Progress Photos">
           <div className="info-banner info-blue" style={{marginBottom:12}}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Photos are required for Evening DPR. Each photo is uploaded to the <strong>dpr-photos</strong> bucket.
+            Photos are required for Evening DPR.
           </div>
           <PhotosSection photos={photos} setPhotos={setPhotos}/>
         </SectionBlock>
@@ -2589,9 +2591,9 @@ export default function DPR({ user }) {
       <style>{CSS}</style>
       <div className="dpr-root">
         <div className="dpr-inner">
-          <div className="dpr-card">
+
             <DprForm user={user}/>
-          </div>
+
         </div>
       </div>
     </>

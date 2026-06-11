@@ -75,7 +75,7 @@ body,#root{background:#c9d0d4d0;font-family:var(--font);color:var(--ink);}
 .sni.act svg{stroke:var(--amber2);}
  
 /* ── Card ── */
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:26px;box-shadow:var(--shadow);}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);}
 .card-hdr{display:flex;align-items:center;gap:10px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--line);}
 .card-ico{width:36px;height:36px;border-radius:9px;background:var(--amber-bg);display:flex;align-items:center;justify-content:center;color:var(--amber2);flex-shrink:0;}
 .card-title{font-size:15px;font-weight:800;color:var(--ink);}
@@ -575,7 +575,7 @@ function MyLeave({ user, onApply }) {
   return (
     <div>
       {/* Summary stats */}
-      <div className="stat-row">
+      <div className="stat-row" >
         {[["Total",counts.total,"var(--ink)"],["Approved",counts.approved,"var(--green)"],["Pending",counts.pending,"var(--amber)"],["Rejected",counts.rejected,"var(--red)"]].map(([l,v,c])=>(
           <div key={l} className="stat-card">
             <div className="stat-val" style={{color:c}}>{v}</div>

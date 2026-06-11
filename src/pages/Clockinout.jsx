@@ -63,6 +63,7 @@ export const CLOCK_CSS = `
 .task-panel-footer{padding:14px 20px;border-top:1px solid #333;display:flex;gap:10px;}
 
 /* ── Calendar updates ── */
+.cal-cell{min-height:46px;padding:5px 2px 3px;border-radius:8px;}
 .cal-cell.on-time{background:#f0fdf4;border-color:#86efac;}
 .cal-cell.on-time .cal-dn{color:#15803d;}
 .cal-cell.late-in{background:#fef9c3;border-color:#fde047;}
@@ -72,14 +73,16 @@ export const CLOCK_CSS = `
 .cal-cell.leave-day{background:#f5f3ff;border-color:#c4b5fd;}
 .cal-cell.leave-day .cal-dn{color:#6d28d9;}
 .cal-cell.half-day{background:#fffbeb;border-color:#fde68a;}
-.att-dot-row{display:flex;gap:2px;margin-top:2px;flex-wrap:wrap;justify-content:center;}
+.cal-dn{font-size:11.5px;font-weight:700;color:var(--ink);line-height:1;}
+.att-dot-row{display:flex;gap:2px;margin-top:3px;flex-wrap:wrap;justify-content:center;}
+.att-dot{width:6px;height:6px;border-radius:50%;}
 
 /* Clock panel tweaks */
-.clock-panel{padding:32px 16px;}
-.punch-row{display:flex;gap:16px;width:100%;max-width:420px;flex-wrap:wrap;justify-content:center;}
-.punch-card{flex:1;min-width:150px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;}
-.punch-card-lbl{font-size:10.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;}
-.punch-card-val{font-size:14px;font-weight:700;color:var(--ink);}
+.clock-panel{padding:24px 12px;}
+.punch-row{display:flex;gap:12px;width:100%;max-width:420px;flex-wrap:wrap;justify-content:center;}
+.punch-card{flex:1;min-width:130px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;}
+.punch-card-lbl{font-size:10px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;}
+.punch-card-val{font-size:13px;font-weight:700;color:var(--ink);}
 .punch-card-status{margin-top:4px;}
 
 /* ── Task checkpoint items ── */

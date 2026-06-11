@@ -1,0 +1,2599 @@
+import { useState, useEffect, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
+import LOGO_URL from "../assets/logo.png";
+const SUPABASE_URL  = "https://efqfjfthsleymhljswcq.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmcWZqZnRoc2xleW1obGpzd2NxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDY0MjMsImV4cCI6MjA5NTkyMjQyM30.PYMRiKdnhzb6pkvhDB4M4Qdp3nSGhsZpHGuclVqYNMs";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+const todayStr = () => new Date().toISOString().split("T")[0];
+const fmtDate  = d => d ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" }) : "—";
+const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
+
+async function compressImage(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX_W = 1200, QUALITY = 0.72;
+        const scale = Math.min(1, MAX_W / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", QUALITY));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function dataUrlToBlob(dataUrl) {
+  const res = await fetch(dataUrl);
+  return res.blob();
+}
+
+// ─── App CSS ─────────────────────────────────────────────────────────────────
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500;600&display=swap');
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --ink:#1a1a1a; --ink2:#3d3d3d; --ink3:#7a7a7a;
+  --bg:#f0ede8; --card:#ffffff;
+  --border:rgba(0,0,0,.12); --border2:rgba(0,0,0,.07);
+  --maroon:#800000; --maroon-light:rgba(128,0,0,.08);
+  --orange:#6b2d0f; --orange3:#c8641a;
+  --orange-bg:rgba(107,45,15,.07); --orange-line:rgba(107,45,15,.25);
+  --green:#16a34a; --red:#dc2626; --blue:#2563eb;
+  --grad:linear-gradient(135deg,#6b2d0f,#c8641a);
+  --grad-eve:linear-gradient(135deg,#1e3a5f,#2563eb);
+  --radius:10px; --font:'DM Sans',sans-serif; --mono:'DM Mono',monospace;
+  --shadow:0 2px 16px rgba(0,0,0,.07);
+}
+body { background:var(--bg); font-family:var(--font); color:var(--ink); }
+.dpr-root { min-height:100vh; background:var(--bg); padding:24px 16px 48px; }
+.dpr-inner { max-width:1500px; margin:0 auto; }
+.dpr-card { background:var(--card); border:1px solid var(--border2); border-radius:var(--radius); padding:24px; box-shadow:var(--shadow); }
+
+.rtype-row { display:grid; grid-template-columns:1fr 1fr; gap:0; border:1.5px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:22px; }
+.rtype-btn { flex:1; padding:12px; border:none; background:transparent; font-family:var(--font); font-size:13.5px; font-weight:700; cursor:pointer; color:var(--ink3); transition:all .18s; }
+.rtype-btn.morning.act { background:var(--grad); color:#fff; }
+.rtype-btn.evening.act { background:var(--grad); color:#fff; }
+
+.fg { display:flex; flex-direction:column; gap:5px; }
+.flabel { font-size:11.5px; font-weight:700; color:var(--ink2); letter-spacing:.3px; }
+.req { color:var(--red); }
+.opt { font-size:10px; font-weight:500; color:var(--ink3); background:var(--bg); border-radius:4px; padding:1px 6px; margin-left:5px; }
+.finput { font-family:var(--font); font-size:13.5px; color:var(--ink); background:var(--bg); border:1.5px solid var(--border); border-radius:8px; padding:9px 12px; outline:none; width:100%; transition:all .15s; }
+.finput:focus { border-color:var(--orange3); box-shadow:0 0 0 3px rgba(107,45,15,.1); background:#fff; }
+textarea.finput { resize:vertical; min-height:80px; }
+select.finput { cursor:pointer; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+.col2 { grid-column:span 2; }
+.col3 { grid-column:span 3; }
+@media(max-width:640px) { .grid2,.grid3 { grid-template-columns:1fr; } .col2,.col3 { grid-column:span 1; } }
+
+.sec-block { border:1.5px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:14px; }
+.sec-collapser{
+display:flex;
+align-items:center;
+justify-content:space-between;
+
+padding:12px 16px;
+
+
+background:
+        linear-gradient(#fff,#fff) padding-box,
+        var(--grad) border-box;
+border:2px solid transparent;border-radius:12px;color:#6b2d0f;cursor:pointer;font-family:var(--font);font-size:13.5px;font-weight:700;letter-spacing:.3px;width:100%;text-align:left;transition:all .15s ease;
+}
+.sec-collapser:hover{
+    box-shadow:0 4px 12px rgba(200,100,26,.15);
+    transform:translateY(-1px);
+}
+.sec-collapser .chevron { transition:transform .2s; }
+.sec-collapser .chevron.open { transform:rotate(180deg); }
+.sec-body { padding:16px; background:var(--card); }
+
+.btn { display:inline-flex; align-items:center; gap:7px; font-family:var(--font); font-size:13px; font-weight:700; padding:10px 18px; border-radius:8px; border:none; cursor:pointer; transition:all .15s; }
+.btn-orange { background:var(--grad); color:#fff; box-shadow:0 3px 10px rgba(107,45,15,.25); }
+.btn-orange:hover { filter:brightness(1.08); transform:translateY(-1px); }
+.btn-orange:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+.btn-out { background:var(--card); color:var(--ink2); border:1.5px solid var(--border); }
+.btn-out:hover { background:var(--bg); }
+.btn-red { background:#fef2f2; color:var(--red); border:1.5px solid #fecaca; }
+.btn-red:hover { background:#fee2e2; }
+.btn-green { background:#f0fdf4; color:var(--green); border:1.5px solid #bbf7d0; }
+.btn-whatsapp { background:#25d366; color:#fff; box-shadow:0 3px 10px rgba(37,211,102,.3); }
+.btn-whatsapp:hover { filter:brightness(1.08); transform:translateY(-1px); }
+.btn-whatsapp:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+.btn-sm { padding:6px 12px; font-size:12px; border-radius:6px; }
+.btn-icon { width:32px; height:32px; padding:0; justify-content:center; border-radius:6px; }
+.act-row { display:flex; gap:10px; justify-content:flex-end; padding-top:18px; border-top:1px solid var(--border2); margin-top:16px; flex-wrap:wrap; }
+
+.tbl-wrap { overflow-x:auto; border-radius:8px; border:1.5px solid var(--border); margin-top:12px; }
+.tbl { width:100%; border-collapse:collapse; min-width:500px; }
+.tbl th { font-size:10.5px; font-weight:800; color:var(--ink2); background:var(--bg); padding:9px 12px; text-align:left; border-bottom:1.5px solid var(--border); letter-spacing:.06em; text-transform:uppercase; }
+.tbl td { padding:9px 12px; font-size:13px; border-bottom:1px solid var(--border2); color:var(--ink2); }
+.tbl tr:last-child td { border-bottom:none; }
+.tbl tr:hover td { background:#faf9f7; }
+
+.photo-grid { display:flex; flex-wrap:wrap; gap:12px; margin-top:12px; }
+.photo-item { position:relative; width:120px; flex-shrink:0; }
+.photo-thumb { width:120px; height:120px; object-fit:cover; border-radius:6px; border:1.5px solid var(--border); display:block; }
+.photo-caption { width:120px; font-size:11px; font-family:var(--font); color:var(--ink); background:var(--bg); border:1.5px solid var(--border); border-top:none; border-radius:0 0 6px 6px; padding:4px 6px; resize:none; min-height:30px; outline:none; }
+.photo-remove { position:absolute; top:4px; right:4px; width:20px; height:20px; background:rgba(0,0,0,.55); color:#fff; border:none; border-radius:50%; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; }
+.photo-remove:hover { background:var(--red); }
+.photo-add-btn { width:120px; height:120px; border:2px dashed var(--border); border-radius:6px; background:var(--bg); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--ink3); font-size:12px; font-weight:600; transition:all .15s; }
+.photo-add-btn:hover { border-color:var(--orange3); color:var(--orange); background:var(--orange-bg); }
+
+.visitor-card { background:var(--bg); border:1.5px solid var(--border); border-radius:8px; padding:14px; margin-bottom:10px; }
+.visitor-card-hdr { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.visitor-num { background:var(--grad); color:#fff; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; }
+
+.custom-field-wrap { border:2px dashed var(--orange-line); border-radius:8px; padding:14px; background:var(--orange-bg); margin-bottom:10px; }
+
+.info-banner { display:flex; align-items:flex-start; gap:9px; border-radius:8px; padding:11px 14px; font-size:13px; line-height:1.5; margin-bottom:16px; }
+.info-blue { background:#eff6ff; border:1px solid #bfdbfe; color:var(--blue); }
+
+.draft-bar { display:flex; gap:10px; margin-bottom:14px; }
+.draft-btn { flex:1; padding:10px 14px; font-family:var(--font); font-size:12.5px; font-weight:700; border-radius:7px; cursor:pointer; transition:all .15s; }
+.draft-open { background:#fefce8; color:#854d0e; border:1.5px solid #fde68a; }
+.draft-open:hover { background:#fef9c3; }
+.draft-del { background:#fef2f2; color:var(--red); border:1.5px solid #fecaca; }
+.draft-del:hover { background:#fee2e2; }
+
+.cement-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+.dpr-loading { display:flex; align-items:center; justify-content:center; padding:48px; gap:12px; color:var(--ink3); }
+.spinner { width:22px; height:22px; border:2.5px solid var(--border); border-top-color:var(--orange3); border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.success-state { display:flex; flex-direction:column; align-items:center; padding:56px 24px; text-align:center; gap:14px; }
+.success-ico { width:60px; height:60px; border-radius:50%; background:#f0fdf4; display:flex; align-items:center; justify-content:center; }
+.success-title { font-size:18px; font-weight:800; }
+.success-sub { font-size:13px; color:var(--ink2); max-width:360px; line-height:1.6; }
+
+.pdf-overlay { position:fixed; inset:0; background:rgba(240,237,232,.96); display:flex; align-items:center; justify-content:center; flex-direction:column; z-index:9999; gap:20px; backdrop-filter:blur(4px); }
+.pdf-overlay-title { font-size:18px; font-weight:800; color:var(--orange); }
+.pdf-overlay-sub { font-size:13px; color:var(--ink2); max-width:360px; text-align:center; }
+
+.popup-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.4); display:flex; align-items:center; justify-content:center; z-index:1000; padding:20px; }
+.popup-box { background:#fff; border-radius:12px; width:100%; max-width:400px; padding:22px; box-shadow:0 16px 48px rgba(0,0,0,.18); }
+.popup-title { font-size:16px; font-weight:800; margin-bottom:14px; }
+.popup-btns { display:flex; gap:10px; margin-top:16px; }
+
+.dpr-toast { position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; align-items:center; gap:9px; padding:11px 16px; border-radius:9px; font-size:13px; font-weight:600; box-shadow:0 8px 24px rgba(0,0,0,.14); animation:slideUp .22s ease; max-width:420px; }
+.dpr-toast-ok  { background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; }
+.dpr-toast-err { background:#fef2f2; color:var(--red); border:1px solid #fecaca; }
+@keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+
+.mp-type-popup-grid { display:flex; flex-direction:column; gap:10px; }
+.progress-steps { display:flex; flex-direction:column; gap:8px; width:100%; max-width:340px; }
+.progress-step { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:7px; font-size:12.5px; font-weight:600; }
+.step-done { background:#f0fdf4; color:#166534; }
+.step-active { background:#eff6ff; color:#1e3a5f; }
+.step-pending { background:#f8fafc; color:#94a3b8; }
+
+@media(max-width:600px) {
+  .dpr-root { padding:12px 8px 40px; }
+  .dpr-card { padding:1px;}
+  .cement-row { grid-template-columns:1fr; }
+  .act-row { flex-direction:column-reverse; }
+  .act-row .btn { width:100%; justify-content:center; }
+}
+`;
+
+// ─── PDF CSS (exact match to Google Apps Script style) ───────────────────────
+const PDF_CSS = `
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;font-size:14px;line-height:1.7;color:#0f172a;background:#fff;}
+
+/* COVER */
+.cover{margin-bottom:24px;}
+.cover-top-bar{display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;border-bottom:2px solid #0f172a;margin-bottom:20px;}
+.brand-name{font-size:18px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#0f172a;}
+.brand-sub{font-size:13px;color:#64748b;margin-top:2px;}
+.doc-site{font-size:18px;font-weight:800;color:#0f172a;text-align:right;}
+.doc-sub{font-size:13px;color:#64748b;margin-top:3px;text-align:right;}
+.cover-doc-type{font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#64748b;margin-bottom:6px;}
+.cover-main-title{font-size:34px;font-weight:900;letter-spacing:-0.5px;color:#0f172a;line-height:1.1;margin-bottom:8px;}
+.cover-subtitle{font-size:14px;color:#64748b;border-left:3px solid #800000;padding-left:10px;margin-bottom:20px;}
+.meta-bar{display:table;width:100%;border-collapse:collapse;border:1.5px solid #cbd5e1;}
+.meta-cell{display:table-cell;padding:11px 16px;border-right:1.5px solid #cbd5e1;vertical-align:top;}
+.meta-cell:last-child{border-right:none;}
+.meta-key{display:block;font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:#64748b;margin-bottom:4px;}
+.meta-val{display:block;font-size:16px;font-weight:800;color:#0f172a;}
+
+/* SECTION */
+.section-wrap{margin-bottom:18px;border:1.5px solid #cbd5e1;}
+.sec-header{display:flex;justify-content:space-between;align-items:center;background:#800000;padding:10px 14px;}
+.sec-left{display:flex;align-items:center;gap:10px;}
+.sec-num{font-size:18px;font-weight:900;color:#fff;}
+.sec-title{font-size:17px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#fff;}
+.sec-tag{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.7);}
+.sec-body{background:#fff;}
+
+/* UNIVERSAL TABLE */
+table{width:100%;border-collapse:collapse;font-size:14px;}
+table thead th{background:#000;color:#fff;border:1px solid #333;font-size:14px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:9px 14px;text-align:center;vertical-align:middle;}
+table th,table td{border:1px solid #cbd5e1;padding:10px 14px;vertical-align:middle;text-align:center;}
+table tbody tr:nth-child(even) td{background:#f8fafc;}
+.td-left{text-align:left!important;}
+.td-main{font-weight:600;color:#0f172a;text-align:left!important;}
+
+/* MANPOWER */
+.mp-group{border-bottom:1.5px solid #cbd5e1;}
+.mp-group:last-of-type{border-bottom:none;}
+.mp-group-header{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:#f8fafc;border-top:1px solid #cbd5e1;border-bottom:1px solid #cbd5e1;}
+.mp-group-name{font-size:14px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#2c3e50;}
+.mp-source-tag{font-size:14px;font-weight:700;color:#1d4ed8;}
+.mp-total{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:#1e293b;}
+.mp-total-label{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;}
+.mp-total-val{font-size:24px;font-weight:900;color:#800000;}
+
+/* BADGES */
+.badge{display:inline-block;padding:3px 10px;border-radius:4px;font-size:13px;font-weight:700;}
+.badge-m{background:#dbeafe;color:#1d4ed8;}
+.badge-f{background:#fce7f3;color:#be185d;}
+.badge-sk{background:#dcfce7;color:#15803d;}
+.badge-ss{background:#fef3c7;color:#b45309;}
+.badge-un{background:#fee2e2;color:#b91c1c;}
+.unit-tag{display:inline-block;padding:3px 8px;background:#ede9fe;color:#6d28d9;border:1px solid #c4b5fd;font-size:13px;font-weight:700;border-radius:4px;}
+
+/* CEMENT STOCK TABLE */
+.stock-tbl{width:100%;border-collapse:collapse;font-size:14px;}
+.stock-tbl td{padding:11px 16px;border-bottom:1px solid #cbd5e1;}
+.stock-tbl tr:last-child td{border-bottom:none;}
+.stock-tbl .s-key{text-align:left;font-weight:700;color:#334155;text-transform:uppercase;font-size:12px;letter-spacing:.8px;}
+.stock-tbl .s-val{text-align:right;font-weight:800;font-size:16px;color:#0f172a;}
+.stock-tbl .s-bal{color:#166534;}
+
+/* CONCRETE */
+.concrete-grid{display:table;width:100%;border-collapse:collapse;}
+.concrete-cell{display:table-cell;width:33.3%;padding:20px 18px;text-align:center;border-right:1.5px solid #cbd5e1;vertical-align:top;}
+.concrete-cell:last-child{border-right:none;}
+.concrete-val{font-size:24px;font-weight:900;color:#0f172a;margin-bottom:5px;}
+.concrete-label{font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#64748b;margin-bottom:4px;}
+.concrete-sub{font-size:13px;color:#64748b;}
+
+/* VISITORS */
+.visitor-row{padding:10px 16px;border-bottom:1px solid #cbd5e1;}
+.visitor-row:last-child{border-bottom:none;}
+.visitor-name{font-weight:800;font-size:15px;color:#0f172a;margin-bottom:5px;}
+.visitor-instr{font-size:14px;color:#334155;line-height:1.7;}
+
+/* PLAN LIST */
+.plan-item{display:flex;align-items:baseline;gap:14px;padding:10px 16px;border-bottom:1px solid #cbd5e1;}
+.plan-item:last-child{border-bottom:none;}
+.plan-num{font-size:15px;font-weight:800;color:#800000;min-width:18px;flex-shrink:0;}
+.plan-text{font-size:15px;color:#0f172a;}
+
+/* BULLET LIST */
+.bullet-list{padding:14px 18px;}
+.bullet-item{display:flex;align-items:flex-start;gap:10px;padding:5px 0;border-bottom:1px solid #f1f5f9;}
+.bullet-item:last-child{border-bottom:none;}
+.bullet-arrow{color:#800000;font-weight:700;font-size:11px;margin-top:3px;flex-shrink:0;}
+.bullet-text{font-size:14px;color:#0f172a;line-height:1.7;}
+
+/* SUMMARY with categories */
+.summary-cat{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#fff;background:#800000;padding:7px 14px;border-radius:4px 4px 0 0;}
+.summary-cat-body{border:1.5px solid #cbd5e1;border-top:none;border-radius:0 0 4px 4px;padding:12px 16px;background:#fff;margin-bottom:14px;}
+
+/* PHOTOS */
+.photo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding:14px;background:#f8fafc;}
+.photo-card{background:#fff;border:1px solid #cbd5e1;overflow:hidden;}
+.photo-card img{width:100%;height:280px;object-fit:cover;display:block;}
+.photo-caption{padding:7px 10px;font-size:13px;font-weight:600;text-align:center;color:#64748b;background:#f8fafc;border-top:1px solid #cbd5e1;}
+
+/* CUSTOM FIELDS */
+.cf-row{display:flex;gap:20px;padding:10px 16px;border-bottom:1px solid #cbd5e1;}
+.cf-row:last-child{border-bottom:none;}
+.cf-key{font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;min-width:160px;flex-shrink:0;padding-top:2px;}
+.cf-val{font-size:15px;color:#0f172a;}
+
+/* THANK YOU */
+/* ADD to .section-wrap rule */
+.section-wrap { margin-bottom:18px; border:1.5px solid #cbd5e1; page-break-inside:avoid; break-inside:avoid; }
+
+/* ADD to .cover rule */
+.cover { margin-bottom:24px; page-break-inside:avoid; break-inside:avoid; }
+
+/* REPLACE the existing .ty-page block */
+.ty-page {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:120px 40px; min-height:100vh;
+  page-break-before:always; break-before:always;
+}
+.ty-line { width:80px; height:5px; background:#800000; margin:0 auto 28px; }
+.ty-title { font-size:52px; font-weight:900; color:#0f172a; margin-bottom:16px; letter-spacing:-1px; }
+.ty-sub { font-size:18px; color:#64748b; max-width:480px; margin:0 auto 32px; line-height:1.8; }
+.ty-badge {
+  display:inline-block; background:#1e293b; color:#fff;
+  font-size:15px; font-weight:700; letter-spacing:3px;
+  text-transform:uppercase; padding:14px 36px;
+}
+.ty-meta { margin-top:36px; font-size:13px; color:#94a3b8; letter-spacing:.5px; }
+
+/* INFO ROWS */
+.info-row{display:flex;gap:20px;padding:10px 16px;border-bottom:1px solid #cbd5e1;}
+.info-row:last-child{border-bottom:none;}
+.info-key{font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;min-width:160px;flex-shrink:0;padding-top:2px;}
+.info-val{font-size:15px;color:#0f172a;}
+`;
+
+function esc(s) {
+  return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ─── PDF section builder (only renders if content) ───────────────────────────
+let _secNum = 0;
+function pdfSection(title, bodyHtml) {
+  if (!bodyHtml || !bodyHtml.trim()) return "";
+  _secNum++;
+  return `<div class="section-wrap">
+    <div class="sec-header">
+      <div class="sec-left">
+        <span class="sec-num">${_secNum}</span>
+        <span class="sec-title">${title}</span>
+      </div>
+    </div>
+    <div class="sec-body">${bodyHtml}</div>
+  </div>`;
+}
+
+function bulletBlock(txt) {
+  if (!txt?.trim()) return "";
+  const lines = txt.split("\n").filter(l => l.trim());
+  if (!lines.length) return "";
+  return `<div class="bullet-list">${lines.map(l =>
+    `<div class="bullet-item">
+      <span class="bullet-arrow">&#9658;</span>
+      <span class="bullet-text">${esc(l.replace(/^[•\-*]\s*/,"").trim())}</span>
+    </div>`
+  ).join("")}</div>`;
+}
+
+function buildSummaryHtml(summary) {
+  if (!summary?.trim()) return "";
+  const lines = summary.split("\n").filter(l => l.trim());
+  let html = "";
+  let currentCat = "";
+  let bullets = [];
+
+  function flush() {
+    if (!currentCat && !bullets.length) return;
+    const bHtml = bullets.map(b =>
+      `<div class="bullet-item">
+        <span class="bullet-arrow">&#9658;</span>
+        <span class="bullet-text">${esc(b.replace(/^[•\-*]\s*/,"").trim())}</span>
+      </div>`
+    ).join("");
+    if (currentCat) {
+      html += `<div class="summary-cat">${esc(currentCat.replace(/\*/g,"").trim())}</div>
+               <div class="summary-cat-body">${bHtml}</div>`;
+    } else {
+      html += `<div class="bullet-list">${bHtml}</div>`;
+    }
+    bullets = [];
+  }
+
+  lines.forEach(line => {
+    const raw = line.trim();
+    if (raw.startsWith("*") && raw.endsWith("*") && raw.length > 2) {
+      flush();
+      currentCat = raw;
+    } else {
+      bullets.push(raw);
+    }
+  });
+  flush();
+  return html ? `<div style="padding:14px 18px;">${html}</div>` : "";
+}
+
+function buildManpowerHtml(manpower) {
+  if (!manpower?.length) return "";
+  const grouped = {};
+  let total = 0;
+  manpower.forEach(m => {
+    const key = (m.labour || "—") + "|||" + (m.scope || "");
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(m);
+    total += Number(m.count) || 0;
+  });
+
+  let html = "";
+  Object.keys(grouped).forEach(key => {
+    const [labourType, scope] = key.split("|||");
+    const items = grouped[key];
+    html += `<div class="mp-group">
+      <div class="mp-group-header">
+        <span class="mp-group-name">${esc(labourType)}</span>
+        ${scope ? `<span class="mp-source-tag">Source: ${esc(scope)}</span>` : ""}
+      </div>
+      <table><thead><tr><th>Category of Work</th><th>Gender</th><th>Skill Level</th><th>Count</th></tr></thead><tbody>`;
+    items.forEach(item => {
+      const gClass = (item.gender||"").toUpperCase() === "FEMALE" ? "badge-f" : "badge-m";
+      const sUp = (item.skill||"").toUpperCase();
+      const sClass = sUp === "SKILLED" ? "badge-sk" : sUp === "SEMISKILLED" ? "badge-ss" : "badge-un";
+      html += `<tr>
+        <td class="td-left">${esc(item.category||"—")}</td>
+        <td>${item.gender ? `<span class="badge ${gClass}">${esc(cap(item.gender))}</span>` : `<span style="color:#64748b;">—</span>`}</td>
+        <td>${item.skill  ? `<span class="badge ${sClass}">${esc(cap(item.skill))}</span>`  : `<span style="color:#64748b;">—</span>`}</td>
+        <td style="font-weight:800;font-size:16px;color:#0f172a;">${item.count||0}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  });
+
+  html += `<div class="mp-total">
+    <span class="mp-total-label">TOTAL MANPOWER ON SITE</span>
+    <span class="mp-total-val">${total}</span>
+  </div>`;
+  return html;
+}
+
+function buildEquipmentHtml(equipment) {
+  if (!equipment?.length) return "";
+  const rows = equipment.map(eq => {
+    const srcClass = (eq.source||"").toLowerCase() === "client" ? "badge-m" : "badge-sk";
+    return `<tr>
+      <td><span class="badge ${srcClass}" style="font-size:13px;font-weight:800;padding:5px 12px;">${esc(cap(eq.source))}</span></td>
+      <td class="td-left" style="font-weight:600;color:#0f172a;">${esc(eq.name)}</td>
+      <td>${esc(String(eq.qty))}</td>
+      <td><span class="unit-tag">${esc(eq.unit)}</span></td>
+    </tr>`;
+  }).join("");
+  return `<table><thead><tr><th>Source</th><th>Equipment</th><th>Quantity</th><th>Unit</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function buildCementHtml(p) {
+  const avail = Number(p.cementAvailable)||0;
+  const rcvd  = Number(p.cementReceived)||0;
+  const used  = Number(p.cementUsed)||0;
+  const bal   = Number(p.cementBalance)||0;
+  // Only include rows that have non-zero values
+  const rows = [];
+  if (avail) rows.push(["On-site Available", avail + " bags", false]);
+  if (rcvd)  rows.push(["New Bags Received",  rcvd  + " bags", false]);
+  if (used)  rows.push(["Cement Used",         used  + " bags", false]);
+  rows.push(["Balance", bal + " bags", true]);
+  if (!avail && !rcvd && !used && !p.cementUsedDesc) return "";
+
+  let html = `<table class="stock-tbl"><tbody>`;
+  rows.forEach(([k, v, isBalance]) => {
+    html += `<tr>
+      <td class="s-key">${k}</td>
+      <td class="s-val ${isBalance ? "s-bal" : ""}">${esc(v)}</td>
+    </tr>`;
+  });
+  if (p.cementUsedDesc?.trim()) {
+    html += `<tr><td class="s-key">Usage Description</td><td style="text-align:left;font-size:14px;color:#334155;">${esc(p.cementUsedDesc)}</td></tr>`;
+  }
+  html += `</tbody></table>`;
+  return html;
+}
+
+function buildConcreteHtml(p) {
+  const theo   = parseFloat(p.concreteTheoretical) || 0;
+  const actual = parseFloat(p.concreteOnsite) || 0;
+  if (!theo && !actual) return "";
+  const diff = (actual - theo).toFixed(3);
+  const sign = parseFloat(diff) >= 0 ? "+" : "";
+  const varColor = parseFloat(diff) > 0 ? "#78350f" : parseFloat(diff) < 0 ? "#991b1b" : "#065f46";
+  let html = `<div class="concrete-grid">
+    <div class="concrete-cell">
+      <div class="concrete-val">${theo.toFixed(3)} m³</div>
+      <div class="concrete-label">THEORETICAL QTY</div>
+      <div class="concrete-sub">As per structural design</div>
+    </div>
+    <div class="concrete-cell" style="background:#eff6ff;">
+      <div class="concrete-val" style="color:#1d4ed8;">${actual.toFixed(3)} m³</div>
+      <div class="concrete-label">ON-SITE CONSUMPTION</div>
+      <div class="concrete-sub">Actual poured on site</div>
+    </div>
+    <div class="concrete-cell">
+      <div class="concrete-val" style="color:${varColor};">${sign}${diff} m³</div>
+      <div class="concrete-label">VARIANCE</div>
+      <div class="concrete-sub">Within acceptable range</div>
+    </div>
+  </div>`;
+  if (p.concreteDescription?.trim()) {
+    html += `<div style="padding:10px 16px;font-size:14px;color:#334155;border-top:1px solid #cbd5e1;">${esc(p.concreteDescription)}</div>`;
+  }
+  return html;
+}
+
+function buildMaterialHtml(list, showDesc = false) {
+  if (!list?.length) return "";
+  const rows = list.map(m =>
+    `<tr>
+      <td class="td-main">${esc(m.name)}</td>
+      <td>${esc(String(m.qty))}</td>
+      <td><span class="unit-tag">${esc(m.unit)}</span></td>
+      ${showDesc ? `<td class="td-left" style="color:#475569;">${esc(m.desc||"—")}</td>` : ""}
+    </tr>`
+  ).join("");
+  return `<table><thead><tr><th>Material</th><th>Qty</th><th>Unit</th>${showDesc ? "<th>Description</th>" : ""}</tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function buildCubeHtml(cube) {
+  return bulletBlock(cube);
+}
+
+function buildVisitorsHtml(visitors) {
+  const valid = (visitors||[]).filter(v => v.name);
+  if (!valid.length) return "";
+  return valid.map(v => `
+    <div class="visitor-row">
+      <div class="visitor-name">👤 ${esc(v.name)}</div>
+      ${v.instruction ? `<div class="visitor-instr">${esc(v.instruction)}</div>` : ""}
+    </div>`
+  ).join("");
+}
+
+function buildPlanningHtml(planning) {
+  if (!planning?.trim()) return "";
+  const lines = planning.split("\n").filter(l => l.trim());
+  if (!lines.length) return "";
+  let num = 0;
+  return lines.map(line => {
+    const clean = line.replace(/^\d+[\.\)]\s*|^[•\-*]\s*/,"").trim();
+    if (!clean) return "";
+    num++;
+    return `<div class="plan-item">
+      <span class="plan-num">${num}</span>
+      <span class="plan-text">${esc(clean)}</span>
+    </div>`;
+  }).join("");
+}
+
+function buildCustomFieldsHtml(fields) {
+  const valid = (fields||[]).filter(f => f.title && f.value);
+  if (!valid.length) return "";
+  return valid.map(f =>
+    `<div class="cf-row"><span class="cf-key">${esc(f.title)}</span><span class="cf-val">${esc(f.value)}</span></div>`
+  ).join("");
+}
+
+function buildPhotosHtml(photos) {
+  const valid = (photos || []).filter(p => p.supabaseUrl || p.data);
+  if (!valid.length) return "";
+
+  // Return pairs — each pair will be rendered as its own chunk
+  // We mark with a data attribute so generateEveningPdf can split them
+  let html = "";
+  for (let i = 0; i < valid.length; i += 2) {
+    const pair = valid.slice(i, i + 2);
+    html += `<div class="photo-pair" style="display:grid;grid-template-columns:${pair.length === 1 ? '1fr' : '1fr 1fr'};gap:16px;margin-bottom:16px;page-break-inside:avoid;break-inside:avoid;">`;
+    pair.forEach(ph => {
+      html += `
+        <div style="border:1px solid #cbd5e1;overflow:hidden;break-inside:avoid;">
+          <img src="${ph.supabaseUrl || ph.data}"
+            style="width:100%;height:260px;object-fit:cover;display:block;"
+            crossorigin="anonymous">
+          <div style="
+            padding:8px 12px;
+            font-size:13px;
+            font-weight:600;
+            text-align:center;
+            color:#334155;
+            background:#f8fafc;
+            border-top:1px solid #cbd5e1;
+            width:100%;
+            box-sizing:border-box;
+          ">${ph.caption ? esc(ph.caption) : "&nbsp;"}</div>
+        </div>`;
+    });
+    html += `</div>`;
+  }
+  return html;
+}
+
+// ─── Full PDF HTML builder ────────────────────────────────────────────────────
+function buildEveningPdfHtml(payload) {
+  _secNum = 0;
+  const dispDate = fmtDate(payload.date);
+
+  let sections = "";
+  sections += pdfSection("TODAY'S WORK SUMMARY",   buildSummaryHtml(payload.summary));
+  sections += pdfSection("MANPOWER REPORT",         buildManpowerHtml(payload.manpower));
+  sections += pdfSection("EQUIPMENT ON SITE",       buildEquipmentHtml(payload.equipment));
+  sections += pdfSection("CEMENT STOCK",            buildCementHtml(payload));
+  sections += pdfSection("CONCRETE CONSUMPTION",    buildConcreteHtml(payload));
+  sections += pdfSection("MATERIAL USED / RECEIVED",buildMaterialHtml(payload.material));
+  sections += pdfSection("MATERIAL REQUIREMENT",    buildMaterialHtml(payload.matReq, true));
+  sections += pdfSection("CUBE TEST RESULTS",       buildCubeHtml(payload.cube));
+  sections += pdfSection("SITE VISIT & INSTRUCTIONS", buildVisitorsHtml(payload.visitors));
+  sections += pdfSection("ADDITIONAL INFORMATION",  buildCustomFieldsHtml(payload.customFields));
+  sections += pdfSection("WORK PROGRESS PHOTOS",    buildPhotosHtml(payload.photos));
+  sections += pdfSection("TOMORROW'S PLANNING",     buildPlanningHtml(payload.planning));
+
+  const genTime = new Date().toLocaleString("en-IN", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>${PDF_CSS}</style></head><body>
+
+<div class="cover">
+  <div class="cover-top-bar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <img src="{LOGO_URL}"
+        style="width:48px;height:48px;object-fit:contain;flex-shrink:0;"
+        crossorigin="anonymous">
+      <div>
+        <div class="brand-name">DIP Projects</div>
+        <div class="brand-sub">Civil Project Management Consultants</div>
+      </div>
+    </div>
+    <div>
+      <div class="doc-site">${esc(payload.site)}</div>
+      <div class="doc-sub">${esc(payload.employeeName)} · ${esc(dispDate)}</div>
+    </div>
+  </div>
+  <div class="cover-doc-type">O F F I C I A L &nbsp; S I T E &nbsp; P R O G R E S S &nbsp; U P D A T E</div>
+  <div class="cover-main-title">DAILY PROGRESS REPORT</div>
+  <div class="cover-subtitle">An official site progress update prepared by the Project Management Consultant.</div>
+  <div class="meta-bar">
+    <div class="meta-cell"><span class="meta-key">P R O J E C T &nbsp; S I T E</span><span class="meta-val">${esc(payload.site)}</span></div>
+    <div class="meta-cell"><span class="meta-key">R E P O R T E D &nbsp; B Y</span><span class="meta-val">${esc(payload.employeeName)}</span></div>
+    <div class="meta-cell"><span class="meta-key">D A T E</span><span class="meta-val">${esc(dispDate)}</span></div>
+  </div>
+</div>
+
+${sections}
+
+<div style="page-break-before:always;">
+  <div class="ty-page">
+    <div class="ty-line"></div>
+    <div class="ty-title">Thank You</div>
+    <div class="ty-sub">This report has been prepared to ensure transparency, quality, and continuous improvement at the project site.</div>
+    <div class="ty-badge">DIP PROJECTS</div>
+    <div class="ty-meta">Generated ${esc(genTime)} · Evening DPR · ${esc(payload.site)}</div>
+  </div>
+</div>
+</body></html>`;
+}
+
+// ─── PDF rendering via html2canvas + jsPDF ───────────────────────────────────
+async function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement("script");
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+async function ensurePdfDeps() {
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+}
+
+async function mountHidden(html) {
+  const wrap = document.createElement("div");
+  Object.assign(wrap.style, { position:"fixed", top:"0", left:"-9999px", width:"794px", background:"#fff", zIndex:"-1" });
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap);
+  const imgs = Array.from(wrap.querySelectorAll("img"));
+  await Promise.all(imgs.map(img =>
+    img.complete ? Promise.resolve() : new Promise(res => { img.onload = res; img.onerror = res; })
+  ));
+  await new Promise(r => setTimeout(r, 300));
+  return wrap;
+}
+async function getLogoAsBase64(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width  = img.naturalWidth  || 200;
+      canvas.height = img.naturalHeight || 200;
+      canvas.getContext("2d").drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => resolve(url); // fallback to original url if conversion fails
+    img.src = url;
+  });
+}
+async function generateEveningPdf(payload, onProgress) {
+  
+  await ensurePdfDeps();
+  const logoBase64 = await getLogoAsBase64(LOGO_URL);
+  const { jsPDF } = window.jspdf;
+  const A4_W = 210, A4_H = 297, MARGIN = 10;
+  const CONTENT_W = A4_W - MARGIN * 2;
+  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+
+  // Build the full HTML but we'll render section by section
+  _secNum = 0;
+
+  // ── helper: render one HTML chunk, return canvas ──────────────────────────
+async function renderChunk(html) {
+  const wrap = document.createElement("div");
+  Object.assign(wrap.style, {
+    position: "relative",
+    top: "0",
+    left: "-9999px",
+    width:      "794px",
+    background: "#fff",
+    zIndex:     "-1",
+    fontFamily: "'Segoe UI',Arial,sans-serif",
+  });
+
+  // Inject CSS
+  const style = document.createElement("style");
+  style.textContent = PDF_CSS;
+  wrap.appendChild(style);
+
+  // Watermark layer — centered, low opacity, behind content
+  const watermark = document.createElement("div");
+
+Object.assign(watermark.style, {
+  position: "absolute",
+  inset: "0",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  pointerEvents: "none",
+  overflow: "hidden",
+  zIndex: "1"
+});
+
+watermark.innerHTML = `
+  <img
+    src="${LOGO_URL}"
+    crossorigin="anonymous"
+    style="
+      width:420px;
+      height:420px;
+      object-fit:contain;
+      opacity:0.04;
+      filter:grayscale(100%);
+      position:absolute;
+      top:90%;
+      left:50%;
+      transform:translate(-50%, -50%);
+    "
+  />
+`;
+  wrap.appendChild(watermark);
+
+  // Content layer — sits above watermark
+  const inner = document.createElement("div");
+  inner.style.position = "relative";
+  inner.style.zIndex   = "1";
+  inner.innerHTML = html;
+  wrap.appendChild(inner);
+
+  document.body.appendChild(wrap);
+
+  // Wait for all images (logo + content photos)
+  const imgs = Array.from(wrap.querySelectorAll("img"));
+  await Promise.all(imgs.map(img =>
+    img.complete
+      ? Promise.resolve()
+      : new Promise(res => { img.onload = res; img.onerror = res; })
+  ));
+  await new Promise(r => setTimeout(r, 150));
+
+  const canvas = await window.html2canvas(wrap, {
+    scale:           2,
+    useCORS:         true,
+    allowTaint:      true,
+    backgroundColor: "#ffffff",
+    windowWidth:     794,
+    scrollX:         0,
+    scrollY:         0,
+  });
+  document.body.removeChild(wrap);
+  return canvas;
+}
+
+  // ── helper: add one canvas to PDF, paginating if too tall ─────────────────
+  let cursorY = MARGIN; // current Y position on current page
+  let pageNum = 1;
+
+  async function addCanvasToPdf(canvas, label) {
+    const PX_PER_MM = canvas.width / CONTENT_W;
+    const totalHeightMM = canvas.height / PX_PER_MM;
+    const MAX_H = A4_H - MARGIN * 2;
+
+    let srcY = 0;
+
+    while (srcY < canvas.height) {
+      const remainingPageMM = MAX_H - cursorY;
+      const remainingPagePX = remainingPageMM * PX_PER_MM;
+
+      // If less than 20mm left on page, start new page
+      if (remainingPageMM < 20) {
+        pdf.addPage();
+        pageNum++;
+        pdf.setFontSize(8); pdf.setTextColor(100);
+        pdf.text(`Page ${pageNum}  ·  DIP Projects  ·  Evening DPR`, A4_W / 2, A4_H - 5, { align: "center" });
+        cursorY = MARGIN;
+      }
+
+      const sliceHeightPX = Math.min(canvas.height - srcY,
+        (A4_H - cursorY - MARGIN) * PX_PER_MM);
+      const sliceHeightMM = sliceHeightPX / PX_PER_MM;
+
+      const slice = document.createElement("canvas");
+      slice.width = canvas.width;
+      slice.height = Math.ceil(sliceHeightPX);
+      slice.getContext("2d").drawImage(
+        canvas, 0, srcY, canvas.width, Math.ceil(sliceHeightPX),
+        0, 0, canvas.width, Math.ceil(sliceHeightPX)
+      );
+
+      pdf.addImage(
+        slice.toDataURL("image/jpeg", 0.93), "JPEG",
+        MARGIN, cursorY, CONTENT_W, sliceHeightMM
+      );
+
+      cursorY += sliceHeightMM + 4; // 4mm gap between sections
+      srcY += Math.ceil(sliceHeightPX);
+
+      // If content continues and not enough room, new page
+      if (srcY < canvas.height) {
+        pdf.addPage();
+        pageNum++;
+        pdf.setFontSize(8); pdf.setTextColor(100);
+        pdf.text(`Page ${pageNum}  ·  DIP Projects  ·  Evening DPR`, A4_W / 2, A4_H - 5, { align: "center" });
+        cursorY = MARGIN;
+      }
+    }
+  }
+
+  // ── page footer for page 1 ─────────────────────────────────────────────────
+  pdf.setFontSize(8); pdf.setTextColor(100);
+  pdf.text(`Page 1  ·  DIP Projects  ·  Evening DPR`, A4_W / 2, A4_H - 5, { align: "center" });
+
+  // ── BUILD SECTIONS ─────────────────────────────────────────────────────────
+  const dispDate = fmtDate(payload.date);
+  const genTime  = new Date().toLocaleString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit"
+  });
+
+
+// Then build coverHtml AFTER, using logoBase64:
+const coverHtml = `
+  <div class="cover">
+    <div class="cover-top-bar">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <img
+          src="${logoBase64}"
+          style="width:52px;height:52px;object-fit:contain;flex-shrink:0;display:block;"
+        >
+        <div>
+          <div class="brand-name">DIP Projects</div>
+          <div class="brand-sub">Civil Project Management Consultants</div>
+        </div>
+      </div>
+      <div>
+        <div class="doc-site">${esc(payload.site)}</div>
+        <div class="doc-sub">${esc(payload.employeeName)} · ${esc(dispDate)}</div>
+      </div>
+    </div>
+    <div class="cover-doc-type">O F F I C I A L &nbsp; S I T E &nbsp; P R O G R E S S &nbsp; U P D A T E</div>
+    <div class="cover-main-title">DAILY PROGRESS REPORT</div>
+    <div class="cover-subtitle">An official site progress update prepared by the Project Management Consultant.</div>
+    <div class="meta-bar">
+      <div class="meta-cell"><span class="meta-key">P R O J E C T &nbsp; S I T E</span><span class="meta-val">${esc(payload.site)}</span></div>
+      <div class="meta-cell"><span class="meta-key">R E P O R T E D &nbsp; B Y</span><span class="meta-val">${esc(payload.employeeName)}</span></div>
+      <div class="meta-cell"><span class="meta-key">D A T E</span><span class="meta-val">${esc(dispDate)}</span></div>
+    </div>
+  </div>`;
+
+  const sectionDefs = [
+    ["TODAY'S WORK SUMMARY",      buildSummaryHtml(payload.summary)],
+    ["MANPOWER REPORT",           buildManpowerHtml(payload.manpower)],
+    ["EQUIPMENT ON SITE",         buildEquipmentHtml(payload.equipment)],
+    ["CEMENT STOCK",              buildCementHtml(payload)],
+    ["CONCRETE CONSUMPTION",      buildConcreteHtml(payload)],
+    ["MATERIAL USED / RECEIVED",  buildMaterialHtml(payload.material)],
+    ["MATERIAL REQUIREMENT",      buildMaterialHtml(payload.matReq, true)],
+    ["CUBE TEST RESULTS",         buildCubeHtml(payload.cube)],
+    ["SITE VISIT & INSTRUCTIONS", buildVisitorsHtml(payload.visitors)],
+    ["ADDITIONAL INFORMATION",    buildCustomFieldsHtml(payload.customFields)],
+    ["WORK PROGRESS PHOTOS",      buildPhotosHtml(payload.photos)],
+    ["TOMORROW'S PLANNING",       buildPlanningHtml(payload.planning)],
+  ];
+
+  // Render cover
+  onProgress("Rendering cover…");
+  const coverCanvas = await renderChunk(coverHtml);
+  await addCanvasToPdf(coverCanvas, "cover");
+
+  // Render each section
+for (const [title, body] of sectionDefs) {
+  if (!body?.trim()) continue;
+  _secNum++;
+
+  const isPhotos = title === "WORK PROGRESS PHOTOS";
+
+if (isPhotos) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div>${body}</div>`, "text/html");
+  const pairs = Array.from(doc.querySelectorAll(".photo-pair"));
+
+  const sectionHeaderHtml = `
+    <div class="sec-header" style="border:1.5px solid #cbd5e1;">
+      <div class="sec-left">
+        <span class="sec-num">${_secNum}</span>
+        <span class="sec-title">${title}</span>
+      </div>
+    </div>`;
+
+  for (let pi = 0; pi < pairs.length; pi++) {
+    onProgress(`Rendering photo ${pi * 2 + 1}–${pi * 2 + 2}…`);
+
+    const pairBody = `
+      <div style="padding:12px;border:1.5px solid #cbd5e1;border-top:none;background:#f8fafc;">
+        ${pairs[pi].outerHTML}
+      </div>`;
+
+    // First pair: include section header in same canvas so they're glued together
+    const chunkHtml = pi === 0
+      ? `<div>${sectionHeaderHtml}${pairBody}</div>`
+      : `<div>${pairBody}</div>`;
+
+    const pairCanvas = await renderChunk(chunkHtml);
+
+    // Pre-check: if this chunk won't fit, start a new page first
+    const PX_PER_MM = pairCanvas.width / (A4_W - MARGIN * 2);
+    const pairHeightMM = pairCanvas.height / PX_PER_MM;
+    if (cursorY + pairHeightMM > A4_H - MARGIN - 10) {
+      pdf.addPage();
+      pageNum++;
+      pdf.setFontSize(8); pdf.setTextColor(100);
+      pdf.text(`Page ${pageNum}  ·  DIP Projects  ·  Evening DPR`, A4_W / 2, A4_H - 5, { align: "center" });
+      cursorY = MARGIN;
+    }
+
+    await addCanvasToPdf(pairCanvas, `photo pair ${pi + 1}`);
+  }
+} else {
+    // ── All other sections: render as one chunk ──────────────────────────────
+    const secHtml = `
+      <div class="section-wrap">
+        <div class="sec-header">
+          <div class="sec-left">
+            <span class="sec-num">${_secNum}</span>
+            <span class="sec-title">${title}</span>
+          </div>
+        </div>
+        <div class="sec-body">${body}</div>
+      </div>`;
+    onProgress(`Rendering: ${title}…`);
+    const canvas = await renderChunk(secHtml);
+    await addCanvasToPdf(canvas, title);
+  }
+}
+
+  // Thank you page — always starts on a new page
+  pdf.addPage();
+  pageNum++;
+  onProgress("Building thank you page…");
+  const tyHtml = `
+    <div class="ty-page" style="min-height:900px;">
+      <div class="ty-line"></div>
+      <div class="ty-title">Thank You</div>
+      <div class="ty-sub">This report has been prepared to ensure transparency, quality, and continuous improvement at the project site.</div>
+      <div class="ty-badge">DIP PROJECTS</div>
+      <div class="ty-meta">Generated ${esc(genTime)} · Evening DPR · ${esc(payload.site)}</div>
+    </div>`;
+  const tyCanvas = await renderChunk(tyHtml);
+  // Center thank-you on the page
+  const PX_PER_MM = tyCanvas.width / CONTENT_W;
+  const tyHeightMM = Math.min(tyCanvas.height / PX_PER_MM, A4_H - MARGIN * 2);
+  const tyY = (A4_H - tyHeightMM) / 2;
+  pdf.addImage(
+    tyCanvas.toDataURL("image/jpeg", 0.93), "JPEG",
+    MARGIN, tyY, CONTENT_W, tyHeightMM
+  );
+
+  // Save
+  const safeSite = (payload.site || "site").replace(/[\s/\\:*?"<>|]/g, "_");
+  const fileName = `DPR_Evening_${safeSite}_${payload.date}.pdf`;
+  const pdfBlob = pdf.output("blob");
+  pdf.save(fileName);
+  return { blob: pdfBlob, fileName };
+}
+
+// ─── Supabase helpers ─────────────────────────────────────────────────────────
+async function dbFetch(table, col="name") {
+  const { data } = await supabase.from(table).select(col).order(col);
+  return (data||[]).map(r => r[col]);
+}
+async function dbInsert(table, payload) {
+  const { error } = await supabase.from(table).insert(payload);
+  return !error;
+}
+async function getEngineersForSite(site) {
+  const { data } = await supabase.from("dpr_engineers").select("name").eq("site_name",site).order("name");
+  return (data||[]).map(r => r.name);
+}
+// async function getManpowerTypes(scope, workCat) {
+//   let q = supabase.from("dpr_manpower_types").select("name,scope,work_category").order("name");
+//   if (scope) q = q.eq("scope", scope.toUpperCase());
+//   const { data } = await q;
+//   const all = (data||[]).map(r => r.name);
+//   if (workCat && workCat !== "__other") {
+//     const { data: f } = await supabase.from("dpr_manpower_types").select("name").eq("scope", scope?.toUpperCase()||"").eq("work_category", workCat).order("name");
+//     const pri = (f||[]).map(r => r.name);
+//     return { priority: pri, others: all.filter(n => !pri.includes(n)) };
+//   }
+//   return { priority:[], others: all };
+// }
+// REPLACE the existing getManpowerTypes with this:
+// DELETE the old getManpowerTypes function entirely and replace with:
+
+// Resolves which scope key to use in the `manpower` table
+function resolveScope(rawScope) {
+  const s = (rawScope || "").toUpperCase();
+  if (s === "CLIENT") return "client";
+  if (s === "PMC")    return "pmc";
+  return "contractor"; // everything else → contractor
+}
+
+async function getManpowerTypesForScope(rawScope) {
+  const scope = resolveScope(rawScope);
+  const { data } = await supabase
+    .from("manpower")
+    .select("manpowertype")
+    .eq("scope", scope)
+    .order("manpowertype");
+  return [...new Set((data || []).map(r => r.manpowertype).filter(Boolean))];
+}
+
+async function getManpowerTypesByCategory(category) {
+  if (!category) return [];
+  const { data } = await supabase
+    .from("man_type")
+    .select("manpowertype")
+    .eq("category", category)
+    .order("manpowertype");
+  return (data || []).map(r => r.manpowertype).filter(Boolean);
+}
+
+async function getAllCategories() {
+  const { data } = await supabase
+    .from("workcategory")
+    .select("category")
+    .order("category");
+  return (data || []).map(r => r.category).filter(Boolean);
+}
+async function checkExists(table, col, val) {
+  const { data } = await supabase.from(table).select("id").ilike(col,val).limit(1);
+  return data?.length > 0;
+}
+async function saveDraft(payload) {
+  const { error } = await supabase.from("dpr_drafts").upsert({ site:payload.site, engineer:payload.engineer, payload, saved_at:new Date().toISOString() }, { onConflict:"site,engineer" });
+  return !error;
+}
+async function loadDraft(site, engineer) {
+  const { data } = await supabase.from("dpr_drafts").select("*").eq("site",site).eq("engineer",engineer).maybeSingle();
+  return data;
+}
+async function deleteDraft(site, engineer) {
+  await supabase.from("dpr_drafts").delete().eq("site",site).eq("engineer",engineer);
+}
+
+async function uploadPdfToSupabase(blob, fileName) {
+  const path = `pdfs/${fileName}`;
+  const { error } = await supabase.storage.from("dpr-reports").upload(path, blob, { contentType:"application/pdf", upsert:true });
+  if (error) throw new Error(`PDF upload failed: ${error.message} (bucket: dpr-reports, path: ${path})`);
+  const { data: urlData } = supabase.storage.from("dpr-reports").getPublicUrl(path);
+  if (!urlData?.publicUrl) throw new Error("PDF uploaded but could not get public URL.");
+  return urlData.publicUrl;
+}
+
+async function uploadPhotoToSupabase(dataUrl, storagePath) {
+  const blob = await dataUrlToBlob(dataUrl);
+  const { error } = await supabase.storage.from("dpr-photos").upload(storagePath, blob, { contentType:"image/jpeg", upsert:true });
+  if (error) throw new Error(`Photo upload failed: ${error.message} (bucket: dpr-photos, path: ${storagePath})`);
+  const { data: urlData } = supabase.storage.from("dpr-photos").getPublicUrl(storagePath);
+  if (!urlData?.publicUrl) throw new Error(`Photo uploaded but could not get public URL (path: ${storagePath})`);
+  return urlData.publicUrl;
+}
+
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+function Spinner() { return <div className="spinner"/>; }
+
+function AddPopup({ title, onSave, onClose, placeholder="Enter name…", extraFields }) {
+  const [val, setVal] = useState("");
+  const [extra, setExtra] = useState({});
+  return (
+    <div className="popup-backdrop" onClick={e => e.target===e.currentTarget && onClose()}>
+      <div className="popup-box">
+        <div className="popup-title">{title}</div>
+        <div className="fg" style={{marginBottom:10}}>
+          <label className="flabel">Name</label>
+          <input className="finput" value={val} onChange={e=>setVal(e.target.value)}
+            placeholder={placeholder}
+            onKeyDown={e=>e.key==="Enter"&&val.trim()&&onSave(val.trim(),extra)} autoFocus/>
+        </div>
+        {extraFields?.map(f => (
+          <div className="fg" key={f.key} style={{marginBottom:10}}>
+            <label className="flabel">{f.label}{f.required&&<span className="req"> *</span>}</label>
+            {f.type==="select" ? (
+              <select className="finput" value={extra[f.key]||""} onChange={e=>setExtra(p=>({...p,[f.key]:e.target.value}))}>
+                <option value="">-- Select --</option>
+                {f.options?.map(o=><option key={o} value={o}>{o}</option>)}
+              </select>
+            ) : (
+              <input className="finput" value={extra[f.key]||""} onChange={e=>setExtra(p=>({...p,[f.key]:e.target.value}))} placeholder={f.placeholder||""}/>
+            )}
+          </div>
+        ))}
+        <div className="popup-btns">
+          <button className="btn btn-orange" style={{flex:1}} disabled={!val.trim()} onClick={()=>onSave(val.trim(),extra)}>Add</button>
+          <button className="btn btn-out" style={{flex:1}} onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SelectWithAdd({ value, onChange, options, placeholder, onAdd }) {
+  const [showPopup, setShowPopup] = useState(false);
+  return (
+    <>
+      <select className="finput" value={value} onChange={e => {
+        if (e.target.value==="__add") setShowPopup(true);
+        else onChange(e.target.value);
+      }}>
+        <option value="">{placeholder}</option>
+        {options.map(o=><option key={o} value={o}>{o}</option>)}
+        <option value="__add">➕ Add New…</option>
+      </select>
+      {showPopup && onAdd && (
+        <AddPopup title={`Add New ${placeholder}`} placeholder={`Enter ${placeholder.toLowerCase()}…`}
+          onSave={async name => { await onAdd(name); setShowPopup(false); }}
+          onClose={()=>setShowPopup(false)}/>
+      )}
+    </>
+  );
+}
+
+function SectionBlock({ title, children, defaultOpen=false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="sec-block">
+      <button className="sec-collapser" onClick={()=>setOpen(p=>!p)}>
+        <span>{title}</span>
+        <svg className={`chevron${open?" open":""}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open && <div className="sec-body">{children}</div>}
+    </div>
+  );
+}
+
+function AddManpowerTypePopup({ rawScope, categories, onSave, onClose, refreshCategories }) {
+  const [name,        setName]        = useState("");
+  const [category,    setCategory]    = useState("");
+  const [newCat,      setNewCat]      = useState("");
+  const [saving,      setSaving]      = useState(false);
+  const isContractor = resolveScope(rawScope) === "contractor";
+
+  const showNewCatInput = category === "__newcat";
+  const finalCategory   = showNewCatInput ? newCat.trim() : category;
+  const canSave         = name.trim() && (!showNewCatInput || newCat.trim());
+
+  const handleSave = async () => {
+    if (!canSave || saving) return;
+    setSaving(true);
+
+    // If new category entered, insert into workcategory first
+    if (isContractor && showNewCatInput && newCat.trim()) {
+      const { error } = await supabase
+        .from("workcategory")
+        .insert({ category: newCat.trim() })
+        .select()
+        .single();
+      if (!error) await refreshCategories();
+    }
+
+    // Save to manpower table
+    const scope = resolveScope(rawScope);
+    await supabase.from("manpower").insert({ scope, manpowertype: name.trim() });
+
+    // If contractor + category chosen, also save to man_type
+    if (isContractor && finalCategory) {
+      await supabase.from("man_type").insert({
+        category:     finalCategory,
+        manpowertype: name.trim(),
+      });
+    }
+
+    setSaving(false);
+    onSave(name.trim(), finalCategory || null);
+  };
+
+  return (
+    <div className="popup-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="popup-box">
+        <div className="popup-title">Add New Manpower Type</div>
+
+        {/* Type name */}
+        <div className="fg" style={{ marginBottom: 12 }}>
+          <label className="flabel">Type Name <span className="req">*</span></label>
+          <input
+            className="finput"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="e.g. Mason, Bar Bender…"
+            autoFocus
+            onKeyDown={e => e.key === "Enter" && canSave && handleSave()}
+          />
+        </div>
+
+        {/* Work Category — contractor only */}
+        {/* Inside AddManpowerTypePopup — replace the category select block with: */}
+{isContractor && (
+  <div className="fg" style={{ marginBottom: 0 }}>
+    <label className="flabel">Work Category <span className="opt">optional</span></label>
+    <select
+      className="finput"
+      value={category}
+      onChange={e => setCategory(e.target.value)}
+    >
+      <option value="">-- None / General --</option>
+      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+    </select>
+  </div>
+)}
+        <div className="popup-btns" style={{ marginTop: 16 }}>
+          <button
+            className="btn btn-orange"
+            style={{ flex: 1 }}
+            disabled={!canSave || saving}
+            onClick={handleSave}
+          >
+            {saving ? <><span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} /> Saving…</> : "Add Type"}
+          </button>
+          <button className="btn btn-out" style={{ flex: 1 }} onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ManpowerSection({ list, setList, showToast }) {
+  const [scopes,       setScopes]       = useState([]);
+  const [categories,   setCategories]   = useState([]);
+  const [allTypes,     setAllTypes]     = useState([]); // all types for current scope
+  const [catTypes,     setCatTypes]     = useState([]); // types filtered by selected category
+  const [scope,        setScope]        = useState("");
+  const [workCat,      setWorkCat]      = useState("");
+  const [mpType,       setMpType]       = useState("");
+  const [gender,       setGender]       = useState("");
+  const [skill,        setSkill]        = useState("");
+  const [count,        setCount]        = useState("");
+  const [skills,       setSkills]       = useState([]);
+  const [loadingTypes, setLoadingTypes] = useState(false);
+  const [showAddType,  setShowAddType]  = useState(false);
+  const [showAddCat, setShowAddCat] = useState(false);
+  const [editIdx, setEditIdx] = useState(null);
+  const [editRow, setEditRow] = useState(null);
+
+  const isClientOrPMC = ["CLIENT", "PMC"].includes((scope || "").toUpperCase());
+
+  // Load scopes list (for the dropdown)
+  useEffect(() => { dbFetch("dpr_scopes").then(setScopes); }, []);
+  useEffect(() => { dbFetch("dpr_skills").then(setSkills); }, []);
+
+  // Load categories from workcategory table
+  const refreshCategories = async () => {
+    const cats = await getAllCategories();
+    setCategories(cats);
+  };
+  useEffect(() => { refreshCategories(); }, []);
+
+  // Load manpower types when scope changes
+  useEffect(() => {
+    if (!scope) { setAllTypes([]); setCatTypes([]); setMpType(""); return; }
+    setLoadingTypes(true);
+    getManpowerTypesForScope(scope).then(types => {
+      setAllTypes(types);
+      setLoadingTypes(false);
+    });
+    setWorkCat("");
+    setMpType("");
+    setCatTypes([]);
+  }, [scope]);
+
+  // Filter types by category when workCat changes (contractor only)
+  useEffect(() => {
+    if (!workCat || isClientOrPMC) { setCatTypes([]); return; }
+    getManpowerTypesByCategory(workCat).then(setCatTypes);
+  }, [workCat]);
+
+  // Displayed types: if category selected → catTypes first, then remaining allTypes
+  const priorityTypes = catTypes.filter(t => allTypes.includes(t));
+  const otherTypes    = allTypes.filter(t => !priorityTypes.includes(t));
+
+  const addRow = () => {
+  if (!scope || !mpType || !count) return;
+  const dbScope = resolveScope(scope);
+
+  // Check for exact duplicate (same scope+type+category+gender+skill)
+  const dupIdx = list.findIndex(r =>
+    r.scope === dbScope &&
+    r.labour === mpType &&
+    (r.category || "—") === (workCat || "—") &&
+    (r.gender || "") === gender &&
+    (r.skill  || "") === skill
+  );
+
+  if (dupIdx >= 0) {
+    // Already exists → just add to count
+    setList(p => p.map((r, i) =>
+      i === dupIdx ? { ...r, count: Number(r.count) + Number(count) } : r
+    ));
+  } else {
+    setList(p => [...p, {
+      id:           "tmp_" + Date.now(),
+      scope:        dbScope,
+      displayScope: scope,
+      category:     isClientOrPMC ? "" : (workCat || "—"),
+      labour:       mpType,
+      gender:       gender,
+      skill:        skill,
+      count:        Number(count),
+    }]);
+  }
+  setMpType(""); setGender(""); setSkill(""); setCount("");
+};
+
+  return (
+    <div>
+      <div className="grid2" style={{ marginBottom: 12 }}>
+
+        {/* Scope */}
+        <div className="fg">
+          <label className="flabel">Scope <span className="req">*</span></label>
+          <SelectWithAdd
+            value={scope}
+            onChange={v => { setScope(v); setMpType(""); setWorkCat(""); }}
+            options={scopes}
+            placeholder="Select Scope"
+            onAdd={async name => {
+              await dbInsert("dpr_scopes", { name: name.toUpperCase() });
+              setScopes(await dbFetch("dpr_scopes"));
+              setScope(name.toUpperCase());
+            }} />
+        </div>
+
+        {/* Work Category — only for contractor */}
+{/* Work Category dropdown — contractor only */}
+{!isClientOrPMC && (
+  <div className="fg">
+    <label className="flabel">Work Category</label>
+    <select
+      className="finput"
+      value={workCat}
+      onChange={e => {
+        if (e.target.value === "__addcat") {
+          setShowAddCat(true);
+        } else {
+          setWorkCat(e.target.value);
+          setMpType("");
+        }
+      }}
+    >
+      <option value="">-- All Types --</option>
+      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+      <option value="__addcat">➕ Add New Category…</option>
+    </select>
+  </div>
+)}
+
+        {/* Manpower Type */}
+        <div className="fg" style={{ gridColumn: isClientOrPMC ? "span 2" : "auto" }}>
+          <label className="flabel">Manpower Type <span className="req">*</span></label>
+          <select className="finput" value={mpType}
+            onChange={e => { if (e.target.value === "__add") setShowAddType(true); else setMpType(e.target.value); }}>
+            <option value="">{loadingTypes ? "Loading…" : scope ? "Select Type" : "Select scope first"}</option>
+            {priorityTypes.length > 0 && (
+              <optgroup label={`── ${workCat.toUpperCase()} ──`}>
+                {priorityTypes.map(t => <option key={t} value={t}>{t}</option>)}
+              </optgroup>
+            )}
+            {otherTypes.length > 0 && (
+              <optgroup label={priorityTypes.length > 0 ? "── OTHER TYPES ──" : "── ALL TYPES ──"}>
+                {otherTypes.map(t => <option key={t} value={t}>{t}</option>)}
+              </optgroup>
+            )}
+            {!loadingTypes && <option value="__add">➕ Add New Type…</option>}
+          </select>
+        </div>
+
+        {/* Gender */}
+        <div className="fg">
+          <label className="flabel">Gender</label>
+          <select className="finput" value={gender} onChange={e => setGender(e.target.value)}>
+            <option value="">-- Select --</option>
+            <option value="MALE">Male</option>
+            <option value="FEMALE">Female</option>
+          </select>
+        </div>
+
+        {/* Skill */}
+        <div className="fg">
+          <label className="flabel">Skill</label>
+          <SelectWithAdd value={skill} onChange={setSkill} options={skills} placeholder="Select Skill"
+            onAdd={async name => {
+              await dbInsert("dpr_skills", { name });
+              setSkills(await dbFetch("dpr_skills"));
+              setSkill(name);
+            }} />
+        </div>
+
+        {/* Count */}
+        <div className="fg">
+          <label className="flabel">Count <span className="req">*</span></label>
+          <input className="finput" type="number" min="1" value={count}
+            onChange={e => setCount(e.target.value)} placeholder="0" />
+        </div>
+      </div>
+
+      <button className="btn btn-green btn-sm" onClick={addRow}
+        disabled={!scope || !mpType || !count}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        Add Manpower
+      </button>
+
+      {list.length > 0 && (
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Scope</th>
+                <th>Type</th>
+                <th>Category</th>
+                <th>Gender</th>
+                <th>Skill</th>
+                <th>Count</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+  {list.map((row, i) => (
+    editIdx === i ? (
+      // ── EDIT ROW ──────────────────────────────────────────
+      <tr key={row.id || i} style={{ background: "#fffbf5" }}>
+        <td style={{ fontSize: 12, color: "var(--ink3)", textTransform: "capitalize" }}>
+          {row.displayScope || row.scope}
+        </td>
+        <td>{row.labour}</td>
+        <td>
+          <input
+            className="finput"
+            style={{ padding: "5px 8px", fontSize: 12, minWidth: 100 }}
+            value={editRow.category}
+            onChange={e => setEditRow(p => ({ ...p, category: e.target.value }))}
+          />
+        </td>
+        <td>
+          <select
+            className="finput"
+            style={{ padding: "5px 8px", fontSize: 12 }}
+            value={editRow.gender}
+            onChange={e => setEditRow(p => ({ ...p, gender: e.target.value }))}
+          >
+            <option value="">—</option>
+            <option value="MALE">Male</option>
+            <option value="FEMALE">Female</option>
+          </select>
+        </td>
+        <td>
+          <select
+            className="finput"
+            style={{ padding: "5px 8px", fontSize: 12 }}
+            value={editRow.skill}
+            onChange={e => setEditRow(p => ({ ...p, skill: e.target.value }))}
+          >
+            <option value="">—</option>
+            {skills.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </td>
+        <td>
+          <input
+            className="finput"
+            type="number"
+            min="1"
+            style={{ padding: "5px 8px", fontSize: 12, width: 64 }}
+            value={editRow.count}
+            onChange={e => setEditRow(p => ({ ...p, count: e.target.value }))}
+          />
+        </td>
+        <td>
+          <div style={{ display: "flex", gap: 4 }}>
+            <button
+              className="btn btn-orange btn-sm"
+              style={{ padding: "5px 10px", fontSize: 11 }}
+              onClick={() => {
+                setList(p => p.map((r, j) =>
+                  j === i ? { ...r, ...editRow, count: Number(editRow.count) } : r
+                ));
+                setEditIdx(null); setEditRow(null);
+              }}
+            >✓</button>
+            <button
+              className="btn btn-out btn-sm"
+              style={{ padding: "5px 10px", fontSize: 11 }}
+              onClick={() => { setEditIdx(null); setEditRow(null); }}
+            >✕</button>
+          </div>
+        </td>
+      </tr>
+    ) : (
+      // ── DISPLAY ROW ───────────────────────────────────────
+      <tr key={row.id || i}>
+        <td style={{ textTransform: "capitalize" }}>{row.displayScope || row.scope}</td>
+        <td>{row.labour}</td>
+        <td>{row.category || "—"}</td>
+        <td>{row.gender  || "—"}</td>
+        <td>{row.skill   || "—"}</td>
+        <td style={{ fontWeight: 700 }}>{row.count}</td>
+        <td>
+          <div style={{ display: "flex", gap: 4 }}>
+            <button
+              className="btn btn-out btn-sm btn-icon"
+              title="Edit"
+              onClick={() => { setEditIdx(i); setEditRow({ ...row }); }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button
+              className="btn btn-red btn-sm btn-icon"
+              title="Remove"
+              onClick={() => setList(p => p.filter((_, j) => j !== i))}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    )
+  ))}
+  <tr style={{ background: "#f8fafc" }}>
+    <td colSpan={5} style={{ fontWeight: 700, fontSize: 12.5 }}>Total</td>
+    <td colSpan={2} style={{ fontWeight: 800, color: "#1e3a5f" }}>
+      {list.reduce((s, r) => s + Number(r.count), 0)}
+    </td>
+  </tr>
+</tbody>
+          </table>
+        </div>
+      )}
+
+      {showAddType && (
+        <AddManpowerTypePopup
+          rawScope={scope}
+          categories={categories}
+          refreshCategories={refreshCategories}
+          onSave={async (name, cat) => {
+            setShowAddType(false);
+            // Reload types for current scope
+            const types = await getManpowerTypesForScope(scope);
+            setAllTypes(types);
+            if (cat) {
+              const ct = await getManpowerTypesByCategory(cat);
+              setCatTypes(ct);
+              setWorkCat(cat);
+            }
+            setMpType(name);
+          }}
+          onClose={() => setShowAddType(false)} />
+      )}
+      {showAddCat && (
+  <AddCategoryPopup
+    onSave={async (name) => {
+      const { error } = await supabase
+        .from("workcategory")
+        .insert({ category: name.trim() });
+      if (error) {
+        showToast("err", "Category may already exist.");
+      } else {
+        await refreshCategories();
+        setWorkCat(name.trim());
+        setShowAddCat(false);
+        showToast("ok", `Category "${name.trim()}" added!`);
+      }
+    }}
+    onClose={() => setShowAddCat(false)}
+  />
+)}
+    </div>
+  );
+}
+function AddCategoryPopup({ onSave, onClose }) {
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!name.trim() || saving) return;
+    setSaving(true);
+    await onSave(name.trim());
+    setSaving(false);
+  };
+
+  return (
+    <div className="popup-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="popup-box">
+        <div className="popup-title">Add New Work Category</div>
+        <p style={{ fontSize: 12.5, color: "var(--ink3)", marginBottom: 14, lineHeight: 1.5 }}>
+          New categories are saved for future use across all manpower entries.
+        </p>
+        <div className="fg" style={{ marginBottom: 16 }}>
+          <label className="flabel">Category Name <span className="req">*</span></label>
+          <input
+            className="finput"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="e.g. Electrical Work, PEB Erection…"
+            autoFocus
+            onKeyDown={e => e.key === "Enter" && handleSave()}
+          />
+        </div>
+        <div
+          style={{
+            background: "var(--orange-bg)",
+            border: "1.5px dashed var(--orange-line)",
+            borderRadius: 8,
+            padding: "9px 12px",
+            fontSize: 12,
+            color: "var(--orange)",
+            marginBottom: 16,
+            display: "flex",
+            gap: 7,
+            alignItems: "flex-start",
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ marginTop: 1, flexShrink: 0 }}>
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          This category will also appear in the Work Category dropdown for all future reports.
+        </div>
+        <div className="popup-btns">
+          <button
+            className="btn btn-orange"
+            style={{ flex: 1 }}
+            disabled={!name.trim() || saving}
+            onClick={handleSave}
+          >
+            {saving
+              ? <><span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} /> Saving…</>
+              : <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  Add Category
+                </>
+            }
+          </button>
+          <button className="btn btn-out" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+function EquipmentSection({ list, setList }) {
+  const [master,  setMaster]  = useState({ client:[], contractor:[] });
+  const [source,  setSource]  = useState("");
+  const [name,    setName]    = useState("");
+  const [qty,     setQty]     = useState("");
+  const [unit,    setUnit]    = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [editIdx, setEditIdx] = useState(null);
+  const [editRow, setEditRow] = useState(null);
+
+  useEffect(()=>{
+    supabase.from("dpr_equipment").select("*").order("name").then(({data})=>{
+      const grp={client:[],contractor:[]};
+      (data||[]).forEach(e=>{ if(grp[e.source]) grp[e.source].push(e); });
+      setMaster(grp);
+    });
+  },[]);
+
+  const srcOpts  = source && master[source] ? [...new Set(master[source].map(e=>e.name))] : [];
+  const unitOpts = source && name ? [...new Set(master[source]?.filter(e=>e.name===name).map(e=>e.unit))] : [];
+
+const add = () => {
+  if (!source || !name || !qty || !unit) return;
+  const n = v => (v || "").toString().trim().toLowerCase();
+
+  const dupIdx = list.findIndex(r =>
+    n(r.source) === n(source) &&
+    n(r.name)   === n(name)   &&
+    n(r.unit)   === n(unit)
+  );
+
+  if (dupIdx >= 0) {
+    setList(p => p.map((r, i) =>
+      i === dupIdx ? { ...r, qty: Number(r.qty) + Number(qty) } : r
+    ));
+  } else {
+    setList(p => [...p, { source, name, qty, unit }]);
+  }
+  setName(""); setQty(""); setUnit("");
+};
+
+  return (
+    <div>
+      <div className="grid3" style={{marginBottom:12}}>
+        <div className="fg">
+          <label className="flabel">Source</label>
+          <select className="finput" value={source} onChange={e=>{setSource(e.target.value);setName("");setUnit("");}}>
+            <option value="">Select Source</option>
+            <option value="client">Client</option>
+            <option value="contractor">Contractor</option>
+          </select>
+        </div>
+        <div className="fg">
+          <label className="flabel">Equipment</label>
+          <select className="finput" value={name} onChange={e=>{ if(e.target.value==="__add") setShowAdd(true); else { setName(e.target.value); const u=master[source]?.find(eq=>eq.name===e.target.value)?.unit; if(u) setUnit(u); } }}>
+            <option value="">{source?"Select Equipment":"Select source first"}</option>
+            {srcOpts.map(n=><option key={n} value={n}>{n}</option>)}
+            <option value="__add">➕ Add New…</option>
+          </select>
+        </div>
+        <div className="fg">
+          <label className="flabel">Qty</label>
+          <input className="finput" type="number" min="0" value={qty} onChange={e=>setQty(e.target.value)} placeholder="0"/>
+        </div>
+        <div className="fg">
+          <label className="flabel">Unit</label>
+          <select className="finput" value={unit} onChange={e=>setUnit(e.target.value)}>
+            <option value="">Select Unit</option>
+            {unitOpts.map(u=><option key={u} value={u}>{u}</option>)}
+          </select>
+        </div>
+      </div>
+      <button className="btn btn-green btn-sm" onClick={add} disabled={!source||!name||!qty||!unit}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Equipment
+      </button>
+      {list.length>0 && (
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead><tr><th>Source</th><th>Equipment</th><th>Qty</th><th>Unit</th><th></th></tr></thead>
+            <tbody>
+              {list.map((e, i) => (
+                editIdx === i ? (
+                  <tr key={i} style={{ background: "#fffbf5" }}>
+                    <td>
+                      <select className="finput" style={{ padding: "5px 8px", fontSize: 12 }}
+                        value={editRow.source}
+                        onChange={ev => setEditRow(p => ({ ...p, source: ev.target.value }))}>
+                        <option value="client">Client</option>
+                        <option value="contractor">Contractor</option>
+                      </select>
+                    </td>
+                    <td>
+                      <input className="finput" style={{ padding: "5px 8px", fontSize: 12 }}
+                        value={editRow.name}
+                        onChange={ev => setEditRow(p => ({ ...p, name: ev.target.value }))} />
+                    </td>
+                    <td>
+                      <input className="finput" type="number" min="0"
+                        style={{ padding: "5px 8px", fontSize: 12, width: 70 }}
+                        value={editRow.qty}
+                        onChange={ev => setEditRow(p => ({ ...p, qty: ev.target.value }))} />
+                    </td>
+                    <td>
+                      <input className="finput" style={{ padding: "5px 8px", fontSize: 12, width: 80 }}
+                        value={editRow.unit}
+                        onChange={ev => setEditRow(p => ({ ...p, unit: ev.target.value }))} />
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button className="btn btn-orange btn-sm" style={{ padding: "5px 10px", fontSize: 11 }}
+                          onClick={() => {
+                            setList(p => p.map((r, j) => j === i ? { ...editRow } : r));
+                            setEditIdx(null); setEditRow(null);
+                          }}>✓</button>
+                        <button className="btn btn-out btn-sm" style={{ padding: "5px 10px", fontSize: 11 }}
+                          onClick={() => { setEditIdx(null); setEditRow(null); }}>✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={i}>
+                    <td>{e.source}</td>
+                    <td>{e.name}</td>
+                    <td>{e.qty}</td>
+                    <td>{e.unit}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button className="btn btn-out btn-sm btn-icon" title="Edit"
+                          onClick={() => { setEditIdx(i); setEditRow({ ...e }); }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button className="btn btn-red btn-sm btn-icon" title="Remove"
+                          onClick={() => setList(p => p.filter((_, j) => j !== i))}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {showAdd && (
+        <AddPopup title="Add New Equipment" placeholder="Equipment name"
+          extraFields={[{key:"unit",label:"Unit",placeholder:"hrs, trip, etc."}]}
+          onSave={async (nm,extra)=>{
+            if(!source||!extra.unit) return;
+            await dbInsert("dpr_equipment",{name:nm,unit:extra.unit,source});
+            const {data} = await supabase.from("dpr_equipment").select("*").order("name");
+            const grp={client:[],contractor:[]};
+            (data||[]).forEach(e=>{ if(grp[e.source]) grp[e.source].push(e); });
+            setMaster(grp); setName(nm); setUnit(extra.unit); setShowAdd(false);
+          }}
+          onClose={()=>setShowAdd(false)}/>
+      )}
+    </div>
+  );
+}
+
+function MaterialSection({ list, setList, showDesc=false, label="Material" }) {
+  const [materials, setMaterials] = useState([]);
+  const [units,     setUnits]     = useState([]);
+  const [name, setName] = useState("");
+  const [qty,  setQty]  = useState("");
+  const [unit, setUnit] = useState("");
+  const [desc, setDesc] = useState("");
+  const [editIdx, setEditIdx] = useState(null);
+  const [editRow, setEditRow] = useState(null);
+
+  useEffect(()=>{ dbFetch("dpr_materials").then(setMaterials); dbFetch("dpr_units").then(setUnits); },[]);
+const add = () => {
+  if (!name || !qty || !unit) return;
+  const n = v => (v || "").toString().trim().toLowerCase();
+
+  const dupIdx = list.findIndex(r =>
+    n(r.name) === n(name) &&
+    n(r.unit) === n(unit)
+  );
+
+  if (dupIdx >= 0) {
+    setList(p => p.map((r, i) =>
+      i === dupIdx ? { ...r, qty: Number(r.qty) + Number(qty) } : r
+    ));
+  } else {
+    setList(p => [...p, { name, qty, unit, ...(showDesc ? { desc } : {}) }]);
+  }
+  setName(""); setQty(""); setUnit(""); setDesc("");
+};
+
+  return (
+    <div>
+      <div className="grid3" style={{marginBottom:12}}>
+        <div className="fg">
+          <label className="flabel">{label}</label>
+          <SelectWithAdd value={name} onChange={setName} options={materials} placeholder={`Select ${label}`}
+            onAdd={async nm=>{ await dbInsert("dpr_materials",{name:nm}); setMaterials(await dbFetch("dpr_materials")); setName(nm); }}/>
+        </div>
+        <div className="fg">
+          <label className="flabel">Quantity</label>
+          <input className="finput" type="number" min="0" value={qty} onChange={e=>setQty(e.target.value)} placeholder="0"/>
+        </div>
+        <div className="fg">
+          <label className="flabel">Unit</label>
+          <SelectWithAdd value={unit} onChange={setUnit} options={units} placeholder="Select Unit"
+            onAdd={async nm=>{ await dbInsert("dpr_units",{name:nm}); setUnits(await dbFetch("dpr_units")); setUnit(nm); }}/>
+        </div>
+        {showDesc && (
+          <div className="fg col3">
+            <label className="flabel">Description <span className="opt">optional</span></label>
+            <textarea className="finput" rows={2} value={desc} onChange={e=>setDesc(e.target.value)} placeholder="Describe material requirements…"/>
+          </div>
+        )}
+      </div>
+      <button className="btn btn-green btn-sm" onClick={add} disabled={!name||!qty||!unit}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add {label}
+      </button>
+      {list.length>0 && (
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead><tr><th>{label}</th><th>Qty</th><th>Unit</th>{showDesc&&<th>Description</th>}<th></th></tr></thead>
+            <tbody>
+              {list.map((m, i) => (
+                editIdx === i ? (
+                  <tr key={i} style={{ background: "#fffbf5" }}>
+                    <td>
+                      <input className="finput" style={{ padding: "5px 8px", fontSize: 12 }}
+                        value={editRow.name}
+                        onChange={ev => setEditRow(p => ({ ...p, name: ev.target.value }))} />
+                    </td>
+                    <td>
+                      <input className="finput" type="number" min="0"
+                        style={{ padding: "5px 8px", fontSize: 12, width: 80 }}
+                        value={editRow.qty}
+                        onChange={ev => setEditRow(p => ({ ...p, qty: ev.target.value }))} />
+                    </td>
+                    <td>
+                      <input className="finput" style={{ padding: "5px 8px", fontSize: 12, width: 80 }}
+                        value={editRow.unit}
+                        onChange={ev => setEditRow(p => ({ ...p, unit: ev.target.value }))} />
+                    </td>
+                    {showDesc && (
+                      <td>
+                        <textarea className="finput" rows={2}
+                          style={{ padding: "5px 8px", fontSize: 12, minWidth: 140 }}
+                          value={editRow.desc || ""}
+                          onChange={ev => setEditRow(p => ({ ...p, desc: ev.target.value }))} />
+                      </td>
+                    )}
+                    <td>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button className="btn btn-orange btn-sm" style={{ padding: "5px 10px", fontSize: 11 }}
+                          onClick={() => {
+                            setList(p => p.map((r, j) => j === i ? { ...editRow } : r));
+                            setEditIdx(null); setEditRow(null);
+                          }}>✓</button>
+                        <button className="btn btn-out btn-sm" style={{ padding: "5px 10px", fontSize: 11 }}
+                          onClick={() => { setEditIdx(null); setEditRow(null); }}>✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={i}>
+                    <td>{m.name}</td>
+                    <td>{m.qty}</td>
+                    <td>{m.unit}</td>
+                    {showDesc && <td>{m.desc || "—"}</td>}
+                    <td>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button className="btn btn-out btn-sm btn-icon" title="Edit"
+                          onClick={() => { setEditIdx(i); setEditRow({ ...m }); }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button className="btn btn-red btn-sm btn-icon" title="Remove"
+                          onClick={() => setList(p => p.filter((_, j) => j !== i))}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VisitorsSection({ visitors, setVisitors }) {
+  const add = ()=>setVisitors(p=>[...p,{id:"v_"+Date.now(),name:"",instruction:""}]);
+  const upd = (id,k,v)=>setVisitors(p=>p.map(x=>x.id===id?{...x,[k]:v}:x));
+  const rem = id=>setVisitors(p=>p.filter(x=>x.id!==id));
+  return (
+    <div>
+      {visitors.map((v,idx)=>(
+        <div className="visitor-card" key={v.id}>
+          <div className="visitor-card-hdr">
+            <div className="visitor-num">{idx+1}</div>
+            <input className="finput" style={{flex:1}} value={v.name} onChange={e=>upd(v.id,"name",e.target.value)} placeholder="Visitor name…"/>
+            <button className="btn btn-red btn-sm" style={{marginLeft:8}} onClick={()=>rem(v.id)}>✕</button>
+          </div>
+          <div className="fg">
+            <label className="flabel">Instructions / Observations</label>
+            <textarea className="finput" rows={2} value={v.instruction} onChange={e=>upd(v.id,"instruction",e.target.value)} placeholder="Enter instructions or observations…"/>
+          </div>
+        </div>
+      ))}
+      <button className="btn btn-out btn-sm" onClick={add} style={{marginTop:4}}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Visitor
+      </button>
+    </div>
+  );
+}
+
+function CustomFieldsSection({ fields, setFields }) {
+  const add = ()=>setFields(p=>[...p,{id:"cf_"+Date.now(),title:"",value:""}]);
+  const upd = (id,k,v)=>setFields(p=>p.map(x=>x.id===id?{...x,[k]:v}:x));
+  const rem = id=>setFields(p=>p.filter(x=>x.id!==id));
+  return (
+    <div>
+      {fields.map(f=>(
+        <div className="custom-field-wrap" key={f.id}>
+          <div className="grid2" style={{marginBottom:10}}>
+            <div className="fg"><label className="flabel">Field Title</label><input className="finput" value={f.title} onChange={e=>upd(f.id,"title",e.target.value)} placeholder="e.g. Remarks"/></div>
+            <div style={{display:"flex",alignItems:"flex-end"}}><button className="btn btn-red btn-sm" onClick={()=>rem(f.id)}>Remove</button></div>
+          </div>
+          <div className="fg"><label className="flabel">Field Value</label><textarea className="finput" rows={2} value={f.value} onChange={e=>upd(f.id,"value",e.target.value)}/></div>
+        </div>
+      ))}
+      <button className="btn btn-out btn-sm" onClick={add}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Custom Field
+      </button>
+    </div>
+  );
+}
+
+function PhotosSection({ photos, setPhotos }) {
+  const fileRef = useRef();
+  const addFiles = async files => {
+    for (const f of files) {
+      if (!f.type.startsWith("image/")) continue;
+      const data = await compressImage(f);
+      setPhotos(p=>[...p,{id:"ph_"+Date.now()+Math.random(),data,caption:""}]);
+    }
+  };
+  return (
+    <div>
+      <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={e=>{ addFiles(Array.from(e.target.files)); e.target.value=""; }}/>
+      <div className="photo-grid">
+        {photos.map(ph=>(
+          <div className="photo-item" key={ph.id}>
+            <img className="photo-thumb" src={ph.data} alt=""/>
+            <button className="photo-remove" onClick={()=>setPhotos(p=>p.filter(x=>x.id!==ph.id))}>×</button>
+            <textarea className="photo-caption" rows={2} value={ph.caption} onChange={e=>setPhotos(p=>p.map(x=>x.id===ph.id?{...x,caption:e.target.value}:x))} placeholder="Caption…"/>
+          </div>
+        ))}
+        <button className="photo-add-btn" onClick={()=>fileRef.current?.click()}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Add Photos
+        </button>
+      </div>
+      {photos.length>0 && <p style={{fontSize:12,color:"#94a3b8",marginTop:8}}>{photos.length} photo{photos.length!==1?"s":""} added</p>}
+    </div>
+  );
+}
+
+const SUBMIT_STEPS = [
+  { key:"photos", label:"Uploading photos to Supabase" },
+  { key:"pdf",    label:"Generating PDF" },
+  { key:"pdfup",  label:"Uploading PDF to Supabase" },
+  { key:"db",     label:"Saving report record" },
+];
+
+function SubmitOverlay({ currentStep, detail }) {
+  const idx = SUBMIT_STEPS.findIndex(s=>s.key===currentStep);
+  return (
+    <div className="pdf-overlay">
+      <div className="spinner" style={{width:44,height:44,borderWidth:4}}/>
+      <div className="pdf-overlay-title">Generating Evening DPR…</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8,width:"100%",maxWidth:340}}>
+        {SUBMIT_STEPS.map((s,i)=>{
+          const cls = i<idx?"step-done":i===idx?"step-active":"step-pending";
+          const icon = i<idx?"✓":i===idx?"⟳":"○";
+          return <div key={s.key} className={`progress-step ${cls}`}><span style={{fontSize:13,minWidth:16}}>{icon}</span><span>{s.label}</span></div>;
+        })}
+      </div>
+      {detail && <div style={{fontSize:11,color:"#7a7a7a",fontFamily:"monospace"}}>{detail}</div>}
+    </div>
+  );
+}
+
+// ─── MAIN FORM ────────────────────────────────────────────────────────────────
+function DprForm({user}) {
+  const [reportType, setReportType] = useState("morning");
+  const [date,     setDate]     = useState(todayStr());
+  const [site, setSite] = useState("");
+  const [engineer, setEngineer] = useState("");
+  const [userSites, setUserSites] = useState([]);
+  const [loadingSites, setLoadingSites] = useState(true);
+  const [sites,    setSites]    = useState([]);
+  const [engineers,setEngineers]= useState([]);
+  const [loadingEng,setLoadingEng]=useState(false);
+  
+
+  const [summary,       setSummary]       = useState("");
+  const [manpower,      setManpower]      = useState([]);
+  const [equipment,     setEquipment]     = useState([]);
+  const [cementAvail,   setCementAvail]   = useState("");
+  const [cementRcvd,    setCementRcvd]    = useState("");
+  const [cementUsed,    setCementUsed]    = useState("");
+  const [cementUsedDesc,setCementUsedDesc]= useState("");
+  const [concreteTh,    setConcreteTh]    = useState("");
+  const [concreteOn,    setConcreteOn]    = useState("");
+  const [concreteDesc,  setConcreteDesc]  = useState("");
+  const [material,      setMaterial]      = useState([]);
+  const [matReq,        setMatReq]        = useState([]);
+  const [cube,          setCube]          = useState("");
+  const [visitors,      setVisitors]      = useState([{id:"v_init",name:"",instruction:""}]);
+  const [customFields,  setCustomFields]  = useState([]);
+  const [photos,        setPhotos]        = useState([]);
+  const [planning,      setPlanning]      = useState("");
+
+  const [draftInfo,    setDraftInfo]    = useState(null);
+  const [submitting,   setSubmitting]   = useState(false);
+  const [submitStep,   setSubmitStep]   = useState("");
+  const [submitDetail, setSubmitDetail] = useState("");
+  const [toast,        setToast]        = useState(null);
+  const [submitted,    setSubmitted]    = useState(false);
+  const [pdfUrl,       setPdfUrl]       = useState(null);
+
+  const cementBalance = Math.max(0,(Number(cementAvail)||0)+(Number(cementRcvd)||0)-(Number(cementUsed)||0));
+
+  const showToast = (type, msg, dur=5000) => { setToast({type,msg}); setTimeout(()=>setToast(null),dur); };
+
+  useEffect(()=>{ dbFetch("dpr_sites").then(setSites); },[]);
+
+  useEffect(()=>{
+    if (!site) { setEngineers([]); return; }
+    setLoadingEng(true);
+    getEngineersForSite(site).then(list=>{ setEngineers(list); setLoadingEng(false); });
+  },[site]);
+
+  useEffect(() => {
+  if (!site || !engineer) return;
+  loadDraft(site, engineer).then(d => setDraftInfo(d || null));
+
+  // If evening report, autofill from last morning instance
+  if (reportType === "evening") {
+    getLastMorningPayload(site, engineer).then(mp => {
+      if (!mp) return;
+      if (mp.summary)   setSummary(mp.summary);
+      if (mp.manpower?.length) setManpower(mp.manpower);
+      if (mp.equipment?.length) setEquipment(mp.equipment);
+      showToast("ok", "Fields pre-filled from today's morning report.");
+    });
+  }
+}, [site, engineer, reportType]);
+
+useEffect(() => {
+  (async () => {
+    setLoadingSites(true);
+    // Set engineer name from logged-in user
+    setEngineer(user?.name || "");
+
+    // Fetch all sites assigned to this user via dpr_engineers table
+    const { data } = await supabase
+      .from("dpr_engineers")
+      .select("site_name")
+      .eq("name", user?.name || "");
+
+    const sites = (data || []).map(r => r.site_name).filter(Boolean);
+
+    if (sites.length === 1) {
+      setSite(sites[0]); // auto-select if only one
+    } else if (sites.length === 0 && user?.site_name) {
+      setSite(user.site_name); // fallback to user profile site
+      sites.push(user.site_name);
+    }
+    setUserSites(sites);
+    setLoadingSites(false);
+  })();
+}, [user]);
+
+  const collectPayload = () => ({
+    site, engineer, employeeName:engineer, reportType, date, summary, manpower, equipment,
+    cementAvailable:cementAvail, cementReceived:cementRcvd, cementUsed, cementBalance:String(cementBalance), cementUsedDesc,
+    concreteTheoretical:concreteTh, concreteOnsite:concreteOn, concreteDescription:concreteDesc,
+    material, matReq, cube,
+    visitors: visitors.filter(v=>v.name),
+    customFields: customFields.filter(f=>f.title||f.value),
+    photos, planning,
+  });
+
+  const handleSaveDraft = async () => {
+    if (!site||!engineer) { showToast("err","Select site and engineer first."); return; }
+    const ok = await saveDraft(collectPayload());
+    if (ok) { showToast("ok","Draft saved!"); loadDraft(site,engineer).then(d=>setDraftInfo(d||null)); }
+    else showToast("err","Failed to save draft.");
+  };
+
+  const handleOpenDraft = () => {
+    if (!draftInfo) return;
+    const d = draftInfo.payload;
+    setReportType(d.reportType||"morning"); setSummary(d.summary||""); setManpower(d.manpower||[]);
+    setEquipment(d.equipment||[]); setCementAvail(d.cementAvailable||""); setCementRcvd(d.cementReceived||"");
+    setCementUsed(d.cementUsed||""); setCementUsedDesc(d.cementUsedDesc||""); setConcreteTh(d.concreteTheoretical||"");
+    setConcreteOn(d.concreteOnsite||""); setConcreteDesc(d.concreteDescription||""); setMaterial(d.material||[]);
+    setMatReq(d.matReq||[]); setCube(d.cube||"");
+    setVisitors(d.visitors?.length ? d.visitors.map((v,i)=>({...v,id:"dr_v_"+i})) : [{id:"v_init",name:"",instruction:""}]);
+    setCustomFields(d.customFields||[]); setPhotos(d.photos||[]); setPlanning(d.planning||"");
+    showToast("ok","Draft restored.");
+  };
+
+  const handleDeleteDraft = async () => {
+    if (!window.confirm("Delete draft?")) return;
+    await deleteDraft(site,engineer); setDraftInfo(null); showToast("ok","Draft deleted.");
+  };
+
+  // Morning report: just save to DB (no PDF)
+  const handleMorningSave = async () => {
+    if (!site||!engineer||!summary.trim()) { showToast("err","Site, engineer and work summary are required."); return; }
+    setSubmitting(true);
+    const payload = collectPayload();
+    try {
+      const { error } = await supabase.from("dpr_reports").insert({
+        site, engineer, report_type:"morning", date, payload,
+        pdf_url: null, photo_folder: null, created_at: new Date().toISOString(),
+      });
+      if (error) throw new Error(`DB insert failed: ${error.message}`);
+      if (draftInfo) await deleteDraft(site,engineer);
+      setSubmitted(true);
+    } catch(err) {
+      showToast("err", err.message, 10000);
+    }
+    setSubmitting(false);
+  };
+
+  // Evening DPR: upload photos → generate PDF → upload PDF → save DB
+  const handleEveningSubmit = async () => {
+    if (!site||!engineer||!summary.trim()) { showToast("err","Site, engineer and work summary are required."); return; }
+    if (!photos.length) { showToast("err","Please add at least one photo for the Evening DPR."); return; }
+    setSubmitting(true);
+    const payload = collectPayload();
+    try {
+      const photoFolder = `${site.replace(/[\s/\\:*?"<>|]/g,"_")}/${date}`;
+      const uploadedPhotos = [];
+
+      setSubmitStep("photos");
+      for (let i=0; i<photos.length; i++) {
+        setSubmitDetail(`Photo ${i+1} of ${photos.length}…`);
+        const path = `${photoFolder}/photo_${i+1}_${Date.now()}.jpg`;
+        const url = await uploadPhotoToSupabase(photos[i].data, path);
+        uploadedPhotos.push({...photos[i], supabaseUrl:url, storagePath:path});
+      }
+      payload.photos = uploadedPhotos;
+
+      setSubmitStep("pdf");
+      setSubmitDetail("Building document…");
+      const { blob, fileName } = await generateEveningPdf(payload, msg=>setSubmitDetail(msg));
+
+      setSubmitStep("pdfup");
+      setSubmitDetail(fileName);
+      const pdfPublicUrl = await uploadPdfToSupabase(blob, fileName);
+
+      setSubmitStep("db");
+      setSubmitDetail("Writing to dpr_reports…");
+      const photosForDb = uploadedPhotos.map(p=>({ supabaseUrl:p.supabaseUrl, storagePath:p.storagePath, caption:p.caption||"" }));
+      const { error: insertErr } = await supabase.from("dpr_reports").insert({
+        site, engineer, report_type:"evening", date,
+        payload: {...payload, photos:photosForDb},
+        pdf_url: pdfPublicUrl,
+        photo_folder: photoFolder,
+        created_at: new Date().toISOString(),
+      });
+      if (insertErr) throw new Error(`DB insert failed: ${insertErr.message}`);
+
+      if (draftInfo) await deleteDraft(site,engineer);
+      setPdfUrl(pdfPublicUrl);
+      setSubmitted(true);
+    } catch(err) {
+      console.error(err);
+      showToast("err", err.message, 10000);
+    }
+    setSubmitting(false);
+    setSubmitStep(""); setSubmitDetail("");
+  };
+
+function buildWhatsAppText(payload) {
+  let msg = '🌅 *MORNING REPORT*\n';
+  msg += '━━━━━━━━━━━━━━━━━\n';
+  msg += `📅 *Date:* ${fmtDate(payload.date)}\n`;
+  msg += `🏘️ *Site:* ${payload.site}\n`;
+  msg += `👷 *Engineer:* ${payload.employeeName}\n`;
+  msg += '━━━━━━━━━━━━━━━━━\n';
+
+  if (payload.summary?.trim()) {
+    msg += '\n📋 *Work Summary:*\n';
+    payload.summary.split('\n').filter(l => l.trim())
+      .forEach(l => { msg += '• ' + l.replace(/^[•\-]\s*/, '').trim() + '\n'; });
+  }
+
+  if (payload.manpower?.length) {
+    msg += '\n👥 *Manpower:*\n';
+    msg += '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n';
+    let total = 0;
+    const scopeGroups = {};
+    payload.manpower.forEach(mp => {
+      const scope    = (mp.displayScope || mp.scope || '').trim();
+      const labour   = (mp.labour   || '').trim();
+      const category = (mp.category || '').trim();
+      const gender   = (mp.gender   || '').trim();
+      const skill    = (mp.skill && mp.skill !== '—' ? mp.skill : '').trim();
+      const count    = Number(mp.count) || 0;
+      total += count;
+      if (!scopeGroups[scope]) scopeGroups[scope] = {};
+      const labourKey = labour || '—';
+      if (!scopeGroups[scope][labourKey]) scopeGroups[scope][labourKey] = [];
+      scopeGroups[scope][labourKey].push({ category, gender, skill, count });
+    });
+    const scopeEmoji = { 'PMC': '📋', 'CLIENT': '🏢', 'CONTRACTOR': '🔧' };
+    Object.keys(scopeGroups).forEach(scope => {
+      const emoji = scopeEmoji[scope.toUpperCase()] || '🔹';
+      msg += `\n${emoji} *${scope}*\n`;
+      Object.keys(scopeGroups[scope]).forEach(labour => {
+        const rows = scopeGroups[scope][labour];
+        if (labour && labour !== '—') msg += `  _${labour}_\n`;
+        rows.forEach(row => {
+          const details = [row.gender, row.skill].filter(Boolean);
+          const detailStr = details.length ? ` (${details.join(' • ')})` : '';
+          const cat = row.category && row.category !== '—' ? row.category : '';
+          msg += `  › ${cat || labour}${detailStr}  ➜  *${row.count}*\n`;
+        });
+      });
+    });
+    msg += '\n┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n';
+    msg += `👤 *Total Manpower: ${total}*\n`;
+    msg += '━━━━━━━━━━━━━━━━━';
+  }
+
+  if (payload.equipment?.length) {
+    msg += '\n\n🚜 *Equipment:*\n';
+    msg += '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n';
+    const clientEq     = payload.equipment.filter(e => e.source === 'client');
+    const contractorEq = payload.equipment.filter(e => e.source === 'contractor');
+    if (clientEq.length) {
+      msg += '\n🏢 *Client:*\n';
+      clientEq.forEach(e => { msg += `  › ${e.name} — ${e.qty} ${e.unit}\n`; });
+    }
+    if (contractorEq.length) {
+      msg += '\n🔧 *Contractor:*\n';
+      contractorEq.forEach(e => { msg += `  › ${e.name} — ${e.qty} ${e.unit}\n`; });
+    }
+    msg += '━━━━━━━━━━━━━━━━━';
+  }
+
+  return msg;
+}
+async function getLastMorningPayload(site, engineer) {
+  const { data } = await supabase
+    .from("dpr_reports")
+    .select("payload")
+    .eq("site", site)
+    .eq("engineer", engineer)
+    .eq("report_type", "morning")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.payload || null;
+}
+const handleWhatsApp = async () => {
+  if (!site || !engineer || !summary.trim()) {
+    showToast("err", "Site, engineer and work summary are required.");
+    return;
+  }
+  setSubmitting(true);
+  const payload = collectPayload();
+  try {
+    // Save to DB first
+    const { error } = await supabase.from("dpr_reports").insert({
+      site, engineer, report_type: "morning", date, payload,
+      pdf_url: null, photo_folder: null, created_at: new Date().toISOString(),
+    });
+    if (error) throw new Error(`DB insert failed: ${error.message}`);
+    if (draftInfo) await deleteDraft(site, engineer);
+
+    // Build WhatsApp text and open
+    const text = buildWhatsAppText(payload);
+    const encoded = encodeURIComponent(text);
+    window.open(`https://wa.me/?text=${encoded}`, "_blank");
+
+    setSubmitted(true);
+  } catch (err) {
+    showToast("err", err.message, 10000);
+  }
+  setSubmitting(false);
+};
+
+  const resetForm = () => {
+    setSubmitted(false); setSummary(""); setManpower([]); setPhotos([]); setPlanning(""); setEquipment([]);
+    setMaterial([]); setMatReq([]); setCementAvail(""); setCementRcvd(""); setCementUsed(""); setCementUsedDesc("");
+    setConcreteTh(""); setConcreteOn(""); setConcreteDesc(""); setCube("");
+    setVisitors([{id:"v_init",name:"",instruction:""}]); setCustomFields([]); setPdfUrl(null);
+  };
+
+  if (submitted) return (
+    <div className="success-state">
+      <div className="success-ico">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <div className="success-title">{reportType==="morning" ? "Morning Report Saved!" : "Evening DPR Generated!"}</div>
+      <div className="success-sub">
+        {reportType==="morning"
+          ? "Morning report saved to database successfully."
+          : "PDF and photos stored in Supabase. Report record saved to dpr_reports."}
+      </div>
+      {pdfUrl && <a className="btn btn-orange" href={pdfUrl} target="_blank" rel="noopener noreferrer">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download PDF
+      </a>}
+      <button className="btn btn-out" onClick={resetForm}>Submit Another Report</button>
+    </div>
+  );
+
+  return (
+          <div>
+      {/* Report type toggle — no emojis */}
+      <div className="rtype-row">
+        <button className={`rtype-btn morning${reportType==="morning"?" act":""}`}
+          onClick={()=>setReportType("morning")}>Morning Report</button>
+        <button className={`rtype-btn evening${reportType==="evening"?" act":""}`}
+          onClick={()=>setReportType("evening")}>Evening DPR</button>
+      </div>
+
+      <div className="grid3" style={{marginBottom:18}}>
+        <div className="fg">
+          <label className="flabel">Date <span className="req">*</span></label>
+          <input className="finput" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
+        </div>
+
+        <div className="fg">
+          <label className="flabel">Site / Project <span className="req">*</span></label>
+          {loadingSites ? (
+            <input className="finput" value="Loading…" readOnly/>
+          ) : userSites.length > 1 ? (
+            <select className="finput" value={site} onChange={e => setSite(e.target.value)}>
+              <option value="">Select Site</option>
+              {userSites.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          ) : (
+            <input className="finput" value={site} readOnly
+              style={{background:"#f0fdf4", color:"#166534", fontWeight:700}}/>
+          )}
+        </div>
+
+        <div className="fg">
+          <label className="flabel">Engineer</label>
+          <input className="finput" value={engineer} readOnly
+            style={{background:"#f0fdf4", color:"#166534", fontWeight:700}}/>
+        </div>
+      </div>
+
+      {draftInfo && (
+        <div className="draft-bar">
+          <button className="draft-btn draft-open" onClick={handleOpenDraft}>
+            📂 Open Draft <span style={{fontWeight:400,fontSize:11}}>({new Date(draftInfo.saved_at).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})})</span>
+          </button>
+          <button className="draft-btn draft-del" onClick={handleDeleteDraft}>🗑️ Delete Draft</button>
+        </div>
+      )}
+
+      <SectionBlock title="1. Today's Work Summary" defaultOpen>
+        <textarea className="finput" rows={4} value={summary} onChange={e=>setSummary(e.target.value)} placeholder="Describe completed work activities…"/>
+      </SectionBlock>
+
+      <SectionBlock title="2. Manpower Report">
+        <ManpowerSection list={manpower} setList={setManpower} showToast={showToast}/>
+      </SectionBlock>
+
+      <SectionBlock title="3. Equipment (Client / Contractor)">
+        <EquipmentSection list={equipment} setList={setEquipment}/>
+      </SectionBlock>
+
+      {reportType==="evening" && (<>
+        <SectionBlock title="4. Cement Stock">
+          <div className="cement-row" style={{marginBottom:12}}>
+            <div className="fg"><label className="flabel">Available on Site</label><input className="finput" type="number" value={cementAvail} onChange={e=>setCementAvail(e.target.value)} placeholder="0"/></div>
+            <div className="fg"><label className="flabel">New Received</label><input className="finput" type="number" value={cementRcvd} onChange={e=>setCementRcvd(e.target.value)} placeholder="0"/></div>
+            <div className="fg"><label className="flabel">Used Today</label><input className="finput" type="number" value={cementUsed} onChange={e=>setCementUsed(e.target.value)} placeholder="0"/></div>
+            <div className="fg"><label className="flabel">Balance (auto)</label><input className="finput" value={cementBalance} readOnly style={{background:"#f0fdf4",color:"#166534",fontWeight:700}}/></div>
+          </div>
+          <div className="fg"><label className="flabel">Usage Description</label><textarea className="finput" rows={2} value={cementUsedDesc} onChange={e=>setCementUsedDesc(e.target.value)} placeholder="Describe where cement was used…"/></div>
+        </SectionBlock>
+
+        <SectionBlock title="5. Concrete Consumption">
+          <div className="cement-row" style={{marginBottom:12}}>
+            <div className="fg"><label className="flabel">Theoretical Qty</label><input className="finput" type="number" value={concreteTh} onChange={e=>setConcreteTh(e.target.value)} placeholder="0"/></div>
+            <div className="fg"><label className="flabel">On-Site Consumption</label><input className="finput" type="number" value={concreteOn} onChange={e=>setConcreteOn(e.target.value)} placeholder="0"/></div>
+          </div>
+          <div className="fg"><label className="flabel">Description</label><textarea className="finput" rows={2} value={concreteDesc} onChange={e=>setConcreteDesc(e.target.value)} placeholder="Describe on-site concrete consumption…"/></div>
+        </SectionBlock>
+
+        <SectionBlock title="6. Material Received">
+          <MaterialSection list={material} setList={setMaterial}/>
+        </SectionBlock>
+
+        <SectionBlock title="7. Material Requirement">
+          <MaterialSection list={matReq} setList={setMatReq} showDesc label="Material"/>
+        </SectionBlock>
+
+        <SectionBlock title="8. Cube Test Results">
+          <textarea className="finput" rows={3} value={cube} onChange={e=>setCube(e.target.value)} placeholder="Enter cube test results…"/>
+        </SectionBlock>
+
+        <SectionBlock title="9. Site Visit &amp; Instructions">
+          <VisitorsSection visitors={visitors} setVisitors={setVisitors}/>
+        </SectionBlock>
+
+        <SectionBlock title="10. Additional Custom Fields">
+          <CustomFieldsSection fields={customFields} setFields={setCustomFields}/>
+        </SectionBlock>
+
+        <SectionBlock title="11. Work Progress Photos">
+          <div className="info-banner info-blue" style={{marginBottom:12}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Photos are required for Evening DPR. Each photo is uploaded to the <strong>dpr-photos</strong> bucket.
+          </div>
+          <PhotosSection photos={photos} setPhotos={setPhotos}/>
+        </SectionBlock>
+
+        <SectionBlock title="12. Tomorrow's Planning">
+          <textarea className="finput" rows={4} value={planning} onChange={e=>setPlanning(e.target.value)} placeholder="Plan for tomorrow's activities…"/>
+        </SectionBlock>
+      </>)}
+
+      <div className="act-row">
+        <button className="btn btn-out" onClick={handleSaveDraft} disabled={submitting}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+          Save Draft
+        </button>
+
+        {reportType === "morning" ? (
+          <button className="btn btn-whatsapp" onClick={handleWhatsApp} disabled={submitting}>
+            {submitting ? <><Spinner/> Saving…</> : <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+              </svg>
+              Send via WhatsApp
+            </>}
+          </button>
+        ) : (
+          <button className="btn btn-orange" onClick={handleEveningSubmit} disabled={submitting}>
+            {submitting ? <><Spinner/> Generating…</> : <>Generate Evening DPR</>}
+          </button>
+        )}
+      </div>
+
+      {submitting && reportType==="evening" && <SubmitOverlay currentStep={submitStep} detail={submitDetail}/>}
+
+      {toast && (
+        <div className={`dpr-toast ${toast.type==="ok"?"dpr-toast-ok":"dpr-toast-err"}`}>
+          {toast.type==="ok"
+            ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+            : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>}
+          {toast.msg}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function DPR({ user }) {
+  return (
+    <>
+      <style>{CSS}</style>
+      <div className="dpr-root">
+        <div className="dpr-inner">
+          <div className="dpr-card">
+            <DprForm user={user}/>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}

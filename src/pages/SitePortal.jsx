@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import Navbar from "../components/Navbar";
  import SiteReport from "./Sitereport";
  import { ClockInOut, CalendarView, CLOCK_CSS } from "./Clockinout.jsx";
+ import MyReports from "./MyReports";
+import DPR from "./Dpr.jsx";
 // ─── Supabase ────────────────────────────────────────────────────────────────
 // TODO: Replace with your project URL & anon key
 const SUPABASE_URL  = "https://efqfjfthsleymhljswcq.supabase.co";
@@ -238,7 +240,7 @@ const Ico = {
   report:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>,
   weekly:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 12h2l2-4 2 8 2-4h2"/></svg>,
   monthly: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>,
-  site:  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/><polyline points="9 9 10 9 11 9"/></svg>,
+  site:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
   myRpt:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
   send:    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>,
   plus:    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
@@ -723,6 +725,8 @@ function ApplyLeave({ user }) {
       </div>
 
       <div className="grid2">
+        <div className="fgroup col1">
+        </div>
         <div className="fgroup col2">
           <label className="flabel">Leave Type <span className="req">*</span></label>
           <select className="finput" value={form.leave_type} onChange={e=>set("leave_type",e.target.value)}>
@@ -770,88 +774,87 @@ function ApplyLeave({ user }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // DAILY REPORT
 // ═══════════════════════════════════════════════════════════════════════════════
-function DailyReport({ user }) {
-  const empty = { date:today(), site:user.site_name||"", weather:"", workers_count:"", work_done:"", materials_used:"", equipment_used:"", issues:"", next_day_plan:"", remarks:"" };
-  const [form, setForm] = useState(empty);
-  const [submitted, setSubmitted] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const set = (k,v) => setForm(p=>({...p,[k]:v}));
+// function DailyReport({ user }) {
+//   const empty = { date:today(), site:user.site_name||"", weather:"", workers_count:"", work_done:"", materials_used:"", equipment_used:"", issues:"", next_day_plan:"", remarks:"" };
+//   const [form, setForm] = useState(empty);
+//   const [submitted, setSubmitted] = useState(false);
+//   const [busy, setBusy] = useState(false);
+//   const [err, setErr] = useState("");
+//   const set = (k,v) => setForm(p=>({...p,[k]:v}));
 
-  const submit = async () => {
-    if (!form.site || !form.work_done) { setErr("Site name and Work Done are required."); return; }
-    setBusy(true); setErr("");
-    const { error } = await supabase.from("reports").insert({
-      user_id: user.id,
-      report_type: "daily",
-      date: form.date,
-      site: form.site,
-      status: "submitted",
-      data: form,
-    });
-    setBusy(false);
-    if (error) { setErr(error.message); return; }
-    setSubmitted(true);
-  };
+//   const submit = async () => {
+//     if (!form.site || !form.work_done) { setErr("Site name and Work Done are required."); return; }
+//     setBusy(true); setErr("");
+//     const { error } = await supabase.from("reports").insert({
+//       user_id: user.id,
+//       report_type: "daily",
+//       date: form.date,
+//       site: form.site,
+//       status: "submitted",
+//       data: form,
+//     });
+//     setBusy(false);
+//     if (error) { setErr(error.message); return; }
+//     setSubmitted(true);
+//   };
 
-  if (submitted) return (
-    <div className="success-state">
-      <div className="success-ico">{Ico.check}</div>
-      <div className="success-title">Daily Report Submitted!</div>
-      <div className="success-sub">Report saved successfully.</div>
-      <button className="btn btn-pri" onClick={()=>{setSubmitted(false);setForm(empty);}}>New Report</button>
-    </div>
-  );
+//   if (submitted) return (
+//     <div className="success-state">
+//       <div className="success-ico">{Ico.check}</div>
+//       <div className="success-title">Daily Report Submitted!</div>
+//       <div className="success-sub">Report saved successfully.</div>
+//       <button className="btn btn-pri" onClick={()=>{setSubmitted(false);setForm(empty);}}>New Report</button>
+//     </div>
+//   );
 
-  return (
-    <div>
-      {err && <div className="info-banner warn-banner" style={{marginBottom:16}}>{Ico.info} {err}</div>}
-      <div className="grid2">
-        <div className="fgroup">
-          <label className="flabel">Date <span className="req">*</span></label>
-          <input className="finput" type="date" value={form.date} onChange={e=>set("date",e.target.value)}/>
-        </div>
-        <div className="fgroup">
-          <label className="flabel">Site / Project <span className="req">*</span></label>
-          <input className="finput" placeholder="Site name…" value={form.site} onChange={e=>set("site",e.target.value)}/>
-        </div>
-        <div className="fgroup">
-          <label className="flabel">Weather</label>
-          <select className="finput" value={form.weather} onChange={e=>set("weather",e.target.value)}>
-            <option value="">Select…</option>
-            {["Clear","Cloudy","Rainy","Windy","Hot","Foggy"].map(w=><option key={w}>{w}</option>)}
-          </select>
-        </div>
-        <div className="fgroup">
-          <label className="flabel">Workers on Site</label>
-          <input className="finput" type="number" placeholder="Count…" value={form.workers_count} onChange={e=>set("workers_count",e.target.value)}/>
-        </div>
-        {[
-          {k:"work_done",      l:"Work Done Today",  ph:"Describe completed work activities…", req:true},
-          {k:"materials_used", l:"Materials Used",   ph:"List materials consumed today…"},
-          {k:"equipment_used", l:"Equipment Used",   ph:"Equipment deployed on site…"},
-          {k:"issues",         l:"Issues / Delays",  ph:"Any issues or delays encountered…"},
-          {k:"next_day_plan",  l:"Next Day Plan",    ph:"Planned activities for tomorrow…"},
-          {k:"remarks",        l:"Remarks",          ph:"Any additional remarks…"},
-        ].map(f=>(
-          <div key={f.k} className="fgroup col2">
-            <label className="flabel">{f.l} {f.req && <span className="req">*</span>}</label>
-            <textarea className="finput" rows={f.k==="remarks"?2:3} placeholder={f.ph} value={form[f.k]} onChange={e=>set(f.k,e.target.value)}/>
-          </div>
-        ))}
-      </div>
-      <div className="act-row">
-        <button className="btn btn-out" onClick={async()=>{
-          setBusy(true);
-          await supabase.from("reports").insert({ user_id:user.id, report_type:"daily", date:form.date, site:form.site, status:"draft", data:form });
-          setBusy(false);
-        }}>Save Draft</button>
-        <button className="btn btn-pri" onClick={submit} disabled={busy}>{Ico.send} {busy?"Submitting…":"Submit Report"}</button>
-      </div>
-    </div>
-  );
-}
-
+//   return (
+//     <div>
+//       {err && <div className="info-banner warn-banner" style={{marginBottom:16}}>{Ico.info} {err}</div>}
+//       <div className="grid2">
+//         <div className="fgroup">
+//           <label className="flabel">Date <span className="req">*</span></label>
+//           <input className="finput" type="date" value={form.date} onChange={e=>set("date",e.target.value)}/>
+//         </div>
+//         <div className="fgroup">
+//           <label className="flabel">Site / Project <span className="req">*</span></label>
+//           <input className="finput" placeholder="Site name…" value={form.site} onChange={e=>set("site",e.target.value)}/>
+//         </div>
+//         <div className="fgroup">
+//           <label className="flabel">Weather</label>
+//           <select className="finput" value={form.weather} onChange={e=>set("weather",e.target.value)}>
+//             <option value="">Select…</option>
+//             {["Clear","Cloudy","Rainy","Windy","Hot","Foggy"].map(w=><option key={w}>{w}</option>)}
+//           </select>
+//         </div>
+//         <div className="fgroup">
+//           <label className="flabel">Workers on Site</label>
+//           <input className="finput" type="number" placeholder="Count…" value={form.workers_count} onChange={e=>set("workers_count",e.target.value)}/>
+//         </div>
+//         {[
+//           {k:"work_done",      l:"Work Done Today",  ph:"Describe completed work activities…", req:true},
+//           {k:"materials_used", l:"Materials Used",   ph:"List materials consumed today…"},
+//           {k:"equipment_used", l:"Equipment Used",   ph:"Equipment deployed on site…"},
+//           {k:"issues",         l:"Issues / Delays",  ph:"Any issues or delays encountered…"},
+//           {k:"next_day_plan",  l:"Next Day Plan",    ph:"Planned activities for tomorrow…"},
+//           {k:"remarks",        l:"Remarks",          ph:"Any additional remarks…"},
+//         ].map(f=>(
+//           <div key={f.k} className="fgroup col2">
+//             <label className="flabel">{f.l} {f.req && <span className="req">*</span>}</label>
+//             <textarea className="finput" rows={f.k==="remarks"?2:3} placeholder={f.ph} value={form[f.k]} onChange={e=>set(f.k,e.target.value)}/>
+//           </div>
+//         ))}
+//       </div>
+//       <div className="act-row">
+//         <button className="btn btn-out" onClick={async()=>{
+//           setBusy(true);
+//           await supabase.from("reports").insert({ user_id:user.id, report_type:"daily", date:form.date, site:form.site, status:"draft", data:form });
+//           setBusy(false);
+//         }}>Save Draft</button>
+//         <button className="btn btn-pri" onClick={submit} disabled={busy}>{Ico.send} {busy?"Submitting…":"Submit Report"}</button>
+//       </div>
+//     </div>
+//   );
+// }
 // ═══════════════════════════════════════════════════════════════════════════════
 // WEEKLY REPORT
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -952,68 +955,68 @@ function MonthlyReport() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MY REPORTS
 // ═══════════════════════════════════════════════════════════════════════════════
-function MyReports({ user }) {
-  const [reports, setReports] = useState([]);
-  const [filter,  setFilter]  = useState("all");
-  const [month,   setMonth]   = useState(new Date().toISOString().slice(0,7));
-  const [loading, setLoading] = useState(true);
+// function MyReports({ user }) {
+//   const [reports, setReports] = useState([]);
+//   const [filter,  setFilter]  = useState("all");
+//   const [month,   setMonth]   = useState(new Date().toISOString().slice(0,7));
+//   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      let q = supabase.from("reports").select("*").eq("user_id", user.id).order("created_at",{ascending:false});
-      if (filter !== "all") q = q.eq("report_type", filter);
-      if (month) q = q.gte("date", month+"-01").lte("date", month+"-31");
-      const { data } = await q;
-      setReports(data || []);
-      setLoading(false);
-    })();
-  }, [user.id, filter, month]);
+//   useEffect(() => {
+//     (async () => {
+//       setLoading(true);
+//       let q = supabase.from("reports").select("*").eq("user_id", user.id).order("created_at",{ascending:false});
+//       if (filter !== "all") q = q.eq("report_type", filter);
+//       if (month) q = q.gte("date", month+"-01").lte("date", month+"-31");
+//       const { data } = await q;
+//       setReports(data || []);
+//       setLoading(false);
+//     })();
+//   }, [user.id, filter, month]);
 
-  const TYPE_BADGE = {
-    daily:   "badge-blue",
-    weekly:  "badge-amber",
-    monthly: "badge-green",
-  };
-  const TYPE_LABEL = { daily:"Daily Report", weekly:"Weekly Report", monthly:"Monthly Report" };
+//   const TYPE_BADGE = {
+//     daily:   "badge-blue",
+//     weekly:  "badge-amber",
+//     monthly: "badge-green",
+//   };
+//   const TYPE_LABEL = { daily:"Daily Report", weekly:"Weekly Report", monthly:"Monthly Report" };
 
-  return (
-    <div>
-      <div className="filter-row">
-        <select className="finput" style={{width:180}} value={filter} onChange={e=>setFilter(e.target.value)}>
-          <option value="all">All Types</option>
-          <option value="daily">Daily Report</option>
-          <option value="weekly">Weekly Report</option>
-          <option value="monthly">Monthly Report</option>
-        </select>
-        <input className="finput" type="month" style={{width:160}} value={month} onChange={e=>setMonth(e.target.value)}/>
-      </div>
-      {loading ? <Loading/> : reports.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-ico">{Ico.myRpt}</div>
-          <div className="empty-title">No reports found</div>
-          <div className="empty-sub">Submit a daily or weekly report to see it here.</div>
-        </div>
-      ) : (
-        <div className="rpt-list">
-          {reports.map(r=>(
-            <div key={r.id} className="rpt-item">
-              <span className={`badge ${TYPE_BADGE[r.report_type]||"badge-gray"}`}>{TYPE_LABEL[r.report_type]||r.report_type}</span>
-              <div className="rpt-item-info">
-                <div className="rpt-item-title">{r.site || "—"}</div>
-                <div className="rpt-item-meta">{fmtD(r.date)}</div>
-              </div>
-              <span className={`badge ${r.status==="submitted"?"badge-green":"badge-gray"}`}>
-                {r.status?.charAt(0).toUpperCase()+r.status?.slice(1)}
-              </span>
-              <button className="rpt-dl-btn" title="View/Download">{Ico.dl}</button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+//   return (
+//     <div>
+//       <div className="filter-row">
+//         <select className="finput" style={{width:180}} value={filter} onChange={e=>setFilter(e.target.value)}>
+//           <option value="all">All Types</option>
+//           <option value="daily">Daily Report</option>
+//           <option value="weekly">Weekly Report</option>
+//           <option value="monthly">Monthly Report</option>
+//         </select>
+//         <input className="finput" type="month" style={{width:160}} value={month} onChange={e=>setMonth(e.target.value)}/>
+//       </div>
+//       {loading ? <Loading/> : reports.length === 0 ? (
+//         <div className="empty-state">
+//           <div className="empty-ico">{Ico.myRpt}</div>
+//           <div className="empty-title">No reports found</div>
+//           <div className="empty-sub">Submit a daily or weekly report to see it here.</div>
+//         </div>
+//       ) : (
+//         <div className="rpt-list">
+//           {reports.map(r=>(
+//             <div key={r.id} className="rpt-item">
+//               <span className={`badge ${TYPE_BADGE[r.report_type]||"badge-gray"}`}>{TYPE_LABEL[r.report_type]||r.report_type}</span>
+//               <div className="rpt-item-info">
+//                 <div className="rpt-item-title">{r.site || "—"}</div>
+//                 <div className="rpt-item-meta">{fmtD(r.date)}</div>
+//               </div>
+//               <span className={`badge ${r.status==="submitted"?"badge-green":"badge-gray"}`}>
+//                 {r.status?.charAt(0).toUpperCase()+r.status?.slice(1)}
+//               </span>
+//               <button className="rpt-dl-btn" title="View/Download">{Ico.dl}</button>
+//             </div>
+//           ))}
+//         </div>
+//       )}
+//     </div>
+//   );
+// }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN APP
@@ -1049,11 +1052,11 @@ export default function SitePortal() {
       case "calendar":  return <CalendarView user={user} supabase={supabase} />;
       case "my-leave":       return <MyLeave user={user} onApply={()=>nav("apply-leave")}/>;
       case "apply-leave":    return <ApplyLeave user={user}/>;
-      case "daily-report":   return <DailyReport user={user}/>;
+      case "daily-report":   return <DPR user={user}/>;
       case "weekly-report":  return <WeeklyReport user={user}/>;
       case "monthly-report": return <MonthlyReport/>;
       case "site-report":    return <SiteReport user={user} />;
-      case "my-reports":     return <MyReports user={user}/>;
+      case "my-reports": return <MyReports user={user} />;
       default: return null;
     }
   }; 

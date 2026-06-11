@@ -1034,10 +1034,10 @@ const fetchMonth = useCallback(async () => {
   att.forEach(a => { attMap[a.date] = a; });
 
   // Determine cell class based on attendance data
-  const getCellClass = (rec) => {
-    if (!rec) return "";
-    if (rec.status === "leave")   return "leave-day";
-    if (rec.status === "absent")  return "absent-day";
+  const getCellClass = (rec, ds) => {
+    if (!rec) return isAbsent(ds) ? "absent-day" : "";
+    if (rec.status === "leave")         return "leave-day";
+    if (rec.status === "absent")        return "absent-day";
     if (rec.clock_in_status === "late") return "late-in";
     if (rec.clock_in && rec.clock_out)  return "on-time";
     if (rec.clock_in && !rec.clock_out) return "half-day";
@@ -1049,6 +1049,13 @@ const fetchMonth = useCallback(async () => {
   const todayStr    = new Date().toISOString().split("T")[0];
   const dateStr     = d => `${cur.y}-${pad(cur.m+1)}-${pad(d)}`;
   const cells       = [...Array(firstDay).fill(null), ...Array(daysInMonth).keys()].map((v,i) => i < firstDay ? null : v+1);
+  const isAbsent = (ds) => {
+  // Only mark past days (not today or future) that have no record and aren't weekends
+  if (ds >= todayStr) return false;               // today/future = not absent yet
+  const dayOfWeek = new Date(ds + "T00:00:00").getDay();
+  if (dayOfWeek === 0 || dayOfWeek === 6) return false; // skip Sunday(0) & Saturday(6)
+  return !attMap[ds];                              // no record = absent
+}
 
   const selRecord = attMap[sel];
 
@@ -1059,7 +1066,13 @@ const fetchMonth = useCallback(async () => {
     else if (a.status === "absent")  counts.absent++;
     else if (a.status === "leave")   counts.leave++;
   });
-
+  // Count auto-detected absent days (past weekdays with no record)
+  const firstDayOfMonth = `${cur.y}-${pad(cur.m+1)}-01`;
+  const lastDayOfMonth  = `${cur.y}-${pad(cur.m+1)}-${pad(new Date(cur.y, cur.m+1, 0).getDate())}`;
+  Array.from({ length: new Date(cur.y, cur.m+1, 0).getDate() }, (_, i) => {
+    const ds = `${cur.y}-${pad(cur.m+1)}-${pad(i+1)}`;
+    if (isAbsent(ds)) counts.absent++;
+  });
   const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit", hour12:true }) : "—";
 
   return (
@@ -1097,7 +1110,7 @@ const fetchMonth = useCallback(async () => {
             if (!d) return <div key={`e${i}`} className="cal-cell emp"/>;
             const ds  = dateStr(d);
             const rec = attMap[ds];
-            const cls = getCellClass(rec);
+            const cls = getCellClass(rec, ds);
             const isToday = ds === todayStr;
             const isSel   = ds === sel;
             return (
@@ -1105,7 +1118,7 @@ const fetchMonth = useCallback(async () => {
                 key={ds}
                 className={`cal-cell${isToday ? " today" : ""}${isSel ? " sel" : ""}${cls ? " " + cls : ""}`}
                 onClick={() => setSel(ds)}
-                title={rec ? `${rec.status}${rec.clock_in_status ? " · " + rec.clock_in_status : ""}` : ""}
+                title={rec ? `${rec.status}${rec.clock_in_status ? " · " + rec.clock_in_status : ""}` : isAbsent(ds) ? "Absent" : ""}
               >
                 <div className="cal-dn">{d}</div>
                 {rec && (

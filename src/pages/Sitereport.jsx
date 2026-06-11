@@ -333,11 +333,8 @@ const handleSubmit = async () => {
       <style>{`
         .svr-root { display: flex; flex-direction: column; gap: 14px; }
         .svr-section { border: 1px solid #e8edf3; border-radius: 10px; overflow: hidden; }
-        .svr-sec-header { width: 100%; display: flex; align-items: center; gap: 12px;
-          background: linear-gradient(135deg, #3d1200, #581d03);
-          color: #fff; padding: 13px 16px; cursor: pointer; border: none;
-          font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
-          letter-spacing: .2px; text-align: left; transition: filter .15s; }
+
+        .svr-sec-header{ width:100%;display:flex;align-items:center;gap:12px; background:linear-gradient(#fff,#fff) padding-box,linear-gradient(135deg,#6b2d0f,#c8641a) border-box;border:2px solid transparent;border-radius:12px;color:#6b2d0f;padding:13px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;letter-spacing:.2px;text-align:left;transition:.15s;}
         .svr-sec-header:hover { filter: brightness(1.1); }
         .svr-sec-num { background: rgba(255,255,255,.18); width: 24px; height: 24px;
           border-radius: 6px; display: flex; align-items: center; justify-content: center;

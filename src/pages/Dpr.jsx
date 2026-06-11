@@ -89,7 +89,7 @@ border:2px solid transparent;border-radius:12px;color:#6b2d0f;cursor:pointer;fon
 }
 .sec-collapser .chevron { transition:transform .2s; }
 .sec-collapser .chevron.open { transform:rotate(180deg); }
-.sec-body { padding:16px; background: linear-gradient(
+.sec-body { padding:16px 0px 16px 0px; background: linear-gradient(
     to bottom,
     #ffffff,
     

@@ -76,6 +76,10 @@ export const CLOCK_CSS = `
 .cal-dn{font-size:11.5px;font-weight:700;color:var(--ink);line-height:1;}
 .att-dot-row{display:flex;gap:2px;margin-top:3px;flex-wrap:wrap;justify-content:center;}
 .att-dot{width:6px;height:6px;border-radius:50%;}
+.cal-cell.leave-day.today,
+.cal-cell.leave-day.sel {background: #f5f3ff !important;border-color: #c4b5fd !important;}
+.cal-cell.leave-day.today .cal-dn,
+.cal-cell.leave-day.sel .cal-dn {color: #6d28d9 !important;}
 
 /* Clock panel tweaks */
 .clock-panel{padding:24px 12px;}
@@ -1002,44 +1006,292 @@ const { data, error } = await supabase.from("attendance").insert({
 // ═══════════════════════════════════════════════════════════════════════════════
 // CALENDAR VIEW (enhanced with colour coding)
 // ═══════════════════════════════════════════════════════════════════════════════
+// export function CalendarView({ user, supabase }) {
+//   const t = new Date();
+//   const [cur, setCur]  = useState({ y: t.getFullYear(), m: t.getMonth() });
+//   const [sel, setSel]  = useState(new Date().toISOString().split("T")[0]);
+//   const [att, setAtt]  = useState([]);
+//   const [loading, setLoading] = useState(true);
+
+//   const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+//   const WDAYS  = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+//   const pad    = n => String(n).padStart(2,"0");
+
+// // ── CalendarView: fetchMonth ─────────────────────────────
+// const fetchMonth = useCallback(async () => {
+//   setLoading(true);
+//   const from = `${cur.y}-${pad(cur.m+1)}-01`;
+//   const lastDay = new Date(cur.y, cur.m+1, 0).getDate();
+//   const to = `${cur.y}-${pad(cur.m+1)}-${pad(lastDay)}`;
+
+//   const { data } = await supabase
+//     .from("attendance")
+//     .select("*")
+//     .eq("user_name", user.user_name)   // ← was user.id
+//     .gte("date", from)
+//     .lte("date", to);
+
+//   setAtt(data || []);
+//   setLoading(false);
+// }, [cur, user.user_name, supabase]);   // ← dependency updated too
+
+//   useEffect(() => { fetchMonth(); }, [fetchMonth]);
+
+//   const attMap = {};
+//   att.forEach(a => { attMap[a.date] = a; });
+
+//   // Determine cell class based on attendance data
+//   const getCellClass = (rec, ds) => {
+//     if (!rec) return isAbsent(ds) ? "absent-day" : "";
+//     if (rec.status === "leave")         return "leave-day";
+//     if (rec.status === "absent")        return "absent-day";
+//     if (rec.clock_in_status === "late") return "late-in";
+//     if (rec.clock_in && rec.clock_out)  return "on-time";
+//     if (rec.clock_in && !rec.clock_out) return "half-day";
+//     return "";
+//   };
+
+//   const firstDay    = new Date(cur.y, cur.m, 1).getDay();
+//   const daysInMonth = new Date(cur.y, cur.m+1, 0).getDate();
+//   const todayStr    = new Date().toISOString().split("T")[0];
+//   const dateStr     = d => `${cur.y}-${pad(cur.m+1)}-${pad(d)}`;
+//   const cells       = [...Array(firstDay).fill(null), ...Array(daysInMonth).keys()].map((v,i) => i < firstDay ? null : v+1);
+//   const isAbsent = (ds) => {
+//   // Only mark past days (not today or future) that have no record and aren't weekends
+//   if (ds >= todayStr) return false;               // today/future = not absent yet
+//   const dayOfWeek = new Date(ds + "T00:00:00").getDay();
+//   //if (dayOfWeek === 0 || dayOfWeek === 6) return false; // skip Sunday(0) & Saturday(6)
+//   return !attMap[ds];                              // no record = absent
+// }
+
+//   const selRecord = attMap[sel];
+
+//   const counts = { present:0, late:0, absent:0, leave:0 };
+//   att.forEach(a => {
+//     if (a.status === "present" && a.clock_in_status === "late") counts.late++;
+//     else if (a.status === "present") counts.present++;
+//     else if (a.status === "absent")  counts.absent++;
+//     else if (a.status === "leave")   counts.leave++;
+//   });
+//   // Count auto-detected absent days (past weekdays with no record)
+//   const firstDayOfMonth = `${cur.y}-${pad(cur.m+1)}-01`;
+//   const lastDayOfMonth  = `${cur.y}-${pad(cur.m+1)}-${pad(new Date(cur.y, cur.m+1, 0).getDate())}`;
+//   Array.from({ length: new Date(cur.y, cur.m+1, 0).getDate() }, (_, i) => {
+//     const ds = `${cur.y}-${pad(cur.m+1)}-${pad(i+1)}`;
+//     if (isAbsent(ds)) counts.absent++;
+//   });
+//   const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit", hour12:true }) : "—";
+
+//   return (
+//     <div>
+//       {/* Stats */}
+//       <div className="stat-row" style={{ gridTemplateColumns:"repeat(4,1fr)" }}>
+//         {[
+//           ["On Time", counts.present, "#16a34a"],
+//           ["Late",    counts.late,    "#d97706"],
+//           ["Absent",  counts.absent,  "#dc2626"],
+//           ["Leave",   counts.leave,   "#7c3aed"],
+//         ].map(([l,v,c]) => (
+//           <div key={l} className="stat-card">
+//             <div className="stat-val" style={{ color:c }}>{v}</div>
+//             <div className="stat-lbl">{l}</div>
+//           </div>
+//         ))}
+//       </div>
+
+//       {/* Month nav */}
+//       <div className="cal-nav">
+//         <button className="cal-nav-btn" onClick={() => setCur(p => p.m===0 ? {y:p.y-1,m:11} : {y:p.y,m:p.m-1})}>
+//           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+//         </button>
+//         <div className="cal-nav-title">{MONTHS[cur.m]} {cur.y}</div>
+//         <button className="cal-nav-btn" onClick={() => setCur(p => p.m===11 ? {y:p.y+1,m:0} : {y:p.y,m:p.m+1})}>
+//           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+//         </button>
+//       </div>
+
+//       {loading ? <div className="loading"><div className="spinner"/></div> : (
+//         <div className="cal-grid">
+//           {WDAYS.map(d => <div key={d} className="cal-dh">{d}</div>)}
+//           {cells.map((d, i) => {
+//             if (!d) return <div key={`e${i}`} className="cal-cell emp"/>;
+//             const ds  = dateStr(d);
+//             const rec = attMap[ds];
+//             const cls = getCellClass(rec, ds);
+//             const isToday = ds === todayStr;
+//             const isSel   = ds === sel;
+//             return (
+//               <div
+//                 key={ds}
+//                 className={`cal-cell${isToday ? " today" : ""}${isSel ? " sel" : ""}${cls ? " " + cls : ""}`}
+//                 onClick={() => setSel(ds)}
+//                 title={rec ? `${rec.status}${rec.clock_in_status ? " · " + rec.clock_in_status : ""}` : isAbsent(ds) ? "Absent" : ""}
+//               >
+//                 <div className="cal-dn">{d}</div>
+//                 {rec && (
+//                   <div className="att-dot-row">
+//                     {rec.clock_in  && <div className="att-dot" style={{ background: rec.clock_in_status === "late" ? "#d97706" : "#16a34a" }}/>}
+//                     {rec.clock_out && <div className="att-dot" style={{ background: rec.clock_out_status === "early" ? "#f59e0b" : rec.clock_out_status === "overtime" ? "#2563eb" : "#16a34a" }}/>}
+//                   </div>
+//                 )}
+//               </div>
+//             );
+//           })}
+//         </div>
+//       )}
+
+//       {/* Legend */}
+//       <div className="cal-legend">
+//         {[
+//           ["On Time",  "#16a34a", "on-time"],
+//           ["Late In",  "#d97706", "late-in"],
+//           ["Absent",   "#dc2626", "absent-day"],
+//           ["Leave",    "#7c3aed", "leave-day"],
+//           ["Partial",  "#f59e0b", "half-day"],
+//         ].map(([l,c]) => (
+//           <div key={l} className="cal-leg-item">
+//             <div className="cal-leg-dot" style={{ background:c }}/>
+//             {l}
+//           </div>
+//         ))}
+//       </div>
+
+//       {/* Selected day detail */}
+//       <div className="att-summary">
+//         <div className="att-sum-title">
+//           {new Date(sel + "T00:00:00").toLocaleDateString("en-IN", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
+//         </div>
+//         <div className="att-sum-info">
+//           {leaveMap[sel] ? (
+//             // ← NEW: show leave details
+//             <>
+//               <span>Status: <strong style={{ color: "#7c3aed" }}>On Leave</strong></span>
+//               <span>Type: <strong>{leaveMap[sel].leave_type || "—"}</strong></span>
+//               <span>Period: <strong>
+//                 {new Date(leaveMap[sel].from_date + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short" })}
+//                 {" – "}
+//                 {new Date(leaveMap[sel].to_date + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short" })}
+//               </strong></span>
+//               {leaveMap[sel].reason && (
+//                 <span>Reason: <strong>{leaveMap[sel].reason}</strong></span>
+//               )}
+//             </>
+//           ) : !selRecord ? (
+//             <span style={{ color:"var(--ink3)" }}>No attendance record.</span>
+//           ) : (
+//             <>
+//               <span>Status: <strong style={{ color: selRecord.status === "present" ? "#16a34a" : "#dc2626" }}>
+//                 {selRecord.status?.charAt(0).toUpperCase() + selRecord.status?.slice(1)}
+//               </strong></span>
+//               <span>Clock In: <strong>{fmtTime(selRecord.clock_in)}</strong>
+//                 {selRecord.clock_in_status && (
+//                   <span className={`punch-status punch-${selRecord.clock_in_status}`} style={{ marginLeft:8, fontSize:10 }}>
+//                     {selRecord.clock_in_status === "late" ? "Late" : "On Time"}
+//                   </span>
+//                 )}
+//               </span>
+//               <span>Clock Out: <strong>{fmtTime(selRecord.clock_out)}</strong>
+//                 {selRecord.clock_out_status && (
+//                   <span className={`punch-status punch-${selRecord.clock_out_status}`} style={{ marginLeft:8, fontSize:10 }}>
+//                     {selRecord.clock_out_status}
+//                   </span>
+//                 )}
+//               </span>
+//               {selRecord.clock_in_location && (
+//                 <span style={{ fontSize:11.5, color:"var(--ink3)" }}>
+//                   📍 In: {selRecord.clock_in_location}
+//                 </span>
+//               )}
+//               {selRecord.clock_out_location && (
+//                 <span style={{ fontSize:11.5, color:"var(--ink3)" }}>
+//                   📍 Out: {selRecord.clock_out_location}
+//                 </span>
+//               )}
+//             </>
+//           )}
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
 export function CalendarView({ user, supabase }) {
   const t = new Date();
   const [cur, setCur]  = useState({ y: t.getFullYear(), m: t.getMonth() });
   const [sel, setSel]  = useState(new Date().toISOString().split("T")[0]);
   const [att, setAtt]  = useState([]);
+  const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const WDAYS  = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const pad    = n => String(n).padStart(2,"0");
 
-// ── CalendarView: fetchMonth ─────────────────────────────
-const fetchMonth = useCallback(async () => {
-  setLoading(true);
-  const from = `${cur.y}-${pad(cur.m+1)}-01`;
-  const lastDay = new Date(cur.y, cur.m+1, 0).getDate();
-  const to = `${cur.y}-${pad(cur.m+1)}-${pad(lastDay)}`;
+  const fetchMonth = useCallback(async () => {
+    setLoading(true);
+    const from = `${cur.y}-${pad(cur.m+1)}-01`;
+    const lastDay = new Date(cur.y, cur.m+1, 0).getDate();
+    const to = `${cur.y}-${pad(cur.m+1)}-${pad(lastDay)}`;
 
-  const { data } = await supabase
-    .from("attendance")
+    const { data: attData } = await supabase
+      .from("attendance")
+      .select("*")
+      .eq("user_name", user.user_name)
+      .gte("date", from)
+      .lte("date", to);
+
+   const { data: leaveData } = await supabase
+    .from("leaves")
     .select("*")
-    .eq("user_name", user.user_name)   // ← was user.id
-    .gte("date", from)
-    .lte("date", to);
+    .eq("user_name", user.user_name)
+    .in("status", ["approved", "Approved"])   // ← handles both
+    .lte("from_date", to)
+    .gte("to_date", from);
 
-  setAtt(data || []);
-  setLoading(false);
-}, [cur, user.user_name, supabase]);   // ← dependency updated too
+    setAtt(attData || []);
+    setLeaves(leaveData || []);
+    setLoading(false);
+  }, [cur, user.user_name, supabase]);
 
   useEffect(() => { fetchMonth(); }, [fetchMonth]);
 
   const attMap = {};
   att.forEach(a => { attMap[a.date] = a; });
 
-  // Determine cell class based on attendance data
+const leaveMap = {};
+leaves.forEach(lv => {
+  // Parse date parts directly to avoid timezone shifts
+  const [sy, sm, sd] = lv.from_date.split("-").map(Number);
+  const [ey, em, ed] = lv.to_date.split("-").map(Number);
+  
+  const start = new Date(sy, sm - 1, sd); // local midnight, no timezone issue
+  const end   = new Date(ey, em - 1, ed);
+  
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    // Format as YYYY-MM-DD using local date parts, not UTC
+    const ds = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    leaveMap[ds] = lv;
+  }
+});
+
+  const selRecord = attMap[sel];
+
+  const firstDay    = new Date(cur.y, cur.m, 1).getDay();
+  const daysInMonth = new Date(cur.y, cur.m+1, 0).getDate();
+  const todayStr    = new Date().toISOString().split("T")[0];
+  const dateStr     = d => `${cur.y}-${pad(cur.m+1)}-${pad(d)}`;
+  const cells       = [...Array(firstDay).fill(null), ...Array(daysInMonth).keys()].map((v,i) => i < firstDay ? null : v+1);
+
+  const isAbsent = (ds) => {
+    if (ds >= todayStr) return false;
+    const dayOfWeek = new Date(ds + "T00:00:00").getDay();
+    if (leaveMap[ds]) return false;
+    return !attMap[ds];
+  };
+
   const getCellClass = (rec, ds) => {
-    if (!rec) return isAbsent(ds) ? "absent-day" : "";
-    if (rec.status === "leave")         return "leave-day";
+    if (leaveMap[ds])                   return "leave-day";
+    if (!rec)                           return isAbsent(ds) ? "absent-day" : "";
     if (rec.status === "absent")        return "absent-day";
     if (rec.clock_in_status === "late") return "late-in";
     if (rec.clock_in && rec.clock_out)  return "on-time";
@@ -1047,36 +1299,25 @@ const fetchMonth = useCallback(async () => {
     return "";
   };
 
-  const firstDay    = new Date(cur.y, cur.m, 1).getDay();
-  const daysInMonth = new Date(cur.y, cur.m+1, 0).getDate();
-  const todayStr    = new Date().toISOString().split("T")[0];
-  const dateStr     = d => `${cur.y}-${pad(cur.m+1)}-${pad(d)}`;
-  const cells       = [...Array(firstDay).fill(null), ...Array(daysInMonth).keys()].map((v,i) => i < firstDay ? null : v+1);
-  const isAbsent = (ds) => {
-  // Only mark past days (not today or future) that have no record and aren't weekends
-  if (ds >= todayStr) return false;               // today/future = not absent yet
-  const dayOfWeek = new Date(ds + "T00:00:00").getDay();
-  //if (dayOfWeek === 0 || dayOfWeek === 6) return false; // skip Sunday(0) & Saturday(6)
-  return !attMap[ds];                              // no record = absent
-}
-
-  const selRecord = attMap[sel];
-
-  const counts = { present:0, late:0, absent:0, leave:0 };
+  const counts = { present: 0, late: 0, absent: 0, leave: 0 };
   att.forEach(a => {
-    if (a.status === "present" && a.clock_in_status === "late") counts.late++;
-    else if (a.status === "present") counts.present++;
-    else if (a.status === "absent")  counts.absent++;
-    else if (a.status === "leave")   counts.leave++;
+    if (a.clock_in_status === "late") counts.late++;
+    else if (a.status === "present")  counts.present++;
+    else if (a.status === "absent")   counts.absent++;
   });
-  // Count auto-detected absent days (past weekdays with no record)
-  const firstDayOfMonth = `${cur.y}-${pad(cur.m+1)}-01`;
-  const lastDayOfMonth  = `${cur.y}-${pad(cur.m+1)}-${pad(new Date(cur.y, cur.m+1, 0).getDate())}`;
+  counts.leave = Object.keys(leaveMap).filter(ds => {
+    const from = `${cur.y}-${pad(cur.m+1)}-01`;
+    const to   = `${cur.y}-${pad(cur.m+1)}-${pad(new Date(cur.y, cur.m+1, 0).getDate())}`;
+    return ds >= from && ds <= to;
+  }).length;
   Array.from({ length: new Date(cur.y, cur.m+1, 0).getDate() }, (_, i) => {
     const ds = `${cur.y}-${pad(cur.m+1)}-${pad(i+1)}`;
     if (isAbsent(ds)) counts.absent++;
   });
-  const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit", hour12:true }) : "—";
+
+  const fmtTime = iso => iso
+    ? new Date(iso).toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit", hour12:true })
+    : "—";
 
   return (
     <div>
@@ -1098,11 +1339,15 @@ const fetchMonth = useCallback(async () => {
       {/* Month nav */}
       <div className="cal-nav">
         <button className="cal-nav-btn" onClick={() => setCur(p => p.m===0 ? {y:p.y-1,m:11} : {y:p.y,m:p.m-1})}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
         </button>
         <div className="cal-nav-title">{MONTHS[cur.m]} {cur.y}</div>
         <button className="cal-nav-btn" onClick={() => setCur(p => p.m===11 ? {y:p.y+1,m:0} : {y:p.y,m:p.m+1})}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
         </button>
       </div>
 
@@ -1111,9 +1356,9 @@ const fetchMonth = useCallback(async () => {
           {WDAYS.map(d => <div key={d} className="cal-dh">{d}</div>)}
           {cells.map((d, i) => {
             if (!d) return <div key={`e${i}`} className="cal-cell emp"/>;
-            const ds  = dateStr(d);
-            const rec = attMap[ds];
-            const cls = getCellClass(rec, ds);
+            const ds     = dateStr(d);
+            const rec    = attMap[ds];
+            const cls    = getCellClass(rec, ds);
             const isToday = ds === todayStr;
             const isSel   = ds === sel;
             return (
@@ -1121,10 +1366,19 @@ const fetchMonth = useCallback(async () => {
                 key={ds}
                 className={`cal-cell${isToday ? " today" : ""}${isSel ? " sel" : ""}${cls ? " " + cls : ""}`}
                 onClick={() => setSel(ds)}
-                title={rec ? `${rec.status}${rec.clock_in_status ? " · " + rec.clock_in_status : ""}` : isAbsent(ds) ? "Absent" : ""}
+                title={
+                  leaveMap[ds] ? `On Leave · ${leaveMap[ds].leave_type || ""}` :
+                  rec ? `${rec.status}${rec.clock_in_status ? " · " + rec.clock_in_status : ""}` :
+                  isAbsent(ds) ? "Absent" : ""
+                }
               >
                 <div className="cal-dn">{d}</div>
-                {rec && (
+                {leaveMap[ds] && (
+                  <div className="att-dot-row">
+                    <div className="att-dot" style={{ background: "#7c3aed" }}/>
+                  </div>
+                )}
+                {!leaveMap[ds] && rec && (
                   <div className="att-dot-row">
                     {rec.clock_in  && <div className="att-dot" style={{ background: rec.clock_in_status === "late" ? "#d97706" : "#16a34a" }}/>}
                     {rec.clock_out && <div className="att-dot" style={{ background: rec.clock_out_status === "early" ? "#f59e0b" : rec.clock_out_status === "overtime" ? "#2563eb" : "#16a34a" }}/>}
@@ -1139,11 +1393,11 @@ const fetchMonth = useCallback(async () => {
       {/* Legend */}
       <div className="cal-legend">
         {[
-          ["On Time",  "#16a34a", "on-time"],
-          ["Late In",  "#d97706", "late-in"],
-          ["Absent",   "#dc2626", "absent-day"],
-          ["Leave",    "#7c3aed", "leave-day"],
-          ["Partial",  "#f59e0b", "half-day"],
+          ["On Time", "#16a34a"],
+          ["Late In", "#d97706"],
+          ["Absent",  "#dc2626"],
+          ["Leave",   "#7c3aed"],
+          ["Partial", "#f59e0b"],
         ].map(([l,c]) => (
           <div key={l} className="cal-leg-item">
             <div className="cal-leg-dot" style={{ background:c }}/>
@@ -1155,10 +1409,25 @@ const fetchMonth = useCallback(async () => {
       {/* Selected day detail */}
       <div className="att-summary">
         <div className="att-sum-title">
-          {new Date(sel + "T00:00:00").toLocaleDateString("en-IN", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
+          {new Date(sel + "T00:00:00").toLocaleDateString("en-IN", {
+            weekday:"long", day:"numeric", month:"long", year:"numeric"
+          })}
         </div>
         <div className="att-sum-info">
-          {!selRecord ? (
+          {leaveMap[sel] ? (
+            <>
+              <span>Status: <strong style={{ color:"#7c3aed" }}>On Leave</strong></span>
+              <span>Type: <strong>{leaveMap[sel].leave_type || "—"}</strong></span>
+              <span>Period: <strong>
+                {new Date(leaveMap[sel].from_date + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short" })}
+                {" – "}
+                {new Date(leaveMap[sel].to_date + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short" })}
+              </strong></span>
+              {leaveMap[sel].reason && (
+                <span>Reason: <strong>{leaveMap[sel].reason}</strong></span>
+              )}
+            </>
+          ) : !selRecord ? (
             <span style={{ color:"var(--ink3)" }}>No attendance record.</span>
           ) : (
             <>

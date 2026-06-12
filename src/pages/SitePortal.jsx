@@ -5,6 +5,8 @@ import Navbar from "../components/Navbar";
  import { ClockInOut, CalendarView, CLOCK_CSS } from "./Clockinout.jsx";
  import MyReports from "./MyReports";
 import DPR from "./Dpr.jsx";
+import ManpowerReport from "./Manpowerreport.jsx";
+import Profile from "./Profile";
 // ─── Supabase ────────────────────────────────────────────────────────────────
 // TODO: Replace with your project URL & anon key
 const SUPABASE_URL  = "https://efqfjfthsleymhljswcq.supabase.co";
@@ -22,37 +24,348 @@ const WDAYS  = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
 const LEAVE_TYPES = ["Casual Leave","Sick Leave","Earned Leave","Maternity Leave","Paternity Leave","Compensatory Leave","Unpaid Leave"];
 const DARK_CSS = `
-[data-theme="dark"]{
-  --ink:#f0ede8;--ink2:#b5afa6;--ink3:#6e6860;
-  --paper:#1a1916;--surface:#141311;
-  --line:#2a2724;--line2:#353229;
-  --amber:#f59e0b;--amber2:#fbbf24;
-  --amber-bg:#1c1505;--amber-line:#451a03;
-  --red:#f87171;--green:#4ade80;--blue:#60a5fa;
+[data-theme="dark"] {
+  --ink:#f0ede8;
+  --ink2:#c4bdb4;
+  --ink3:#7a7368;
+  --paper:#1e1c19;
+  --surface:#252320;
+  --line:#2e2b27;
+  --line2:#3a3733;
+  --amber:#f59e0b;
+  --amber2:#fbbf24;
+  --amber-bg:#2a1f08;
+  --amber-line:#4a3210;
+  --red:#f87171;
+  --green:#4ade80;
+  --blue:#60a5fa;
+  --shadow:0 2px 16px rgba(0,0,0,.3);
 }
-[data-theme="dark"] body,
-[data-theme="dark"] #root{background:#0e0d0b;}
-[data-theme="dark"] .tb{background:#0a0906;}
-[data-theme="dark"] .tbl tr:hover td{background:#1e1c18;}
-[data-theme="dark"] .stat-card{background:#1a1916;}
-[data-theme="dark"] .clock-status{background:#1a1916;}
-[data-theme="dark"] .att-summary{background:#1a1916;}
-[data-theme="dark"] .lv-item{background:#1a1916;}
-[data-theme="dark"] .info-banner{background:#0c1d38;border-color:#1e3a5f;color:#60a5fa;}
-[data-theme="dark"] .warn-banner{background:#1c1505;border-color:#451a03;color:#fbbf24;}
 
-.theme-toggle-row{display:flex;align-items:center;justify-content:space-between;
-  padding:10px 12px;border-radius:10px;border:1px solid var(--line);
-  background:var(--paper);transition:all .2s;cursor:pointer;}
-.theme-toggle-row:hover{background:var(--amber-bg);}
-.theme-toggle-label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink2);}
-.toggle-pill{width:40px;height:22px;border-radius:11px;background:var(--line2);
-  border:none;cursor:pointer;position:relative;transition:background .25s;flex-shrink:0;}
-.toggle-pill.on{background:var(--amber);}
-.toggle-dot{width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;
-  top:3px;left:3px;transition:transform .25s;box-shadow:0 1px 3px rgba(0,0,0,.25);}
-.toggle-pill.on .toggle-dot{transform:translateX(18px);}
-.sb-bottom{padding:10px;border-top:1px solid var(--line);margin-top:auto;}
+[data-theme="dark"] {.card-title{font-size:15px;font-weight:800;color:white;}}
+
+[data-theme="dark"] body,
+[data-theme="dark"] #root {
+  background:#141210;
+  color:#f0ede8;
+}
+
+[data-theme="dark"] .tb {
+  background:#0f0e0c;
+  box-shadow:0 2px 0 rgba(255,255,255,.04);
+}
+
+[data-theme="dark"] .sidebar {
+  background:#1a1815;
+  border-color:#2e2b27;
+}
+
+[data-theme="dark"] .card {
+  background:#1e1c19;
+  border-color:#2e2b27;
+}
+
+[data-theme="dark"] .card-hdr {
+  border-color:#2e2b27;
+}
+
+[data-theme="dark"] .card-ico {
+  background:#2a1f08;
+  color:#fbbf24;
+}
+
+[data-theme="dark"] .finput {
+  background:#252320;
+  border-color:#3a3733;
+  color:#f0ede8;
+}
+
+[data-theme="dark"] .finput:focus {
+  background:#2e2b27;
+  border-color:#f59e0b;
+}
+
+[data-theme="dark"] .sni {
+  color:#c4bdb4;
+}
+
+[data-theme="dark"] .sni:hover {
+  background:#252320;
+  color:#f0ede8;
+}
+
+[data-theme="dark"] .sni.act {
+  background:#2a1f08;
+  color:#fbbf24;
+}
+
+[data-theme="dark"] .sni.act svg {
+  stroke:#fbbf24;
+}
+
+[data-theme="dark"] .stat-card {
+  background:#252320;
+  border-color:#2e2b27;
+}
+
+[data-theme="dark"] .stat-lbl {
+  color:#7a7368;
+}
+
+[data-theme="dark"] .tbl th {
+  background:#1a1815;
+  color:#c4bdb4;
+  border-color:#2e2b27;
+}
+
+[data-theme="dark"] .tbl td {
+  border-color:#2e2b27;
+  color:#c4bdb4;
+}
+
+[data-theme="dark"] .tbl tr:hover td {
+  background:#252320;
+}
+
+[data-theme="dark"] .tbl-wrap {
+  border-color:#2e2b27;
+}
+
+[data-theme="dark"] .badge-green {
+  background:#052e16;
+  color:#4ade80;
+  border-color:#166534;
+}
+
+[data-theme="dark"] .badge-amber {
+  background:#2a1f08;
+  color:#fbbf24;
+  border-color:#4a3210;
+}
+
+[data-theme="dark"] .badge-red {
+  background:#2d0a0a;
+  color:#f87171;
+  border-color:#7f1d1d;
+}
+
+[data-theme="dark"] .badge-blue {
+  background:#0c1d38;
+  color:#60a5fa;
+  border-color:#1e3a5f;
+}
+
+[data-theme="dark"] .badge-gray {
+  background:#252320;
+  color:#c4bdb4;
+  border-color:#3a3733;
+}
+
+[data-theme="dark"] .info-banner {
+  background:#0c1d38;
+  border-color:#1e3a5f;
+  color:#60a5fa;
+}
+
+[data-theme="dark"] .warn-banner {
+  background:#2a1f08;
+  border-color:#4a3210;
+  color:#fbbf24;
+}
+
+[data-theme="dark"] .btn-out {
+  background:#252320;
+  color:#c4bdb4;
+  border-color:#3a3733;
+}
+
+[data-theme="dark"] .btn-out:hover {
+  background:#2e2b27;
+}
+
+[data-theme="dark"] .btn-red {
+  background:#2d0a0a;
+  color:#f87171;
+  border-color:#7f1d1d;
+}
+
+[data-theme="dark"] .btn-green {
+  background:#052e16;
+  color:#4ade80;
+  border-color:#166534;
+}
+
+[data-theme="dark"] .lv-item {
+  background:#252320;
+  border-color:#2e2b27;
+}
+
+[data-theme="dark"] .lv-type {
+  color:#f0ede8;
+}
+
+[data-theme="dark"] .lv-dates,
+[data-theme="dark"] .lv-reason {
+  color:#7a7368;
+}
+
+[data-theme="dark"] .clock-status {
+  background:#252320;
+  border-color:#2e2b27;
+  color:#c4bdb4;
+}
+
+[data-theme="dark"] .clock-status strong {
+  color:#f0ede8;
+}
+
+[data-theme="dark"] .clock-row {
+  background:#252320;
+  border-color:#2e2b27;
+}
+
+[data-theme="dark"] .clock-row-date,
+[data-theme="dark"] .clock-row-times {
+  color:#c4bdb4;
+}
+
+[data-theme="dark"] .att-summary {
+  background:#252320;
+  border-color:#2e2b27;
+}
+
+[data-theme="dark"] .att-sum-title {
+  color:#f0ede8;
+}
+
+[data-theme="dark"] .cal-cell:not(.emp):hover {
+  background:#252320;
+  border-color:#3a3733;
+}
+
+[data-theme="dark"] .cal-cell.today {
+  background:#2a1f08;
+  border-color:#f59e0b;
+}
+
+[data-theme="dark"] .cal-cell.sel {
+  background:#3a3733;
+  border-color:#c4bdb4;
+}
+
+[data-theme="dark"] .cal-cell.sel .cal-dn {
+  color:#f0ede8;
+}
+
+[data-theme="dark"] .cal-dh {
+  color:#7a7368;
+}
+
+[data-theme="dark"] .cal-dn {
+  color:#c4bdb4;
+}
+
+[data-theme="dark"] .cal-cell.today .cal-dn {
+  color:#fbbf24;
+}
+
+[data-theme="dark"] .cal-leg-item {
+  color:#c4bdb4;
+}
+
+[data-theme="dark"] .rpt-item {
+  background:#252320;
+  border-color:#2e2b27;
+}
+
+[data-theme="dark"] .rpt-item-title {
+  color:#f0ede8;
+}
+
+[data-theme="dark"] .rpt-item-meta {
+  color:#7a7368;
+}
+
+[data-theme="dark"] .rpt-dl-btn {
+  background:#1e1c19;
+  border-color:#3a3733;
+  color:#c4bdb4;
+}
+
+[data-theme="dark"] .rpt-dl-btn:hover {
+  background:#2a1f08;
+  color:#fbbf24;
+  border-color:#f59e0b;
+}
+
+[data-theme="dark"] .empty-state .empty-ico {
+  background:#252320;
+  color:#7a7368;
+}
+
+[data-theme="dark"] .empty-title {
+  color:#c4bdb4;
+}
+
+[data-theme="dark"] .empty-sub {
+  color:#7a7368;
+}
+
+[data-theme="dark"] .sgroup-lbl {
+  color:#7a7368;
+}
+
+[data-theme="dark"] .sgroup-chev {
+  color:#7a7368;
+}
+
+[data-theme="dark"] .sgroup-hdr:hover .sgroup-lbl {
+  color:#c4bdb4;
+}
+
+[data-theme="dark"] .success-state .success-ico {
+  background:#052e16;
+}
+
+[data-theme="dark"] .success-title {
+  color:#f0ede8;
+}
+
+[data-theme="dark"] .success-sub {
+  color:#c4bdb4;
+}
+
+[data-theme="dark"] .act-row {
+  border-color:#2e2b27;
+}
+
+[data-theme="dark"] .tb-ham {
+  border-color:rgba(255,255,255,.1);
+  background:rgba(255,255,255,.05);
+}
+
+[data-theme="dark"] .sb-bottom {
+  border-color:#2e2b27;
+}
+
+[data-theme="dark"] select.finput option {
+  background:#252320;
+  color:#f0ede8;
+}
+
+[data-theme="dark"] .cal-nav-btn {
+  background:#1e1c19;
+  border-color:#3a3733;
+  color:#c4bdb4;
+}
+
+[data-theme="dark"] .cal-nav-btn:hover {
+  background:#252320;
+}
+
+[data-theme="dark"] .cal-nav-title {
+  color:#f0ede8;
+}
 `;
 // ─── CSS ─────────────────────────────────────────────────────────────────────
 const CSS = `
@@ -114,8 +427,8 @@ body,#root{background:#c9d0d4d0;font-family:var(--font);color:var(--ink);}
 
 /* ── Buttons ── */
 .btn{display:inline-flex;align-items:center;gap:7px;font-family:var(--font);font-size:13px;font-weight:700;padding:10px 20px;border-radius:9px;border:none;cursor:pointer;transition:all .15s;}
-.btn-pri{background:var(--ink);color:#fff;box-shadow:0 3px 10px rgba(15,13,10,.2);}
-.btn-pri:hover{background:#2a2520;transform:translateY(-1px);}
+.btn-pri{background:var(--ink);color:black;box-shadow:0 3px 10px rgba(15,13,10,.2);}
+.btn-pri:hover{background:#2a2520;transform:translateY(-1px);color:#fff;}
 .btn-pri:disabled{opacity:.5;cursor:not-allowed;transform:none;}
 .btn-out{background:var(--surface);color:var(--ink2);border:1.5px solid var(--line2);}
 .btn-out:hover{background:var(--paper);}
@@ -274,6 +587,7 @@ const Ico = {
   monthly: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>,
   site:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
   myRpt:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
+  manRpt:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
   send:    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>,
   plus:    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   dl:      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
@@ -283,6 +597,8 @@ const Ico = {
   home:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
   in:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>,
   out:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  settings: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  profile: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   check:   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>,
 };
 
@@ -300,266 +616,22 @@ const NAV = [
       { key:"daily-report",   label:"Daily Report",   icon:Ico.report  },
       { key:"weekly-report",  label:"Weekly Report",  icon:Ico.weekly  },
       { key:"monthly-report", label:"Monthly Report", icon:Ico.monthly },
-      { key:"site-report", label:"Site Report", icon:Ico.site },
+      { key:"site-report", label:"Site Visit Report", icon:Ico.site },
       { key:"my-reports",     label:"My Reports",     icon:Ico.myRpt   },
+      { key:"manpower-reports",     label:"Manpower Report",     icon:Ico.manRpt   },
     ]},
 ];
 
-const ALL_ITEMS = NAV.flatMap(n => n.children ? n.children : [n]);
+const ALL_ITEMS = [
+  ...NAV.flatMap(n => n.children ? n.children : [n]),
+  { key: "profile", label: "Profile & Settings", icon: Ico.profile },
+];
 
 // ─── Loading ──────────────────────────────────────────────────────────────────
 function Loading() {
   return <div className="loading"><div className="spinner"/><span>Loading…</span></div>;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// CLOCK IN / OUT
-// ═══════════════════════════════════════════════════════════════════════════════
-// function ClockInOut({ user }) {
-//   const [now, setNow] = useState(new Date());
-//   const [todayRecord, setTodayRecord] = useState(null);
-//   const [recentLogs, setRecentLogs] = useState([]);
-//   const [loading, setLoading] = useState(true);
-//   const [busy, setBusy] = useState(false);
-//   const [msg, setMsg] = useState("");
-
-//   useEffect(() => {
-//     const t = setInterval(() => setNow(new Date()), 1000);
-//     return () => clearInterval(t);
-//   }, []);
-
-//   const fetchData = useCallback(async () => {
-//     setLoading(true);
-//     // Today's attendance
-//     const { data: todayData } = await supabase
-//       .from("attendance")
-//       .select("*")
-//       .eq("user_id", user.id)
-//       .eq("date", today())
-//       .maybeSingle();
-//     setTodayRecord(todayData);
-
-//     // Recent 5 records
-//     const { data: logs } = await supabase
-//       .from("attendance")
-//       .select("*")
-//       .eq("user_id", user.id)
-//       .order("date", { ascending: false })
-//       .limit(6);
-//     setRecentLogs(logs || []);
-//     setLoading(false);
-//   }, [user.id]);
-
-//   useEffect(() => { fetchData(); }, [fetchData]);
-
-//   const clockIn = async () => {
-//     setBusy(true);
-//     const { error } = await supabase.from("attendance").insert({
-//       user_id: user.id,
-//       date: today(),
-//       clock_in: new Date().toISOString(),
-//       status: "present",
-//     });
-//     if (error) setMsg("Error: " + error.message);
-//     else { setMsg("Clocked in successfully!"); await fetchData(); }
-//     setBusy(false);
-//     setTimeout(() => setMsg(""), 3000);
-//   };
-
-//   const clockOut = async () => {
-//     setBusy(true);
-//     const clockOutTime = new Date().toISOString();
-//     const { error } = await supabase
-//       .from("attendance")
-//       .update({ clock_out: clockOutTime })
-//       .eq("id", todayRecord.id);
-//     if (error) setMsg("Error: " + error.message);
-//     else { setMsg("Clocked out successfully!"); await fetchData(); }
-//     setBusy(false);
-//     setTimeout(() => setMsg(""), 3000);
-//   };
-
-//   const isClockedIn  = todayRecord?.clock_in && !todayRecord?.clock_out;
-//   const isClockedOut = todayRecord?.clock_in && todayRecord?.clock_out;
-
-//   if (loading) return <Loading/>;
-
-//   return (
-//     <div className="clock-panel">
-//       <div>
-//         <div className="clock-time">{now.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false})}</div>
-//         <div className="clock-date" style={{textAlign:"center",marginTop:4}}>
-//           {now.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
-//         </div>
-//       </div>
-
-//       <div className="clock-status">
-//         {!todayRecord && <span>You haven't clocked in today.</span>}
-//         {isClockedIn  && <span>Clocked in at <strong>{fmtDT(todayRecord.clock_in)}</strong>. Have a productive day!</span>}
-//         {isClockedOut && <span>Today: <strong>{fmtDT(todayRecord.clock_in)}</strong> → <strong>{fmtDT(todayRecord.clock_out)}</strong></span>}
-//       </div>
-
-//       {msg && (
-//         <div className="info-banner" style={{maxWidth:380,width:"100%",justifyContent:"center"}}>
-//           {Ico.info} {msg}
-//         </div>
-//       )}
-
-//       <div className="clock-btns">
-//         {!todayRecord && (
-//           <button className="btn btn-amber" onClick={clockIn} disabled={busy}>
-//             {Ico.in} Clock In
-//           </button>
-//         )}
-//         {isClockedIn && (
-//           <button className="btn btn-red" onClick={clockOut} disabled={busy}>
-//             {Ico.out} Clock Out
-//           </button>
-//         )}
-//         {isClockedOut && (
-//           <div className="badge badge-green" style={{fontSize:13,padding:"8px 16px"}}>✓ Day Complete</div>
-//         )}
-//       </div>
-
-//       {recentLogs.length > 0 && (
-//         <div className="clock-log">
-//           <div className="clock-log-title">Recent Attendance</div>
-//           {recentLogs.map(r => (
-//             <div key={r.id} className="clock-row">
-//               <div className="clock-row-date">{fmtD(r.date)}</div>
-//               <div className="clock-row-times">
-//                 <span>{Ico.in} {r.clock_in ? fmtDT(r.clock_in) : "—"}</span>
-//                 <span>{Ico.out} {r.clock_out ? fmtDT(r.clock_out) : "—"}</span>
-//               </div>
-//               <span className={`badge ${r.status==="present"?"badge-green":r.status==="late"?"badge-amber":"badge-red"}`}>
-//                 {r.status?.charAt(0).toUpperCase()+r.status?.slice(1)}
-//               </span>
-//             </div>
-//           ))}
-//         </div>
-//       )}
-//     </div>
-//   );
-// }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// CALENDAR / ATTENDANCE VIEW
-// ═══════════════════════════════════════════════════════════════════════════════
-// function CalendarView({ user }) {
-//   const t = new Date();
-//   const [cur, setCur]  = useState({ y: t.getFullYear(), m: t.getMonth() });
-//   const [sel, setSel]  = useState(today());
-//   const [att, setAtt]  = useState([]);
-//   const [loading, setLoading] = useState(true);
-
-//   const fetchMonth = useCallback(async () => {
-//     setLoading(true);
-//     const from = `${cur.y}-${pad(cur.m+1)}-01`;
-//     const lastDay = new Date(cur.y, cur.m+1, 0).getDate();
-//     const to = `${cur.y}-${pad(cur.m+1)}-${pad(lastDay)}`;
-//     const { data } = await supabase
-//       .from("attendance")
-//       .select("*")
-//       .eq("user_id", user.id)
-//       .gte("date", from)
-//       .lte("date", to);
-//     setAtt(data || []);
-//     setLoading(false);
-//   }, [cur, user.id]);
-
-//   useEffect(() => { fetchMonth(); }, [fetchMonth]);
-
-//   const attMap = {};
-//   att.forEach(a => { attMap[a.date] = a; });
-
-//   const STATUS_COLOR = { present:"#16a34a", late:"#d97706", absent:"#dc2626", leave:"#7c3aed" };
-
-//   const firstDay   = new Date(cur.y, cur.m, 1).getDay();
-//   const daysInMonth = new Date(cur.y, cur.m+1, 0).getDate();
-//   const todayStr   = today();
-//   const dateStr    = (d) => `${cur.y}-${pad(cur.m+1)}-${pad(d)}`;
-//   const cells      = [...Array(firstDay).fill(null), ...Array(daysInMonth).keys()].map((v,i) => i < firstDay ? null : v+1);
-
-//   const selRecord = attMap[sel];
-
-//   const counts = { present:0, late:0, absent:0, leave:0 };
-//   att.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
-
-//   return (
-//     <div>
-//       <div className="stat-row" style={{gridTemplateColumns:"repeat(4,1fr)"}}>
-//         {[["Present",counts.present,"var(--green)"],["Late",counts.late,"var(--amber)"],["Absent",counts.absent,"var(--red)"],["Leave",counts.leave,"#7c3aed"]].map(([l,v,c])=>(
-//           <div key={l} className="stat-card">
-//             <div className="stat-val" style={{color:c}}>{v}</div>
-//             <div className="stat-lbl">{l}</div>
-//           </div>
-//         ))}
-//       </div>
-
-//       <div className="cal-nav">
-//         <button className="cal-nav-btn" onClick={()=>setCur(p=>p.m===0?{y:p.y-1,m:11}:{y:p.y,m:p.m-1})}>
-//           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-//         </button>
-//         <div className="cal-nav-title">{MONTHS[cur.m]} {cur.y}</div>
-//         <button className="cal-nav-btn" onClick={()=>setCur(p=>p.m===11?{y:p.y+1,m:0}:{y:p.y,m:p.m+1})}>
-//           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-//         </button>
-//       </div>
-
-//       {loading ? <Loading/> : (
-//         <div className="cal-grid">
-//           {WDAYS.map(d=><div key={d} className="cal-dh">{d}</div>)}
-//           {cells.map((d,i) => {
-//             if (!d) return <div key={`e${i}`} className="cal-cell emp"/>;
-//             const ds = dateStr(d);
-//             const rec = attMap[ds];
-//             const isToday = ds === todayStr;
-//             const isSel   = ds === sel;
-//             return (
-//               <div key={ds} className={`cal-cell${isToday?" today":""}${isSel?" sel":""}`} onClick={()=>setSel(ds)}>
-//                 <div className="cal-dn">{d}</div>
-//                 {rec && <div className="att-dot" style={{background:STATUS_COLOR[rec.status]||"#64748b"}}/>}
-//               </div>
-//             );
-//           })}
-//         </div>
-//       )}
-
-//       <div className="cal-legend">
-//         {Object.entries(STATUS_COLOR).map(([k,c])=>(
-//           <div key={k} className="cal-leg-item">
-//             <div className="cal-leg-dot" style={{background:c}}/>
-//             {k.charAt(0).toUpperCase()+k.slice(1)}
-//           </div>
-//         ))}
-//       </div>
-
-//       <div className="att-summary">
-//         <div className="att-sum-title">
-//           {new Date(sel+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
-//         </div>
-//         <div className="att-sum-info">
-//           {!selRecord ? (
-//             <span style={{color:"var(--ink3)"}}>No attendance record for this day.</span>
-//           ) : (
-//             <>
-//               <span>Status: <strong style={{color:STATUS_COLOR[selRecord.status]}}>{selRecord.status?.charAt(0).toUpperCase()+selRecord.status?.slice(1)}</strong></span>
-//               <span>Clock In: <strong>{fmtDT(selRecord.clock_in)}</strong></span>
-//               <span>Clock Out: <strong>{selRecord.clock_out ? fmtDT(selRecord.clock_out) : "Not yet"}</strong></span>
-//             </>
-//           )}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// MY LEAVE
-// Uses exact columns: user_name, name, leave_type, from_date, to_date, reason,
-// status, approved_on, approved_by, site_name, head_user_name,
-// head_approved, admin_approved, rejection_reason
-// ═══════════════════════════════════════════════════════════════════════════════
 function MyLeave({ user, onApply }) {
   const [leaves,  setLeaves]  = useState([]);
   const [loading, setLoading] = useState(true);
@@ -804,90 +876,6 @@ function ApplyLeave({ user }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// DAILY REPORT
-// ═══════════════════════════════════════════════════════════════════════════════
-// function DailyReport({ user }) {
-//   const empty = { date:today(), site:user.site_name||"", weather:"", workers_count:"", work_done:"", materials_used:"", equipment_used:"", issues:"", next_day_plan:"", remarks:"" };
-//   const [form, setForm] = useState(empty);
-//   const [submitted, setSubmitted] = useState(false);
-//   const [busy, setBusy] = useState(false);
-//   const [err, setErr] = useState("");
-//   const set = (k,v) => setForm(p=>({...p,[k]:v}));
-
-//   const submit = async () => {
-//     if (!form.site || !form.work_done) { setErr("Site name and Work Done are required."); return; }
-//     setBusy(true); setErr("");
-//     const { error } = await supabase.from("reports").insert({
-//       user_id: user.id,
-//       report_type: "daily",
-//       date: form.date,
-//       site: form.site,
-//       status: "submitted",
-//       data: form,
-//     });
-//     setBusy(false);
-//     if (error) { setErr(error.message); return; }
-//     setSubmitted(true);
-//   };
-
-//   if (submitted) return (
-//     <div className="success-state">
-//       <div className="success-ico">{Ico.check}</div>
-//       <div className="success-title">Daily Report Submitted!</div>
-//       <div className="success-sub">Report saved successfully.</div>
-//       <button className="btn btn-pri" onClick={()=>{setSubmitted(false);setForm(empty);}}>New Report</button>
-//     </div>
-//   );
-
-//   return (
-//     <div>
-//       {err && <div className="info-banner warn-banner" style={{marginBottom:16}}>{Ico.info} {err}</div>}
-//       <div className="grid2">
-//         <div className="fgroup">
-//           <label className="flabel">Date <span className="req">*</span></label>
-//           <input className="finput" type="date" value={form.date} onChange={e=>set("date",e.target.value)}/>
-//         </div>
-//         <div className="fgroup">
-//           <label className="flabel">Site / Project <span className="req">*</span></label>
-//           <input className="finput" placeholder="Site name…" value={form.site} onChange={e=>set("site",e.target.value)}/>
-//         </div>
-//         <div className="fgroup">
-//           <label className="flabel">Weather</label>
-//           <select className="finput" value={form.weather} onChange={e=>set("weather",e.target.value)}>
-//             <option value="">Select…</option>
-//             {["Clear","Cloudy","Rainy","Windy","Hot","Foggy"].map(w=><option key={w}>{w}</option>)}
-//           </select>
-//         </div>
-//         <div className="fgroup">
-//           <label className="flabel">Workers on Site</label>
-//           <input className="finput" type="number" placeholder="Count…" value={form.workers_count} onChange={e=>set("workers_count",e.target.value)}/>
-//         </div>
-//         {[
-//           {k:"work_done",      l:"Work Done Today",  ph:"Describe completed work activities…", req:true},
-//           {k:"materials_used", l:"Materials Used",   ph:"List materials consumed today…"},
-//           {k:"equipment_used", l:"Equipment Used",   ph:"Equipment deployed on site…"},
-//           {k:"issues",         l:"Issues / Delays",  ph:"Any issues or delays encountered…"},
-//           {k:"next_day_plan",  l:"Next Day Plan",    ph:"Planned activities for tomorrow…"},
-//           {k:"remarks",        l:"Remarks",          ph:"Any additional remarks…"},
-//         ].map(f=>(
-//           <div key={f.k} className="fgroup col2">
-//             <label className="flabel">{f.l} {f.req && <span className="req">*</span>}</label>
-//             <textarea className="finput" rows={f.k==="remarks"?2:3} placeholder={f.ph} value={form[f.k]} onChange={e=>set(f.k,e.target.value)}/>
-//           </div>
-//         ))}
-//       </div>
-//       <div className="act-row">
-//         <button className="btn btn-out" onClick={async()=>{
-//           setBusy(true);
-//           await supabase.from("reports").insert({ user_id:user.id, report_type:"daily", date:form.date, site:form.site, status:"draft", data:form });
-//           setBusy(false);
-//         }}>Save Draft</button>
-//         <button className="btn btn-pri" onClick={submit} disabled={busy}>{Ico.send} {busy?"Submitting…":"Submit Report"}</button>
-//       </div>
-//     </div>
-//   );
-// }
-// ═══════════════════════════════════════════════════════════════════════════════
 // WEEKLY REPORT
 // ═══════════════════════════════════════════════════════════════════════════════
 function WeeklyReport({ user }) {
@@ -1058,6 +1046,24 @@ export default function SitePortal() {
   const [activeTab,   setActiveTab]   = useState("clock-in");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expanded,    setExpanded]    = useState({ leave:true, reports:true });
+const [isDark, setIsDark] = useState(() => {
+  const saved = localStorage.getItem("theme");
+  if (saved) document.documentElement.setAttribute("data-theme", saved);
+  return saved === "dark";
+});
+
+const toggleTheme = () => {
+  const next = !isDark;
+  setIsDark(next);
+  const val = next ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", val);
+  localStorage.setItem("theme", val);
+};
+
+const handleLogout = () => {
+  localStorage.removeItem("user");
+  window.location.href = "/";
+};
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -1089,12 +1095,14 @@ export default function SitePortal() {
       case "monthly-report": return <MonthlyReport/>;
       case "site-report":    return <SiteReport user={user} />;
       case "my-reports": return <MyReports user={user} />;
+      case "manpower-reports": return <ManpowerReport user={user}/>;
+      case "profile":     return <Profile user={user} onLogout={handleLogout} onThemeToggle={toggleTheme} isDark={isDark} />;
       default: return null;
     }
   }; 
   return (
     <>
-      <style>{CSS}</style>
+      <style>{CSS}{DARK_CSS}</style>
       <div>
         {/* Topbar */}
         
@@ -1131,6 +1139,15 @@ export default function SitePortal() {
                 );
               })}
             </nav>
+            <div style={{ marginTop: "auto", padding: "10px", borderTop: "1px solid var(--line)" }}>
+  <button
+    className={`sni${activeTab === "profile" ? " act" : ""}`}
+    onClick={() => nav("profile")}
+    style={{ width: "100%" }}
+  >
+    {Ico.settings} Settings & Profile
+  </button>
+</div>
           </aside>
 
           {/* Main */}

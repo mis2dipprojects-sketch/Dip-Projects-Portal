@@ -46,7 +46,7 @@ export default function Navbar({ onMenuToggle, menuOpen }) {
           width: 60px;
           object-fit: contain;
           flex-shrink: 0;
-          background: #ffffffcc;
+          background: #ffffff;
           padding: 4px;
           border-radius: 30px;
         }

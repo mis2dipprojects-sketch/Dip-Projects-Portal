@@ -186,6 +186,172 @@ border:2px solid transparent;border-radius:12px;color:#6b2d0f;cursor:pointer;fon
   .col2,.col3 { grid-column:span 1; }
   .rtype-btn { font-size:12px; padding:11px 6px; }
 }
+
+//-----DARK THEME CSS---------
+[data-theme="dark"] .dpr-root {
+  background:#141210;
+}
+[data-theme="dark"] .finput {
+  background:#252320;
+  border-color:#3a3733;
+  color:#f0ede8;
+}
+[data-theme="dark"] .finput:focus {
+  background:#2e2b27;
+  border-color:#f59e0b;
+}
+[data-theme="dark"] textarea.finput {
+  background:#252320;
+  color:#f0ede8;
+}
+[data-theme="dark"] select.finput option {
+  background:#252320;
+  color:#f0ede8;
+}
+[data-theme="dark"] .flabel {
+  color:#c4bdb4;
+}
+[data-theme="dark"] .sec-collapser {
+  background:linear-gradient(#252320,#252320) padding-box, var(--grad) border-box;
+  color:#fbbf24;
+}
+[data-theme="dark"] .sec-body {
+  background:linear-gradient(to bottom,#1e1c19,#1e1c19,rgba(0,0,0,0.15));
+}
+[data-theme="dark"] .tbl th {
+  background:#252320;
+  color:#c4bdb4;
+  border-color:#3a3733;
+}
+[data-theme="dark"] .tbl td {
+  border-color:#2e2b27;
+  color:#c4bdb4;
+}
+[data-theme="dark"] .tbl tr:hover td {
+  background:#2a2724;
+}
+[data-theme="dark"] .tbl-wrap {
+  border-color:#3a3733;
+}
+[data-theme="dark"] .tbl tr:last-child td {
+  border-bottom:none;
+}
+[data-theme="dark"] .btn-out {
+  background:#252320;
+  color:#c4bdb4;
+  border-color:#3a3733;
+}
+[data-theme="dark"] .btn-out:hover {
+  background:#2e2b27;
+}
+[data-theme="dark"] .btn-red {
+  background:#2d0a0a;
+  color:#f87171;
+  border-color:#7f1d1d;
+}
+[data-theme="dark"] .btn-green {
+  background:#052e16;
+  color:#4ade80;
+  border-color:#166534;
+}
+[data-theme="dark"] .visitor-card {
+  background:#252320;
+  border-color:#3a3733;
+}
+[data-theme="dark"] .custom-field-wrap {
+  background:rgba(107,45,15,.15);
+  border-color:rgba(107,45,15,.4);
+}
+[data-theme="dark"] .info-banner.info-blue {
+  background:#0c1d38;
+  border-color:#1e3a5f;
+  color:#60a5fa;
+}
+[data-theme="dark"] .draft-btn.draft-open {
+  background:#2a1f08;
+  color:#fbbf24;
+  border-color:#4a3210;
+}
+[data-theme="dark"] .draft-btn.draft-del {
+  background:#2d0a0a;
+  color:#f87171;
+  border-color:#7f1d1d;
+}
+[data-theme="dark"] .act-row {
+  border-color:#2e2b27;
+}
+[data-theme="dark"] .rtype-btn {
+  color:#7a7368;
+  background:#1e1c19;
+}
+[data-theme="dark"] .rtype-row {
+  border-color:#3a3733;
+}
+[data-theme="dark"] .popup-box {
+  background:#1e1c19;
+  color:#f0ede8;
+}
+[data-theme="dark"] .popup-title {
+  color:#f0ede8;
+}
+[data-theme="dark"] .popup-backdrop {
+  background:rgba(0,0,0,.6);
+}
+[data-theme="dark"] .photo-caption {
+  background:#252320;
+  border-color:#3a3733;
+  color:#f0ede8;
+}
+[data-theme="dark"] .photo-add-btn {
+  background:#252320;
+  border-color:#3a3733;
+  color:#7a7368;
+}
+[data-theme="dark"] .photo-add-btn:hover {
+  border-color:#f59e0b;
+  color:#fbbf24;
+  background:#2a1f08;
+}
+[data-theme="dark"] .photo-thumb {
+  border-color:#3a3733;
+}
+[data-theme="dark"] .success-state {
+  background:#1e1c19;
+}
+[data-theme="dark"] .success-title {
+  color:#f0ede8;
+}
+[data-theme="dark"] .success-sub {
+  color:#c4bdb4;
+}
+[data-theme="dark"] .dpr-toast-ok {
+  background:#052e16;
+  color:#4ade80;
+  border-color:#166534;
+}
+[data-theme="dark"] .dpr-toast-err {
+  background:#2d0a0a;
+  color:#f87171;
+  border-color:#7f1d1d;
+}
+[data-theme="dark"] .step-done {
+  background:#052e16;
+  color:#4ade80;
+}
+[data-theme="dark"] .step-active {
+  background:#0c1d38;
+  color:#60a5fa;
+}
+[data-theme="dark"] .step-pending {
+  background:#252320;
+  color:#7a7368;
+}
+[data-theme="dark"] .pdf-overlay {
+  background:rgba(20,18,16,.97);
+}
+[data-theme="dark"] .pdf-overlay-title {
+  color:#fbbf24;
+}
 `;
 
 // ─── PDF CSS (exact match to Google Apps Script style) ───────────────────────
@@ -1529,7 +1695,7 @@ function ManpowerSection({ list, setList, showToast }) {
   {list.map((row, i) => (
     editIdx === i ? (
       // ── EDIT ROW ──────────────────────────────────────────
-      <tr key={row.id || i} style={{ background: "#fffbf5" }}>
+      <tr key={row.id || i} style={{ background: "var(--edit-row-bg, #fffbf5)" }}>
         <td style={{ fontSize: 12, color: "var(--ink3)", textTransform: "capitalize" }}>
           {row.displayScope || row.scope}
         </td>

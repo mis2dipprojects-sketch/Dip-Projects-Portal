@@ -14,6 +14,7 @@ import ProjectHeadPortal from "./pages/ProjectHeadPortal";
 import ApplyLeave from "./pages/ApplyLeave";
 import MyLeaves from "./pages/MyLeaves";
 import LeaveApprovals from "./pages/LeaveApprovals";
+import ManpowerReport from "./pages/Manpowerreport";
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
       <Route path="/apply-leave" element={<ApplyLeave />}/>
       <Route path="/my-leaves" element={<MyLeaves />}/>
       <Route path="/leave-approvals" element={<LeaveApprovals />}/>
+      <Route path="/manpower-report" element={<ManpowerReport/>}/>
     </Routes>
   );
 }

@@ -423,7 +423,6 @@ body,#root{background:#c9d0d4d0;font-family:var(--font);color:var(--ink);}
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
-  margin-top:250px;
 }
 .sidebar.closed{width:0;min-width:0;opacity:0;pointer-events:none;overflow:hidden;}
 .sidebar::-webkit-scrollbar{width:3px;}

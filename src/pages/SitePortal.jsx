@@ -417,21 +417,13 @@ body,#root{background:#c9d0d4d0;font-family:var(--font);color:var(--ink);}
   z-index: 999;
 }
 
-/* ADD this — makes snav take all available space */
-.snav {
-  flex: 1;
-  padding: 14px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 20px;
-}
-
 /* ADD this for the bottom settings button container */
 .sb-bottom {
   padding: 10px;
   border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
   flex-shrink: 0;
+  margin-top:250px;
 }
 .sidebar.closed{width:0;min-width:0;opacity:0;pointer-events:none;overflow:hidden;}
 .sidebar::-webkit-scrollbar{width:3px;}
@@ -588,101 +580,15 @@ border:1px solid var(--line);border-radius:11px;padding:14px 16px;}
 
 /* ── Mobile ── */
 .sb-backdrop{display:none;}
-@media(max-width:768px) {
-  .sidebar {
-    position: fixed;
-    top: 58px;
-    left: 0;
-    z-index: 200;
-    height: calc(100vh - 58px);
-    width: min(85vw, 270px);
-    min-width: 0;
-    transform: translateX(0);
-    box-shadow: 12px 0 32px rgba(0,0,0,.18);
-    display: flex;          /* ensure flex on mobile too */
-    flex-direction: column;
-  }
-  .sidebar.closed {
-    width: min(85vw, 270px);
-    min-width: 0;
-    transform: translateX(-110%);
-    opacity: 0;
-  }
-  .sb-bottom {
-    padding-bottom: 20px; /* extra space for mobile home bar */
-  }
-
+@media(max-width:768px){
+  .sidebar{position:fixed;top:58px;left:0;z-index:200;height:calc(100vh - 58px);width:min(85vw,270px);min-width:0;transform:translateX(0);box-shadow:12px 0 32px rgba(0,0,0,.18);}
+  .sidebar.closed{width:min(85vw,270px);min-width:0;transform:translateX(-110%);opacity:0;}
   .sb-backdrop{display:block;position:fixed;inset:0;top:58px;z-index:190;background:rgba(15,13,10,.4);border:none;padding:0;}
   .main{padding:16px 14px 32px;}
   .stat-row{grid-template-columns:1fr 1fr;}
   .act-row{flex-direction:column-reverse;}
   .btn{width:100%;justify-content:center;}
   .tb-uinfo{display:none;}
-}
-  .sb-backdrop {
-  display: none;
-}
-
-@media(max-width:768px) {
-  .sb-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    top: 58px;
-    z-index: 190;
-    background: rgba(15,13,10,.4);
-    border: none;
-    padding: 0;
-    /* Don't capture touch events that start inside sidebar */
-    pointer-events: auto;
-  }
-}
-  /* REPLACE your existing .sidebar rule */
-.sidebar {
-  width: 248px;
-  min-width: 248px;
-  background: var(--surface);
-  border-right: 1px solid var(--line);
-  position: sticky;
-  top: 58px;
-  height: calc(100vh - 58px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  transition: width .22s, min-width .22s, opacity .18s;
-  display: flex;
-  flex-direction: column;
-  z-index: 999;
-  overscroll-behavior: contain;
-}
-
-/* REPLACE your mobile sidebar rules */
-@media(max-width:768px) {
-  .sidebar {
-    position: fixed;
-    top: 58px;
-    left: 0;
-    z-index: 200;
-    height: calc(100vh - 58px);
-    width: min(85vw, 270px);
-    min-width: 0;
-    transform: translateX(0);
-    box-shadow: 12px 0 32px rgba(0,0,0,.18);
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-  }
-  .sidebar.closed {
-    width: min(85vw, 270px);
-    min-width: 0;
-    transform: translateX(-110%);
-    opacity: 0;
-  }
-  .sb-bottom {
-    padding-bottom: 24px;
-  }
 }
 @media(max-width:440px){
   .cal-cell{min-height:42px;padding:4px 2px;}
@@ -1169,15 +1075,7 @@ const [isDark, setIsDark] = useState(() => {
   if (saved) document.documentElement.setAttribute("data-theme", saved);
   return saved === "dark";
 });
-// Add this effect
-useEffect(() => {
-  if (sidebarOpen && window.innerWidth <= 768) {
-    document.body.style.overflow = "hidden";
-  } else {
-    document.body.style.overflow = "";
-  }
-  return () => { document.body.style.overflow = ""; };
-}, [sidebarOpen]);
+
 const toggleTheme = () => {
   const next = !isDark;
   setIsDark(next);
@@ -1235,19 +1133,12 @@ const handleLogout = () => {
       <Navbar onMenuToggle={() => setSidebarOpen(p => !p)} menuOpen={sidebarOpen} />
 
         <div className="body">
-          {sidebarOpen && window.innerWidth <= 768 && (
-            <div
-              className="sb-backdrop"
-              onClick={() => setSidebarOpen(false)}
-              onTouchMove={e => e.stopPropagation()}
-            />
+          {sidebarOpen && window.innerWidth<=768 && (
+            <button className="sb-backdrop" onClick={()=>setSidebarOpen(false)} aria-label="Close sidebar"/>
           )}
 
           {/* Sidebar */}
-          <aside
-  className={`sidebar${sidebarOpen ? "" : " closed"}`}
-  onTouchMove={e => e.stopPropagation()}
->
+          <aside className={`sidebar${sidebarOpen ? "" : " closed"}`}>
   <nav className="snav">
     {NAV.map(n => {
       if (!n.section) return (

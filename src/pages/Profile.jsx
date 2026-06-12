@@ -182,7 +182,7 @@ const bgColor  = avatarColor(freshName || user?.name || "");
         <div style={{ fontSize: 11, fontWeight: 800, color: "var(--ink3)", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 10 }}>
           Account
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 }}>
 
           {/* Theme toggle */}
           <div style={{

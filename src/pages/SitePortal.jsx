@@ -805,7 +805,7 @@ function ApplyLeave({ user }) {
       .from("user_details")
       .select("username")
       .eq("site_name", user.site_name)
-      .eq("department", "Project Head")
+      .eq("role", "Project Head")
       .maybeSingle()
       .then(({ data }) => {
         if (data?.username) {

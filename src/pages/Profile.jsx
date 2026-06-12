@@ -109,13 +109,17 @@ const bgColor  = avatarColor(freshName || user?.name || "");
           <div style={{
             marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6,
             background: "var(--amber-bg)", border: "1px solid var(--amber-line)",
-            borderRadius: 20, padding: "4px 14px", fontSize: 12.5, fontWeight: 700, color: "var(--amber2)"
+            borderRadius: 20, padding: "6px 16px", fontSize: 13, fontWeight: 700, color: "var(--amber2)"
           }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-              <polyline points="9 22 9 12 15 12 15 22"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
             {user?.site_names?.length  ? user.site_names.join("  |  ").toUpperCase()  : (user?.site_name || "No Site Assigned").toUpperCase()}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
           </div>
         </div>
 

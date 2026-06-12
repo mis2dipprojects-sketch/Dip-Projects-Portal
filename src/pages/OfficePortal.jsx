@@ -72,7 +72,7 @@
           <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
         </svg>
       ),
-    },
+    }
   ];
   const LEAVE_TYPES = ["Casual Leave","Sick Leave","Earned Leave","Maternity Leave","Paternity Leave","Compensatory Leave","Unpaid Leave"];
 
@@ -248,6 +248,7 @@
     );
   }
 
+  
   // ── TaskCard ───────────────────────────────────────────────────────────────
 function TaskCard({ task, onStatusChange, updating, onReschedule, onClick }) {
   const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
@@ -434,6 +435,7 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
     const [loadingReschedules, setLoadingReschedules] = useState(false);
 
     const [detailTask, setDetailTask]           = useState(null); // for task detail popup
+    const [reportTab, setReportTab] = useState("dpr");
 
     const [checklistModal, setChecklistModal] = useState(null);
     const [checkpoints, setCheckpoints]       = useState([]);
@@ -462,6 +464,73 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
     const [loadingLeaves, setLoadingLeaves] = useState(false);  
     const [leaveSubmitting, setLeaveSubmitting] = useState(false);
     const [toast, setToast]                 = useState(null);
+
+    const [siteReports,    setSiteReports]    = useState([]);
+    const [loadingReports, setLoadingReports] = useState(false);
+    const [reportFilter,   setReportFilter]   = useState({ type: "", site: "", month: "" });
+
+    // ADD this fetch function:
+    const fetchSiteReports = useCallback(async (u) => {
+  if (!u || u.role?.toLowerCase().trim() !== "project head") return;
+  setLoadingReports(true);
+
+  const sites = Array.isArray(u.site_names) && u.site_names.length
+    ? u.site_names
+    : u.site_name ? [u.site_name] : [];
+
+  if (!sites.length) { setLoadingReports(false); return; }
+
+  const { data: dprData } = await supabase
+    .from("dpr_reports")
+    .select("id, site, engineer, report_type, date, pdf_url, payload, created_at")
+    .in("site", sites)
+    .order("created_at", { ascending: false });
+
+  const { data: svrData } = await supabase
+    .from("site_reports")
+    .select("id, site_name, reporter_name, designation, visit_date, visit_time, progress_of_work, quality_observations, safety_concerns, issues_concerns, site_visit_instructions, key_instructions, submitted_by_name, pdf_url, created_at")
+    .in("site_name", sites)
+    .order("created_at", { ascending: false });
+
+  // WPR — adjust table/column names to match your schema
+  const { data: wprData } = await supabase
+    .from("weekly_reports")
+    .select("id, site, engineer, week_start, week_end, pdf_url, payload, created_at")
+    .in("site", sites)
+    .order("created_at", { ascending: false });
+
+  const normalized = [
+    ...(dprData || []).map(r => ({
+      id: r.id, site: r.site, engineer: r.engineer,
+      report_type: r.report_type, date: r.date,
+      pdf_url: r.pdf_url, payload: r.payload,
+      created_at: r.created_at, source: "dpr",
+    })),
+    ...(svrData || []).map(r => ({
+      id: r.id, site: r.site_name, engineer: r.reporter_name,
+      report_type: "site_visit", date: r.visit_date,
+      pdf_url: r.pdf_url, created_at: r.created_at, source: "svr",
+      designation: r.designation, visit_time: r.visit_time,
+      progress_of_work: r.progress_of_work,
+      quality_observations: r.quality_observations,
+      safety_concerns: r.safety_concerns,
+      issues_concerns: r.issues_concerns,
+      site_visit_instructions: r.site_visit_instructions,
+      key_instructions: r.key_instructions,
+      submitted_by_name: r.submitted_by_name,
+    })),
+    ...(wprData || []).map(r => ({
+      id: r.id, site: r.site, engineer: r.engineer,
+      report_type: "weekly", date: r.week_start,
+      pdf_url: r.pdf_url, payload: r.payload,
+      created_at: r.created_at, source: "wpr",
+      week_start: r.week_start, week_end: r.week_end,
+    })),
+  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  setSiteReports(normalized);
+  setLoadingReports(false);
+}, []);
 
     // Leave form
     const [leaveForm, setLeaveForm] = useState({
@@ -508,13 +577,14 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
       setLoadingLeaves(false);
     }, []);
 
-    useEffect(() => {
-      if (user) {
-        fetchTasks(user);
-        fetchLeaves(user);
-        fetchMyReschedules(user);
-      }
-    }, [user, fetchTasks, fetchLeaves, fetchMyReschedules]);
+useEffect(() => {
+  if (user) {
+    fetchTasks(user);
+    fetchLeaves(user);
+    fetchMyReschedules(user);
+    fetchSiteReports(user);
+  }
+}, [user, fetchTasks, fetchLeaves, fetchMyReschedules, fetchSiteReports]);
 
     const showToast = (type, msg) => {
       setToast({type,msg});
@@ -1057,6 +1127,245 @@ const handleStatusChange = async (taskId, newStatus, e) => {
               })}
             </div>
           );
+
+          // ADD before the default case:
+case "report-submissions": {
+  if (user?.role?.toLowerCase().trim() !== "project head") return null;
+
+  const fmtD  = (d)  => d  ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" }) : "—";
+  const fmtDT = (dt) => dt ? new Date(dt).toLocaleString("en-IN", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:true }) : "—";
+
+  // Filter by tab
+  const tabFiltered = siteReports.filter(r => {
+    if (reportTab === "dpr") return r.source === "dpr";
+    if (reportTab === "svr") return r.source === "svr";
+    if (reportTab === "wpr") return r.source === "wpr";
+    return true;
+  });
+
+  // Further filter by month + site
+  const monthFiltered = tabFiltered.filter(r => {
+    if (reportFilter.site  && r.site !== reportFilter.site)                   return false;
+    if (reportFilter.month && !(r.date || "").startsWith(reportFilter.month)) return false;
+    return true;
+  });
+
+  const reportSites = [...new Set(siteReports.map(r => r.site).filter(Boolean))].sort();
+  const withPdf = monthFiltered.filter(r => r.pdf_url).length;
+
+  // Group by date
+  const grouped = {};
+  monthFiltered.forEach(r => {
+    const d = r.date || r.created_at?.slice(0,10) || "—";
+    if (!grouped[d]) grouped[d] = [];
+    grouped[d].push(r);
+  });
+  const sortedDates = Object.keys(grouped).sort((a,b) => b.localeCompare(a));
+
+  const TAB_CONFIG = [
+    { key:"dpr", label:"DPR", color:"#2563eb", bg:"#eff6ff", border:"#bfdbfe" },
+    { key:"wpr", label:"WPR", color:"#7c3aed", bg:"#f5f3ff", border:"#e0e7ff" },
+    { key:"svr", label:"SVR", color:"#16a34a", bg:"#f0fdf4", border:"#bbf7d0" },
+  ];
+
+  const DPR_TYPE_COLOR = {
+    morning: { bg:"#fffbeb", color:"#d97706", border:"#fde68a" },
+    evening: { bg:"#eff6ff", color:"#2563eb", border:"#bfdbfe" },
+    weekly:  { bg:"#f5f3ff", color:"#7c3aed", border:"#e0e7ff" },
+  };
+
+  return (
+    <div>
+      {/* ── Tab bar ── */}
+      <div style={{ display:"flex", gap:0, borderBottom:"2px solid #e8edf3", marginBottom:20 }}>
+        {TAB_CONFIG.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setReportTab(t.key)}
+            style={{
+              display:"flex", alignItems:"center", gap:6,
+              padding:"9px 20px",
+              fontFamily:"'DM Sans',sans-serif", fontSize:12, fontWeight:700,
+              letterSpacing:".05em", textTransform:"uppercase",
+              color: reportTab === t.key ? t.color : "#94a3b8",
+              background:"transparent", border:"none",
+              borderBottom: reportTab === t.key ? `2.5px solid ${t.color}` : "2.5px solid transparent",
+              marginBottom:-2, cursor:"pointer", whiteSpace:"nowrap",
+              transition:"color .15s, border-color .15s",
+            }}
+          >
+            {t.label}
+            <span style={{
+              fontSize:10, fontWeight:700, padding:"1px 6px",
+              borderRadius:20, marginLeft:2,
+              background: reportTab === t.key ? t.bg : "#f8fafc",
+              color: reportTab === t.key ? t.color : "#94a3b8",
+              border:`1px solid ${reportTab === t.key ? t.border : "#e8edf3"}`,
+            }}>
+              {siteReports.filter(r => r.source === t.key).length}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── WPR coming soon ── */}
+      {reportTab === "wpr" && siteReports.filter(r => r.source === "wpr").length === 0 && (
+        <div className="op-empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.3}}>
+            <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+          </svg>
+          <p className="op-empty-text" style={{fontWeight:700}}>No weekly reports yet</p>
+          <p className="op-empty-text" style={{fontSize:12,marginTop:-4}}>Weekly reports from your site(s) will appear here once submitted.</p>
+        </div>
+      )}
+
+      {reportTab !== "wpr" || siteReports.filter(r => r.source === "wpr").length > 0 ? (
+        <>
+          {/* ── Stats ── */}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:16 }}>
+            {[
+              { label:"Total", value: tabFiltered.length, color:"#2563eb" },
+              { label:"With PDF", value: tabFiltered.filter(r=>r.pdf_url).length, color:"#16a34a" },
+              { label:"No PDF", value: tabFiltered.filter(r=>!r.pdf_url).length, color:"#d97706" },
+            ].map(s => (
+              <div key={s.label} style={{ background:"#f8fafc", border:"1px solid #e8edf3", borderRadius:10, padding:"12px 14px" }}>
+                <div style={{ fontSize:22, fontWeight:800, color:s.color, fontFamily:"'DM Mono',monospace" }}>{s.value}</div>
+                <div style={{ fontSize:11, fontWeight:700, color:"#94a3b8", textTransform:"uppercase", letterSpacing:".05em", marginTop:3 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Filters ── */}
+          <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:18, padding:"10px 14px", background:"#f8fafc", border:"1px solid #e8edf3", borderRadius:10 }}>
+            <input
+              type="month"
+              style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12.5, color:"#1e293b", background:"#fff", border:"1px solid #e2e8f0", borderRadius:6, padding:"5px 9px", height:32, cursor:"pointer", outline:"none" }}
+              value={reportFilter.month}
+              onChange={e => setReportFilter(p => ({ ...p, month:e.target.value }))}
+            />
+            {reportSites.length > 1 && (
+              <select
+                style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12.5, color:"#1e293b", background:"#fff", border:"1px solid #e2e8f0", borderRadius:6, padding:"5px 9px", height:32, cursor:"pointer", outline:"none" }}
+                value={reportFilter.site}
+                onChange={e => setReportFilter(p => ({ ...p, site:e.target.value }))}
+              >
+                <option value="">All Sites</option>
+                {reportSites.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
+            {Object.values(reportFilter).some(v=>v) && (
+              <button
+                onClick={() => setReportFilter({ type:"", site:"", month:"" })}
+                style={{ display:"inline-flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, color:"#dc2626", background:"#fef2f2", border:"1px solid #fecaca", borderRadius:6, padding:"5px 11px", height:32, cursor:"pointer" }}
+              >
+                ✕ Clear
+              </button>
+            )}
+            <span style={{ marginLeft:"auto", fontSize:12, color:"#94a3b8", alignSelf:"center" }}>
+              {monthFiltered.length} of {tabFiltered.length} reports
+            </span>
+          </div>
+
+          {/* ── Content ── */}
+          {loadingReports ? (
+            <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text">Loading reports…</p></div>
+          ) : monthFiltered.length === 0 ? (
+            <div className="op-empty-state">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.3}}>
+                <path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/>
+              </svg>
+              <p className="op-empty-text">No {reportTab.toUpperCase()} reports found{reportFilter.month ? " for this month" : ""}.</p>
+            </div>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+              {sortedDates.map(date => (
+                <div key={date}>
+                  {/* Date header */}
+                  <div style={{ fontSize:11, fontWeight:800, letterSpacing:".08em", textTransform:"uppercase", color:"#94a3b8", marginBottom:10, display:"flex", alignItems:"center", gap:10 }}>
+                    <span>{new Date(date+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</span>
+                    <div style={{ flex:1, height:1, background:"#e8edf3" }}/>
+                    <span>{grouped[date].length} report{grouped[date].length!==1?"s":""}</span>
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:12 }}>
+                    {grouped[date].map(r => {
+                      // Pick card accent color
+                      const accent =
+                        r.source === "svr" ? "#16a34a" :
+                        r.source === "wpr" ? "#7c3aed" :
+                        (DPR_TYPE_COLOR[r.report_type]?.color || "#2563eb");
+
+                      const typeBadge =
+                        r.source === "svr" ? { bg:"#f0fdf4", color:"#16a34a", border:"#bbf7d0", label:"Site Visit" } :
+                        r.source === "wpr" ? { bg:"#f5f3ff", color:"#7c3aed", border:"#e0e7ff", label:"Weekly Report" } :
+                        r.report_type === "morning" ? { bg:"#fffbeb", color:"#d97706", border:"#fde68a", label:"Morning DPR" } :
+                        r.report_type === "evening" ? { bg:"#eff6ff", color:"#2563eb", border:"#bfdbfe", label:"Evening DPR" } :
+                        { bg:"#f8fafc", color:"#64748b", border:"#e8edf3", label: r.report_type || "Report" };
+
+                      return (
+                        <div key={r.id} style={{ background:"#fff", border:"1px solid #e8edf3", borderLeft:`4px solid ${accent}`, borderRadius:10, padding:"14px 16px", display:"flex", flexDirection:"column", gap:10 }}>
+                          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
+                            <span style={{ display:"inline-flex", alignItems:"center", fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20, background:typeBadge.bg, color:typeBadge.color, border:`1px solid ${typeBadge.border}` }}>
+                              {typeBadge.label}
+                            </span>
+                            {r.site && <span style={{ fontSize:11, color:"#94a3b8", fontWeight:600, textAlign:"right" }}>{r.site}</span>}
+                          </div>
+
+                          {/* Engineer */}
+                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            <span style={{ fontSize:13, fontWeight:600, color:"#334155" }}>{r.engineer}</span>
+                          </div>
+
+                          {/* WPR: show week range */}
+                          {r.source === "wpr" && r.week_end && (
+                            <div style={{ fontSize:11.5, color:"#64748b", display:"flex", alignItems:"center", gap:5 }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                              {fmtD(r.week_start)} → {fmtD(r.week_end)}
+                            </div>
+                          )}
+
+                          {/* SVR: key fields inline */}
+                          {r.source === "svr" && r.progress_of_work && (
+                            <p style={{ fontSize:12, color:"#64748b", lineHeight:1.5, margin:0, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+                              {r.progress_of_work}
+                            </p>
+                          )}
+
+                          {/* DPR: payload preview */}
+                          {r.source === "dpr" && r.payload?.work_done && (
+                            <p style={{ fontSize:12, color:"#64748b", lineHeight:1.5, margin:0, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+                              {r.payload.work_done}
+                            </p>
+                          )}
+
+                          <div style={{ fontSize:11, color:"#cbd5e1" }}>
+                            Submitted {new Date(r.created_at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true})}
+                          </div>
+
+                          {r.pdf_url ? (
+                            
+                            <a  href={r.pdf_url} target="_blank" rel="noopener noreferrer"
+                              style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12, fontWeight:600, color:"#2563eb", background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:7, padding:"6px 12px", textDecoration:"none", alignSelf:"flex-start" }}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                              Download PDF
+                            </a>
+                          ) : (
+                            <span style={{ fontSize:11, color:"#94a3b8", fontStyle:"italic" }}>No PDF attached</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+}
  
         default: return null;
       }
@@ -1336,15 +1645,28 @@ const handleStatusChange = async (taskId, newStatus, e) => {
 
                 <span className="op-nav-section" style={{ marginTop: 8 }}>Reports</span>
                   {REPORTS_NAV.map(item => (
-                  <button
-                    key={item.key}
-                    className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
-                    onClick={() => handleNavClick(item.key)}
-                  >
-                    <span className="op-nav-icon">{item.icon}</span>
-                    {item.label}
-                  </button>
-                ))}
+                    <button
+                      key={item.key}
+                      className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
+                      onClick={() => handleNavClick(item.key)}
+                    >
+                      <span className="op-nav-icon">{item.icon}</span>
+                      {item.label}
+                    </button>
+                  ))}
+                  {user?.role?.toLowerCase().trim() === "project head" && (
+                    <button
+                      className={`op-nav-item${activeTab === "report-submissions" ? " active" : ""}`}
+                      onClick={() => handleNavClick("report-submissions")}
+                    >
+                      <span className="op-nav-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/>
+                        </svg>
+                      </span>
+                      Report Submissions
+                    </button>
+                  )}
               </nav>
             </aside>
 

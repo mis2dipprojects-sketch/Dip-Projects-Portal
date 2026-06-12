@@ -77,14 +77,15 @@ export default function Login() {
       return;
     }
     setLoading(false);
-    const userData = {
+const userData = {
       id:          userRow.id,
       user_name:   userRow.username,
       name:        userRow.name,
-      department:        userRow.department,
       department:  userRow.department,
+      role:        userRow.role || "",
       status:      userRow.status,
       site_name:   userRow.site_name || "",
+      site_names:  userRow.site_names || null,
       designation: userRow.department || "",
     };
     localStorage.setItem("user", JSON.stringify(userData));

@@ -1135,7 +1135,23 @@ const handleLogout = () => {
   localStorage.removeItem("user");
   window.location.href = "/";
 };
-
+// ADD this useEffect in SitePortal:
+useEffect(() => {
+  if (sidebarOpen && window.innerWidth <= 768) {
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
+  } else {
+    document.body.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.width = "";
+  }
+  return () => {
+    document.body.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.width = "";
+  };
+}, [sidebarOpen]);
   useEffect(() => {
   const stored = localStorage.getItem("user");
   if (stored) {
@@ -1201,11 +1217,11 @@ const handleLogout = () => {
 
         <div className="body">
           {sidebarOpen && window.innerWidth<=768 && (
-            <button className="sb-backdrop" onClick={()=>setSidebarOpen(false)} aria-label="Close sidebar"/>
+            <button className="sb-backdrop" onClick={() => setSidebarOpen(false)} onTouchMove={e => { e.preventDefault(); e.stopPropagation(); }} onTouchStart={e => e.stopPropagation()} aria-label="Close sidebar"/>
           )}
 
           {/* Sidebar */}
-          <aside className={`sidebar${sidebarOpen ? "" : " closed"}`}>
+          <aside className={`sidebar${sidebarOpen ? "" : " closed"}`} onTouchMove={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}>
   <nav className="snav">
     {NAV.map(n => {
       if (!n.section) return (

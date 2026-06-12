@@ -345,7 +345,8 @@ const DARK_CSS = `
 }
 
 [data-theme="dark"] .sb-bottom {
-  border-color:#2e2b27;
+  border-color: #2e2b27;
+  background: #1a1815;
 }
 
 [data-theme="dark"] select.finput option {
@@ -400,7 +401,38 @@ body,#root{background:#c9d0d4d0;font-family:var(--font);color:var(--ink);}
 
 /* ── Layout ── */
 .body{display:flex;min-height:calc(100vh - 58px);}
-.sidebar{width:248px;min-width:248px;background:var(--surface);border-right:1px solid var(--line);position:sticky;top:58px;height:calc(100vh - 58px);overflow-y:auto;transition:width .22s,min-width .22s,opacity .18s;display:flex;flex-direction:column;z-index:999;}
+/* FIND and REPLACE the existing .sidebar rule */
+.sidebar {
+  width: 248px;
+  min-width: 248px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  position: sticky;
+  top: 58px;
+  height: calc(100vh - 58px);
+  overflow-y: auto;
+  transition: width .22s, min-width .22s, opacity .18s;
+  display: flex;
+  flex-direction: column;
+  z-index: 999;
+}
+
+/* ADD this — makes snav take all available space */
+.snav {
+  flex: 1;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 20px;
+}
+
+/* ADD this for the bottom settings button container */
+.sb-bottom {
+  padding: 10px;
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+}
 .sidebar.closed{width:0;min-width:0;opacity:0;pointer-events:none;overflow:hidden;}
 .sidebar::-webkit-scrollbar{width:3px;}
 .sidebar::-webkit-scrollbar-thumb{background:var(--line2);border-radius:2px;}
@@ -556,9 +588,30 @@ border:1px solid var(--line);border-radius:11px;padding:14px 16px;}
 
 /* ── Mobile ── */
 .sb-backdrop{display:none;}
-@media(max-width:768px){
-  .sidebar{position:fixed;top:58px;left:0;z-index:200;height:calc(100vh - 58px);width:min(85vw,270px);min-width:0;transform:translateX(0);box-shadow:12px 0 32px rgba(0,0,0,.18);}
-  .sidebar.closed{width:min(85vw,270px);min-width:0;transform:translateX(-110%);opacity:0;}
+@media(max-width:768px) {
+  .sidebar {
+    position: fixed;
+    top: 58px;
+    left: 0;
+    z-index: 200;
+    height: calc(100vh - 58px);
+    width: min(85vw, 270px);
+    min-width: 0;
+    transform: translateX(0);
+    box-shadow: 12px 0 32px rgba(0,0,0,.18);
+    display: flex;          /* ensure flex on mobile too */
+    flex-direction: column;
+  }
+  .sidebar.closed {
+    width: min(85vw, 270px);
+    min-width: 0;
+    transform: translateX(-110%);
+    opacity: 0;
+  }
+  .sb-bottom {
+    padding-bottom: 20px; /* extra space for mobile home bar */
+  }
+
   .sb-backdrop{display:block;position:fixed;inset:0;top:58px;z-index:190;background:rgba(15,13,10,.4);border:none;padding:0;}
   .main{padding:16px 14px 32px;}
   .stat-row{grid-template-columns:1fr 1fr;}
@@ -1114,41 +1167,44 @@ const handleLogout = () => {
           )}
 
           {/* Sidebar */}
-          <aside className={`sidebar${sidebarOpen?"":" closed"}`}>
-            <nav className="snav">
-              {NAV.map(n => {
-                if (!n.section) return (
-                  <button key={n.key} className={`sni${activeTab===n.key?" act":""}`} onClick={()=>nav(n.key)}>
-                    {n.icon} {n.label}
-                  </button>
-                );
-                return (
-                  <div key={n.section}>
-                    <div className="sgroup-hdr" onClick={()=>setExpanded(p=>({...p,[n.section]:!p[n.section]}))}>
-                      <span className="sgroup-lbl">{n.label}</span>
-                      <span className={`sgroup-chev${expanded[n.section]?" open":""}`}>{Ico.chev}</span>
-                    </div>
-                    <div className={`sgroup-kids${expanded[n.section]?"":" shut"}`}>
-                      {n.children.map(c=>(
-                        <button key={c.key} className={`sni${activeTab===c.key?" act":""}`} onClick={()=>nav(c.key)}>
-                          {c.icon} {c.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </nav>
-            <div style={{ marginTop: "auto", padding: "10px", borderTop: "1px solid var(--line)" }}>
-  <button
-    className={`sni${activeTab === "profile" ? " act" : ""}`}
-    onClick={() => nav("profile")}
-    style={{ width: "100%" }}
-  >
-    {Ico.settings} Settings & Profile
-  </button>
-</div>
-          </aside>
+          <aside className={`sidebar${sidebarOpen ? "" : " closed"}`}>
+  <nav className="snav">
+    {NAV.map(n => {
+      if (!n.section) return (
+        <button key={n.key} className={`sni${activeTab === n.key ? " act" : ""}`} onClick={() => nav(n.key)}>
+          {n.icon} {n.label}
+        </button>
+      );
+      return (
+        <div key={n.section}>
+          <div className="sgroup-hdr" onClick={() => setExpanded(p => ({ ...p, [n.section]: !p[n.section] }))}>
+            <span className="sgroup-lbl">{n.label}</span>
+            <span className={`sgroup-chev${expanded[n.section] ? " open" : ""}`}>{Ico.chev}</span>
+          </div>
+          <div className={`sgroup-kids${expanded[n.section] ? "" : " shut"}`}>
+            {n.children.map(c => (
+              <button key={c.key} className={`sni${activeTab === c.key ? " act" : ""}`} onClick={() => nav(c.key)}>
+                {c.icon} {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    })}
+  </nav>
+
+  {/* Settings pinned to bottom */}
+  <div className="sb-bottom">
+    <button
+      className={`sni${activeTab === "profile" ? " act" : ""}`}
+      onClick={() => nav("profile")}
+      style={{ width: "100%", borderRadius: 9 }}
+    >
+      {Ico.settings}
+      Settings &amp; Profile
+    </button>
+  </div>
+</aside>
 
           {/* Main */}
           <main className="main">

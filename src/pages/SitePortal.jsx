@@ -787,9 +787,6 @@ function MyLeave({ user, onApply }) {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // APPLY LEAVE
-// Inserts into your existing leaves table with exact column names:
-// user_name, name, leave_type, from_date, to_date, reason,
-// site_name, head_user_name, status
 // ═══════════════════════════════════════════════════════════════════════════════
 function ApplyLeave({ user }) {
   const empty = { leave_type:"", from_date:"", to_date:"", reason:"", proxy_user_name:"" };
@@ -797,7 +794,26 @@ function ApplyLeave({ user }) {
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [headLoading, setHeadLoading] = useState(false);
   const set = (k,v) => setForm(p=>({...p,[k]:v}));
+
+  // Auto-fetch head on mount
+  useEffect(() => {
+    if (!user?.site_name) return;
+    setHeadLoading(true);
+    supabase
+      .from("user_details")
+      .select("username")
+      .eq("site_name", user.site_name)
+      .eq("department", "Project Head")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.username) {
+          setForm(p => ({ ...p, proxy_user_name: data.username }));
+        }
+        setHeadLoading(false);
+      });
+  }, [user?.site_name]);
 
   const days = form.from_date && form.to_date && new Date(form.to_date)>=new Date(form.from_date)
     ? Math.ceil((new Date(form.to_date)-new Date(form.from_date))/86400000)+1 : null;
@@ -887,11 +903,35 @@ function ApplyLeave({ user }) {
           <textarea className="finput" rows={3} placeholder="Briefly describe the reason…" value={form.reason} onChange={e=>set("reason",e.target.value)}/>
         </div>
         <div className="fgroup col2">
-          <label className="flabel">Site Head Username <span className="opt">optional</span></label>
-          <input className="finput" placeholder="e.g. nisarg.p" value={form.proxy_user_name} onChange={e=>set("proxy_user_name",e.target.value)}/>
-          {form.proxy_user_name && (
-            <div style={{fontSize:11.5,color:"var(--amber2)",marginTop:4}}>
+          <label className="flabel">
+            Site Head Username
+            <span className="opt">auto-filled · editable</span>
+          </label>
+          <div style={{ position:"relative" }}>
+            <input
+              className="finput"
+              placeholder={headLoading ? "Fetching head…" : "e.g. nisarg.p"}
+              value={form.proxy_user_name}
+              onChange={e => set("proxy_user_name", e.target.value)}
+              disabled={headLoading}
+            />
+            {headLoading && (
+              <div style={{
+                position:"absolute", right:10, top:"50%",
+                transform:"translateY(-50%)"
+              }}>
+                <div className="spinner" style={{ width:14, height:14, borderWidth:2 }}/>
+              </div>
+            )}
+          </div>
+          {form.proxy_user_name && !headLoading && (
+            <div style={{ fontSize:11.5, color:"var(--amber2)", marginTop:4 }}>
               ⚠ Your site head will need to approve this leave.
+            </div>
+          )}
+          {!form.proxy_user_name && !headLoading && (
+            <div style={{ fontSize:11.5, color:"var(--ink3)", marginTop:4 }}>
+              No head found for your site. You can enter one manually.
             </div>
           )}
         </div>

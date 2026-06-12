@@ -21,6 +21,8 @@ function avatarColor(name = "") {
 export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
   const [stats, setStats] = useState({ dpr: 0, wpr: 0, svr: 0, thisMonth: 0, lastDate: null });
   const [loading, setLoading] = useState(true);
+  const [freshRole, setFreshRole] = useState(user?.role || "");
+ const [freshName, setFreshName] = useState(user?.name || "");
 
   useEffect(() => {
     if (!user) return;
@@ -29,20 +31,25 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
 
         // Fetch fresh site data for this user
         const { data: freshUser } = await supabase
-        .from("user_details")
-        .select("site_name, site_names")
-        .eq("id", user.id)
-        .single();
-        if (freshUser) {
-        const stored = JSON.parse(localStorage.getItem("user") || "{}");
-        const updated = {
-            ...stored,
-            site_name:  freshUser.site_name  ?? stored.site_name,
-            site_names: freshUser.site_names ?? (stored.site_name ? [stored.site_name] : []),
-        };
-        localStorage.setItem("user", JSON.stringify(updated));
-        // Note: user prop won't re-render here since it's passed from parent,
-        // but localStorage is kept fresh for next load
+            .from("user_details")
+            .select("site_name, site_names, role, name, department")
+            .eq("id", user.id)
+            .single();
+            if (freshUser) {
+            const stored = JSON.parse(localStorage.getItem("user") || "{}");
+            const updated = {
+                ...stored,
+                site_name:  freshUser.site_name  ?? stored.site_name,
+                site_names: freshUser.site_names ?? (stored.site_name ? [stored.site_name] : []),
+                role:       freshUser.role       ?? stored.role,
+                name:       freshUser.name       ?? stored.name,
+                department: freshUser.department ?? stored.department,
+            };
+            localStorage.setItem("user", JSON.stringify(updated));
+            setFreshRole(freshUser.role || user?.role || "");
+            setFreshName(freshUser.name || user?.name || "");
+            // Update the local user object for display in this session
+            user = { ...user, ...updated };
         }
         const { data } = await supabase
         .from("dpr_reports")
@@ -72,8 +79,8 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
     })();
   }, [user]);
 
-  const initials = getInitials(user?.name);
-  const bgColor  = avatarColor(user?.name);
+const initials = getInitials(freshName || user?.name || "");
+const bgColor  = avatarColor(freshName || user?.name || "");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -95,10 +102,10 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
           {initials}
         </div>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--ink)" }}>{user?.name}</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: "var(--ink)" }}>{freshName || user?.name}</div>
           <div style={{ fontSize: 12.5, color: "var(--ink3)", marginTop: 3, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em" }}>
-            {user?.role || "Site Engineer"}
-          </div>
+             {freshRole || user?.role || "Site Engineer"}
+         </div>
           <div style={{
             marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6,
             background: "var(--amber-bg)", border: "1px solid var(--amber-line)",
@@ -108,7 +115,7 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
               <polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
-            {user?.site_names?.length ? user.site_names.join(", ") : user?.site_name || "No Site Assigned"}
+            {user?.site_names?.length  ? user.site_names.join("  |  ").toUpperCase()  : (user?.site_name || "No Site Assigned").toUpperCase()}
           </div>
         </div>
 

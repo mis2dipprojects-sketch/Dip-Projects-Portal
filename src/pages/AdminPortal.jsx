@@ -316,7 +316,7 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
         <>
           <div className="tf-bar-inline">{fields}</div>
           <div style={{ position:"relative", marginLeft:"auto", flexShrink:0 }}>
-            <button className={`tf-mobile-btn${mobileOpen?" active":""}`} onClick={onMobileToggle}>
+            <button className={`tf-mobile-btn${mobileOpen?" Active":""}`} onClick={onMobileToggle}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                 <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
               </svg>
@@ -861,7 +861,7 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
                   <label className="ap-label">Recurrence Pattern <span className="ap-req">*</span></label>
                   <div className="ap-recurrence-pills">
                     {["daily","weekly","monthly","yearly"].map((r) => (
-                      <button key={r} type="button" className={`ap-rpill${form.recurrence === r ? " active" : ""}`} onClick={() => setForm((p) => ({ ...p, recurrence: r }))}>
+                      <button key={r} type="button" className={`ap-rpill${form.recurrence === r ? " Active" : ""}`} onClick={() => setForm((p) => ({ ...p, recurrence: r }))}>
                         {r === "daily"   && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>}
                         {r === "weekly"  && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}
                         {r === "monthly" && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/></svg>}
@@ -878,7 +878,7 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
                     <label className="ap-label">Repeat on which day?</label>
                     <div className="ap-weekday-grid">
                       {WEEKDAYS.map((day, i) => (
-                        <button key={day} type="button" className={`ap-wday${String(form.anchor_weekday) === String(i) ? " active" : ""}`} onClick={() => setForm((p) => ({ ...p, anchor_weekday: String(i) }))}>
+                        <button key={day} type="button" className={`ap-wday${String(form.anchor_weekday) === String(i) ? " Active" : ""}`} onClick={() => setForm((p) => ({ ...p, anchor_weekday: String(i) }))}>
                           {day.slice(0,3)}
                         </button>
                       ))}
@@ -1028,7 +1028,7 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
       const [employees, setEmployees]       = useState([]);
       const [loadingEmployees, setLoadingEmployees] = useState(false);
       const [editingEmployee, setEditingEmployee]   = useState(null); // holds employee object when editing
-      const [empForm, setEmpForm] = useState({ name:"", username:"", password:"", role:"", department:"", site_name:"", site_names:[], status:"active" });
+      const [empForm, setEmpForm] = useState({ name:"", username:"", password:"", role:"", department:"", site_name:"", site_names:[], status:"Active" });
       const [empSubmitting, setEmpSubmitting] = useState(false);
       
 
@@ -1083,8 +1083,8 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
           let headsBySite = {};
 
           if (userNames.length) {
-            const { data: users } = await supabase.from("user_details").select("user_name, role, site_name").in("user_name", userNames);
-            usersByName = (users || []).reduce((map, item) => ({ ...map, [item.user_name]: item }), {});
+            const { data: users } = await supabase .from("user_details") .select("username, role, site_name") .in("username", userNames);
+            usersByName = (users || []).reduce((map, item) => ({ ...map, [item.username]: item }), {});
             siteNames = [...new Set([...siteNames, ...(users || []).map((u) => u.site_name).filter(Boolean)])];
           }
           if (siteNames.length) {
@@ -1138,7 +1138,7 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
           department: empForm.department.trim(),
           site_name:  empForm.site_names[0] || empForm.site_name.trim() || null,
           site_names: empForm.site_names.length ? empForm.site_names : null,
-          status:     empForm.status || "active",
+          status:     empForm.status || "Active",
         }).eq("id", editingEmployee.id);
         setEmpSubmitting(false);
         if (error) return showToast("error", "Failed to update. " + error.message);
@@ -1152,14 +1152,14 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
           department: empForm.department.trim(),
           site_name:  empForm.site_names[0] || empForm.site_name.trim() || null,
           site_names: empForm.site_names.length ? empForm.site_names : null,
-          status:     empForm.status || "active",
+          status:     empForm.status || "Active",
         }]);
         setEmpSubmitting(false);
         if (error) return showToast("error", "Failed to save. " + error.message);
         showToast("success", "Employee added successfully!");
       }
 
-      setEmpForm({ name:"", username:"", password:"", role:"", department:"", site_name:"", status:"active" });
+      setEmpForm({ name:"", username:"", password:"", role:"", department:"", site_name:"", status:"Active" });
       setEditingEmployee(null);
       fetchEmployees();
       setActiveTab("manage-employees");
@@ -1175,7 +1175,7 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
     department: emp.department || "",
     site_name:  emp.site_name || "",
     site_names: emp.site_names || (emp.site_name ? [emp.site_name] : []),
-    status:     emp.status || "active",
+    status:     emp.status || "Active",
   });
   setActiveTab("add-employee");
 };
@@ -1198,11 +1198,18 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
         setTimeout(() => setToast(null), 3500);
       };
 
-      const handleNavClick = (key) => {
-        setActiveTab(key);
-        if (typeof window !== "undefined" && window.innerWidth <= 760) setSidebarOpen(false);
-      };
-
+const handleNavClick = (key) => {
+  setActiveTab(key);
+  if (key === "add-employee") {
+    setEditingEmployee(null);
+    setEmpForm({ 
+      name: "", username: "", password: "", 
+      role: "", department: "", site_name: "", 
+      site_names: [], status: "active" 
+    });
+  }
+  if (typeof window !== "undefined" && window.innerWidth <= 760) setSidebarOpen(false);
+};
       const handleFormChange = (e) => {
         const { name, value, type, checked } = e.target;
         setForm((prev) => ({
@@ -1500,7 +1507,7 @@ const tfAssignees  = [...new Set(tasksForAssignees.map(t => t.assigned_to).filte
                 {/* Filter icon button (always visible, especially useful on mobile) */}
                 <div style={{ position:"relative" }}>
                   <button
-                    className={`tf-mobile-btn recurring-mobile-filter-btn${recurringMobileFilterOpen ? " active" : ""}`}
+                    className={`tf-mobile-btn recurring-mobile-filter-btn${recurringMobileFilterOpen ? " Active" : ""}`}
                     onClick={() => setRecurringMobileFilterOpen(p => !p)}
                     title="Filter"
                   >
@@ -1818,13 +1825,13 @@ const tfAssignees  = [...new Set(tasksForAssignees.map(t => t.assigned_to).filte
                   </div>
                   <div className="ap-field">
                     <label className="ap-label">Username <span className="ap-req">*</span></label>
-                    <input className="ap-input" name="username" value={empForm.username} onChange={handleEmpFormChange} placeholder="e.g. john_doe" disabled={!!editingEmployee}/>
+                    <input className="ap-input" name="username" autoComplete="off" value={empForm.username} onChange={handleEmpFormChange} placeholder="e.g. john.doe" disabled={!!editingEmployee}/>
                   </div>
                 </div>
                 <div className="ap-form-row ap-col-2">
                   <div className="ap-field">
                     <label className="ap-label">Password <span className="ap-req">*</span></label>
-                    <input className="ap-input" type="password" name="password" value={empForm.password} onChange={handleEmpFormChange} placeholder="••••••••"/>
+                    <input className="ap-input" type="password" name="password" autoComplete="new-password" value={empForm.password} onChange={handleEmpFormChange} placeholder="••••••••"/>
                   </div>
                   <div className="ap-field">
                     <label className="ap-label">Role <span className="ap-req">*</span></label>
@@ -1895,16 +1902,23 @@ const tfAssignees  = [...new Set(tasksForAssignees.map(t => t.assigned_to).filte
                   <div className="ap-field">
                     <label className="ap-label">Status</label>
                     <select className="ap-input ap-select" name="status" value={empForm.status} onChange={handleEmpFormChange}>
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
                     </select>
                   </div>
                 </div>
                 <div className="ap-form-row ap-col-1 ap-form-actions">
-                  <button className="ap-btn-secondary" onClick={() => {
-                    setEmpForm({ name:"", username:"", password:"", role:"", department:"", site_name:"", status:"active" });
-                    setEditingEmployee(null);
-                  }}>Reset</button>
+                {editingEmployee ? (
+                    <button className="ap-btn-secondary" onClick={() => {
+                      setEmpForm({ name:"", username:"", password:"", role:"", department:"", site_name:"", site_names:[], status:"active" });
+                      setEditingEmployee(null);
+                      setActiveTab("manage-employees");
+                    }}>Cancel</button>
+                  ) : (
+                    <button className="ap-btn-secondary" onClick={() => {
+                      setEmpForm({ name:"", username:"", password:"", role:"", department:"", site_name:"", site_names:[], status:"active" });
+                    }}>Reset</button>
+                  )}
                   <button className="ap-btn-primary" onClick={handleEmpSubmit} disabled={empSubmitting}>
                     {empSubmitting
                       ? <><span className="ap-mini-spinner"/> Saving…</>
@@ -1941,21 +1955,21 @@ const tfAssignees  = [...new Set(tasksForAssignees.map(t => t.assigned_to).filte
                           <td className="ap-td ap-td-title">{emp.name || "—"}</td>
                           <td className="ap-td" style={{ fontFamily:"'DM Mono',monospace", fontSize:12.5 }}>{emp.username || "—"}</td>
                           <td className="ap-td">
-                            {emp.role ? <span className="ap-pill-blue">{emp.role}</span> : <span style={{ color:"#94a3b8" }}>—</span>}
+                            {emp.role ? <span className="ap-pill-blue">{(emp.role || "").toUpperCase()}</span> : <span style={{ color:"#94a3b8" }}>—</span>}
                           </td>
                           <td className="ap-td">{emp.department || "—"}</td>
                           <td className="ap-td">
                             {(emp.site_names?.length > 0 ? emp.site_names : emp.site_name ? [emp.site_name] : [])
                               .map(s => (
-                                <span key={s} className="ap-pill-blue" style={{marginRight:4, marginBottom:2}}>{s}</span>
+                                 <span key={s} className="ap-pill-blue" style={{marginRight:4, marginBottom:2}}>{s.toUpperCase()}</span>
                               ))}
                             {!emp.site_names?.length && !emp.site_name && <span style={{color:"#94a3b8"}}>—</span>}
                           </td>
                           <td className="ap-td">
                             <span style={{
                               fontSize:11, fontWeight:600, padding:"2px 8px", borderRadius:20,
-                              background: emp.status === "active" ? "#f0fdf4" : "#f1f5f9",
-                              color: emp.status === "active" ? "#16a34a" : "#64748b",
+                              background: emp.status === "Active" ? "#f0fdf4" : "#fef2f2",
+                              color: emp.status === "Active" ? "#16a34a" : "#dc2626",
                             }}>{emp.status || "—"}</span>
                           </td>
                             <td className="ap-td">
@@ -2058,8 +2072,8 @@ const tfAssignees  = [...new Set(tasksForAssignees.map(t => t.assigned_to).filte
             .op-nav { padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
             .op-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; color: #64748b; font-size: 13.5px; font-weight: 500; white-space: nowrap; border: none; background: transparent; width: 100%; text-align: left; transition: background .15s, color .15s; position: relative; }
             .op-nav-item:hover  { background: #f1f5f9; color: #1e293b; }
-            .op-nav-item.active { background: #fef2f2; color: #dc2626; }
-            .op-nav-item.active svg { stroke: #dc2626; }
+            .op-nav-item.Active { background: #fef2f2; color: #dc2626; }
+            .op-nav-item.Active svg { stroke: #dc2626; }
             .op-nav-icon { flex-shrink: 0; display: flex; align-items: center; }
             .op-nav-badge { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; min-width: 18px; height: 18px; border-radius: 999px; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
 
@@ -2139,7 +2153,7 @@ const tfAssignees  = [...new Set(tasksForAssignees.map(t => t.assigned_to).filte
             .ap-form-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px; }
             .ap-btn-primary  { display: inline-flex; align-items: center; gap: 7px; background: #dc2626; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; transition: background .15s, transform .1s; }
             .ap-btn-primary:hover:not(:disabled)  { background: #b91c1c; }
-            .ap-btn-primary:active:not(:disabled) { transform: scale(.98); }
+            .ap-btn-primary:Active:not(:disabled) { transform: scale(.98); }
             .ap-btn-primary:disabled { opacity: .6; cursor: not-allowed; }
             .ap-btn-secondary { display: inline-flex; align-items: center; gap: 7px; background: #f1f5f9; color: #475569; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 18px; border-radius: 8px; border: 1px solid #c9d0d4d0; cursor: pointer; transition: background .15s; }
             .ap-btn-secondary:hover { background: #c9d0d4d0; }
@@ -2159,11 +2173,11 @@ const tfAssignees  = [...new Set(tasksForAssignees.map(t => t.assigned_to).filte
             .ap-recurrence-pills   { display: flex; gap: 8px; flex-wrap: wrap; }
             .ap-rpill { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: 1.5px solid #c9d0d4d0; background: #f8fafc; color: #64748b; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
             .ap-rpill:hover  { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
-            .ap-rpill.active { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+            .ap-rpill.Active { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
             .ap-weekday-grid { display: flex; gap: 6px; flex-wrap: wrap; }
             .ap-wday { width: 46px; height: 40px; border-radius: 8px; border: 1.5px solid #c9d0d4d0; background: #f8fafc; color: #64748b; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; }
             .ap-wday:hover  { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
-            .ap-wday.active { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+            .ap-wday.Active { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
             .ap-anchor-preview { display: flex; align-items: flex-start; gap: 8px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #2563eb; line-height: 1.5; }
             .ap-anchor-preview svg { flex-shrink: 0; margin-top: 1px; }
             .ap-anchor-preview strong { color: #1d4ed8; }
@@ -2236,7 +2250,7 @@ const tfAssignees  = [...new Set(tasksForAssignees.map(t => t.assigned_to).filte
             /* FAB */
             .ap-fab { position: fixed; bottom: 32px; right: 32px; z-index: 999; width: 52px; height: 52px; border-radius: 50%; background: #dc2626; color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(220,38,38,.4); transition: transform .2s, box-shadow .2s; }
             .ap-fab:hover  { transform: scale(1.08); box-shadow: 0 6px 28px rgba(220,38,38,.5); }
-            .ap-fab:active { transform: scale(.96); }
+            .ap-fab:Active { transform: scale(.96); }
 
             /* Modal */
             .ap-modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(15,23,42,.45); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; padding: 20px; }
@@ -2314,7 +2328,7 @@ const tfAssignees  = [...new Set(tasksForAssignees.map(t => t.assigned_to).filte
 
               .tf-bar-inline { position:fixed; top:120px; right:90px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; background: #c9d0d4dc; padding: 10px; border-radius: 10px; }
               .tf-mobile-btn { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; cursor: pointer; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
-              .tf-mobile-btn.active { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+              .tf-mobile-btn.Active { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
               .tf-mobile-badge { position: absolute; top: -4px; right: -4px; width: 8px; height: 8px; background: #dc2626; border-radius: 50%; }
               .tf-popup { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200; background: #c9d0d4d0; border: 1px solid #c9d0d4d0; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 14px; width: 290px; }
 
@@ -2373,7 +2387,7 @@ const tfAssignees  = [...new Set(tasksForAssignees.map(t => t.assigned_to).filte
                   {NAV_ITEMS.slice(0, 6).map((item) => (
                     <button
                       key={item.key}
-                      className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
+                      className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
                       onClick={() => handleNavClick(item.key)}
                     >
                       <span className="op-nav-icon">{item.icon}</span>
@@ -2390,7 +2404,7 @@ const tfAssignees  = [...new Set(tasksForAssignees.map(t => t.assigned_to).filte
                   {NAV_ITEMS.slice(6).map((item) => (
                     <button
                       key={item.key}
-                      className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
+                      className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
                       onClick={() => handleNavClick(item.key)}
                     >
                       <span className="op-nav-icon">{item.icon}</span>

@@ -21,12 +21,12 @@ export default function Login() {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) return;
     const user = JSON.parse(storedUser);
-    redirectUser(user.role);
+    redirectUser(user.department);
   }, [navigate]);
 
-  const redirectUser = (role) => {
-    const normalizedRole = role?.trim()?.toLowerCase();
-    switch (normalizedRole) {
+  const redirectUser = (department) => {
+    const normalizeddepartment = department?.trim()?.toLowerCase();
+    switch (normalizeddepartment) {
       case "hr":              navigate("/hr");     break;
       case "client":          navigate("/client"); break;
       case "admin":           navigate("/admin");  break;
@@ -34,7 +34,7 @@ export default function Login() {
       case "engineer office": navigate("/office"); break;
       case "site engineer":   navigate("/site");   break;
       case "mdo office":      navigate("/mdo");    break;
-      default: alert(`No portal assigned for role: ${role}`);
+      default: alert(`No portal assigned for department: ${department}`);
     }
   };
 
@@ -81,14 +81,14 @@ export default function Login() {
       id:          userRow.id,
       user_name:   userRow.username,
       name:        userRow.name,
-      role:        userRow.role,
+      department:        userRow.department,
       department:  userRow.department,
       status:      userRow.status,
       site_name:   userRow.site_name || "",
-      designation: userRow.role || "",
+      designation: userRow.department || "",
     };
     localStorage.setItem("user", JSON.stringify(userData));
-    redirectUser(userData.role);
+    redirectUser(userData.department);
   };
 
   return (
@@ -148,6 +148,7 @@ export default function Login() {
                 onChange={e => setUsername(e.target.value)}
                 placeholder="Enter your username"
                 onKeyDown={e => e.key === "Enter" && login()}
+                autoComplete="username"
               />
             </div>
           </div>
@@ -163,6 +164,7 @@ export default function Login() {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Enter your password"
                 onKeyDown={e => e.key === "Enter" && login()}
+                autoComplete="current-password"
               />
               <button
                 type="button"

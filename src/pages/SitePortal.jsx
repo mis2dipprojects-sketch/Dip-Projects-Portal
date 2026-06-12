@@ -367,6 +367,9 @@ const DARK_CSS = `
 [data-theme="dark"] .cal-nav-title {
   color:#f0ede8;
 }
+[data-theme="dark"] .btn-pri{background:rgb(37, 32, 25);color:white;box-shadow:0 3px 10px rgba(15,13,10,.2); border:1px solid white;}
+[data-theme="dark"] .btn-pri:hover{background:#2a2520;transform:translateY(-1px);color:#fff;}
+[data-theme="dark"] .btn-pri:disabled{opacity:.5;cursor:not-allowed;transform:none;}
 `;
 // ─── CSS ─────────────────────────────────────────────────────────────────────
 const CSS = `
@@ -450,7 +453,7 @@ body,#root{background:#c9d0d4d0;font-family:var(--font);color:var(--ink);}
 
 /* ── Buttons ── */
 .btn{display:inline-flex;align-items:center;gap:7px;font-family:var(--font);font-size:13px;font-weight:700;padding:10px 20px;border-radius:9px;border:none;cursor:pointer;transition:all .15s;}
-.btn-pri{background:var(--ink);color:black;box-shadow:0 3px 10px rgba(15,13,10,.2);}
+.btn-pri{background:rgb(37, 32, 25);color:white;box-shadow:0 3px 10px rgba(15,13,10,.2);}
 .btn-pri:hover{background:#2a2520;transform:translateY(-1px);color:#fff;}
 .btn-pri:disabled{opacity:.5;cursor:not-allowed;transform:none;}
 .btn-out{background:var(--surface);color:var(--ink2);border:1.5px solid var(--line2);}
@@ -813,7 +816,7 @@ function ApplyLeave({ user }) {
       from_date:       form.from_date,
       to_date:         form.to_date,
       reason:          form.reason || null,
-      site_name:       user.site_name || null,
+      site_name:      user.site_names?.[0] || user.site_name || null,
       proxy_user_name: form.proxy_user_name || null,  // head's username goes here
       status:          "Pending",
       admin_approved:  null,
@@ -847,7 +850,12 @@ function ApplyLeave({ user }) {
           <span style={{color:"var(--ink3)",fontWeight:600}}>Employee: </span><strong>{user.name}</strong>
         </div>
         <div style={{background:"var(--paper)",border:"1px solid var(--line2)",borderRadius:9,padding:"8px 14px",fontSize:12.5}}>
-          <span style={{color:"var(--ink3)",fontWeight:600}}>Site: </span><strong>{user.site_name||"Not Assigned"}</strong>
+          <span style={{color:"var(--ink3)",fontWeight:600}}>Site(s): </span>
+          <strong>
+            {(user.site_names?.length
+              ? user.site_names.join(", ")
+              : user.site_name) || "Not Assigned"}
+          </strong>
         </div>
       </div>
 
@@ -905,7 +913,7 @@ function WeeklyReport({ user }) {
   const DAYS_FULL = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
   const [weekFrom, setWeekFrom] = useState("");
   const [weekTo,   setWeekTo]   = useState("");
-  const [site,     setSite]     = useState(user.site_name||"");
+  const [site, setSite] = useState(user.site_names?.[0] || user.site_name || "");
   const [rows,     setRows]     = useState(DAYS_FULL.map(d=>({day:d,activity:"",target:"",manpower:""})));
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -1089,13 +1097,33 @@ const handleLogout = () => {
 };
 
   useEffect(() => {
-    const stored = localStorage.getItem("user");
-    if (stored) setUser(JSON.parse(stored));
-    const onResize = () => { if (window.innerWidth <= 768) setSidebarOpen(false); };
-    onResize();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+  const stored = localStorage.getItem("user");
+  if (stored) {
+    const parsed = JSON.parse(stored);
+    setUser(parsed);
+    // Re-fetch fresh site data from user_details
+    (async () => {
+      const { data } = await supabase
+        .from("user_details")
+        .select("site_name, site_names")
+        .eq("id", parsed.id)
+        .single();
+      if (data) {
+        const updated = {
+          ...parsed,
+          site_name:  data.site_name  ?? parsed.site_name,
+          site_names: data.site_names ?? (parsed.site_name ? [parsed.site_name] : []),
+        };
+        setUser(updated);
+        localStorage.setItem("user", JSON.stringify(updated)); // keep localStorage fresh
+      }
+    })();
+  }
+  const onResize = () => { if (window.innerWidth <= 768) setSidebarOpen(false); };
+  onResize();
+  window.addEventListener("resize", onResize);
+  return () => window.removeEventListener("resize", onResize);
+}, []);
 
   const nav = (key) => { setActiveTab(key); if (window.innerWidth <= 768) setSidebarOpen(false); };
   const activeItem = ALL_ITEMS.find(i=>i.key===activeTab);

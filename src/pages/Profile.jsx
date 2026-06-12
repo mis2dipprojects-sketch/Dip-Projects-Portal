@@ -26,7 +26,25 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
     if (!user) return;
     (async () => {
       setLoading(true);
-      const { data } = await supabase
+
+        // Fetch fresh site data for this user
+        const { data: freshUser } = await supabase
+        .from("user_details")
+        .select("site_name, site_names")
+        .eq("id", user.id)
+        .single();
+        if (freshUser) {
+        const stored = JSON.parse(localStorage.getItem("user") || "{}");
+        const updated = {
+            ...stored,
+            site_name:  freshUser.site_name  ?? stored.site_name,
+            site_names: freshUser.site_names ?? (stored.site_name ? [stored.site_name] : []),
+        };
+        localStorage.setItem("user", JSON.stringify(updated));
+        // Note: user prop won't re-render here since it's passed from parent,
+        // but localStorage is kept fresh for next load
+        }
+        const { data } = await supabase
         .from("dpr_reports")
         .select("report_type, created_at, date")
         .eq("engineer", user.name)
@@ -90,7 +108,7 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
               <polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
-            {user?.site_name || "No Site Assigned"}
+            {user?.site_names?.length ? user.site_names.join(", ") : user?.site_name || "No Site Assigned"}
           </div>
         </div>
 

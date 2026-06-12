@@ -330,70 +330,147 @@ const handleSubmit = async () => {
 
   return (
     <>
-      <style>{`
-        .svr-root { display: flex; flex-direction: column; gap: 14px; }
-        .svr-section { border: 1px solid #e8edf3; border-radius: 10px; overflow: hidden; }
+ <style>{`
+  .svr-root { display: flex; flex-direction: column; gap: 14px; }
+  .svr-section { border: 1px solid #e8edf3; border-radius: 10px; overflow: hidden; }
 
-        .svr-sec-header{ width:100%;display:flex;align-items:center;gap:12px; background:linear-gradient(#fff,#fff) padding-box,linear-gradient(135deg,#6b2d0f,#c8641a) border-box;border:2px solid transparent;border-radius:12px;color:#6b2d0f;padding:13px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;letter-spacing:.2px;text-align:left;transition:.15s;}
-        .svr-sec-header:hover { filter: brightness(1.1); }
-        .svr-sec-num { background: rgba(255,255,255,.18); width: 24px; height: 24px;
-          border-radius: 6px; display: flex; align-items: center; justify-content: center;
-          font-size: 12px; font-weight: 800; flex-shrink: 0; }
-        .svr-sec-title { flex: 1; }
-        .svr-chevron { margin-left: auto; flex-shrink: 0; transition: transform .2s; }
-        .svr-chevron.open { transform: rotate(180deg); }
-        .svr-sec-body { padding: 20px; background: #fff; display: flex; flex-direction: column; gap: 14px; }
-        .svr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        .svr-col2 { grid-column: span 2; }
-        @media (max-width: 620px) { .svr-grid { grid-template-columns: 1fr; } .svr-col2 { grid-column: span 1; } }
-        .svr-field { display: flex; flex-direction: column; gap: 5px; }
-        .svr-label { font-size: 12.5px; font-weight: 600; color: #475569; }
-        .svr-req { color: #dc2626; }
-        .svr-hint { font-size: 11.5px; color: #94a3b8; }
-        .svr-input, .svr-select, .svr-textarea {
-          font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: #1e293b;
-          background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px;
-          padding: 9px 12px; outline: none; transition: border .15s, box-shadow .15s; width: 100%; }
-        .svr-input:focus, .svr-select:focus, .svr-textarea:focus {
-          border-color: #334155; box-shadow: 0 0 0 3px rgba(51,65,85,.1); background: #fff; }
-        .svr-select { cursor: pointer; }
-        .svr-textarea { resize: vertical; min-height: 100px; }
-        .svr-photo-btn { display: inline-flex; align-items: center; gap: 8px;
-          padding: 10px 16px; border: 2px dashed #cbd5e1; border-radius: 8px;
-          cursor: pointer; font-weight: 600; color: #475569; background: #f8fafc;
-          font-size: 13px; transition: .18s ease; font-family: 'DM Sans', sans-serif; }
-        .svr-photo-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
-        .svr-photo-btn.has-photos { border-style: solid; border-color: #334155; color: #1e293b; background: #f1f5f9; }
-        .svr-photo-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
-        .svr-photo-item { display: flex; flex-direction: column; width: 120px; }
-        .svr-photo-thumb { position: relative; width: 120px; height: 120px; overflow: hidden;
-          border: 2px solid #e2e8f0; border-radius: 8px 8px 0 0; }
-        .svr-photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
-        .svr-photo-remove { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px;
-          background: rgba(0,0,0,.6); color: #fff; border: none; border-radius: 4px;
-          cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
-          font-family: 'DM Sans', sans-serif; padding: 0; }
-        .svr-photo-remove:hover { background: #dc2626; }
-        .svr-caption-input { width: 120px; border: 2px solid #e2e8f0; border-top: 1px solid #f1f5f9;
-          border-radius: 0 0 8px 8px; font-size: 11px; padding: 5px 7px;
-          font-family: 'DM Sans', sans-serif; background: #fff; color: #475569; resize: none; outline: none; }
-        .svr-caption-input:focus { border-color: #334155; }
-        .svr-submit { display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-          background: linear-gradient(135deg,#88330f, #581d03, #88330f); color: #fff;
-          font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700;
-          padding: 13px 24px; border-radius: 9px; border: none; cursor: pointer;
-          transition: filter .15s, transform .1s; width: 100%; margin-top: 4px;
-          box-shadow: 0 4px 14px rgba(30,41,59,.25); }
-        .svr-submit:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
-        .svr-submit:disabled { opacity: .6; cursor: not-allowed; }
-        .svr-stage { font-size: 12px; color: #64748b; text-align: center; margin-top: 6px; font-family: 'DM Sans', sans-serif; }
-        .svr-toast { display: flex; align-items: center; gap: 9px; padding: 11px 16px;
-          border-radius: 9px; font-size: 13px; font-weight: 600; margin-bottom: 14px;
-          animation: svr-slideUp .2s ease; }
-        .svr-toast-success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
-        .svr-toast-error   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-        @keyframes svr-slideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
-      `}</style>
+  .svr-sec-header { width:100%; display:flex; align-items:center; gap:12px;
+    background: linear-gradient(#fff,#fff) padding-box, linear-gradient(135deg,#6b2d0f,#c8641a) border-box;
+    border: 2px solid transparent; border-radius: 12px; color: #6b2d0f;
+    padding: 13px 16px; cursor: pointer; font-family:'DM Sans',sans-serif;
+    font-size: 14px; font-weight: 600; letter-spacing: .2px; text-align: left; transition: .15s; }
+  .svr-sec-header:hover { filter: brightness(1.1); }
+  .svr-sec-num { background: rgba(255,255,255,.18); width: 24px; height: 24px;
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; flex-shrink: 0; }
+  .svr-sec-title { flex: 1; }
+  .svr-chevron { margin-left: auto; flex-shrink: 0; transition: transform .2s; }
+  .svr-chevron.open { transform: rotate(180deg); }
+  .svr-sec-body { padding: 20px; background: #fff; display: flex; flex-direction: column; gap: 14px; }
+
+  .svr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .svr-col2 { grid-column: span 2; }
+  @media (max-width: 620px) { .svr-grid { grid-template-columns: 1fr; } .svr-col2 { grid-column: span 1; } }
+
+  .svr-field { display: flex; flex-direction: column; gap: 5px; }
+  .svr-label { font-size: 12.5px; font-weight: 600; color: #475569; }
+  .svr-req { color: #dc2626; }
+  .svr-hint { font-size: 11.5px; color: #94a3b8; }
+
+  .svr-input, .svr-select, .svr-textarea {
+    font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: #1e293b;
+    background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    padding: 9px 12px; outline: none; transition: border .15s, box-shadow .15s; width: 100%; }
+  .svr-input:focus, .svr-select:focus, .svr-textarea:focus {
+    border-color: #334155; box-shadow: 0 0 0 3px rgba(51,65,85,.1); background: #fff; }
+  .svr-select { cursor: pointer; }
+  .svr-textarea { resize: vertical; min-height: 100px; }
+
+  .svr-photo-btn { display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 16px; border: 2px dashed #cbd5e1; border-radius: 8px;
+    cursor: pointer; font-weight: 600; color: #475569; background: #f8fafc;
+    font-size: 13px; transition: .18s ease; font-family: 'DM Sans', sans-serif; }
+  .svr-photo-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
+  .svr-photo-btn.has-photos { border-style: solid; border-color: #334155; color: #1e293b; background: #f1f5f9; }
+
+  .svr-photo-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+  .svr-photo-item { display: flex; flex-direction: column; width: 120px; }
+  .svr-photo-thumb { position: relative; width: 120px; height: 120px; overflow: hidden;
+    border: 2px solid #e2e8f0; border-radius: 8px 8px 0 0; }
+  .svr-photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .svr-photo-remove { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px;
+    background: rgba(0,0,0,.6); color: #fff; border: none; border-radius: 4px;
+    cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Sans', sans-serif; padding: 0; }
+  .svr-photo-remove:hover { background: #dc2626; }
+  .svr-caption-input { width: 120px; border: 2px solid #e2e8f0; border-top: 1px solid #f1f5f9;
+    border-radius: 0 0 8px 8px; font-size: 11px; padding: 5px 7px;
+    font-family: 'DM Sans', sans-serif; background: #fff; color: #475569; resize: none; outline: none; }
+  .svr-caption-input:focus { border-color: #334155; }
+
+  .svr-submit { display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: linear-gradient(135deg,#88330f,#581d03,#88330f); color: #fff;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700;
+    padding: 13px 24px; border-radius: 9px; border: none; cursor: pointer;
+    transition: filter .15s, transform .1s; width: 100%; margin-top: 4px;
+    box-shadow: 0 4px 14px rgba(30,41,59,.25); }
+  .svr-submit:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+  .svr-submit:disabled { opacity: .6; cursor: not-allowed; }
+
+  .svr-stage { font-size: 12px; color: #64748b; text-align: center; margin-top: 6px;
+    font-family: 'DM Sans', sans-serif; }
+
+  .svr-toast { display: flex; align-items: center; gap: 9px; padding: 11px 16px;
+    border-radius: 9px; font-size: 13px; font-weight: 600; margin-bottom: 14px;
+    animation: svr-slideUp .2s ease; }
+  .svr-toast-success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+  .svr-toast-error   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  @keyframes svr-slideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+  .svr-info-banner { display: flex; gap: 9px; align-items: flex-start;
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 12px 14px; font-size: 13px; color: #475569; }
+
+  .svr-result { display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; border-radius: 10px; margin-bottom: 12px;
+    font-size: 13.5px; font-weight: 500; border: 1px solid; }
+  .svr-result-success { background: #f0fdf4; border-color: #bbf7d0; color: #16a34a; }
+  .svr-result-error   { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+
+  /* ── Dark theme — matches DPR's [data-theme="dark"] pattern ── */
+  [data-theme="dark"] .svr-section { border-color: #2d3748; }
+
+  [data-theme="dark"] .svr-sec-header {
+    background: linear-gradient(#252320,#252320) padding-box,
+                linear-gradient(135deg,#c8641a,#f97316) border-box;
+    color: #fbbf24;
+  }
+  [data-theme="dark"] .svr-sec-num { background: rgba(249,115,22,.15); }
+  [data-theme="dark"] .svr-sec-body { background: #1e1c19; }
+
+  [data-theme="dark"] .svr-label { color: #c4bdb4; }
+  [data-theme="dark"] .svr-hint  { color: #7a7368; }
+  [data-theme="dark"] .svr-req   { color: #f87171; }
+
+  [data-theme="dark"] .svr-input,
+  [data-theme="dark"] .svr-select,
+  [data-theme="dark"] .svr-textarea {
+    background: #252320; border-color: #3a3733; color: #f0ede8; }
+  [data-theme="dark"] .svr-input:focus,
+  [data-theme="dark"] .svr-select:focus,
+  [data-theme="dark"] .svr-textarea:focus {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(107,45,15,.2);
+    background: #2e2b27; }
+  [data-theme="dark"] .svr-input::placeholder,
+  [data-theme="dark"] .svr-textarea::placeholder { color: #4b5563; }
+  [data-theme="dark"] .svr-select option { background: #252320; color: #f0ede8; }
+
+  [data-theme="dark"] .svr-photo-btn {
+    background: #252320; border-color: #3a3733; color: #7a7368; }
+  [data-theme="dark"] .svr-photo-btn:hover {
+    background: #2e2b27; border-color: #4b5563; }
+  [data-theme="dark"] .svr-photo-btn.has-photos {
+    background: #2a1f08; border-color: #f59e0b; color: #fbbf24; }
+
+  [data-theme="dark"] .svr-photo-thumb { border-color: #3a3733; }
+  [data-theme="dark"] .svr-caption-input {
+    background: #252320; border-color: #3a3733; color: #c4bdb4; }
+  [data-theme="dark"] .svr-caption-input:focus { border-color: #f59e0b; }
+
+  [data-theme="dark"] .svr-stage { color: #7a7368; }
+
+  [data-theme="dark"] .svr-toast-success { background: #052e16; color: #4ade80; border-color: #166534; }
+  [data-theme="dark"] .svr-toast-error   { background: #2d0a0a; color: #f87171; border-color: #7f1d1d; }
+
+  [data-theme="dark"] .svr-info-banner {
+    background: #1e1c19; border-color: #3a3733; color: #7a7368; }
+
+  [data-theme="dark"] .svr-result-success {
+    background: #052e16; border-color: #166534; color: #4ade80; }
+  [data-theme="dark"] .svr-result-error {
+    background: #2d0a0a; border-color: #7f1d1d; color: #f87171; }
+`}</style>
 
       <div className="svr-root">
         {toast && (
@@ -405,10 +482,12 @@ const handleSubmit = async () => {
           </div>
         )}
 
-        <div style={{ display:"flex", gap:9, alignItems:"flex-start", background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:10, padding:"12px 14px", fontSize:13, color:"#475569" }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0, marginTop:1}}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          Fill in all sections below and attach site photos. On submit, the report is saved to the database, photos are uploaded, and a PDF is generated and stored.
-        </div>
+      <div className="svr-info-banner">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0, marginTop:1}}>
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Fill in all sections below and attach site photos. On submit, the report is saved to the database, photos are uploaded, and a PDF is generated and stored.
+      </div>
 
         {/* ── 1. Visit Details ── */}
         <Section num={1} title="Visit Details" openSections={openSections} toggleSection={toggleSection}>
@@ -502,14 +581,7 @@ const handleSubmit = async () => {
         </Section>
           {/* Inline submit result — shows above submit button */}
 {submitResult && (
-  <div style={{
-    display: "flex", alignItems: "center", gap: 10,
-    padding: "12px 16px", borderRadius: 10, marginBottom: 12,
-    background: submitResult.type === "success" ? "#f0fdf4" : "#fef2f2",
-    border: `1px solid ${submitResult.type === "success" ? "#bbf7d0" : "#fecaca"}`,
-    color: submitResult.type === "success" ? "#16a34a" : "#dc2626",
-    fontSize: 13.5, fontWeight: 500,
-  }}>
+  <div className={`svr-result svr-result-${submitResult.type}`}>
     {submitResult.type === "success"
       ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
       : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -519,7 +591,9 @@ const handleSubmit = async () => {
       marginLeft: "auto", background: "none", border: "none",
       cursor: "pointer", color: "inherit", padding: 2, display: "flex",
     }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
     </button>
   </div>
 )}

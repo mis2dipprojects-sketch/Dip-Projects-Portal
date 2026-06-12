@@ -9,6 +9,11 @@ const todayStr = () => new Date().toISOString().split("T")[0];
 const fmtDate  = d => d ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" }) : "—";
 const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
 
+// NEW — Title Case: capitalises first letter of every word
+const titleCase = s => s
+  ? s.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+  : "";
+
 async function compressImage(file) {
   return new Promise(resolve => {
     const reader = new FileReader();
@@ -1210,22 +1215,13 @@ if (isPhotos) {
 // ─── Supabase helpers ─────────────────────────────────────────────────────────
 async function dbFetch(table, col="name") {
   const { data } = await supabase.from(table).select(col).order(col);
-  return (data||[]).map(r => r[col]);
+  return (data||[]).map(r => r[col]).filter(Boolean).map(titleCase);
 }
 async function dbInsert(table, payload) {
   const { error } = await supabase.from(table).insert(payload);
   return !error;
 }
-async function getEngineersForSite(site) {
-  const { data } = await supabase
-    .from("user_site_assignments")
-    .select("user_details(name)")
-    .eq("site_name", site);
-  return (data || [])
-    .map(r => r.user_details?.name)
-    .filter(Boolean)
-    .sort();
-}
+
 
 // async function getManpowerTypes(scope, workCat) {
 //   let q = supabase.from("dpr_manpower_types").select("name,scope,work_category").order("name");
@@ -1250,6 +1246,7 @@ function resolveScope(rawScope) {
   return "contractor"; // everything else → contractor
 }
 
+// REPLACE getManpowerTypesForScope
 async function getManpowerTypesForScope(rawScope) {
   const scope = resolveScope(rawScope);
   const { data } = await supabase
@@ -1257,9 +1254,10 @@ async function getManpowerTypesForScope(rawScope) {
     .select("manpowertype")
     .eq("scope", scope)
     .order("manpowertype");
-  return [...new Set((data || []).map(r => r.manpowertype).filter(Boolean))];
+  return [...new Set((data || []).map(r => r.manpowertype).filter(Boolean).map(titleCase))];
 }
 
+// REPLACE getManpowerTypesByCategory
 async function getManpowerTypesByCategory(category) {
   if (!category) return [];
   const { data } = await supabase
@@ -1267,15 +1265,29 @@ async function getManpowerTypesByCategory(category) {
     .select("manpowertype")
     .eq("category", category)
     .order("manpowertype");
-  return (data || []).map(r => r.manpowertype).filter(Boolean);
+  return (data || []).map(r => r.manpowertype).filter(Boolean).map(titleCase);
 }
 
+// REPLACE getAllCategories
 async function getAllCategories() {
   const { data } = await supabase
     .from("workcategory")
     .select("category")
     .order("category");
-  return (data || []).map(r => r.category).filter(Boolean);
+  return (data || []).map(r => r.category).filter(Boolean).map(titleCase);
+}
+
+// REPLACE getEngineersForSite
+async function getEngineersForSite(site) {
+  const { data } = await supabase
+    .from("user_site_assignments")
+    .select("user_details(name)")
+    .eq("site_name", site);
+  return (data || [])
+    .map(r => r.user_details?.name)
+    .filter(Boolean)
+    .map(titleCase)
+    .sort();
 }
 async function checkExists(table, col, val) {
   const { data } = await supabase.from(table).select("id").ilike(col,val).limit(1);
@@ -1567,7 +1579,7 @@ function ManpowerSection({ list, setList, showToast }) {
       id:           "tmp_" + Date.now(),
       scope:        dbScope,
       displayScope: scope,
-      category:     isClientOrPMC ? "" : (workCat || "—"),
+      category:     workCat || "—",
       labour:       mpType,
       gender:       gender,
       skill:        skill,
@@ -1592,36 +1604,33 @@ function ManpowerSection({ list, setList, showToast }) {
             onAdd={async name => {
               await dbInsert("dpr_scopes", { name: name.toUpperCase() });
               setScopes(await dbFetch("dpr_scopes"));
-              setScope(name.toUpperCase());
-            }} />
+              setScope(titleCase(name));
+            }}/>
         </div>
 
-        {/* Work Category — only for contractor */}
-{/* Work Category dropdown — contractor only */}
-{!isClientOrPMC && (
-  <div className="fg">
-    <label className="flabel">Work Category</label>
-    <select
-      className="finput"
-      value={workCat}
-      onChange={e => {
-        if (e.target.value === "__addcat") {
-          setShowAddCat(true);
-        } else {
-          setWorkCat(e.target.value);
-          setMpType("");
-        }
-      }}
-    >
-      <option value="">-- All Types --</option>
-      {categories.map(c => <option key={c} value={c}>{c}</option>)}
-      <option value="__addcat">➕ Add New Category…</option>
-    </select>
-  </div>
-)}
+{/* Work Category — all scopes */}
+<div className="fg">
+  <label className="flabel">Work Category</label>
+  <select
+    className="finput"
+    value={workCat}
+    onChange={e => {
+      if (e.target.value === "__addcat") {
+        setShowAddCat(true);
+      } else {
+        setWorkCat(e.target.value);
+        setMpType("");
+      }
+    }}
+  >
+    <option value="">-- All Types --</option>
+    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+    <option value="__addcat">➕ Add New Category…</option>
+  </select>
+</div>
 
         {/* Manpower Type */}
-        <div className="fg" style={{ gridColumn: isClientOrPMC ? "span 2" : "auto" }}>
+        <div className="fg">
           <label className="flabel">Manpower Type <span className="req">*</span></label>
           <select className="finput" value={mpType}
             onChange={e => { if (e.target.value === "__add") setShowAddType(true); else setMpType(e.target.value); }}>
@@ -1764,7 +1773,7 @@ function ManpowerSection({ list, setList, showToast }) {
     ) : (
       // ── DISPLAY ROW ───────────────────────────────────────
       <tr key={row.id || i}>
-        <td style={{ textTransform: "capitalize" }}>{row.displayScope || row.scope}</td>
+        <td>{titleCase(row.displayScope || row.scope || "")}</td>
         <td>{row.labour}</td>
         <td>{row.category || "—"}</td>
         <td>{row.gender  || "—"}</td>
@@ -2067,7 +2076,7 @@ const handleNameChange = val => {
                   </tr>
                 ) : (
                   <tr key={i}>
-                    <td style={{ textTransform: "capitalize" }}>{e.source}</td>
+                    <td>{titleCase(e.source || "")}</td>
                     <td>{e.name}</td>
                     <td>{e.qty}</td>
                     <td>{e.unit}</td>
@@ -2425,6 +2434,7 @@ function DprForm({user}) {
     });
   }
 }, [site, engineer, reportType]);
+
 useEffect(() => {
   (async () => {
     setLoadingSites(true);
@@ -2432,23 +2442,30 @@ useEffect(() => {
 
     let sites = [];
 
-    // user.id is already available from login — no need to re-fetch user_details
-   if (user?.id) {
-  const { data: assignments, error } = await supabase
-    .from("user_site_assignments")
-    .select("site_name")
-    .eq("user_id", user.id);
+    if (user?.id) {
+      // Primary source: fetch site_name and site_names fresh from user_details
+      const { data: udData } = await supabase
+        .from("user_details")
+        .select("site_name, site_names")
+        .eq("id", user.id)
+        .single();
 
-  console.log("user.id:", user.id);
-  console.log("assignments:", assignments);
-  console.log("error:", error);
+      if (udData?.site_names?.length) {
+        // Multi-site array takes priority
+        sites = udData.site_names.filter(Boolean).map(titleCase);
+      } else if (udData?.site_name) {
+        // Single site fallback
+        sites = [titleCase(udData.site_name)];
+      }
+    }
 
-  sites = (assignments || []).map(r => r.site_name).filter(Boolean);
-}
-
-    // Fallback to user profile site_name if no assignments found
-    if (sites.length === 0 && user?.site_name) {
-      sites = [user.site_name];
+    // Final fallback: use whatever is in localStorage user object
+    if (sites.length === 0) {
+      if (user?.site_names?.length) {
+        sites = user.site_names.filter(Boolean).map(titleCase);
+      } else if (user?.site_name) {
+        sites = [titleCase(user.site_name)];
+      }
     }
 
     if (sites.length === 1) {

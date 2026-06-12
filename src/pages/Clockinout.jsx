@@ -99,8 +99,145 @@ export const CLOCK_CSS = `
 .task-doc-btn{height:30px;padding:0 12px;border-radius:7px;border:1.5px solid #444;background:#1e1e1e;color:#aaa;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;transition:all .15s;}
 .task-doc-btn:hover{border-color:#666;color:#ccc;}
 .task-doc-btn.attached{border-color:var(--amber);color:var(--amber);background:rgba(217,119,6,.1);}
-`;
 
+/* ── Scrollbar styling ── */
+.task-list-modal::-webkit-scrollbar {
+  width: 4px;
+}
+.task-list-modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+.task-list-modal::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+.task-list-modal::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* ── Light theme overrides ── */
+[data-theme="light"] .cam-modal,
+[data-theme="light"] .task-panel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+[data-theme="light"] .cam-header,
+[data-theme="light"] .task-panel-hdr,
+[data-theme="light"] .task-panel-footer {
+  background: #ffffff;
+  border-color: #e5e7eb;
+}
+[data-theme="light"] .cam-title,
+[data-theme="light"] .task-panel-title {
+  color: #111827;
+}
+[data-theme="light"] .cam-close {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+[data-theme="light"] .cam-close:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+[data-theme="light"] .task-list-modal::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+}
+[data-theme="light"] .task-list-modal::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* ── Light theme: checkpoint items ── */
+[data-theme="light"] .cp-item-default {
+  background: #f9fafb !important;
+  border-color: #e5e7eb !important;
+}
+[data-theme="light"] .cp-item-checked {
+  background: #f0fdf4 !important;
+  border-color: #86efac !important;
+}
+[data-theme="light"] .cp-item-title {
+  color: #111827 !important;
+}
+[data-theme="light"] .cp-item-title.done {
+  color: #9ca3af !important;
+}
+[data-theme="light"] .task-notes {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  color: #111827;
+}
+[data-theme="light"] .task-notes::placeholder {
+  color: #9ca3af;
+}
+[data-theme="light"] .task-notes:focus {
+  border-color: #d1d5db;
+}
+[data-theme="light"] .task-doc-btn {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #374151;
+}
+[data-theme="light"] .task-doc-btn:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+[data-theme="light"] .task-doc-btn.attached {
+  background: rgba(217,119,6,.08);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+/* ── Light theme: group header ── */
+[data-theme="light"] .cp-group-divider {
+  background: #e5e7eb !important;
+}
+[data-theme="light"] .cp-group-count {
+  color: #9ca3af !important;
+}
+
+/* ── Light theme: cam footer / loc bar ── */
+[data-theme="light"] .cam-footer {
+  background: #ffffff;
+}
+[data-theme="light"] .cam-loc {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+[data-theme="light"] .cam-loc strong {
+  color: #374151;
+}
+
+/* ── Light theme: cam modal bg ── */
+[data-theme="light"] .cam-modal-bg {
+  background: rgba(0,0,0,.5);
+}
+
+/* ── Light theme: retake/skip button ── */
+[data-theme="light"] .cam-btn-retake {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #374151;
+}
+[data-theme="light"] .cam-btn-retake:hover {
+  background: #e5e7eb;
+}
+`;
+async function uploadClockPhoto(supabase, base64, userName, type) {
+  // base64 → blob
+  const res  = await fetch(base64);
+  const blob = await res.blob();
+  const path = `${userName}/${new Date().toISOString().split("T")[0]}/${type}_${Date.now()}.jpg`;
+  
+  const { error } = await supabase.storage
+    .from("attendance-photos")
+    .upload(path, blob, { contentType: "image/jpeg", upsert: true });
+  
+  if (error) return null;
+  
+  const { data } = supabase.storage.from("attendance-photos").getPublicUrl(path);
+  return data.publicUrl;
+}
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getShiftMinutes(hhmm) {
   const [h, m] = hhmm.split(":").map(Number);
@@ -268,251 +405,285 @@ function CameraModal({ title, onSubmit, onClose, busy }) {
     </div>
   );
 }
+// ─── Clock-Out Tasks Modal (Checkpoint Style) ─────────────────────────────────
 
-// ─── Clock-Out Tasks Modal ────────────────────────────────────────────────────
-// function ClockOutTasksModal({ user, attendanceId, clockOutData, onDone, onClose }) {
-//   const [tasks,     setTasks]     = useState([]);
-//   const [loading,   setLoading]   = useState(true);
-//   const [subs,      setSubs]      = useState({}); // taskId → { status, notes, file, fileName }
-//   const [busy,      setBusy]      = useState(false);
-//   const fileRefs = useRef({});
-
-//   useEffect(() => {
-//     (async () => {
-//       // Load tasks assigned to this user that are pending/in_progress
-//       const { data } = await supabase
-//         .from("tasks")
-//         .select("id, title, description, due_date, status, site_name")
-//         .eq("assigned_to", user.user_name)
-//         .in("status", ["pending", "in_progress"])
-//         .order("due_date", { ascending: true })
-//         .limit(10);
-//       setTasks(data || []);
-//       // Init submission state
-//       const init = {};
-//       (data || []).forEach(t => { init[t.id] = { status: t.status, notes: "", file: null, fileName: "" }; });
-//       setSubs(init);
-//       setLoading(false);
-//     })();
-//   }, [user.user_name]);
-
-//   const setSub = (id, key, val) => setSubs(p => ({ ...p, [id]: { ...p[id], [key]: val } }));
-
-//   const handleFile = (id, e) => {
-//     const file = e.target.files?.[0];
-//     if (!file) return;
-//     setSub(id, "file", file);
-//     setSub(id, "fileName", file.name);
-//   };
-
-//   const uploadFile = async (file, taskId) => {
-//     const ext  = file.name.split(".").pop();
-//     const path = `task_docs/${user.user_name}/${taskId}_${Date.now()}.${ext}`;
-//     const { data, error } = await supabase.storage.from("documents").upload(path, file, { upsert: true });
-//     if (error) return null;
-//     const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
-//     return urlData?.publicUrl || null;
-//   };
-
-//   const handleSubmit = async () => {
-//     setBusy(true);
-//     const entries = Object.entries(subs);
-//     for (const [taskId, sub] of entries) {
-//       let docUrl = null;
-//       if (sub.file) docUrl = await uploadFile(sub.file, taskId);
-
-//       // Update task status
-//       await supabase.from("tasks").update({ status: sub.status }).eq("id", taskId);
-
-//       // Insert submission record
-//         await supabase.from("task_submissions").insert({
-//         task_id:       taskId,
-//         user_id:       user.id || null,
-//         attendance_id: attendanceId || null,
-//         submitted_at:  new Date().toISOString(),
-//         location:      clockOutData.location
-//             ? `${clockOutData.location.lat},${clockOutData.location.lng}`
-//             : null,
-//         notes:         sub.notes || null,
-//         document_url:  docUrl,
-//         });
-//     }
-//     setBusy(false);
-//     onDone();
-//   };
-
-//   return (
-//     <div className="cam-modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
-//       <div className="task-panel">
-//         <div className="task-panel-hdr">
-//           <span className="task-panel-title">
-//             {loading ? "Loading tasks…" : `End-of-Day Tasks (${tasks.length})`}
-//           </span>
-//           <button className="cam-close" onClick={onClose}>
-//             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-//           </button>
-//         </div>
-
-//         <div className="task-list-modal">
-//           {loading ? (
-//             <div style={{ display:"flex", alignItems:"center", gap:10, color:"#888", padding:"20px 0" }}>
-//               <div className="spinner" style={{ width:16, height:16, borderWidth:2 }}/> Loading tasks…
-//             </div>
-//           ) : tasks.length === 0 ? (
-//             <div style={{ color:"#888", fontSize:13, padding:"20px 0", textAlign:"center" }}>
-//               No pending tasks to report.
-//             </div>
-//           ) : tasks.map(task => (
-//             <div key={task.id} className="task-item-modal">
-//               <div className="task-item-title">{task.title}</div>
-//               <div className="task-item-meta">
-//                 {task.site_name && `${task.site_name} · `}
-//                 {task.due_date ? `Due ${new Date(task.due_date + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short" })}` : "No due date"}
-//               </div>
-//               <div className="task-item-row">
-//                 <select
-//                   className="task-status-sel"
-//                   value={subs[task.id]?.status || "pending"}
-//                   onChange={e => setSub(task.id, "status", e.target.value)}
-//                 >
-//                   <option value="pending">Pending</option>
-//                   <option value="in_progress">In Progress</option>
-//                   <option value="completed">Completed</option>
-//                 </select>
-//                 <button
-//                   className={`task-doc-btn${subs[task.id]?.fileName ? " attached" : ""}`}
-//                   onClick={() => fileRefs.current[task.id]?.click()}
-//                   title="Attach document"
-//                 >
-//                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-//                   {subs[task.id]?.fileName
-//                     ? subs[task.id].fileName.length > 12
-//                       ? subs[task.id].fileName.slice(0, 12) + "…"
-//                       : subs[task.id].fileName
-//                     : "Attach"}
-//                 </button>
-//                 <input
-//                   type="file"
-//                   style={{ display:"none" }}
-//                   ref={el => fileRefs.current[task.id] = el}
-//                   onChange={e => handleFile(task.id, e)}
-//                 />
-//               </div>
-//               <textarea
-//                 className="task-notes"
-//                 rows={2}
-//                 placeholder="Add notes for this task…"
-//                 value={subs[task.id]?.notes || ""}
-//                 onChange={e => setSub(task.id, "notes", e.target.value)}
-//               />
-//             </div>
-//           ))}
-//         </div>
-
-//         <div className="task-panel-footer">
-//           <button className="cam-btn-retake" style={{ flex:1 }} onClick={onClose}>Skip</button>
-//           <button
-//             className="cam-btn-submit"
-//             style={{ flex:2 }}
-//             onClick={handleSubmit}
-//             disabled={busy || loading}
-//           >
-//             {busy
-//               ? <><div className="spinner" style={{ width:14, height:14, borderWidth:2 }}/> Submitting…</>
-//               : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg> Submit & Clock Out</>
-//             }
-//           </button>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
 // ─── Clock-Out Tasks Modal (Checkpoint Style) ─────────────────────────────────
 function ClockOutTasksModal({ user, attendanceId, clockOutData, onDone, onClose, supabase }) {
-  const [tasks,   setTasks]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [subs,    setSubs]    = useState({}); // taskId → { checked, notes, file, fileName, uploading }
-  const [busy,    setBusy]    = useState(false);
+  const [checkpoints, setCheckpoints] = useState([]); // raw rows from checkpoints table
+  const [tasks,       setTasks]       = useState([]); // pending tasks
+  const [loading,     setLoading]     = useState(true);
+  // subs keyed by checkpoint id: { checked, notes, file, fileName, uploading }
+  const [subs,        setSubs]        = useState({});
+  const [busy,        setBusy]        = useState(false);
   const fileRefs = useRef({});
 
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("tasks")
-        .select("id, title, description, due_date, status, site_name")
-        .eq("assigned_to", user.user_name)
-        .in("status", ["pending", "in_progress"])
-        .order("due_date", { ascending: true })
-        .limit(15);
+  (async () => {
+    // Step 1: Fetch user's pending/in-progress tasks
+    const { data: taskData } = await supabase
+      .from("tasks")
+      .select("id, title, description, due_date, status, site_name")
+      .eq("assigned_to", user.user_name)
+      .in("status", ["pending", "in_progress"])
+      .order("due_date", { ascending: true })
+      .limit(15);
 
-      setTasks(data || []);
-      const init = {};
-      (data || []).forEach(t => {
-        init[t.id] = { checked: false, notes: "", file: null, fileName: "", uploading: false };
-      });
-      setSubs(init);
-      setLoading(false);
-    })();
-  }, [user.user_name, supabase]);
+    const allTasks = taskData || [];
 
-  const setSub = (id, key, val) =>
-    setSubs(p => ({ ...p, [id]: { ...p[id], [key]: val } }));
+    // Step 2: Extract unique task titles to match against checkpoint task_types
+    const taskTypes = [...new Set(allTasks.map(t => t.title))];
 
-  const handleFile = (id, e) => {
+    // Step 3: Fetch only checkpoints whose task_type matches user's task titles
+    let allCps = [];
+    if (taskTypes.length > 0) {
+      const { data: cpData } = await supabase
+        .from("checkpoints")
+        .select("id, task_type, checkpoint, created_at")
+        .in("task_type", taskTypes)
+        .order("task_type", { ascending: true })
+        .order("id",        { ascending: true });
+
+      allCps = cpData || [];
+    }
+
+    setCheckpoints(allCps);
+    setTasks(allTasks);
+
+    // Step 4: Init subs for checkpoints + tasks
+    const init = {};
+    allCps.forEach(cp => {
+      init[`cp_${cp.id}`] = { checked: false, notes: "", file: null, fileName: "", uploading: false };
+    });
+    allTasks.forEach(t => {
+      init[`task_${t.id}`] = { checked: false, notes: "", file: null, fileName: "", uploading: false };
+    });
+    setSubs(init);
+    setLoading(false);
+  })();
+}, [user.user_name, supabase]);
+
+  const setSub = (key, field, val) =>
+    setSubs(p => ({ ...p, [key]: { ...p[key], [field]: val } }));
+
+  const handleFile = (key, e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setSub(id, "file", file);
-    setSub(id, "fileName", file.name);
+    setSub(key, "file", file);
+    setSub(key, "fileName", file.name);
   };
 
-  const uploadFile = async (file, taskId) => {
+  const uploadFile = async (file, label) => {
     const ext  = file.name.split(".").pop();
-    const path = `task_docs/${user.user_name}/${taskId}_${Date.now()}.${ext}`;
+    const path = `task_docs/${user.user_name}/${label}_${Date.now()}.${ext}`;
     const { error } = await supabase.storage
       .from("documents")
       .upload(path, file, { upsert: true });
     if (error) return null;
-    const { data: urlData } = supabase.storage
-      .from("documents")
-      .getPublicUrl(path);
+    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
     return urlData?.publicUrl || null;
   };
 
   const handleSubmit = async () => {
     setBusy(true);
-    for (const [taskId, sub] of Object.entries(subs)) {
+
+    // Submit checkpoint completions
+    for (const cp of checkpoints) {
+      const key = `cp_${cp.id}`;
+      const sub = subs[key] || {};
+      const hasActivity = sub.checked || sub.notes?.trim() || sub.file;
+      if (!hasActivity) continue;
+
       let docUrl = null;
       if (sub.file) {
-        setSub(taskId, "uploading", true);
-        docUrl = await uploadFile(sub.file, taskId);
-        setSub(taskId, "uploading", false);
+        setSub(key, "uploading", true);
+        docUrl = await uploadFile(sub.file, `cp_${cp.id}`);
+        setSub(key, "uploading", false);
       }
 
-      // Only update tasks the user interacted with (checked or added notes/doc)
-      const hasActivity = sub.checked || sub.notes.trim() || sub.file;
-      if (hasActivity) {
-        await supabase
-          .from("tasks")
-          .update({ status: sub.checked ? "completed" : "in_progress" })
-          .eq("id", taskId);
-
-        await supabase.from("task_submissions").insert({
-          task_id:       taskId,
-          attendance_id: attendanceId || null,
-          submitted_at:  new Date().toISOString(),
-          location:      clockOutData.location
-            ? `${clockOutData.location.lat},${clockOutData.location.lng}`
-            : null,
-          notes:         sub.notes || null,
-          document_url:  docUrl,
-        });
-      }
+      await supabase.from("task_submissions").insert({
+        attendance_id:  attendanceId || null,
+        submitted_at:   new Date().toISOString(),
+        location:       clockOutData.location
+          ? `${clockOutData.location.lat},${clockOutData.location.lng}`
+          : null,
+        notes:          sub.notes || null,
+        document_url:   docUrl,
+        // store checkpoint reference in notes if no dedicated column
+        // adjust column names to match your task_submissions schema:
+        task_id:        null, // no task_id for pure checkpoints
+      });
     }
+
+    // Submit task completions
+    for (const task of tasks) {
+      const key = `task_${task.id}`;
+      const sub = subs[key] || {};
+      const hasActivity = sub.checked || sub.notes?.trim() || sub.file;
+      if (!hasActivity) continue;
+
+      let docUrl = null;
+      if (sub.file) {
+        setSub(key, "uploading", true);
+        docUrl = await uploadFile(sub.file, `task_${task.id}`);
+        setSub(key, "uploading", false);
+      }
+
+      await supabase
+        .from("tasks")
+        .update({ status: sub.checked ? "completed" : "in_progress" })
+        .eq("id", task.id);
+
+      await supabase.from("task_submissions").insert({
+        task_id:        task.id,
+        attendance_id:  attendanceId || null,
+        submitted_at:   new Date().toISOString(),
+        location:       clockOutData.location
+          ? `${clockOutData.location.lat},${clockOutData.location.lng}`
+          : null,
+        notes:          sub.notes || null,
+        document_url:   docUrl,
+      });
+    }
+
     setBusy(false);
     onDone();
   };
 
-  const checkedCount = Object.values(subs).filter(s => s.checked).length;
+  // Group checkpoints by task_type
+  const groupedCps = checkpoints.reduce((acc, cp) => {
+    if (!acc[cp.task_type]) acc[cp.task_type] = [];
+    acc[cp.task_type].push(cp);
+    return acc;
+  }, {});
+
+  const totalItems    = checkpoints.length + tasks.length;
+  const checkedCount  = Object.entries(subs).filter(([, s]) => s.checked).length;
+
+  // ── Reusable item renderer ────────────────────────────────────────────────
+  const renderItem = (key, label, subLabel) => {
+    const sub = subs[key] || {};
+    return (
+     <div
+        key={key}
+        className={sub.checked ? "cp-item-checked" : "cp-item-default"}
+        style={{
+          border:     sub.checked ? "1px solid #166534" : "1px solid #3a3a3a",
+          background: sub.checked ? "rgba(22,101,52,.15)" : "#2a2a2a",
+          borderRadius: 10,
+          padding: "12px 14px",
+          transition: "all .2s ease",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        {/* Green left stripe when checked */}
+        {sub.checked && (
+          <div style={{
+            position: "absolute", left: 0, top: 0, bottom: 0,
+            width: 3, background: "#16a34a", borderRadius: "3px 0 0 3px",
+          }}/>
+        )}
+
+        {/* Checkbox + label row */}
+        <div
+          style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}
+          onClick={() => setSub(key, "checked", !sub.checked)}
+        >
+          {/* Custom checkbox */}
+          <div style={{
+            width: 18, height: 18, borderRadius: 5, flexShrink: 0, marginTop: 2,
+            border:      sub.checked ? "2px solid #16a34a" : "2px solid #555",
+            background:  sub.checked ? "#16a34a" : "transparent",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all .15s ease",
+          }}>
+            {sub.checked && (
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+            )}
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <div
+              className={`cp-item-title${sub.checked ? " done" : ""}`}
+              style={{
+                fontSize: 13, fontWeight: 600,
+                color: sub.checked ? "#666" : "#fff",
+                textDecoration: sub.checked ? "line-through" : "none",
+                transition: "all .2s",
+              }}
+            >
+              {label}
+            </div>
+            {subLabel && (
+              <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{subLabel}</div>
+            )}
+          </div>
+
+          {/* Status badge */}
+          <div style={{
+            fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, flexShrink: 0,
+            background: sub.checked ? "rgba(22,163,74,.2)" : "rgba(217,119,6,.15)",
+            color:      sub.checked ? "#4ade80"             : "#fbbf24",
+            border:     sub.checked ? "1px solid rgba(74,222,128,.3)" : "1px solid rgba(251,191,36,.3)",
+            marginTop: 2,
+          }}>
+            {sub.checked ? "Done" : "Pending"}
+          </div>
+        </div>
+
+        {/* Notes + attach */}
+        <div style={{ marginTop: 10, paddingLeft: 28, display: "flex", flexDirection: "column", gap: 8 }}>
+          <textarea
+            className="task-notes"
+            rows={2}
+            placeholder="Add notes or remarks… (optional)"
+            value={sub.notes || ""}
+            onChange={e => setSub(key, "notes", e.target.value)}
+            onClick={e => e.stopPropagation()}
+          />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              className={`task-doc-btn${sub.fileName ? " attached" : ""}`}
+              onClick={e => { e.stopPropagation(); fileRefs.current[key]?.click(); }}
+            >
+              {sub.uploading ? (
+                <><div className="spinner" style={{ width: 10, height: 10, borderWidth: 1.5 }}/> Uploading…</>
+              ) : sub.fileName ? (
+                <>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  {sub.fileName.length > 16 ? sub.fileName.slice(0, 16) + "…" : sub.fileName}
+                </>
+              ) : (
+                <>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                  Attach Proof
+                </>
+              )}
+            </button>
+            {sub.fileName && (
+              <button
+                style={{ background: "none", border: "none", color: "#666", cursor: "pointer", fontSize: 11, padding: 0 }}
+                onClick={e => { e.stopPropagation(); setSub(key, "file", null); setSub(key, "fileName", ""); }}
+              >
+                ✕ Remove
+              </button>
+            )}
+          </div>
+          <input
+            type="file"
+            style={{ display: "none" }}
+            ref={el => fileRefs.current[key] = el}
+            onChange={e => handleFile(key, e)}
+          />
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="cam-modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -522,23 +693,23 @@ function ClockOutTasksModal({ user, attendanceId, clockOutData, onDone, onClose,
         <div className="task-panel-hdr">
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <span className="task-panel-title">
-              {loading ? "Loading tasks…" : `End-of-Day Checkpoints`}
+              {loading ? "Loading…" : "End-of-Day Checkpoints"}
             </span>
-            {!loading && tasks.length > 0 && (
+            {!loading && totalItems > 0 && (
               <span style={{ fontSize: 11, color: "#888" }}>
-                {checkedCount} of {tasks.length} completed
+                {checkedCount} of {totalItems} completed
               </span>
             )}
           </div>
           {/* Progress bar */}
-          {!loading && tasks.length > 0 && (
+          {!loading && totalItems > 0 && (
             <div style={{ width: 80, height: 4, background: "#333", borderRadius: 4, overflow: "hidden" }}>
               <div style={{
                 height: "100%",
-                width: `${(checkedCount / tasks.length) * 100}%`,
+                width: `${(checkedCount / totalItems) * 100}%`,
                 background: "#16a34a",
                 borderRadius: 4,
-                transition: "width .3s ease"
+                transition: "width .3s ease",
               }}/>
             </div>
           )}
@@ -549,149 +720,80 @@ function ClockOutTasksModal({ user, attendanceId, clockOutData, onDone, onClose,
           </button>
         </div>
 
-        {/* Task list */}
+        {/* Body */}
         <div className="task-list-modal" style={{ flex: 1, overflowY: "auto" }}>
           {loading ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#888", padding: "24px 0" }}>
-              <div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }}/> Loading tasks…
+              <div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }}/> Loading…
             </div>
-          ) : tasks.length === 0 ? (
+          ) : (totalItems === 0) ? (
             <div style={{ textAlign: "center", padding: "32px 0" }}>
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" style={{ marginBottom: 10 }}>
                 <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
               </svg>
-              <div style={{ color: "#888", fontSize: 13 }}>No pending tasks — all clear!</div>
+              <div style={{ color: "#888", fontSize: 13 }}>No checkpoints or tasks — all clear!</div>
             </div>
-          ) : tasks.map((task, idx) => {
-            const sub = subs[task.id] || {};
-            return (
-              <div
-                key={task.id}
-                className="task-item-modal"
-                style={{
-                  border: sub.checked
-                    ? "1px solid #166534"
-                    : "1px solid #3a3a3a",
-                  background: sub.checked ? "rgba(22,101,52,.15)" : "#2a2a2a",
-                  transition: "all .2s ease",
-                  position: "relative",
-                  overflow: "hidden",
-                }}
-              >
-                {/* Completion stripe */}
-                {sub.checked && (
+          ) : (
+            <>
+              {/* ── Checkpoints grouped by task_type ── */}
+              {Object.entries(groupedCps).map(([taskType, cps]) => (
+                <div key={taskType} style={{ marginBottom: 18 }}>
+                  {/* Group header */}
                   <div style={{
-                    position: "absolute", left: 0, top: 0, bottom: 0,
-                    width: 3, background: "#16a34a", borderRadius: "3px 0 0 3px"
-                  }}/>
-                )}
-
-                {/* Checkbox row */}
-                <div
-                  style={{ display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer" }}
-                  onClick={() => setSub(task.id, "checked", !sub.checked)}
-                >
-                  {/* Custom checkbox */}
-                  <div style={{
-                    width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 1,
-                    border: sub.checked ? "2px solid #16a34a" : "2px solid #555",
-                    background: sub.checked ? "#16a34a" : "transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "all .15s ease",
+                    display: "flex", alignItems: "center", gap: 8, marginBottom: 8,
                   }}>
-                    {sub.checked && (
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round">
-                        <path d="M20 6L9 17l-5-5"/>
-                      </svg>
-                    )}
-                  </div>
-
-                  <div style={{ flex: 1 }}>
-                    <div className="task-item-title" style={{
-                      textDecoration: sub.checked ? "line-through" : "none",
-                      color: sub.checked ? "#666" : "#fff",
-                      transition: "all .2s",
+                    <div style={{
+                      fontSize: 11, fontWeight: 700, textTransform: "uppercase",
+                      letterSpacing: ".07em", color: "#fbbf24",
+                      background: "rgba(217,119,6,.12)",
+                      border: "1px solid rgba(217,119,6,.25)",
+                      borderRadius: 6, padding: "3px 10px",
                     }}>
-                      {task.title}
+                      {taskType}
                     </div>
-                    <div className="task-item-meta">
-                      {task.site_name && (
-                        <span style={{ marginRight: 6 }}>📍 {task.site_name} ·</span>
-                      )}
-                      {task.due_date
-                        ? `Due ${new Date(task.due_date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`
-                        : "No due date"
-                      }
-                    </div>
+                      <div className="cp-group-divider" style={{ flex: 1, height: 1, background: "#333" }}/>
+                      <span className="cp-group-count" style={{ fontSize: 10, color: "#555" }}>
+                      {cps.filter(cp => subs[`cp_${cp.id}`]?.checked).length}/{cps.length}
+                    </span>
                   </div>
 
-                  {/* Status badge */}
-                  <div style={{
-                    fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, flexShrink: 0,
-                    background: sub.checked ? "rgba(22,163,74,.2)" : "rgba(217,119,6,.15)",
-                    color: sub.checked ? "#4ade80" : "#fbbf24",
-                    border: sub.checked ? "1px solid rgba(74,222,128,.3)" : "1px solid rgba(251,191,36,.3)",
-                    marginTop: 2,
-                  }}>
-                    {sub.checked ? "Done" : task.status === "in_progress" ? "In Progress" : "Pending"}
+                  {/* Checkpoint items */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {cps.map(cp => renderItem(`cp_${cp.id}`, cp.checkpoint, null))}
                   </div>
                 </div>
+              ))}
 
-                {/* Notes + attach — always visible */}
-                <div style={{ marginTop: 10, paddingLeft: 32, display: "flex", flexDirection: "column", gap: 8 }}>
-                  <textarea
-                    className="task-notes"
-                    rows={2}
-                    placeholder="Add notes or remarks… (optional)"
-                    value={sub.notes || ""}
-                    onChange={e => setSub(task.id, "notes", e.target.value)}
-                    onClick={e => e.stopPropagation()}
-                  />
-
-                  {/* Attach proof */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <button
-                      className={`task-doc-btn${sub.fileName ? " attached" : ""}`}
-                      onClick={e => { e.stopPropagation(); fileRefs.current[task.id]?.click(); }}
-                    >
-                      {sub.uploading ? (
-                        <><div className="spinner" style={{ width: 10, height: 10, borderWidth: 1.5 }}/> Uploading…</>
-                      ) : sub.fileName ? (
-                        <>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-                          {sub.fileName.length > 16 ? sub.fileName.slice(0, 16) + "…" : sub.fileName}
-                        </>
-                      ) : (
-                        <>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                          </svg>
-                          Attach Proof
-                        </>
-                      )}
-                    </button>
-
-                    {sub.fileName && (
-                      <button
-                        style={{ background: "none", border: "none", color: "#666", cursor: "pointer", fontSize: 11, padding: 0 }}
-                        onClick={e => { e.stopPropagation(); setSub(task.id, "file", null); setSub(task.id, "fileName", ""); }}
-                      >
-                        ✕ Remove
-                      </button>
-                    )}
+              {/* ── Pending Tasks section ── */}
+              {tasks.length > 0 && (
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <div style={{
+                      fontSize: 11, fontWeight: 700, textTransform: "uppercase",
+                      letterSpacing: ".07em", color: "#60a5fa",
+                      background: "rgba(37,99,235,.12)",
+                      border: "1px solid rgba(37,99,235,.25)",
+                      borderRadius: 6, padding: "3px 10px",
+                    }}>
+                      Assigned Tasks
+                    </div>
+                      <div className="cp-group-divider" style={{ flex: 1, height: 1, background: "#333" }}/>
+                      <span className="cp-group-count" style={{ fontSize: 10, color: "#555" }}>
+                      {tasks.filter(t => subs[`task_${t.id}`]?.checked).length}/{tasks.length}
+                    </span>
                   </div>
 
-                  <input
-                    type="file"
-                    style={{ display: "none" }}
-                    ref={el => fileRefs.current[task.id] = el}
-                    onChange={e => handleFile(task.id, e)}
-                  />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {tasks.map(task => renderItem(
+                      `task_${task.id}`,
+                      task.title,
+                      [task.site_name && `📍 ${task.site_name}`, task.due_date && `Due ${new Date(task.due_date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`].filter(Boolean).join(" · ")
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              )}
+            </>
+          )}
         </div>
 
         {/* Footer */}
@@ -721,7 +823,6 @@ function ClockOutTasksModal({ user, attendanceId, clockOutData, onDone, onClose,
     </div>
   );
 }
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // CLOCK IN / OUT (main component)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -776,14 +877,20 @@ const fetchData = useCallback(async () => {
     const now_iso  = new Date().toISOString();
     const ciStatus = calcClockInStatus(now_iso);
 
+// Upload photo first
+let clock_in_image_url = null;
+if (image) {
+  clock_in_image_url = await uploadClockPhoto(
+    supabase, image, user.user_name, "clockin"
+  );
+}
+
 const { data, error } = await supabase.from("attendance").insert({
-  // user_id: user.id,   ← DELETE THIS LINE ENTIRELY
-  
   user_name:         user.user_name,
   date:              new Date().toISOString().split("T")[0],
   clock_in:          now_iso,
   status:            "present",
-  clock_in_image:    image || null,
+  clock_in_image:    clock_in_image_url,   // ← now a URL, not base64
   clock_in_location: location ? `${location.lat},${location.lng}` : null,
   clock_in_status:   ciStatus.type,
 }).select().single();
@@ -814,15 +921,23 @@ const { data, error } = await supabase.from("attendance").insert({
     setBusy(true);
     const coStatus = calcClockOutStatus(clockOutData.time);
 
-    const { error } = await supabase.from("attendance").update({
-    clock_out:          clockOutData.time,
-    clock_out_image:    clockOutData.image || null,
-    clock_out_location: clockOutData.location
-        ? `${clockOutData.location.lat},${clockOutData.location.lng}`
-        : null,
-    clock_out_status:   coStatus.type,
-    }).eq("user_name", user.user_name)    // ← match by user_name
-    .eq("date", new Date().toISOString().split("T")[0]);  // ← and today's date
+// Upload clock-out photo first
+let clock_out_image_url = null;
+if (clockOutData.image) {
+  clock_out_image_url = await uploadClockPhoto(
+    supabase, clockOutData.image, user.user_name, "clockout"
+  );
+}
+
+const { error } = await supabase.from("attendance").update({
+  clock_out:          clockOutData.time,
+  clock_out_image:    clock_out_image_url,   // ← now a URL, not base64
+  clock_out_location: clockOutData.location
+      ? `${clockOutData.location.lat},${clockOutData.location.lng}`
+      : null,
+  clock_out_status:   coStatus.type,
+}).eq("user_name", user.user_name)
+  .eq("date", new Date().toISOString().split("T")[0]);
 
     setBusy(false);
     setShowTasks(false);

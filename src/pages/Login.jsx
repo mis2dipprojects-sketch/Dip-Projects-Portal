@@ -121,8 +121,8 @@ export default function Login() {
             </div>
           </div>
 
-          <div className="lp-heading">Employee Portal</div>
-          <div className="lp-subheading">Sign in to access your workspace</div>
+          <div className="lp-heading">DIP Projects Platform</div>
+          <div className="lp-subheading">Sign in to access project intelligence, reporting, and collaboration tools.</div>
 
           {message && (
             <div className="lp-alert lp-alert-success">

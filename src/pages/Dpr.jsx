@@ -445,11 +445,13 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 .plan-text{font-size:15px;color:#0f172a;}
 
 /* BULLET LIST */
-.bullet-list{padding:14px 18px;}
-.bullet-item{display:flex;align-items:flex-start;gap:10px;padding:5px 0;border-bottom:1px solid #f1f5f9;}
+.bullet-list{padding:8px 16px;}
+.bullet-item{display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-bottom:1px solid #f1f5f9;}
 .bullet-item:last-child{border-bottom:none;}
-.bullet-arrow{color:#800000;font-weight:700;font-size:11px;margin-top:3px;flex-shrink:0;}
-.bullet-text{font-size:14px;color:#0f172a;line-height:1.7;}
+.bullet-arrow{color:#800000;font-weight:700;font-size:12px;margin-top:4px;flex-shrink:0;}
+.bullet-text{font-size:15px;color:#0f172a;line-height:1.45;}
+.summary-cat-body{border:1.5px solid #cbd5e1;border-top:none;border-radius:0 0 4px 4px;padding:8px 16px;background:#fff;margin-bottom:10px;}
+.section-wrap{margin-bottom:14px;border:1.5px solid #cbd5e1;page-break-inside:avoid;break-inside:avoid;}
 
 /* SUMMARY with categories */
 .summary-cat{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#fff;background:#800000;padding:7px 14px;border-radius:4px 4px 0 0;}
@@ -458,6 +460,7 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 /* PHOTOS */
 .photo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding:14px;background:#f8fafc;}
 .photo-card{background:#fff;border:1px solid #cbd5e1;overflow:hidden;}
+.photo-card img{width:100%;height:340px;object-fit:cover;display:block;}
 .photo-card img{width:100%;height:280px;object-fit:cover;display:block;}
 .photo-caption{padding:7px 10px;font-size:13px;font-weight:600;text-align:center;color:#64748b;background:#f8fafc;border-top:1px solid #cbd5e1;}
 
@@ -495,6 +498,7 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 .info-row:last-child{border-bottom:none;}
 .info-key{font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;min-width:160px;flex-shrink:0;padding-top:2px;}
 .info-val{font-size:15px;color:#0f172a;}
+
 `;
 
 function esc(s) {
@@ -531,7 +535,7 @@ function bulletBlock(txt) {
 
 function buildSummaryHtml(summary) {
   if (!summary?.trim()) return "";
-  const lines = summary.split("\n").filter(l => l.trim());
+  const lines = summary.replace(/\n{2,}/g, "\n").split("\n").filter(l => l.trim());
   let html = "";
   let currentCat = "";
   let bullets = [];
@@ -738,7 +742,6 @@ function buildPhotosHtml(photos) {
   let html = "";
   for (let i = 0; i < valid.length; i += 2) {
     const pair = valid.slice(i, i + 2);
-    // Always 2-column grid — second cell empty if odd
     html += `<div class="photo-pair" style="
       display:grid;
       grid-template-columns:1fr 1fr;
@@ -748,12 +751,11 @@ function buildPhotosHtml(photos) {
       break-inside:avoid;
     ">`;
 
-    // First photo
     const ph1 = pair[0];
     html += `
       <div style="border:1px solid #cbd5e1;overflow:hidden;">
         <img src="${ph1.supabaseUrl || ph1.data}"
-          style="width:100%;height:260px;object-fit:cover;display:block;"
+          style="width:100%;height:340px;object-fit:cover;display:block;"
           crossorigin="anonymous">
         <div style="
           padding:8px 12px;font-size:13px;font-weight:600;
@@ -762,13 +764,12 @@ function buildPhotosHtml(photos) {
         ">${ph1.caption ? esc(ph1.caption) : "&nbsp;"}</div>
       </div>`;
 
-    // Second photo — or empty placeholder to maintain grid
     if (pair[1]) {
       const ph2 = pair[1];
       html += `
         <div style="border:1px solid #cbd5e1;overflow:hidden;">
           <img src="${ph2.supabaseUrl || ph2.data}"
-            style="width:100%;height:260px;object-fit:cover;display:block;"
+            style="width:100%;height:340px;object-fit:cover;display:block;"
             crossorigin="anonymous">
           <div style="
             padding:8px 12px;font-size:13px;font-weight:600;
@@ -777,7 +778,6 @@ function buildPhotosHtml(photos) {
           ">${ph2.caption ? esc(ph2.caption) : "&nbsp;"}</div>
         </div>`;
     } else {
-      // Empty cell — keeps layout consistent
       html += `<div style="border:1px solid transparent;"></div>`;
     }
 
@@ -917,6 +917,19 @@ async function generateEveningPdf(payload, onProgress) {
   const CONTENT_W = A4_W - MARGIN * 2;
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
 
+  function addWatermark(pdf, logo) {
+  if (!logo) return;
+  const A4_W = 210, A4_H = 297;
+  const SIZE = 130; // mm
+  const x = (A4_W - SIZE) / 2;
+  const y = (A4_H - SIZE) / 2;
+  pdf.saveGraphicsState();
+  pdf.setGState(new pdf.GState({ opacity: 0.06 }));
+  pdf.addImage(logo, "PNG", x, y, SIZE, SIZE);
+  pdf.restoreGraphicsState();
+}
+
+
   // Build the full HTML but we'll render section by section
   _secNum = 0;
 
@@ -940,35 +953,7 @@ async function renderChunk(html) {
   style.textContent = PDF_CSS;
   wrap.appendChild(style);
 
-  // Watermark — only if logo loaded successfully
-  if (logoBase64) {
-  const wm = document.createElement("div");
-  Object.assign(wm.style, {
-    position:        "absolute",
-    top:             "0",
-    left:            "0",
-    width:           "794px",
-    height:          "1123px",   // A4 at 96dpi
-    display:         "flex",
-    alignItems:      "center",
-    justifyContent:  "center",
-    pointerEvents:   "none",
-    zIndex:          "0",
-    overflow:        "hidden",
-  });
-  const wmImg = document.createElement("img");
-  wmImg.src = logoBase64;
-  Object.assign(wmImg.style, {
-    width:     "500px",
-    height:    "500px",
-    objectFit: "contain",
-    opacity:   "0.06",
-    filter:    "grayscale(100%)",
-    flexShrink: "0",
-  });
-  wm.appendChild(wmImg);
-  wrap.appendChild(wm);
-}
+
 
 
   // Content
@@ -1019,6 +1004,7 @@ async function renderChunk(html) {
 
       // If less than 20mm left on page, start new page
       if (remainingPageMM < 20) {
+        addWatermark(pdf, logoBase64);
         pdf.addPage();
         pageNum++;
         pdf.setFontSize(8); pdf.setTextColor(100);
@@ -1048,6 +1034,7 @@ async function renderChunk(html) {
 
       // If content continues and not enough room, new page
       if (srcY < canvas.height) {
+        addWatermark(pdf, logoBase64);
         pdf.addPage();
         pageNum++;
         pdf.setFontSize(8); pdf.setTextColor(100);
@@ -1155,6 +1142,7 @@ if (isPhotos) {
     const PX_PER_MM = pairCanvas.width / (A4_W - MARGIN * 2);
     const pairHeightMM = pairCanvas.height / PX_PER_MM;
     if (cursorY + pairHeightMM > A4_H - MARGIN - 10) {
+      addWatermark(pdf, logoBase64);
       pdf.addPage();
       pageNum++;
       pdf.setFontSize(8); pdf.setTextColor(100);
@@ -1183,6 +1171,7 @@ if (isPhotos) {
 }
 
   // Thank you page — always starts on a new page
+  addWatermark(pdf, logoBase64);
   pdf.addPage();
   pageNum++;
   onProgress("Building thank you page…");
@@ -2346,7 +2335,7 @@ function PhotosSection({ photos, setPhotos }) {
 const SUBMIT_STEPS = [
   { key:"photos", label:"Uploading photos to Supabase" },
   { key:"pdf",    label:"Generating PDF" },
-  { key:"pdfup",  label:"Uploading PDF to Supabase" },
+  { key:"pdfup",  label:"Uploading PDF" },
   { key:"db",     label:"Saving report record" },
 ];
 

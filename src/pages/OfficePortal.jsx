@@ -74,6 +74,15 @@
       ),
     }
   ];
+  const REPORT_SUBMISSIONS_ITEM = {
+  key: "report-submissions",
+  label: "Report Submissions",
+  icon: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/>
+    </svg>
+  ),
+};
   const LEAVE_TYPES = ["Casual Leave","Sick Leave","Earned Leave","Maternity Leave","Paternity Leave","Compensatory Leave","Unpaid Leave"];
 
   const PRIORITY_STYLES = {
@@ -89,6 +98,7 @@
   };
 
   const EMPTY_FILTERS = { dateFrom: "", dateTo: "", site: "", priority: "", status: "", assignedBy: "" };
+
 
   // ── Filter Bar ─────────────────────────────────────────────────────────────
   function TaskFilterBar({ filters, onChange, onClear, taskList, showAssignedBy }) {
@@ -824,7 +834,8 @@ const handleStatusChange = async (taskId, newStatus, e) => {
       ...recurringTasks.filter(t=>!delegatedTasks.some(d=>d.id===t.id)),
     ].sort((a,b)=>new Date(a.due_date||a.created_at||0)-new Date(b.due_date||b.created_at||0));
 
-    const activeItem = [...TASK_NAV,...LEAVE_NAV,...REPORTS_NAV].find(n=>n.key===activeTab);
+    // const activeItem = [...TASK_NAV,...LEAVE_NAV,...REPORTS_NAV].find(n=>n.key===activeTab);
+    const activeItem = [...TASK_NAV,...LEAVE_NAV,...REPORTS_NAV,REPORT_SUBMISSIONS_ITEM].find(n=>n.key===activeTab);
     const proxyPendingCount = proxyLeaves.filter(l=>l.proxy_approved===null).length;
     const unreadReschedules = myReschedules.filter(r => (r.status==="approved" || r.status==="rejected") && r.employee_read !== true).length;
  
@@ -1174,39 +1185,76 @@ case "report-submissions": {
     weekly:  { bg:"#f5f3ff", color:"#7c3aed", border:"#e0e7ff" },
   };
 
-  return (
-    <div>
-      {/* ── Tab bar ── */}
-      <div style={{ display:"flex", gap:0, borderBottom:"2px solid #e8edf3", marginBottom:20 }}>
-        {TAB_CONFIG.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setReportTab(t.key)}
-            style={{
-              display:"flex", alignItems:"center", gap:6,
-              padding:"9px 20px",
-              fontFamily:"'DM Sans',sans-serif", fontSize:12, fontWeight:700,
-              letterSpacing:".05em", textTransform:"uppercase",
-              color: reportTab === t.key ? t.color : "#94a3b8",
-              background:"transparent", border:"none",
-              borderBottom: reportTab === t.key ? `2.5px solid ${t.color}` : "2.5px solid transparent",
-              marginBottom:-2, cursor:"pointer", whiteSpace:"nowrap",
-              transition:"color .15s, border-color .15s",
-            }}
-          >
-            {t.label}
-            <span style={{
-              fontSize:10, fontWeight:700, padding:"1px 6px",
-              borderRadius:20, marginLeft:2,
-              background: reportTab === t.key ? t.bg : "#f8fafc",
-              color: reportTab === t.key ? t.color : "#94a3b8",
-              border:`1px solid ${reportTab === t.key ? t.border : "#e8edf3"}`,
-            }}>
-              {siteReports.filter(r => r.source === t.key).length}
-            </span>
-          </button>
+return (
+  <div>
+    {/* ── Professional overview banner ── */}
+    <div style={{
+      display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16, flexWrap:"wrap",
+      marginBottom:20, padding:"18px 22px", borderRadius:14,
+      background:"linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%)", color:"#fff",
+    }}>
+      <div style={{ minWidth:200 }}>
+        <div style={{ fontSize:10.5, fontWeight:800, letterSpacing:".12em", textTransform:"uppercase", color:"#93c5fd", marginBottom:6 }}>
+          Project Head Overview
+        </div>
+        <div style={{ fontSize:19, fontWeight:700, marginBottom:5 }}>Report Submissions</div>
+        <div style={{ fontSize:12.5, color:"#cbd5e1", lineHeight:1.6, maxWidth:480 }}>
+          Daily, weekly and site visit reports submitted across{" "}
+          <strong style={{ color:"#fff" }}>
+            {(user?.site_names?.length ? user.site_names : user?.site_name ? [user.site_name] : []).join(", ") || "your sites"}
+          </strong>.
+        </div>
+      </div>
+
+      {/* Quick stat chips */}
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+        {[
+          { label:"DPR", count: siteReports.filter(r=>r.source==="dpr").length, color:"#60a5fa" },
+          { label:"WPR", count: siteReports.filter(r=>r.source==="wpr").length, color:"#c4b5fd" },
+          { label:"SVR", count: siteReports.filter(r=>r.source==="svr").length, color:"#86efac" },
+        ].map(s => (
+          <div key={s.label} style={{
+            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+            minWidth:64, padding:"8px 14px", borderRadius:10,
+            background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)",
+          }}>
+            <div style={{ fontSize:18, fontWeight:800, fontFamily:"'DM Mono',monospace", color:s.color }}>{s.count}</div>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:".08em", color:"#94a3b8", marginTop:2 }}>{s.label}</div>
+          </div>
         ))}
       </div>
+    </div>
+
+    {/* ── Tab bar ── */}
+    <div style={{
+      display:"inline-flex", gap:4, padding:4, borderRadius:10,
+      background:"#f1f5f9", border:"1px solid #e8edf3", marginBottom:20,
+    }}>
+      {TAB_CONFIG.map(t => (
+        <button
+          key={t.key}
+          onClick={() => setReportTab(t.key)}
+          style={{
+            display:"flex", alignItems:"center", gap:6,
+            padding:"7px 16px", borderRadius:7,
+            fontFamily:"'DM Sans',sans-serif", fontSize:12.5, fontWeight:700,
+            border:"none", cursor:"pointer", transition:"all .15s",
+            color: reportTab === t.key ? t.color : "#64748b",
+            background: reportTab === t.key ? "#fff" : "transparent",
+            boxShadow: reportTab === t.key ? "0 1px 6px rgba(0,0,0,.08)" : "none",
+          }}
+        >
+          {t.label}
+          <span style={{
+            fontSize:10, fontWeight:700, padding:"1px 6px", borderRadius:20,
+            background: reportTab === t.key ? t.bg : "#e2e8f0",
+            color: reportTab === t.key ? t.color : "#94a3b8",
+          }}>
+            {siteReports.filter(r => r.source === t.key).length}
+          </span>
+        </button>
+      ))}
+    </div>
 
       {/* ── WPR coming soon ── */}
       {reportTab === "wpr" && siteReports.filter(r => r.source === "wpr").length === 0 && (
@@ -1222,21 +1270,10 @@ case "report-submissions": {
       {reportTab !== "wpr" || siteReports.filter(r => r.source === "wpr").length > 0 ? (
         <>
           {/* ── Stats ── */}
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:16 }}>
-            {[
-              { label:"Total", value: tabFiltered.length, color:"#2563eb" },
-              { label:"With PDF", value: tabFiltered.filter(r=>r.pdf_url).length, color:"#16a34a" },
-              { label:"No PDF", value: tabFiltered.filter(r=>!r.pdf_url).length, color:"#d97706" },
-            ].map(s => (
-              <div key={s.label} style={{ background:"#f8fafc", border:"1px solid #e8edf3", borderRadius:10, padding:"12px 14px" }}>
-                <div style={{ fontSize:22, fontWeight:800, color:s.color, fontFamily:"'DM Mono',monospace" }}>{s.value}</div>
-                <div style={{ fontSize:11, fontWeight:700, color:"#94a3b8", textTransform:"uppercase", letterSpacing:".05em", marginTop:3 }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
+          
 
           {/* ── Filters ── */}
-          <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:18, padding:"10px 14px", background:"#f8fafc", border:"1px solid #e8edf3", borderRadius:10 }}>
+          <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:18, padding:"10px 14px", background:"#c9d0d4d0", border:"1px solid #c9d0d4d0", borderRadius:10 }}>
             <input
               type="month"
               style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12.5, color:"#1e293b", background:"#fff", border:"1px solid #e2e8f0", borderRadius:6, padding:"5px 9px", height:32, cursor:"pointer", outline:"none" }}
@@ -1343,13 +1380,22 @@ case "report-submissions": {
                           </div>
 
                           {r.pdf_url ? (
-                            
-                            <a  href={r.pdf_url} target="_blank" rel="noopener noreferrer"
-                              style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12, fontWeight:600, color:"#2563eb", background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:7, padding:"6px 12px", textDecoration:"none", alignSelf:"flex-start" }}
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                              Download PDF
-                            </a>
+                            <div style={{ display:"flex", gap:8 }}>
+                              
+                              <a  href={r.pdf_url} target="_blank" rel="noopener noreferrer"
+                                style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12, fontWeight:600, color:"#475569", background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:7, padding:"6px 12px", textDecoration:"none" }}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                View
+                              </a>
+                              
+                              <a  href={r.pdf_url} download
+                                style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12, fontWeight:600, color:"#2563eb", background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:7, padding:"6px 12px", textDecoration:"none" }}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Download
+                              </a>
+                            </div>
                           ) : (
                             <span style={{ fontSize:11, color:"#94a3b8", fontStyle:"italic" }}>No PDF attached</span>
                           )}
@@ -1659,12 +1705,8 @@ case "report-submissions": {
                       className={`op-nav-item${activeTab === "report-submissions" ? " active" : ""}`}
                       onClick={() => handleNavClick("report-submissions")}
                     >
-                      <span className="op-nav-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/>
-                        </svg>
-                      </span>
-                      Report Submissions
+                      <span className="op-nav-icon">{REPORT_SUBMISSIONS_ITEM.icon}</span>
+                      {REPORT_SUBMISSIONS_ITEM.label}
                     </button>
                   )}
               </nav>

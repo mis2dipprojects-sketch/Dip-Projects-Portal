@@ -14,7 +14,36 @@ const titleCase = s => s
   ? s.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
   : "";
 
+// REPLACE the existing compressImage function with:
 async function compressImage(file) {
+  // Convert HEIC/HEIF to JPEG first if needed
+  const isHeic = 
+    file.type === "image/heic" || 
+    file.type === "image/heif" ||
+    (file.type === "" && /\.(heic|heif)$/i.test(file.name));
+
+  let sourceFile = file;
+
+  if (isHeic) {
+    try {
+      // Dynamically load heic2any
+      if (!window.heic2any) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = "https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js";
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      }
+      const converted = await window.heic2any({ blob: file, toType: "image/jpeg", quality: 0.85 });
+      sourceFile = Array.isArray(converted) ? converted[0] : converted;
+    } catch (e) {
+      console.warn("HEIC conversion failed, trying anyway:", e);
+      sourceFile = file;
+    }
+  }
+
   return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = e => {
@@ -28,9 +57,10 @@ async function compressImage(file) {
         canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL("image/jpeg", QUALITY));
       };
+      img.onerror = () => resolve(null); // graceful failure
       img.src = e.target.result;
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(sourceFile);
   });
 }
 
@@ -134,7 +164,8 @@ border:2px solid transparent;border-radius:12px;color:#6b2d0f;cursor:pointer;fon
 .photo-add-btn:hover { border-color:var(--orange3); color:var(--orange); background:var(--orange-bg); }
 
 .visitor-card { background:var(--bg); border:1.5px solid var(--border); border-radius:8px; padding:14px; margin-bottom:10px; }
-.visitor-card-hdr { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.visitor-card-hdr { display:flex; align-items:center; gap:10px; margin-bottom:10px; min-width:0; }
+.visitor-card-hdr .finput { min-width:0; flex:1; }  
 .visitor-num { background:var(--grad); color:#fff; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; }
 
 .custom-field-wrap { border:2px dashed var(--orange-line); border-radius:8px; padding:14px; background:var(--orange-bg); margin-bottom:10px; }
@@ -2262,7 +2293,7 @@ function VisitorsSection({ visitors, setVisitors }) {
         <div className="visitor-card" key={v.id}>
           <div className="visitor-card-hdr">
             <div className="visitor-num">{idx+1}</div>
-            <input className="finput" style={{flex:1}} value={v.name} onChange={e=>upd(v.id,"name",e.target.value)} placeholder="Visitor name…"/>
+            <input className="finput" style={{flex:1, minWidth:0}} value={v.name} onChange={e=>upd(v.id,"name",e.target.value)} placeholder="Visitor name…"/>
             <button className="btn btn-red btn-sm" style={{marginLeft:8}} onClick={()=>rem(v.id)}>✕</button>
           </div>
           <div className="fg">
@@ -2302,32 +2333,90 @@ function CustomFieldsSection({ fields, setFields }) {
   );
 }
 
+// REPLACE the entire PhotosSection component with:
 function PhotosSection({ photos, setPhotos }) {
   const fileRef = useRef();
+  const [converting, setConverting] = useState(false);
+
   const addFiles = async files => {
-    for (const f of files) {
-      if (!f.type.startsWith("image/")) continue;
-      const data = await compressImage(f);
-      setPhotos(p=>[...p,{id:"ph_"+Date.now()+Math.random(),data,caption:""}]);
+    const validFiles = files.filter(f => {
+      const type = f.type.toLowerCase();
+      const name = f.name.toLowerCase();
+      // Accept: standard images, HEIC/HEIF (type may be empty on Android)
+      return (
+        type.startsWith("image/") ||
+        type === "" && /\.(heic|heif|jpg|jpeg|png|gif|webp|bmp)$/i.test(name)
+      );
+    });
+
+    if (!validFiles.length) return;
+    setConverting(true);
+
+    for (const f of validFiles) {
+      try {
+        const data = await compressImage(f);
+        if (data) {
+          setPhotos(p => [...p, { id: "ph_" + Date.now() + Math.random(), data, caption: "" }]);
+        }
+      } catch (e) {
+        console.error("Failed to process image:", f.name, e);
+      }
     }
+    setConverting(false);
   };
+
   return (
     <div>
-      <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={e=>{ addFiles(Array.from(e.target.files)); e.target.value=""; }}/>
+      {/* Hidden file input — no accept filter so HEIC isn't blocked on Android */}
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        hidden
+        onChange={e => { addFiles(Array.from(e.target.files)); e.target.value = ""; }}
+      />
       <div className="photo-grid">
-        {photos.map(ph=>(
+        {photos.map(ph => (
           <div className="photo-item" key={ph.id}>
-            <img className="photo-thumb" src={ph.data} alt=""/>
-            <button className="photo-remove" onClick={()=>setPhotos(p=>p.filter(x=>x.id!==ph.id))}>×</button>
-            <textarea className="photo-caption" rows={2} value={ph.caption} onChange={e=>setPhotos(p=>p.map(x=>x.id===ph.id?{...x,caption:e.target.value}:x))} placeholder="Caption…"/>
+            <img className="photo-thumb" src={ph.data} alt="" />
+            <button className="photo-remove" onClick={() => setPhotos(p => p.filter(x => x.id !== ph.id))}>×</button>
+            <textarea
+              className="photo-caption"
+              rows={2}
+              value={ph.caption}
+              onChange={e => setPhotos(p => p.map(x => x.id === ph.id ? { ...x, caption: e.target.value } : x))}
+              placeholder="Caption…"
+            />
           </div>
         ))}
-        <button className="photo-add-btn" onClick={()=>fileRef.current?.click()}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Add Photos
+        <button
+          className="photo-add-btn"
+          onClick={() => fileRef.current?.click()}
+          disabled={converting}
+          style={converting ? { opacity: 0.6, cursor: "not-allowed" } : {}}
+        >
+          {converting ? (
+            <>
+              <div className="spinner" style={{ width: 18, height: 18, borderTopColor: "var(--orange3)" }} />
+              <span>Converting…</span>
+            </>
+          ) : (
+            <>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Add Photos
+            </>
+          )}
         </button>
       </div>
-      {photos.length>0 && <p style={{fontSize:12,color:"#94a3b8",marginTop:8}}>{photos.length} photo{photos.length!==1?"s":""} added</p>}
+      {photos.length > 0 && (
+        <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 8 }}>
+          {photos.length} photo{photos.length !== 1 ? "s" : ""} added
+        </p>
+      )}
     </div>
   );
 }

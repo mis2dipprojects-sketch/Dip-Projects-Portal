@@ -478,8 +478,7 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
     const [siteReports,    setSiteReports]    = useState([]);
     const [loadingReports, setLoadingReports] = useState(false);
     const [reportFilter,   setReportFilter]   = useState({ type: "", site: "", month: "" });
-
-    // ADD this fetch function:
+// ADD this fetch function:
     const fetchSiteReports = useCallback(async (u) => {
   if (!u || u.role?.toLowerCase().trim() !== "project head") return;
   setLoadingReports(true);
@@ -1270,7 +1269,18 @@ return (
       {reportTab !== "wpr" || siteReports.filter(r => r.source === "wpr").length > 0 ? (
         <>
           {/* ── Stats ── */}
-          
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:16 }}>
+            {[
+              { label:"Total", value: tabFiltered.length, color:"#2563eb" },
+              { label:"With PDF", value: tabFiltered.filter(r=>r.pdf_url).length, color:"#16a34a" },
+              { label:"No PDF", value: tabFiltered.filter(r=>!r.pdf_url).length, color:"#d97706" },
+            ].map(s => (
+              <div key={s.label} style={{ background:"#c9d0d4d0", border:"1px solid #c9d0d4d0", borderRadius:10, padding:"12px 14px" }}>
+                <div style={{ fontSize:22, fontWeight:800, color:s.color, fontFamily:"'DM Mono',monospace" }}>{s.value}</div>
+                <div style={{ fontSize:11, fontWeight:700, color:"#94a3b8", textTransform:"uppercase", letterSpacing:".05em", marginTop:3 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
 
           {/* ── Filters ── */}
           <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:18, padding:"10px 14px", background:"#c9d0d4d0", border:"1px solid #c9d0d4d0", borderRadius:10 }}>

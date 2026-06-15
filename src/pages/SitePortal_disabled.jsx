@@ -445,6 +445,9 @@ body,#root{background:#c9d0d4d0;font-family:var(--font);color:var(--ink);}
 .sni.act{background:var(--amber-bg);color:var(--amber2);font-weight:700;}
 .sni.act svg{stroke:var(--amber2);}
  
+.sni.disabled{opacity:.4;cursor:not-allowed;pointer-events:none;}
+.sni.disabled:hover{background:transparent;color:var(--ink2);}
+
 /* ── Card ── */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);}
 .card-hdr{display:flex;align-items:center;gap:10px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--line);}
@@ -652,7 +655,7 @@ const ALL_ITEMS = [
   ...NAV.flatMap(n => n.children ? n.children : [n]),
   { key: "profile", label: "Profile & Settings", icon: Ico.profile },
 ];
-
+const ENABLED_TABS = new Set(["daily-report", "site-report", "my-reports", "manpower-reports", "profile"]);
 
 // ─── Loading ──────────────────────────────────────────────────────────────────
 function Loading() {
@@ -1049,10 +1052,11 @@ function MonthlyReport() {
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function SitePortal() {
   const [user,        setUser]        = useState(null);
-  const [activeTab,   setActiveTab]   = useState("clock-in");
+  // const [activeTab,   setActiveTab]   = useState("clock-in");
+  const [activeTab, setActiveTab] = useState("daily-report");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expanded,    setExpanded]    = useState({ leave:true, reports:true });
-  const [isDark, setIsDark] = useState(() => {
+const [isDark, setIsDark] = useState(() => {
   const saved = localStorage.getItem("theme");
   if (saved) document.documentElement.setAttribute("data-theme", saved);
   return saved === "dark";
@@ -1116,7 +1120,12 @@ useEffect(() => {
   return () => window.removeEventListener("resize", onResize);
 }, []);
 
-  const nav = (key) => { setActiveTab(key); if (window.innerWidth <= 768) setSidebarOpen(false); };
+  // const nav = (key) => { setActiveTab(key); if (window.innerWidth <= 768) setSidebarOpen(false); };
+  const nav = (key) => {
+  if (!ENABLED_TABS.has(key)) return;
+  setActiveTab(key);
+  if (window.innerWidth <= 768) setSidebarOpen(false);
+};
   const activeItem = ALL_ITEMS.find(i=>i.key===activeTab);
 
   if (!user) return (
@@ -1157,7 +1166,7 @@ useEffect(() => {
 
           {/* Sidebar */}
           <aside className={`sidebar${sidebarOpen ? "" : " closed"}`} onTouchMove={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}>
-            <nav className="snav">
+            {/* <nav className="snav">
               {NAV.map(n => {
                 if (!n.section) return (
                   <button key={n.key} className={`sni${activeTab === n.key ? " act" : ""}`} onClick={() => nav(n.key)}>
@@ -1180,8 +1189,47 @@ useEffect(() => {
                   </div>
                 );
               })}
+            </nav> */}
+            <nav className="snav">
+              {NAV.map(n => {
+                if (!n.section) {
+                  const enabled = ENABLED_TABS.has(n.key);
+                  return (
+                    <button
+                      key={n.key}
+                      className={`sni${activeTab === n.key ? " act" : ""}${enabled ? "" : " disabled"}`}
+                      onClick={() => nav(n.key)}
+                      aria-disabled={!enabled}
+                    >
+                      {n.icon} {n.label}
+                    </button>
+                  );
+                }
+                return (
+                  <div key={n.section}>
+                    <div className="sgroup-hdr" onClick={() => setExpanded(p => ({ ...p, [n.section]: !p[n.section] }))}>
+                      <span className="sgroup-lbl">{n.label}</span>
+                      <span className={`sgroup-chev${expanded[n.section] ? " open" : ""}`}>{Ico.chev}</span>
+                    </div>
+                    <div className={`sgroup-kids${expanded[n.section] ? "" : " shut"}`}>
+                      {n.children.map(c => {
+                        const enabled = ENABLED_TABS.has(c.key);
+                        return (
+                          <button
+                            key={c.key}
+                            className={`sni${activeTab === c.key ? " act" : ""}${enabled ? "" : " disabled"}`}
+                            onClick={() => nav(c.key)}
+                            aria-disabled={!enabled}
+                          >
+                            {c.icon} {c.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </nav>
-
             {/* Settings pinned to bottom */}
             <div className="sb-bottom">
               <button

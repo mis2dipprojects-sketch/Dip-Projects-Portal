@@ -18,7 +18,7 @@ async function sbFetch(path, opts = {}) {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
-
+  
 const fmtDate = (d) => {
   if (!d) return "—";
   const dt = new Date(d + "T00:00:00");
@@ -82,7 +82,7 @@ body{font-family:'DM Sans',sans-serif;background:#f0ede8;}
 .mp-card{background:#fff;border-radius:10px;border:1.5px solid rgba(0,0,0,.1);padding:20px;margin-bottom:16px;}
 .mp-title{font-size:17px;font-weight:800;color:#1a1a1a;margin-bottom:4px;}
 .mp-sub{font-size:12.5px;color:#7a7a7a;margin-bottom:18px;}
-.filter-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;}
+.filter-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;background:#e0e5e7; padding:20px; border-radius:5px;}
 .filter-fg{display:flex;flex-direction:column;gap:4px;}
 .filter-label{font-size:11px;font-weight:700;color:#3d3d3d;letter-spacing:.3px;text-transform:uppercase;}
 .finput{font-family:'DM Sans',sans-serif;font-size:13px;color:#1a1a1a;background:#f0ede8;border:1.5px solid rgba(0,0,0,.12);border-radius:7px;padding:8px 10px;outline:none;cursor:pointer;}
@@ -118,7 +118,7 @@ body{font-family:'DM Sans',sans-serif;background:#f0ede8;}
 .empty-title{font-size:15px;font-weight:700;color:#3d3d3d;}
 .empty-sub{font-size:12.5px;color:#7a7a7a;max-width:320px;line-height:1.6;}
 .stats-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
-.stat-card{flex:1;min-width:100px;background:#f8fafc;border:1.5px solid rgba(0,0,0,.08);border-radius:8px;padding:10px 14px;}
+.stat-card{flex:1;min-width:100px;background:#e0e5e7;border:1.5px solid rgba(0,0,0,.08);border-radius:8px;padding:10px 14px;}
 .stat-val{font-size:22px;font-weight:800;color:#0f172a;}
 .stat-lbl{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
 
@@ -509,51 +509,52 @@ export default function ManpowerReport({ user }) {
 
         rd.cols.forEach((col, i) => {
           const cnt = de.counts.get(col.key) || 0;
-          setCell(R, i + 2, cnt > 0 ? cnt : "",
+          setCell(R, i + 2, cnt > 0 ? cnt : "-",
             cnt > 0
               ? style(CLR.count_cell, { font: { bold:true, sz:11, color:{rgb:"FF0F172A"} } })
               : style(CLR.zero_cell,  { font: { bold:false, sz:10, color:{rgb:"FF94A3B8"} } })
           );
         });
 
-        setCell(R, totalCol, rowTotal > 0 ? rowTotal : "",
+        setCell(R, totalCol, rowTotal > 0 ? rowTotal : "-",
           style(CLR.row_total_cell, { font: { bold:true, sz:11, color:{rgb:"FF166534"} } }));
         R++;
       }
 
-      // Monthly subtotal row
+            // Monthly subtotal row
       setCell(R, 0, `${fmtMonth(mk).toUpperCase()} — TOTAL`,
-        style(CLR.month_sub, { align: { horizontal:"left" }, font: { bold:true, sz:10, color:{rgb:"FF93C5FD"} } }));
+        style(CLR.month_sub, { align: { horizontal:"left" }, font: { bold:true, sz:10, color:{rgb:"FF1E3A5F"} } }));
       mergeRange(R, 0, R, 1);
       setCell(R, 1, "", style(CLR.month_sub));
 
       rd.cols.forEach((col, i) => {
         const cnt = rd.monthTotals[mk][col.key] || 0;
-        setCell(R, i + 2, cnt > 0 ? cnt : "",
+        setCell(R, i + 2, cnt > 0 ? cnt : "-",
           cnt > 0
-            ? style(CLR.month_sub,       { font: { bold:true,  sz:11, color:{rgb:"FFFFFFFF"} } })
-            : style(CLR.month_sub,       { font: { bold:false, sz:10, color:{rgb:"FF4B6584"} } })
+            ? style(CLR.month_sub,      { font: { bold:true,  sz:11, color:{rgb:"FF1E3A5F"} } })
+            : style(CLR.month_sub,      { font: { bold:false, sz:10, color:{rgb:"FF4B6584"} } })
         );
       });
-      setCell(R, totalCol, monthRowTotal > 0 ? monthRowTotal : "",
-        style(CLR.month_sub_total, { font: { bold:true, sz:12, color:{rgb:"FFFFFFFF"} } }));
+      setCell(R, totalCol, monthRowTotal > 0 ? monthRowTotal : "-",
+        style(CLR.month_sub_total, { font: { bold:true, sz:12, color:{rgb:"FF1E3A5F"} } }));
       R++;
 
       // Blank spacer
       R++;
     }
 
+
     // Grand total row
     setCell(R, 0, "GRAND TOTAL — ALL MONTHS",
-      style(CLR.grand, { align: { horizontal:"left" }, font: { bold:true, sz:11, color:{rgb:"FFFFD700"} } }));
+      style(CLR.grand, { align: { horizontal:"left" }, font: { bold:true, sz:11, color:{rgb:"FF7F1D1D"} } }));
     mergeRange(R, 0, R, 1);
     setCell(R, 1, "", style(CLR.grand));
 
     rd.cols.forEach((col, i) => {
       const cnt = rd.colTotals[col.key] || 0;
-      setCell(R, i + 2, cnt > 0 ? cnt : "", style(CLR.grand, { font: { bold:true, sz:11, color:{rgb:"FFFFFFFF"} } }));
+      setCell(R, i + 2, cnt > 0 ? cnt : "-", style(CLR.grand, { font: { bold:true, sz:11, color:{rgb:"FF7F1D1D"} } }));
     });
-    setCell(R, totalCol, grandTotal, style(CLR.grand_val, { font: { bold:true, sz:14, color:{rgb:"FFFFFFFF"} } }));
+    setCell(R, totalCol, grandTotal, style(CLR.grand_val, { font: { bold:true, sz:14, color:{rgb:"FF7F1D1D"} } }));
 
     // ── Sheet range + merges + col widths ─────────────────────────
     ws["!ref"]   = XLSX.utils.encode_range({ s:{ r:0, c:0 }, e:{ r:R, c:totalCol } });
@@ -647,7 +648,7 @@ export default function ManpowerReport({ user }) {
                   <div className="stat-card"><div className="stat-val">{activeDays}</div><div className="stat-lbl">Active Days</div></div>
                   <div className="stat-card"><div className="stat-val">{rd.monthMap.size}</div><div className="stat-lbl">Months</div></div>
                   <div className="stat-card"><div className="stat-val">{rd.cols.length}</div><div className="stat-lbl">Labour Types</div></div>
-                  <div className="stat-card"><div className="stat-val">{grandTotal}</div><div className="stat-lbl">Total Man-Days</div></div>
+                  <div className="stat-card"><div className="stat-val">{grandTotal}</div><div className="stat-lbl">Total Manpower</div></div>
                   <div className="stat-card">
                     <div className="stat-val" style={{ fontSize:14 }}>{rd.site}</div>
                     <div className="stat-lbl">{rd.from ? fmtDate(rd.from) : "All"} — {rd.to ? fmtDate(rd.to) : "All"}</div>

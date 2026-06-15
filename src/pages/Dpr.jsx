@@ -2726,7 +2726,7 @@ function buildWhatsAppText(payload) {
 
     msg += `${LINE}\n`;
     msg += `👥 *Total Manpower* : *${total}*\n`;
-    const LINE  = '─'.repeat(20);
+
   }
 
   // ── Equipment ───────────────────────────────────────────

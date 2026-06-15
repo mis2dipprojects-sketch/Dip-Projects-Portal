@@ -90,7 +90,7 @@ body { background:var(--bg); font-family:var(--font); color:var(--ink); }
 .dpr-root { min-height:100vh; padding:24px 16px 48px; }
 .dpr-inner { max-width:1500px; margin:0 auto; }
 .rtype-row { display:grid; grid-template-columns:1fr 1fr; gap:0; border:1.5px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:22px; }
-.rtype-btn { flex:1; padding:11px 8px; border:none; background:transparent; font-family:var(--font); font-size:15px; font-weight:700; cursor:pointer; color:var(--ink3); transition:all .18s; white-space:nowrap; line-height:1.2; }.rtype-btn.morning.act { background:var(--grad); color:#fff; }
+.rtype-btn { lineHeight:1;  flex:1; padding:11px 8px; border:none; background:transparent; font-family:var(--font); font-size:15px; font-weight:700; cursor:pointer; color:var(--ink3); transition:all .18s; white-space:nowrap; line-height:1.2; }.rtype-btn.morning.act { background:var(--grad); color:#fff; }
 .rtype-btn.evening.act { background:var(--grad); color:#fff; }
 
 .fg { display:flex; flex-direction:column; gap:5px; }
@@ -280,7 +280,7 @@ border:2px solid transparent;border-radius:12px;color:#6b2d0f;cursor:pointer;fon
   .grid2 { grid-template-columns:1fr; }
   .grid3 { grid-template-columns:1fr; }
   .col2,.col3 { grid-column:span 1; }
-  .rtype-btn { font-size:15px; padding:11px 6px; }
+  .rtype-btn { font-size:14px; padding:11px 6px; }
 }
 
 //-----DARK THEME CSS---------
@@ -3026,11 +3026,22 @@ const handleWhatsApp = async () => {
           <div>
       {/* Report type toggle — no emojis */}
       <div className="rtype-row">
-        <button className={`rtype-btn morning${reportType==="morning"?" act":""}`}
-          onClick={()=>setReportType("morning")}>Morning Report</button>
-        <button className={`rtype-btn evening${reportType==="evening"?" act":""}`}
-          onClick={()=>setReportType("evening")}>Evening DPR</button>
-      </div>
+  <button className={`rtype-btn morning${reportType==="morning"?" act":""}`}
+    onClick={()=>setReportType("morning")}>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+    </svg>
+    &nbsp;&nbsp;&nbsp;Morning Report
+  </button>
+  <button className={`rtype-btn evening${reportType==="evening"?" act":""}`}
+    onClick={()=>setReportType("evening")}>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+    &nbsp;&nbsp;&nbsp;Evening DPR
+  </button>
+</div>
 
       <div className="grid3" style={{marginBottom:18}}>
         <div className="fg">

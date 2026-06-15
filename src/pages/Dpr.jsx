@@ -2570,23 +2570,107 @@ useEffect(() => {
     setSubmitStep(""); setSubmitDetail("");
   };
 
-function buildWhatsAppText(payload) {
-  let msg = '🌅 *MORNING REPORT*\n';
-  msg += '━━━━━━━━━━━━━━━━━\n';
-  msg += `📅 *Date:* ${fmtDate(payload.date)}\n`;
-  msg += `🏘️ *Site:* ${payload.site}\n`;
-  msg += `👷 *Engineer:* ${payload.employeeName}\n`;
-  msg += '━━━━━━━━━━━━━━━━━\n';
+// function buildWhatsAppText(payload) {
+//   let msg = '🌅 *MORNING REPORT*\n';
+//   msg += '━━━━━━━━━━━━━━━━━\n';
+//   msg += `📅 *Date:* ${fmtDate(payload.date)}\n`;
+//   msg += `🏘️ *Site:* ${payload.site}\n`;
+//   msg += `👷 *Engineer:* ${payload.employeeName}\n`;
+//   msg += '━━━━━━━━━━━━━━━━━\n';
 
+//   if (payload.summary?.trim()) {
+//     msg += '\n📋 *Work Summary:*\n';
+//     payload.summary.split('\n').filter(l => l.trim())
+//       .forEach(l => { msg += '• ' + l.replace(/^[•\-]\s*/, '').trim() + '\n'; });
+//   }
+
+//   if (payload.manpower?.length) {
+//     msg += '\n👥 *Manpower:*\n';
+//     msg += '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n';
+//     let total = 0;
+//     const scopeGroups = {};
+//     payload.manpower.forEach(mp => {
+//       const scope    = (mp.displayScope || mp.scope || '').trim();
+//       const labour   = (mp.labour   || '').trim();
+//       const category = (mp.category || '').trim();
+//       const gender   = (mp.gender   || '').trim();
+//       const skill    = (mp.skill && mp.skill !== '—' ? mp.skill : '').trim();
+//       const count    = Number(mp.count) || 0;
+//       total += count;
+//       if (!scopeGroups[scope]) scopeGroups[scope] = {};
+//       const labourKey = labour || '—';
+//       if (!scopeGroups[scope][labourKey]) scopeGroups[scope][labourKey] = [];
+//       scopeGroups[scope][labourKey].push({ category, gender, skill, count });
+//     });
+//     const scopeEmoji = { 'PMC': '📋', 'CLIENT': '🏢', 'CONTRACTOR': '🔧' };
+    
+//     Object.keys(scopeGroups).forEach(scope => {
+//       const emoji = scopeEmoji[scope.toUpperCase()] || '🔹';
+//       msg += `\n${emoji} *${scope}*\n`;
+//       Object.keys(scopeGroups[scope]).forEach(labour => {
+//         const rows = scopeGroups[scope][labour];
+//         if (labour && labour !== '—') msg += `  _${labour}_\n`;
+//         rows.forEach(row => {
+//           const details = [row.gender, row.skill].filter(Boolean);
+//           const detailStr = details.length ? ` (${details.join(' • ')})` : '';
+//           const cat = row.category && row.category !== '—' ? row.category : '';
+//           msg += `  › ${cat || labour}${detailStr}  ➜  *${row.count}*\n`;
+//         });
+//       });
+//     });
+//     msg += '\n┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n';
+//     msg += `👤 *Total Manpower: ${total}*\n`;
+//     msg += '━━━━━━━━━━━━━━━━━';
+//   }
+
+//   if (payload.equipment?.length) {
+//     msg += '\n\n🚜 *Equipment:*\n';
+//     msg += '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n';
+//     const clientEq     = payload.equipment.filter(e => e.source === 'client');
+//     const contractorEq = payload.equipment.filter(e => e.source === 'contractor');
+//     if (clientEq.length) {
+//       msg += '\n🏢 *Client:*\n';
+//       clientEq.forEach(e => { msg += `  › ${e.name} — ${e.qty} ${e.unit}\n`; });
+//     }
+//     if (contractorEq.length) {
+//       msg += '\n🔧 *Contractor:*\n';
+//       contractorEq.forEach(e => { msg += `  › ${e.name} — ${e.qty} ${e.unit}\n`; });
+//     }
+//     msg += '━━━━━━━━━━━━━━━━━';
+//   }
+
+//   return msg;
+// }
+function buildWhatsAppText(payload) {
+  const LINE  = '─'.repeat(20);
+  const RULE  = '━'.repeat(20);
+
+  let msg = '';
+
+  // ── Header ──────────────────────────────────────────────
+  msg += '*MORNING REPORT*\n';
+  msg += '_DIP Projects · Site Progress Update_\n';
+  msg += `${RULE}\n`;
+  msg += `*Site*      : ${payload.site}\n`;
+  msg += `*Engineer*  : ${payload.employeeName}\n`;
+  msg += `*Date*      : ${fmtDate(payload.date)}\n`;
+  msg += `${RULE}\n`;
+
+  // ── Work summary ────────────────────────────────────────
   if (payload.summary?.trim()) {
-    msg += '\n📋 *Work Summary:*\n';
+    msg += '\n*WORK SUMMARY*\n';
+    msg += `${LINE}\n`;
     payload.summary.split('\n').filter(l => l.trim())
-      .forEach(l => { msg += '• ' + l.replace(/^[•\-]\s*/, '').trim() + '\n'; });
+      .forEach((l, i) => {
+        msg += `${i + 1}.  ${l.replace(/^[•\-]\s*/, '').trim()}\n`;
+      });
   }
 
+  // ── Manpower ────────────────────────────────────────────
   if (payload.manpower?.length) {
-    msg += '\n👥 *Manpower:*\n';
-    msg += '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n';
+    msg += '\n*MANPOWER*\n';
+    msg += `${LINE}\n`;
+
     let total = 0;
     const scopeGroups = {};
     payload.manpower.forEach(mp => {
@@ -2602,41 +2686,49 @@ function buildWhatsAppText(payload) {
       if (!scopeGroups[scope][labourKey]) scopeGroups[scope][labourKey] = [];
       scopeGroups[scope][labourKey].push({ category, gender, skill, count });
     });
-    const scopeEmoji = { 'PMC': '📋', 'CLIENT': '🏢', 'CONTRACTOR': '🔧' };
+
     Object.keys(scopeGroups).forEach(scope => {
-      const emoji = scopeEmoji[scope.toUpperCase()] || '🔹';
-      msg += `\n${emoji} *${scope}*\n`;
+      msg += `\n_${scope.toUpperCase()}_\n`;
       Object.keys(scopeGroups[scope]).forEach(labour => {
-        const rows = scopeGroups[scope][labour];
-        if (labour && labour !== '—') msg += `  _${labour}_\n`;
-        rows.forEach(row => {
-          const details = [row.gender, row.skill].filter(Boolean);
-          const detailStr = details.length ? ` (${details.join(' • ')})` : '';
-          const cat = row.category && row.category !== '—' ? row.category : '';
-          msg += `  › ${cat || labour}${detailStr}  ➜  *${row.count}*\n`;
+        scopeGroups[scope][labour].forEach(row => {
+          const details = [
+            row.category && row.category !== '—' ? row.category : null,
+            row.gender,
+            row.skill,
+          ].filter(Boolean);
+          const label     = labour && labour !== '—' ? labour : (row.category || 'Workers');
+          const detailStr = details.length ? ` (${details.join(' · ')})` : '';
+          msg += `   ▪ ${label}${detailStr}  →  *${row.count}*\n`;
         });
       });
     });
-    msg += '\n┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n';
-    msg += `👤 *Total Manpower: ${total}*\n`;
-    msg += '━━━━━━━━━━━━━━━━━';
+
+    msg += `${LINE}\n`;
+    msg += `*Total Manpower*  :  *${total}*\n`;
   }
 
+  // ── Equipment ───────────────────────────────────────────
   if (payload.equipment?.length) {
-    msg += '\n\n🚜 *Equipment:*\n';
-    msg += '┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n';
+    msg += '\n*EQUIPMENT ON SITE*\n';
+    msg += `${LINE}\n`;
+
     const clientEq     = payload.equipment.filter(e => e.source === 'client');
     const contractorEq = payload.equipment.filter(e => e.source === 'contractor');
+
     if (clientEq.length) {
-      msg += '\n🏢 *Client:*\n';
-      clientEq.forEach(e => { msg += `  › ${e.name} — ${e.qty} ${e.unit}\n`; });
+      msg += '\n_CLIENT_\n';
+      clientEq.forEach(e => { msg += `   ▪ ${e.name}  →  *${e.qty} ${e.unit}*\n`; });
     }
     if (contractorEq.length) {
-      msg += '\n🔧 *Contractor:*\n';
-      contractorEq.forEach(e => { msg += `  › ${e.name} — ${e.qty} ${e.unit}\n`; });
+      msg += '\n_CONTRACTOR_\n';
+      contractorEq.forEach(e => { msg += `   ▪ ${e.name}  →  *${e.qty} ${e.unit}*\n`; });
     }
-    msg += '━━━━━━━━━━━━━━━━━';
+    msg += `${LINE}\n`;
   }
+
+  // ── Footer ──────────────────────────────────────────────
+  msg += `\n${RULE}\n`;
+  msg += `_${new Date().toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}_`;
 
   return msg;
 }

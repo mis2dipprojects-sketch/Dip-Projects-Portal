@@ -1222,43 +1222,43 @@ useEffect(() => {
 
           {/* Sidebar */}
           <aside className={`sidebar${sidebarOpen ? "" : " closed"}`} onTouchMove={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}>
-  <nav className="snav">
-    {NAV.map(n => {
-      if (!n.section) return (
-        <button key={n.key} className={`sni${activeTab === n.key ? " act" : ""}`} onClick={() => nav(n.key)}>
-          {n.icon} {n.label}
-        </button>
-      );
-      return (
-        <div key={n.section}>
-          <div className="sgroup-hdr" onClick={() => setExpanded(p => ({ ...p, [n.section]: !p[n.section] }))}>
-            <span className="sgroup-lbl">{n.label}</span>
-            <span className={`sgroup-chev${expanded[n.section] ? " open" : ""}`}>{Ico.chev}</span>
-          </div>
-          <div className={`sgroup-kids${expanded[n.section] ? "" : " shut"}`}>
-            {n.children.map(c => (
-              <button key={c.key} className={`sni${activeTab === c.key ? " act" : ""}`} onClick={() => nav(c.key)}>
-                {c.icon} {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      );
-    })}
-  </nav>
+            <nav className="snav">
+              {NAV.map(n => {
+                if (!n.section) return (
+                  <button key={n.key} className={`sni${activeTab === n.key ? " act" : ""}`} onClick={() => nav(n.key)}>
+                    {n.icon} {n.label}
+                  </button>
+                );
+                return (
+                  <div key={n.section}>
+                    <div className="sgroup-hdr" onClick={() => setExpanded(p => ({ ...p, [n.section]: !p[n.section] }))}>
+                      <span className="sgroup-lbl">{n.label}</span>
+                      <span className={`sgroup-chev${expanded[n.section] ? " open" : ""}`}>{Ico.chev}</span>
+                    </div>
+                    <div className={`sgroup-kids${expanded[n.section] ? "" : " shut"}`}>
+                      {n.children.map(c => (
+                        <button key={c.key} className={`sni${activeTab === c.key ? " act" : ""}`} onClick={() => nav(c.key)}>
+                          {c.icon} {c.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </nav>
 
-  {/* Settings pinned to bottom */}
-  <div className="sb-bottom">
-    <button
-      className={`sni${activeTab === "profile" ? " act" : ""}`}
-      onClick={() => nav("profile")}
-      style={{ width: "100%", borderRadius: 9 }}
-    >
-      {Ico.settings}
-      Settings &amp; Profile
-    </button>
-  </div>
-</aside>
+            {/* Settings pinned to bottom */}
+            <div className="sb-bottom">
+              <button
+                className={`sni${activeTab === "profile" ? " act" : ""}`}
+                onClick={() => nav("profile")}
+                style={{ width: "100%", borderRadius: 9 }}
+              >
+                {Ico.settings}
+                Settings &amp; Profile
+              </button>
+            </div>
+          </aside>
 
           {/* Main */}
           <main className="main">

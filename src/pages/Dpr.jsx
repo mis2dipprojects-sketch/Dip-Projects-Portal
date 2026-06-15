@@ -90,7 +90,7 @@ body { background:var(--bg); font-family:var(--font); color:var(--ink); }
 .dpr-root { min-height:100vh; padding:24px 16px 48px; }
 .dpr-inner { max-width:1500px; margin:0 auto; }
 .rtype-row { display:grid; grid-template-columns:1fr 1fr; gap:0; border:1.5px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:22px; }
-.rtype-btn { flex:1; padding:11px 8px; border:none; background:transparent; font-family:var(--font); font-size:13px; font-weight:700; cursor:pointer; color:var(--ink3); transition:all .18s; white-space:nowrap; line-height:1.2; }.rtype-btn.morning.act { background:var(--grad); color:#fff; }
+.rtype-btn { flex:1; padding:11px 8px; border:none; background:transparent; font-family:var(--font); font-size:15px; font-weight:700; cursor:pointer; color:var(--ink3); transition:all .18s; white-space:nowrap; line-height:1.2; }.rtype-btn.morning.act { background:var(--grad); color:#fff; }
 .rtype-btn.evening.act { background:var(--grad); color:#fff; }
 
 .fg { display:flex; flex-direction:column; gap:5px; }
@@ -280,7 +280,7 @@ border:2px solid transparent;border-radius:12px;color:#6b2d0f;cursor:pointer;fon
   .grid2 { grid-template-columns:1fr; }
   .grid3 { grid-template-columns:1fr; }
   .col2,.col3 { grid-column:span 1; }
-  .rtype-btn { font-size:12px; padding:11px 6px; }
+  .rtype-btn { font-size:15px; padding:11px 6px; }
 }
 
 //-----DARK THEME CSS---------

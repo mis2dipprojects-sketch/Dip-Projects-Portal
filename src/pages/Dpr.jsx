@@ -163,11 +163,71 @@ border:2px solid transparent;border-radius:12px;color:#6b2d0f;cursor:pointer;fon
 .photo-add-btn { width:120px; height:120px; border:2px dashed var(--border); border-radius:6px; background:var(--bg); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--ink3); font-size:12px; font-weight:600; transition:all .15s; }
 .photo-add-btn:hover { border-color:var(--orange3); color:var(--orange); background:var(--orange-bg); }
 
-.visitor-card { background:var(--bg); border:1.5px solid var(--border); border-radius:8px; padding:14px; margin-bottom:10px; }
-.visitor-card-hdr { display:flex; align-items:center; gap:10px; margin-bottom:10px; min-width:0; }
-.visitor-card-hdr .finput { min-width:0; flex:1; }  
-.visitor-num { background:var(--grad); color:#fff; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; }
+.visitor-card-hdr{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:10px;
+}
 
+.visitor-num{
+    width:28px;
+    height:28px;
+    min-width:28px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:11px;
+    font-weight:800;
+    color:#fff;
+    background:var(--grad);
+}
+
+.visitor-card-hdr .finput{
+    flex:1;
+    min-width:0;
+}
+
+.visitor-card-hdr .btn-red{
+    width:32px;
+    height:32px;
+    min-width:32px;
+    padding:0;
+    margin-left:0 !important;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    font-size:14px;
+    font-weight:700;
+    border-radius:8px;
+}
+    @media (max-width:600px){
+
+  .visitor-card{
+      padding:12px;
+  }
+
+  .visitor-card-hdr{
+      gap:6px;
+  }
+
+  .visitor-num{
+      width:26px;
+      height:26px;
+      min-width:26px;
+      font-size:10px;
+  }
+
+  .visitor-card-hdr .btn-red{
+      width:30px;
+      height:30px;
+      min-width:30px;
+      font-size:13px;
+  }
+}
 .custom-field-wrap { border:2px dashed var(--orange-line); border-radius:8px; padding:14px; background:var(--orange-bg); margin-bottom:10px; }
 
 .info-banner { display:flex; align-items:flex-start; gap:9px; border-radius:8px; padding:11px 14px; font-size:13px; line-height:1.5; margin-bottom:16px; }
@@ -2294,7 +2354,7 @@ function VisitorsSection({ visitors, setVisitors }) {
           <div className="visitor-card-hdr">
             <div className="visitor-num">{idx+1}</div>
             <input className="finput" style={{flex:1, minWidth:0}} value={v.name} onChange={e=>upd(v.id,"name",e.target.value)} placeholder="Visitor name…"/>
-            <button className="btn btn-red btn-sm" style={{marginLeft:8}} onClick={()=>rem(v.id)}>✕</button>
+            <button className="btn btn-red btn-sm" onClick={()=>rem(v.id)}>✕</button>
           </div>
           <div className="fg">
             <label className="flabel">Instructions / Observations</label>

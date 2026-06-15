@@ -40,7 +40,107 @@ const DARK_CSS = `
   --green:#4ade80;
   --blue:#60a5fa;
   --shadow:0 2px 16px rgba(0,0,0,.3);
+} 
+
+
+/* ── Report Submissions ── */
+[data-theme="dark"] .op-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
+
+/* Overview banner */
+[data-theme="dark"] .rs-banner {
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%) !important;
+}
+
+/* Tab bar container */
+[data-theme="dark"] .rs-tab-bar {
+  background: #252320 !important;
+  border-color: #3a3733 !important;
+}
+
+/* Tab buttons */
+[data-theme="dark"] .rs-tab-btn {
+  color: #7a7368 !important;
+  background: transparent !important;
+}
+[data-theme="dark"] .rs-tab-btn.active {
+  background: #1e1c19 !important;
+  box-shadow: 0 1px 6px rgba(0,0,0,.3) !important;
+}
+
+/* Filters row */
+[data-theme="dark"] .rs-filter-row {
+  background: #252320 !important;
+  border-color: #3a3733 !important;
+}
+[data-theme="dark"] .rs-filter-row input,
+[data-theme="dark"] .rs-filter-row select {
+  background: #1e1c19 !important;
+  border-color: #3a3733 !important;
+  color: #f0ede8 !important;
+}
+[data-theme="dark"] .rs-filter-row select option {
+  background: #252320;
+  color: #f0ede8;
+}
+
+/* Report cards */
+[data-theme="dark"] .rs-card {
+  background: #1e1c19 !important;
+  border-color: #2e2b27 !important;
+}
+
+/* Date section divider line */
+[data-theme="dark"] .rs-date-divider {
+  background: #2e2b27 !important;
+}
+[data-theme="dark"] .rs-date-label {
+  color: #7a7368 !important;
+}
+
+/* Card inner text */
+[data-theme="dark"] .rs-engineer-name {
+  color: #c4bdb4 !important;
+}
+[data-theme="dark"] .rs-preview-text {
+  color: #7a7368 !important;
+}
+[data-theme="dark"] .rs-submitted-time {
+  color: #3a3733 !important;
+}
+
+/* View/Download buttons on cards */
+[data-theme="dark"] .rs-btn-view {
+  background: #252320 !important;
+  border-color: #3a3733 !important;
+  color: #c4bdb4 !important;
+}
+[data-theme="dark"] .rs-btn-download {
+  background: #0c1d38 !important;
+  border-color: #1e3a5f !important;
+  color: #60a5fa !important;
+}
+
+/* No-PDF label */
+[data-theme="dark"] .rs-no-pdf {
+  color: #3a3733 !important;
+}
+
+/* WPR empty state */
+[data-theme="dark"] .rs-wpr-empty svg {
+  stroke: #3a3733 !important;
+}
+[data-theme="dark"] .rs-wpr-empty p {
+  color: #7a7368 !important;
+}
+
+
+
 
 [data-theme="dark"] {.card-title{font-size:15px;font-weight:800;color:white;}}
 
@@ -645,14 +745,21 @@ const NAV = [
       { key:"site-report", label:"Site Visit Report", icon:Ico.site },
       { key:"my-reports",     label:"My Reports",     icon:Ico.myRpt   },
       { key:"manpower-reports",     label:"Manpower Report",     icon:Ico.manRpt   },
+      
     ]},
 ];
+const REPORT_SUBMISSIONS_ITEM = { key: "report-submissions", label: "Report Submissions", icon: (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+    <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+  </svg>
+ ),};
 
 const ALL_ITEMS = [
   ...NAV.flatMap(n => n.children ? n.children : [n]),
+  REPORT_SUBMISSIONS_ITEM,
   { key: "profile", label: "Profile & Settings", icon: Ico.profile },
 ];
-
 
 // ─── Loading ──────────────────────────────────────────────────────────────────
 function Loading() {
@@ -1052,6 +1159,10 @@ export default function SitePortal() {
   const [activeTab,   setActiveTab]   = useState("clock-in");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expanded,    setExpanded]    = useState({ leave:true, reports:true });
+  const [siteReports,    setSiteReports]    = useState([]);
+const [loadingReports, setLoadingReports] = useState(false);
+const [reportTab,      setReportTab]      = useState("dpr");
+const [reportFilter,   setReportFilter]   = useState({ type:"", site:"", month:"" });
   const [isDark, setIsDark] = useState(() => {
   const saved = localStorage.getItem("theme");
   if (saved) document.documentElement.setAttribute("data-theme", saved);
@@ -1070,7 +1181,47 @@ const handleLogout = () => {
   localStorage.removeItem("user");
   window.location.href = "/";
 };
-// ADD this useEffect in SitePortal:
+const fetchSiteReports = useCallback(async (u) => {
+  const role = u?.role?.toLowerCase().trim();
+if (!u || (role !== "project head" && role !== "site incharge")) return;
+  setLoadingReports(true);
+
+  const sites = Array.isArray(u.site_names) && u.site_names.length
+    ? u.site_names
+    : u.site_name ? [u.site_name] : [];
+
+  if (!sites.length) { setLoadingReports(false); return; }
+
+  // Use case-insensitive comparison by fetching all and filtering client-side
+  const sitesLower = sites.map(s => s.toLowerCase().trim());
+
+  const { data: dprData } = await supabase
+    .from("dpr_reports")
+    .select("id, site, engineer, report_type, date, pdf_url, payload, created_at")
+    .order("created_at", { ascending: false });
+
+  const { data: svrData } = await supabase
+    .from("site_reports")
+    .select("id, site_name, reporter_name, designation, visit_date, progress_of_work, quality_observations, safety_concerns, issues_concerns, site_visit_instructions, key_instructions, submitted_by_name, pdf_url, created_at")
+    .order("created_at", { ascending: false });
+
+  const normalized = [
+    ...(dprData || [])
+    .filter(r => sitesLower.includes((r.site || "").toLowerCase().trim()) && r.report_type !== "morning")
+    .map(r => ({ ...r, source:"dpr" })),
+    ...(svrData || [])
+      .filter(r => sitesLower.includes((r.site_name || "").toLowerCase().trim()))
+      .map(r => ({
+        id: r.id, site: r.site_name, engineer: r.reporter_name,
+        report_type:"site_visit", date: r.visit_date,
+        pdf_url: r.pdf_url, created_at: r.created_at, source:"svr",
+        progress_of_work: r.progress_of_work,
+      })),
+  ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  setSiteReports(normalized);
+  setLoadingReports(false);
+}, []);
 useEffect(() => {
   if (sidebarOpen && window.innerWidth <= 768) {
     document.body.style.overflow = "hidden";
@@ -1107,6 +1258,7 @@ useEffect(() => {
         };
         setUser(updated);
         localStorage.setItem("user", JSON.stringify(updated)); // keep localStorage fresh
+        fetchSiteReports(updated); 
       }
     })();
   }
@@ -1114,7 +1266,7 @@ useEffect(() => {
   onResize();
   window.addEventListener("resize", onResize);
   return () => window.removeEventListener("resize", onResize);
-}, []);
+}, [fetchSiteReports]);
 
   const nav = (key) => { setActiveTab(key); if (window.innerWidth <= 768) setSidebarOpen(false); };
   const activeItem = ALL_ITEMS.find(i=>i.key===activeTab);
@@ -1139,6 +1291,277 @@ useEffect(() => {
       case "my-reports": return <MyReports user={user} />;
       case "manpower-reports": return <ManpowerReport user={user}/>;
       case "profile":     return <Profile user={user} onLogout={handleLogout} onThemeToggle={toggleTheme} isDark={isDark} />;
+      case "report-submissions": {
+const role = user?.role?.toLowerCase().trim();
+if (role !== "project head" && role !== "site incharge") return null;
+
+  const fmtD  = (d)  => d  ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" }) : "—";
+  const fmtDT = (dt) => dt ? new Date(dt).toLocaleString("en-IN", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:true }) : "—";
+
+  // Filter by tab
+  const tabFiltered = siteReports.filter(r => {
+    if (reportTab === "dpr") return r.source === "dpr" && r.report_type !== "morning";
+    if (reportTab === "svr") return r.source === "svr";
+    if (reportTab === "wpr") return r.source === "wpr";
+    return true;
+  });
+
+  // Further filter by month + site
+  const monthFiltered = tabFiltered.filter(r => {
+    if (reportFilter.site  && r.site !== reportFilter.site)                   return false;
+    if (reportFilter.month && !(r.date || "").startsWith(reportFilter.month)) return false;
+    return true;
+  });
+
+  const reportSites = [...new Set(siteReports.map(r => r.site).filter(Boolean))].sort();
+  const withPdf = monthFiltered.filter(r => r.pdf_url).length;
+
+  // Group by date
+  const grouped = {};
+  monthFiltered.forEach(r => {
+    const d = r.date || r.created_at?.slice(0,10) || "—";
+    if (!grouped[d]) grouped[d] = [];
+    grouped[d].push(r);
+  });
+  const sortedDates = Object.keys(grouped).sort((a,b) => b.localeCompare(a));
+
+  const TAB_CONFIG = [
+    { key:"dpr", label:"DPR", color:"#2563eb", bg:"#eff6ff", border:"#bfdbfe" },
+    { key:"wpr", label:"WPR", color:"#7c3aed", bg:"#f5f3ff", border:"#e0e7ff" },
+    { key:"svr", label:"SVR", color:"#16a34a", bg:"#f0fdf4", border:"#bbf7d0" },
+  ];
+
+  const DPR_TYPE_COLOR = {
+    morning: { bg:"#fffbeb", color:"#d97706", border:"#fde68a" },
+    evening: { bg:"#eff6ff", color:"#2563eb", border:"#bfdbfe" },
+    weekly:  { bg:"#f5f3ff", color:"#7c3aed", border:"#e0e7ff" },
+  };
+
+return (
+  <div>
+    {/* ── Professional overview banner ── */}
+    <div style={{
+      display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:16, flexWrap:"wrap",
+      marginBottom:20, padding:"18px 22px", borderRadius:14,
+      background:"linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%)", color:"#fff",
+    }}>
+      <div style={{ minWidth:200 }}>
+        <div style={{ fontSize:10.5, fontWeight:800, letterSpacing:".12em", textTransform:"uppercase", color:"#93c5fd", marginBottom:6 }}>
+          Project Head Overview
+        </div>
+        <div style={{ fontSize:19, fontWeight:700, marginBottom:5 }}>Report Submissions</div>
+        <div style={{ fontSize:12.5, color:"var(--ink3)", lineHeight:1.6, maxWidth:480 }}>
+          Daily, weekly and site visit reports submitted across{" "}
+          <strong style={{ color:"#fff" }}>
+            {(user?.site_names?.length ? user.site_names : user?.site_name ? [user.site_name] : []).join(", ") || "your sites"}
+          </strong>.
+        </div>
+      </div>
+
+      {/* Quick stat chips */}
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+        {[
+          { label:"DPR", count: siteReports.filter(r=>r.source==="dpr").length, color:"#60a5fa" },
+          { label:"WPR", count: siteReports.filter(r=>r.source==="wpr").length, color:"#c4b5fd" },
+          { label:"SVR", count: siteReports.filter(r=>r.source==="svr").length, color:"#86efac" },
+        ].map(s => (
+          <div key={s.label} style={{
+            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+            minWidth:64, padding:"8px 14px", borderRadius:10,
+            background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)",
+          }}>
+            <div style={{ fontSize:18, fontWeight:800, fontFamily:"'DM Mono',monospace", color:s.color }}>{s.count}</div>
+            <div style={{ fontSize:10, fontWeight:700, letterSpacing:".08em", color:"var(--ink3)", marginTop:2 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* ── Tab bar ── */}
+    <div style={{
+      display:"inline-flex", gap:4, padding:4, borderRadius:10,
+      background:"var(--paper)", border:"1px solid var(--line)", marginBottom:20,
+    }}>
+      {TAB_CONFIG.map(t => (
+        <button
+          key={t.key}
+          onClick={() => setReportTab(t.key)}
+          style={{
+            display:"flex", alignItems:"center", gap:6,
+            padding:"7px 16px", borderRadius:7,
+            fontFamily:"'DM Sans',sans-serif", fontSize:12.5, fontWeight:700,
+            border:"none", cursor:"pointer", transition:"all .15s",
+            color: reportTab === t.key ? t.color : "#64748b",
+            background: reportTab === t.key ? "var(--surface)" : "transparent",
+            boxShadow: reportTab === t.key ? "0 1px 6px rgba(0,0,0,.08)" : "none",
+          }}
+        >
+          {t.label}
+          <span style={{
+            fontSize:10, fontWeight:700, padding:"1px 6px", borderRadius:20,
+            background: reportTab === t.key ? t.bg : "#e2e8f0",
+            color: reportTab === t.key ? t.color : "#94a3b8",
+          }}>
+            {siteReports.filter(r => r.source === t.key).length}
+          </span>
+        </button>
+      ))}
+    </div>
+
+      {/* ── WPR coming soon ── */}
+      {reportTab === "wpr" && siteReports.filter(r => r.source === "wpr").length === 0 && (
+        <div className="op-empty-state" style={{display:"flex",flexDirection:"column",justifyContent:"center",alignContent:"center",gap:"10px"}}>
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.3}}>
+            <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+          </svg>
+          <p className="op-empty-text" style={{fontWeight:700, color:"gray"}}>No weekly reports yet</p>
+          <p className="op-empty-text" style={{fontSize:12,marginTop:-4, color:"gray"}}>Weekly reports from your site(s) will appear here once submitted.</p>
+        </div>
+      )}
+
+      {reportTab !== "wpr" || siteReports.filter(r => r.source === "wpr").length > 0 ? (
+        <> 
+          {/* ── Filters ── */}
+          <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:18, padding:"10px 14px", background:"var(--paper)", border:"1px solid var(--line)",  borderRadius:10 }}>
+            <input
+              type="month"
+              style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12.5, color:"#1e293b", background:"var(--surface)", border:"1px solid var(--line2)", color:"var(--ink)", borderRadius:6, padding:"5px 9px", height:32, cursor:"pointer", outline:"none" }}
+              value={reportFilter.month}
+              onChange={e => setReportFilter(p => ({ ...p, month:e.target.value }))}
+            />
+            {reportSites.length > 1 && (
+              <select
+                style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12.5, color:"#1e293b", background:"var(--surface)", border:"1px solid var(--line2)", color:"var(--ink)", borderRadius:6, padding:"5px 9px", height:32, cursor:"pointer", outline:"none" }}
+                value={reportFilter.site}
+                onChange={e => setReportFilter(p => ({ ...p, site:e.target.value }))}
+              >
+                <option value="">All Sites</option>
+                {reportSites.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )}
+            {Object.values(reportFilter).some(v=>v) && (
+              <button
+                onClick={() => setReportFilter({ type:"", site:"", month:"" })}
+                style={{ display:"inline-flex", alignItems:"center", gap:5, fontSize:12, fontWeight:600, color:"#dc2626", background:"#fef2f2", border:"1px solid #fecaca", borderRadius:6, padding:"5px 11px", height:32, cursor:"pointer" }}
+              >
+                ✕ Clear
+              </button>
+            )}
+            <span style={{ marginLeft:"auto", fontSize:12, color:"var(--ink3)", alignSelf:"center" }}>
+              {monthFiltered.length} of {tabFiltered.length} reports
+            </span>
+          </div>
+
+          {/* ── Content ── */}
+          {loadingReports ? (
+            <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text" style={{color:"gray"}}>Loading reports…</p></div>
+          ) : monthFiltered.length === 0 ? (
+            <div className="op-empty-state">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:0.3}}>
+            <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+              </svg>
+              <p className="op-empty-text" style={{color:"gray"}}>No {reportTab.toUpperCase()} reports found{reportFilter.month ? " for this month" : ""}.</p>
+            </div>
+          ) : (
+            <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+              {sortedDates.map(date => (
+                <div key={date}>
+                  {/* Date header */}
+                  <div style={{ fontSize:11, fontWeight:800, letterSpacing:".08em", textTransform:"uppercase", color:"var(--ink3)", marginBottom:10, display:"flex", alignItems:"center", gap:10 }}>
+                    <span>{new Date(date+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</span>
+                    <div style={{ flex:1, height:1, background:"var(--line)" }}/>
+                    <span>{grouped[date].length} report{grouped[date].length!==1?"s":""}</span>
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:12 }}>
+                    {grouped[date].map(r => {
+                      // Pick card accent color
+                      const accent =
+                        r.source === "svr" ? "#16a34a" :
+                        r.source === "wpr" ? "#7c3aed" :
+                        (DPR_TYPE_COLOR[r.report_type]?.color || "#2563eb");
+
+                      const typeBadge =
+                        r.source === "svr" ? { bg:"#f0fdf4", color:"#16a34a", border:"#bbf7d0", label:"Site Visit" } :
+                        r.source === "wpr" ? { bg:"#f5f3ff", color:"#7c3aed", border:"#e0e7ff", label:"Weekly Report" } :
+                        r.report_type === "morning" ? { bg:"#fffbeb", color:"#d97706", border:"#fde68a", label:"Morning DPR" } :
+                        r.report_type === "evening" ? { bg:"#eff6ff", color:"#2563eb", border:"#bfdbfe", label:"Evening DPR" } :
+                        { bg:"#f8fafc", color:"var(--ink2)", border:"#e8edf3", label: r.report_type || "Report" };
+
+                      return (
+                        <div key={r.id} style={{ background:"var(--surface)", border:"1px solid var(--line)", borderLeft:`4px solid ${accent}`, borderRadius:10, padding:"14px 16px", display:"flex", flexDirection:"column", gap:10 }}>
+                          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
+                            <span style={{ display:"inline-flex", alignItems:"center", fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20, background:typeBadge.bg, color:typeBadge.color, border:`1px solid ${typeBadge.border}` }}>
+                              {typeBadge.label}
+                            </span>
+                            {r.site && <span style={{ fontSize:11, color:"var(--ink3)", fontWeight:600, textAlign:"right" }}>{r.site}</span>}
+                          </div>
+
+                          {/* Engineer */}
+                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            <span style={{ fontSize:13, fontWeight:600, color:"var(--ink)" }}>{r.engineer}</span>
+                          </div>
+
+                          {/* WPR: show week range */}
+                          {r.source === "wpr" && r.week_end && (
+                            <div style={{ fontSize:11.5, color:"var(--ink2)", display:"flex", alignItems:"center", gap:5 }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                              {fmtD(r.week_start)} → {fmtD(r.week_end)}
+                            </div>
+                          )}
+
+                          {/* SVR: key fields inline */}
+                          {r.source === "svr" && r.progress_of_work && (
+                            <p style={{ fontSize:12, color:"var(--ink2)", lineHeight:1.5, margin:0, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+                              {r.progress_of_work}
+                            </p>
+                          )}
+
+                          {/* DPR: payload preview */}
+                          {r.source === "dpr" && r.payload?.work_done && (
+                            <p style={{ fontSize:12, color:"var(--ink2)", lineHeight:1.5, margin:0, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+                              {r.payload.work_done}
+                            </p>
+                          )}
+
+                          <div style={{ fontSize:11, color:"var(--ink3)" }}>
+                            Submitted {new Date(r.created_at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",hour12:true})}
+                          </div>
+
+                          {r.pdf_url ? (
+                            <div style={{ display:"flex", gap:8 }}>
+                              
+                              <a  href={r.pdf_url} target="_blank" rel="noopener noreferrer"
+                                style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12, fontWeight:600, color:"var(--ink2)", background:"var(--paper)", border:"1px solid var(--line2)", borderRadius:7, padding:"6px 12px", textDecoration:"none" }}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                View
+                              </a>
+                              
+                              <a  href={r.pdf_url} download
+                                style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12, fontWeight:600, color:"#2563eb", background:"#eff6ff", border:"1px solid #bfdbfe", borderRadius:7, padding:"6px 12px", textDecoration:"none" }}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Download
+                              </a>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize:11, color:"var(--ink3)", fontStyle:"italic" }}>No PDF attached</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+}   
+      
       default: return null;
     }
   }; 
@@ -1180,6 +1603,24 @@ useEffect(() => {
                   </div>
                 );
               })}
+              {/* {user?.role?.toLowerCase().trim() === "project head" && (
+                <button
+                  className={`sni${activeTab === "report-submissions" ? " act" : ""}`}
+                  onClick={() => nav("report-submissions")}
+                >
+                  {REPORT_SUBMISSIONS_ITEM.icon}
+                  {REPORT_SUBMISSIONS_ITEM.label}
+                </button>
+              )} */}
+              {(user?.role?.toLowerCase().trim() === "project head" || user?.role?.toLowerCase().trim() === "site incharge") && (
+                <button
+                  className={`sni${activeTab === "report-submissions" ? " act" : ""}`}
+                  onClick={() => nav("report-submissions")}
+                >
+                  {REPORT_SUBMISSIONS_ITEM.icon}
+                  {REPORT_SUBMISSIONS_ITEM.label}
+                </button>
+              )}
             </nav>
 
             {/* Settings pinned to bottom */}

@@ -255,18 +255,20 @@ export default function ManpowerReport({ user }) {
   const printRef = useRef();
 
   useEffect(() => {
-    (async () => {
-      try {
-        const data = await sbFetch("dpr_sites?select=name&order=name");
-        setSites((data || []).map((r) => r.name));
-      } catch { /* ignore */ }
-    })();
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, "0");
-    setFromDate(`${y}-${m}-01`);
-    setToDate(`${y}-${m}-${String(new Date(y, now.getMonth() + 1, 0).getDate()).padStart(2, "0")}`);
-  }, []);
+  // Build site list directly from user's assigned sites — no DB fetch needed
+  const userSites = Array.isArray(user?.site_names) && user.site_names.length
+    ? user.site_names
+    : user?.site_name ? [user.site_name] : [];
+
+  setSites(userSites);
+  if (userSites.length === 1) setSelectedSite(userSites[0]); // auto-select if only one
+
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  setFromDate(`${y}-${m}-01`);
+  setToDate(`${y}-${m}-${String(new Date(y, now.getMonth() + 1, 0).getDate()).padStart(2, "0")}`);
+}, [user]);
 
   const generateReport = async () => {
     if (!selectedSite) { setError("Please select a site."); return; }

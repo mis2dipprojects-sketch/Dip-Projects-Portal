@@ -79,7 +79,8 @@
   label: "Report Submissions",
   icon: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/>
+      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
     </svg>
   ),
 };
@@ -509,7 +510,7 @@ function TaskList({ tasks, loading, onStatusChange, updatingId, emptyText, filte
     .order("created_at", { ascending: false });
 
   const normalized = [
-    ...(dprData || []).map(r => ({
+    ...(dprData || []).filter(r => r.report_type !== "morning").map(r => ({
       id: r.id, site: r.site, engineer: r.engineer,
       report_type: r.report_type, date: r.date,
       pdf_url: r.pdf_url, payload: r.payload,
@@ -1147,7 +1148,7 @@ case "report-submissions": {
 
   // Filter by tab
   const tabFiltered = siteReports.filter(r => {
-    if (reportTab === "dpr") return r.source === "dpr";
+    if (reportTab === "dpr") return r.source === "dpr" && r.report_type !== "morning";
     if (reportTab === "svr") return r.source === "svr";
     if (reportTab === "wpr") return r.source === "wpr";
     return true;
@@ -1267,21 +1268,7 @@ return (
       )}
 
       {reportTab !== "wpr" || siteReports.filter(r => r.source === "wpr").length > 0 ? (
-        <>
-          {/* ── Stats ── */}
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:16 }}>
-            {[
-              { label:"Total", value: tabFiltered.length, color:"#2563eb" },
-              { label:"With PDF", value: tabFiltered.filter(r=>r.pdf_url).length, color:"#16a34a" },
-              { label:"No PDF", value: tabFiltered.filter(r=>!r.pdf_url).length, color:"#d97706" },
-            ].map(s => (
-              <div key={s.label} style={{ background:"#c9d0d4d0", border:"1px solid #c9d0d4d0", borderRadius:10, padding:"12px 14px" }}>
-                <div style={{ fontSize:22, fontWeight:800, color:s.color, fontFamily:"'DM Mono',monospace" }}>{s.value}</div>
-                <div style={{ fontSize:11, fontWeight:700, color:"#94a3b8", textTransform:"uppercase", letterSpacing:".05em", marginTop:3 }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-
+        <> 
           {/* ── Filters ── */}
           <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:18, padding:"10px 14px", background:"#c9d0d4d0", border:"1px solid #c9d0d4d0", borderRadius:10 }}>
             <input

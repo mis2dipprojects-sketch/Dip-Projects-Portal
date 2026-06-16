@@ -1546,7 +1546,7 @@ const closeOverlay = () => {
         </Acc>
 
         {/* ⑫ REPORT CONTENTS */}
-        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>} title="Report Contents & Sections" sub="Reorder, hide, or add custom sections" open={openSec.rc} onToggle={() => toggle("rc")}>
+        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>} title="Report Sections" sub="Reorder, hide or add custom sections" open={openSec.rc} onToggle={() => toggle("rc")}>
           <div className="wpr-hint">ℹ Standard sections are always included. Use Hide to exclude from PPT. Use 🚫 to omit from report entirely.</div>
           {sections.map((sec, si) => (
             <div key={si} className="wpr-rc-item">

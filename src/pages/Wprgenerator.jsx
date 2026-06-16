@@ -213,10 +213,9 @@ async function generatePPT({ site, engineer, reportDate, reportNum, location,
   drawDecision, delayPoints, checklistPhotos, sections }) {
 
   // Load the constructor class reference
-  const PptxConstructor = await loadPptxGen();
-  
-  // 🌟 Instantiated via the correct global constructor profile
-  const pres = new PptxConstructor(); 
+  const PptxGenJS = window.PptxGenJS;
+  if (!PptxGenJS) throw new Error("PptxGenJS not loaded");
+  const pres = new PptxGenJS();
   pres.layout = "LAYOUT_WIDE";
   pres.title = `WPR ${zp(reportNum)} — ${site}`;
   pres.author = engineer;
@@ -775,10 +774,20 @@ async function generatePPT({ site, engineer, reportDate, reportNum, location,
       fontSize: 11, fontFace: "Calibri", color: C.ink3, align: "center",
     });
   }
+// Trigger download directly from inside generation function
+  const fileName = `WPR_${zp(reportNum)}_${site.replace(/\s+/g,"_")}.pptx`;
+  await pres.writeFile({ fileName });
 
-  // Return as ArrayBuffer → convert to Blob
-  const buffer = await pres.write({ outputType: "arraybuffer" });
-  return new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });
+  // Also return blob for Supabase upload
+  const base64 = await pres.write({ outputType: "base64" });
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], {
+    type: "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+  });
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
@@ -1022,7 +1031,18 @@ export default function WprGenerator({ user, supabase }) {
         drawDecision, delayPoints, checklistPhotos, sections,
       });
 
+      // ── Direct download immediately after generation ──
+const dlUrl = URL.createObjectURL(pptBlob);
+const dlA = document.createElement("a");
+dlA.href = dlUrl;
+dlA.download = `WPR_${zp(reportNum)}_${site.replace(/\s+/g,"_")}.pptx`;
+dlA.style.display = "none";
+document.body.appendChild(dlA);
+dlA.click();
+document.body.removeChild(dlA);
+setTimeout(() => URL.revokeObjectURL(dlUrl), 10000);
       setGenProgress(55); setGenStep("Uploading presentation…");
+
 
       // 3. Upload PPT to storage
       const pptPath = `${safeSite}/${folder}/WPR_${zp(reportNum)}_${safeSite}.pptx`;
@@ -1099,9 +1119,11 @@ export default function WprGenerator({ user, supabase }) {
       showToast("❌ " + (err.message || "Generation failed"), "error", 6000);
     }
   };
-
-  const closeOverlay = () => { setGenerating(false); setSuccessUrls(null); setGenProgress(0); };
-
+const closeOverlay = () => { 
+  setGenerating(false); 
+  setSuccessUrls(null); 
+  setGenProgress(0); 
+};
   const imgCount = totalImages();
   const actsCount = activities.filter(a=>a.name).length;
   const photosCount = sitePhotos.filter(p=>p.dataUrl).length;
@@ -1490,15 +1512,17 @@ export default function WprGenerator({ user, supabase }) {
 
                 <div className="wpr-success-links">
                   {/* PPT download */}
-                  <a href={successUrls.pptUrl} target="_blank" rel="noreferrer" className="wpr-link-row"
-                    style={{background:"#fffbeb",border:"1.5px solid #fde68a"}}>
-                    <span className="wpr-link-icon">📊</span>
-                    <div className="wpr-link-label">
-                      <div style={{fontWeight:800,color:"#92400e"}}>Download PowerPoint</div>
-                      <div style={{fontSize:11,color:"#b45309",marginTop:2}}>WPR_{zp(reportNum)}_{site}.pptx</div>
-                    </div>
-                    <span className="wpr-link-arrow">↓</span>
-                  </a>
+                  {/* PPT download — already auto-downloaded above */}
+<div className="wpr-link-row" style={{background:"#fffbeb", border:"1.5px solid #fde68a"}}>
+  <span className="wpr-link-icon">📊</span>
+  <div className="wpr-link-label">
+    <div style={{fontWeight:800, color:"#92400e"}}>PowerPoint Downloaded!</div>
+    <div style={{fontSize:11, color:"#b45309", marginTop:2}}>
+      WPR_{zp(reportNum)}_{site}.pptx — check your Downloads folder
+    </div>
+  </div>
+  <span style={{fontSize:16}}>✓</span>
+</div>
 
                   {/* View report */}
                   <a href={successUrls.viewUrl} target="_blank" rel="noreferrer" className="wpr-link-row">

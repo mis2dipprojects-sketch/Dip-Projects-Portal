@@ -15,7 +15,7 @@ import ApplyLeave from "./pages/ApplyLeave";
 import MyLeaves from "./pages/MyLeaves";
 import LeaveApprovals from "./pages/LeaveApprovals";
 import ManpowerReport from "./pages/Manpowerreport";
-
+//import SitePortal from "./pages/SitePortal_disabled.jsx";
 function App() {
   return (
     <Routes>
@@ -27,6 +27,8 @@ function App() {
       <Route path="/admin" element={<AdminPortal />} />
       <Route path="/office" element={<OfficePortal />} />
       <Route path="/site" element={<SitePortal />} />
+      {/* <Route path="/site" element={<SitePortal/>}/> */}
+
       <Route path="/mdo" element={<MDOPortal />} />
       <Route path="/head" element={<ProjectHeadPortal/>} />
       <Route path="/employees" element={<EmployeeForm/>} />

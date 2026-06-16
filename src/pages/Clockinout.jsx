@@ -101,19 +101,10 @@ export const CLOCK_CSS = `
 .task-doc-btn.attached{border-color:var(--amber);color:var(--amber);background:rgba(217,119,6,.1);}
 
 /* ── Scrollbar styling ── */
-.task-list-modal::-webkit-scrollbar {
-  width: 4px;
-}
-.task-list-modal::-webkit-scrollbar-track {
-  background: transparent;
-}
-.task-list-modal::-webkit-scrollbar-thumb {
-  background: #444;
-  border-radius: 4px;
-}
-.task-list-modal::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
+.task-list-modal::-webkit-scrollbar {width: 4px;}
+.task-list-modal::-webkit-scrollbar-track {background: transparent;}
+.task-list-modal::-webkit-scrollbar-thumb {background: #444;border-radius: 4px;}
+.task-list-modal::-webkit-scrollbar-thumb:hover {background: #555;}
 
 /* ── Light theme overrides ── */
 [data-theme="light"] .cam-modal,
@@ -140,12 +131,8 @@ export const CLOCK_CSS = `
   background: #e5e7eb;
   color: #111827;
 }
-[data-theme="light"] .task-list-modal::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-}
-[data-theme="light"] .task-list-modal::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
+[data-theme="light"] .task-list-modal::-webkit-scrollbar-thumb {background: #d1d5db;}
+[data-theme="light"] .task-list-modal::-webkit-scrollbar-thumb:hover {background: #9ca3af;}
 
 /* ── Light theme: checkpoint items ── */
 [data-theme="light"] .cp-item-default {
@@ -156,23 +143,15 @@ export const CLOCK_CSS = `
   background: #f0fdf4 !important;
   border-color: #86efac !important;
 }
-[data-theme="light"] .cp-item-title {
-  color: #111827 !important;
-}
-[data-theme="light"] .cp-item-title.done {
-  color: #9ca3af !important;
-}
+[data-theme="light"] .cp-item-title {color: #111827 !important;}
+[data-theme="light"] .cp-item-title.done {color: #9ca3af !important;}
 [data-theme="light"] .task-notes {
   background: #f9fafb;
   border-color: #e5e7eb;
   color: #111827;
 }
-[data-theme="light"] .task-notes::placeholder {
-  color: #9ca3af;
-}
-[data-theme="light"] .task-notes:focus {
-  border-color: #d1d5db;
-}
+[data-theme="light"] .task-notes::placeholder {color: #9ca3af;}
+[data-theme="light"] .task-notes:focus {border-color: #d1d5db;}
 [data-theme="light"] .task-doc-btn {
   background: #f3f4f6;
   border-color: #d1d5db;
@@ -189,29 +168,16 @@ export const CLOCK_CSS = `
 }
 
 /* ── Light theme: group header ── */
-[data-theme="light"] .cp-group-divider {
-  background: #e5e7eb !important;
-}
-[data-theme="light"] .cp-group-count {
-  color: #9ca3af !important;
-}
+[data-theme="light"] .cp-group-divider {background: #e5e7eb !important;}
+[data-theme="light"] .cp-group-count {color: #9ca3af !important;}
 
 /* ── Light theme: cam footer / loc bar ── */
-[data-theme="light"] .cam-footer {
-  background: #ffffff;
-}
-[data-theme="light"] .cam-loc {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-[data-theme="light"] .cam-loc strong {
-  color: #374151;
-}
+[data-theme="light"] .cam-footer {background: #ffffff;}
+[data-theme="light"] .cam-loc {background: #f3f4f6;color: #6b7280;}
+[data-theme="light"] .cam-loc strong {color: #374151;}
 
 /* ── Light theme: cam modal bg ── */
-[data-theme="light"] .cam-modal-bg {
-  background: rgba(0,0,0,.5);
-}
+[data-theme="light"] .cam-modal-bg {background: rgba(0,0,0,.5);}
 
 /* ── Light theme: retake/skip button ── */
 [data-theme="light"] .cam-btn-retake {
@@ -219,9 +185,7 @@ export const CLOCK_CSS = `
   border-color: #d1d5db;
   color: #374151;
 }
-[data-theme="light"] .cam-btn-retake:hover {
-  background: #e5e7eb;
-}
+[data-theme="light"] .cam-btn-retake:hover {background: #e5e7eb;}
 `;
 async function uploadClockPhoto(supabase, base64, userName, type) {
   // base64 → blob
@@ -1117,218 +1081,6 @@ const { error } = await supabase.from("attendance").update({
     </>
   );
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// CALENDAR VIEW (enhanced with colour coding)
-// ═══════════════════════════════════════════════════════════════════════════════
-// export function CalendarView({ user, supabase }) {
-//   const t = new Date();
-//   const [cur, setCur]  = useState({ y: t.getFullYear(), m: t.getMonth() });
-//   const [sel, setSel]  = useState(new Date().toISOString().split("T")[0]);
-//   const [att, setAtt]  = useState([]);
-//   const [loading, setLoading] = useState(true);
-
-//   const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-//   const WDAYS  = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-//   const pad    = n => String(n).padStart(2,"0");
-
-// // ── CalendarView: fetchMonth ─────────────────────────────
-// const fetchMonth = useCallback(async () => {
-//   setLoading(true);
-//   const from = `${cur.y}-${pad(cur.m+1)}-01`;
-//   const lastDay = new Date(cur.y, cur.m+1, 0).getDate();
-//   const to = `${cur.y}-${pad(cur.m+1)}-${pad(lastDay)}`;
-
-//   const { data } = await supabase
-//     .from("attendance")
-//     .select("*")
-//     .eq("user_name", user.user_name)   // ← was user.id
-//     .gte("date", from)
-//     .lte("date", to);
-
-//   setAtt(data || []);
-//   setLoading(false);
-// }, [cur, user.user_name, supabase]);   // ← dependency updated too
-
-//   useEffect(() => { fetchMonth(); }, [fetchMonth]);
-
-//   const attMap = {};
-//   att.forEach(a => { attMap[a.date] = a; });
-
-//   // Determine cell class based on attendance data
-//   const getCellClass = (rec, ds) => {
-//     if (!rec) return isAbsent(ds) ? "absent-day" : "";
-//     if (rec.status === "leave")         return "leave-day";
-//     if (rec.status === "absent")        return "absent-day";
-//     if (rec.clock_in_status === "late") return "late-in";
-//     if (rec.clock_in && rec.clock_out)  return "on-time";
-//     if (rec.clock_in && !rec.clock_out) return "half-day";
-//     return "";
-//   };
-
-//   const firstDay    = new Date(cur.y, cur.m, 1).getDay();
-//   const daysInMonth = new Date(cur.y, cur.m+1, 0).getDate();
-//   const todayStr    = new Date().toISOString().split("T")[0];
-//   const dateStr     = d => `${cur.y}-${pad(cur.m+1)}-${pad(d)}`;
-//   const cells       = [...Array(firstDay).fill(null), ...Array(daysInMonth).keys()].map((v,i) => i < firstDay ? null : v+1);
-//   const isAbsent = (ds) => {
-//   // Only mark past days (not today or future) that have no record and aren't weekends
-//   if (ds >= todayStr) return false;               // today/future = not absent yet
-//   const dayOfWeek = new Date(ds + "T00:00:00").getDay();
-//   //if (dayOfWeek === 0 || dayOfWeek === 6) return false; // skip Sunday(0) & Saturday(6)
-//   return !attMap[ds];                              // no record = absent
-// }
-
-//   const selRecord = attMap[sel];
-
-//   const counts = { present:0, late:0, absent:0, leave:0 };
-//   att.forEach(a => {
-//     if (a.status === "present" && a.clock_in_status === "late") counts.late++;
-//     else if (a.status === "present") counts.present++;
-//     else if (a.status === "absent")  counts.absent++;
-//     else if (a.status === "leave")   counts.leave++;
-//   });
-//   // Count auto-detected absent days (past weekdays with no record)
-//   const firstDayOfMonth = `${cur.y}-${pad(cur.m+1)}-01`;
-//   const lastDayOfMonth  = `${cur.y}-${pad(cur.m+1)}-${pad(new Date(cur.y, cur.m+1, 0).getDate())}`;
-//   Array.from({ length: new Date(cur.y, cur.m+1, 0).getDate() }, (_, i) => {
-//     const ds = `${cur.y}-${pad(cur.m+1)}-${pad(i+1)}`;
-//     if (isAbsent(ds)) counts.absent++;
-//   });
-//   const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit", hour12:true }) : "—";
-
-//   return (
-//     <div>
-//       {/* Stats */}
-//       <div className="stat-row" style={{ gridTemplateColumns:"repeat(4,1fr)" }}>
-//         {[
-//           ["On Time", counts.present, "#16a34a"],
-//           ["Late",    counts.late,    "#d97706"],
-//           ["Absent",  counts.absent,  "#dc2626"],
-//           ["Leave",   counts.leave,   "#7c3aed"],
-//         ].map(([l,v,c]) => (
-//           <div key={l} className="stat-card">
-//             <div className="stat-val" style={{ color:c }}>{v}</div>
-//             <div className="stat-lbl">{l}</div>
-//           </div>
-//         ))}
-//       </div>
-
-//       {/* Month nav */}
-//       <div className="cal-nav">
-//         <button className="cal-nav-btn" onClick={() => setCur(p => p.m===0 ? {y:p.y-1,m:11} : {y:p.y,m:p.m-1})}>
-//           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-//         </button>
-//         <div className="cal-nav-title">{MONTHS[cur.m]} {cur.y}</div>
-//         <button className="cal-nav-btn" onClick={() => setCur(p => p.m===11 ? {y:p.y+1,m:0} : {y:p.y,m:p.m+1})}>
-//           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-//         </button>
-//       </div>
-
-//       {loading ? <div className="loading"><div className="spinner"/></div> : (
-//         <div className="cal-grid">
-//           {WDAYS.map(d => <div key={d} className="cal-dh">{d}</div>)}
-//           {cells.map((d, i) => {
-//             if (!d) return <div key={`e${i}`} className="cal-cell emp"/>;
-//             const ds  = dateStr(d);
-//             const rec = attMap[ds];
-//             const cls = getCellClass(rec, ds);
-//             const isToday = ds === todayStr;
-//             const isSel   = ds === sel;
-//             return (
-//               <div
-//                 key={ds}
-//                 className={`cal-cell${isToday ? " today" : ""}${isSel ? " sel" : ""}${cls ? " " + cls : ""}`}
-//                 onClick={() => setSel(ds)}
-//                 title={rec ? `${rec.status}${rec.clock_in_status ? " · " + rec.clock_in_status : ""}` : isAbsent(ds) ? "Absent" : ""}
-//               >
-//                 <div className="cal-dn">{d}</div>
-//                 {rec && (
-//                   <div className="att-dot-row">
-//                     {rec.clock_in  && <div className="att-dot" style={{ background: rec.clock_in_status === "late" ? "#d97706" : "#16a34a" }}/>}
-//                     {rec.clock_out && <div className="att-dot" style={{ background: rec.clock_out_status === "early" ? "#f59e0b" : rec.clock_out_status === "overtime" ? "#2563eb" : "#16a34a" }}/>}
-//                   </div>
-//                 )}
-//               </div>
-//             );
-//           })}
-//         </div>
-//       )}
-
-//       {/* Legend */}
-//       <div className="cal-legend">
-//         {[
-//           ["On Time",  "#16a34a", "on-time"],
-//           ["Late In",  "#d97706", "late-in"],
-//           ["Absent",   "#dc2626", "absent-day"],
-//           ["Leave",    "#7c3aed", "leave-day"],
-//           ["Partial",  "#f59e0b", "half-day"],
-//         ].map(([l,c]) => (
-//           <div key={l} className="cal-leg-item">
-//             <div className="cal-leg-dot" style={{ background:c }}/>
-//             {l}
-//           </div>
-//         ))}
-//       </div>
-
-//       {/* Selected day detail */}
-//       <div className="att-summary">
-//         <div className="att-sum-title">
-//           {new Date(sel + "T00:00:00").toLocaleDateString("en-IN", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
-//         </div>
-//         <div className="att-sum-info">
-//           {leaveMap[sel] ? (
-//             // ← NEW: show leave details
-//             <>
-//               <span>Status: <strong style={{ color: "#7c3aed" }}>On Leave</strong></span>
-//               <span>Type: <strong>{leaveMap[sel].leave_type || "—"}</strong></span>
-//               <span>Period: <strong>
-//                 {new Date(leaveMap[sel].from_date + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short" })}
-//                 {" – "}
-//                 {new Date(leaveMap[sel].to_date + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short" })}
-//               </strong></span>
-//               {leaveMap[sel].reason && (
-//                 <span>Reason: <strong>{leaveMap[sel].reason}</strong></span>
-//               )}
-//             </>
-//           ) : !selRecord ? (
-//             <span style={{ color:"var(--ink3)" }}>No attendance record.</span>
-//           ) : (
-//             <>
-//               <span>Status: <strong style={{ color: selRecord.status === "present" ? "#16a34a" : "#dc2626" }}>
-//                 {selRecord.status?.charAt(0).toUpperCase() + selRecord.status?.slice(1)}
-//               </strong></span>
-//               <span>Clock In: <strong>{fmtTime(selRecord.clock_in)}</strong>
-//                 {selRecord.clock_in_status && (
-//                   <span className={`punch-status punch-${selRecord.clock_in_status}`} style={{ marginLeft:8, fontSize:10 }}>
-//                     {selRecord.clock_in_status === "late" ? "Late" : "On Time"}
-//                   </span>
-//                 )}
-//               </span>
-//               <span>Clock Out: <strong>{fmtTime(selRecord.clock_out)}</strong>
-//                 {selRecord.clock_out_status && (
-//                   <span className={`punch-status punch-${selRecord.clock_out_status}`} style={{ marginLeft:8, fontSize:10 }}>
-//                     {selRecord.clock_out_status}
-//                   </span>
-//                 )}
-//               </span>
-//               {selRecord.clock_in_location && (
-//                 <span style={{ fontSize:11.5, color:"var(--ink3)" }}>
-//                   📍 In: {selRecord.clock_in_location}
-//                 </span>
-//               )}
-//               {selRecord.clock_out_location && (
-//                 <span style={{ fontSize:11.5, color:"var(--ink3)" }}>
-//                   📍 Out: {selRecord.clock_out_location}
-//                 </span>
-//               )}
-//             </>
-//           )}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
 
 export function CalendarView({ user, supabase }) {
   const t = new Date();

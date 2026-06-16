@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Navbar from "../components/Navbar";
  import SiteReport from "./Sitereport";
@@ -1162,14 +1162,15 @@ export default function SitePortal() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expanded,    setExpanded]    = useState({ leave:true, reports:true });
   const [siteReports,    setSiteReports]    = useState([]);
-const [loadingReports, setLoadingReports] = useState(false);
-const [reportTab,      setReportTab]      = useState("dpr");
-const [reportFilter,   setReportFilter]   = useState({ type:"", site:"", month:"" });
+  const [loadingReports, setLoadingReports] = useState(false);
+  const [reportTab,      setReportTab]      = useState("dpr");
+  const [reportFilter,   setReportFilter]   = useState({ type:"", site:"", month:"" });
   const [isDark, setIsDark] = useState(() => {
   const saved = localStorage.getItem("theme");
   if (saved) document.documentElement.setAttribute("data-theme", saved);
   return saved === "dark";
 });
+const mainRef = useRef(null);
 
 const toggleTheme = () => {
   const next = !isDark;
@@ -1270,7 +1271,18 @@ useEffect(() => {
   return () => window.removeEventListener("resize", onResize);
 }, [fetchSiteReports]);
 
-  const nav = (key) => { setActiveTab(key); if (window.innerWidth <= 768) setSidebarOpen(false); };
+
+const nav = (key) => {
+  setActiveTab(key);
+  if (window.innerWidth <= 768) setSidebarOpen(false);
+  
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.documentElement.scrollTo({ top: 0, behavior: "smooth" });
+    document.body.scrollTo({ top: 0, behavior: "smooth" });
+    if (mainRef.current) mainRef.current.scrollTo({ top: 0, behavior: "smooth" });
+  }, 0);
+};
   const activeItem = ALL_ITEMS.find(i=>i.key===activeTab);
 
   if (!user) return (
@@ -1640,7 +1652,7 @@ return (
           </aside>
 
           {/* Main */}
-          <main className="main">
+          <main className="main" ref={mainRef}>
               
             <div className="card">
               <div className="card-hdr">

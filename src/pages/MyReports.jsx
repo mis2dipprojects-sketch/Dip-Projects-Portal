@@ -10,25 +10,25 @@ const fmtDT = (dt) => dt ? new Date(dt).toLocaleString("en-IN",{day:"numeric",mo
 
 // ── Tab config (mirrors submissions) ─────────────────────────────────────
 const TAB_CONFIG = [
-  { key:"dpr", label:"DPR", color:"#2563eb", bg:"#eff6ff", border:"#bfdbfe" },
-  { key:"wpr", label:"WPR", color:"#7c3aed", bg:"#f5f3ff", border:"#e0e7ff" },
-  { key:"svr", label:"SVR", color:"#16a34a", bg:"#f0fdf4", border:"#bbf7d0" },
+  { key:"dpr", label:"DPR", color:"#7a2e00", bg:"#eff6ff", border:"#bfdbfe" },
+  { key:"wpr", label:"WPR", color:"#a55622", bg:"#f5f3ff", border:"#e0e7ff" },
+  { key:"svr", label:"SVR", color:"#c96a10", bg:"#f0fdf4", border:"#bbf7d0" },
 ];
 
 // ── Badge / accent per report type ───────────────────────────────────────
 const getBadge = (r) => {
-  if (r._source === "svr") return { bg:"#f0fdf4", color:"#16a34a", border:"#bbf7d0", label:"Site Visit"   };
-  if (r._source === "wpr") return { bg:"#f5f3ff", color:"#7c3aed", border:"#e0e7ff", label:"Weekly Report" };
+  if (r._source === "svr") return { bg:"#f0fdf4", color:"#c96a10", border:"#bbf7d0", label:"Site Visit"   };
+  if (r._source === "wpr") return { bg:"#f5f3ff", color:"#a55622", border:"#e0e7ff", label:"Weekly Report" };
   if (r.report_type === "morning") return { bg:"#fffbeb", color:"#d97706", border:"#fde68a", label:"Morning DPR" };
-  if (r.report_type === "evening") return { bg:"#eff6ff", color:"#2563eb", border:"#bfdbfe", label:"Evening DPR" };
+  if (r.report_type === "evening") return { bg:"#eff6ff", color:"#7a2e00", border:"#bfdbfe", label:"Evening DPR" };
   return { bg:"#f8fafc", color:"#64748b", border:"#e8edf3", label: r.report_type || "DPR" };
 };
 
 const getAccent = (r) => {
-  if (r._source === "svr") return "#16a34a";
-  if (r._source === "wpr") return "#7c3aed";
+  if (r._source === "svr") return "#c96a10";
+  if (r._source === "wpr") return "#a55622";
   if (r.report_type === "morning") return "#d97706";
-  return "#2563eb";
+  return "#7a2e00";
 };
 
 // ── Expanded detail panels ────────────────────────────────────────────────
@@ -191,7 +191,7 @@ function ReportCard({ r }) {
             </a>
             <a href={r.pdf_url} download style={{
               display:"inline-flex", alignItems:"center", gap:6,
-              fontSize:12, fontWeight:600, color:"#2563eb",
+              fontSize:12, fontWeight:600, color:"#7a2e00",
               background:"#eff6ff", border:"1px solid #bfdbfe",
               borderRadius:7, padding:"6px 12px", textDecoration:"none",
             }}>

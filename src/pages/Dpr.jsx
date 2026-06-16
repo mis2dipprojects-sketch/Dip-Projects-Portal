@@ -140,7 +140,7 @@ border:2px solid transparent;border-radius:12px;color:#6b2d0f;cursor:pointer;fon
 .btn-red { background:#fef2f2; color:var(--red); border:1.5px solid #fecaca; }
 .btn-red:hover { background:#fee2e2; }
 .btn-green { background:#f0fdf4; color:var(--green); border:1.5px solid #bbf7d0; }
-.btn-whatsapp { background:#25d366; color:#fff; box-shadow:0 3px 10px rgba(37,211,102,.3); }
+.btn-whatsapp { background:#25d366;color:#fff; box-shadow:0 3px 10px rgba(37,211,102,.3); }
 .btn-whatsapp:hover { filter:brightness(1.08); transform:translateY(-1px); }
 .btn-whatsapp:disabled { opacity:.5; cursor:not-allowed; transform:none; }
 .btn-sm { padding:6px 12px; font-size:12px; border-radius:6px; }
@@ -3024,164 +3024,164 @@ const handleWhatsApp = async () => {
 
   return (
           <div>
-      {/* Report type toggle — no emojis */}
-      <div className="rtype-row">
-  <button className={`rtype-btn morning${reportType==="morning"?" act":""}`}
-    onClick={()=>setReportType("morning")}>
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="4"/>
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-    </svg>
-    &nbsp;&nbsp;&nbsp;Morning Report
-  </button>
-  <button className={`rtype-btn evening${reportType==="evening"?" act":""}`}
-    onClick={()=>setReportType("evening")}>
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-    </svg>
-    &nbsp;&nbsp;&nbsp;Evening DPR
-  </button>
-</div>
+            {/* Report type toggle — no emojis */}
+            <div className="rtype-row">
+              <button className={`rtype-btn morning${reportType==="morning"?" act":""}`}
+                onClick={()=>setReportType("morning")}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="4"/>
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+                </svg>
+                &nbsp;&nbsp;&nbsp;Morning Report
+              </button>
+              <button className={`rtype-btn evening${reportType==="evening"?" act":""}`}
+                onClick={()=>setReportType("evening")}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+                &nbsp;&nbsp;&nbsp;Evening DPR
+              </button>
+            </div>
 
-      <div className="grid3" style={{marginBottom:18}}>
-        <div className="fg">
-          <label className="flabel">Date <span className="req">*</span></label>
-          <input className="finput" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
-        </div>
+            <div className="grid3" style={{marginBottom:18}}>
+              <div className="fg">
+                <label className="flabel">Date <span className="req">*</span></label>
+                <input className="finput" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
+              </div>
 
-        <div className="fg">
-          <label className="flabel">Site / Project <span className="req">*</span></label>
-          {loadingSites ? (
-            <input className="finput" value="Loading…" readOnly/>
-          ) : userSites.length > 1 ? (
-            <select className="finput" value={site} onChange={e => setSite(e.target.value)}>
-              <option value="">Select Site</option>
-              {userSites.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          ) : (
-            <input className="finput" value={site} readOnly
-              style={{background:"#f0fdf4", color:"#166534", fontWeight:700}}/>
-          )}
-        </div>
+              <div className="fg">
+                <label className="flabel">Site / Project <span className="req">*</span></label>
+                {loadingSites ? (
+                  <input className="finput" value="Loading…" readOnly/>
+                ) : userSites.length > 1 ? (
+                  <select className="finput" value={site} onChange={e => setSite(e.target.value)}>
+                    <option value="">Select Site</option>
+                    {userSites.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                ) : (
+                  <input className="finput" value={site} readOnly
+                    style={{background:"#f0fdf4", color:"#166534", fontWeight:700}}/>
+                )}
+              </div>
 
-        <div className="fg">
-          <label className="flabel">Engineer</label>
-          <input className="finput" value={engineer} readOnly
-            style={{background:"#f0fdf4", color:"#166534", fontWeight:700}}/>
-        </div>
-      </div>
+              <div className="fg">
+                <label className="flabel">Engineer</label>
+                <input className="finput" value={engineer} readOnly
+                  style={{background:"#f0fdf4", color:"#166534", fontWeight:700}}/>
+              </div>
+            </div>
 
-      {draftInfo && (
-        <div className="draft-bar">
-          <button className="draft-btn draft-open" onClick={handleOpenDraft}>
-            📂 Open Draft <span style={{fontWeight:400,fontSize:11}}>({new Date(draftInfo.saved_at).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})})</span>
-          </button>
-          <button className="draft-btn draft-del" onClick={handleDeleteDraft}>🗑️ Delete Draft</button>
-        </div>
-      )}
+            {draftInfo && (
+              <div className="draft-bar">
+                <button className="draft-btn draft-open" onClick={handleOpenDraft}>
+                  📂 Open Draft <span style={{fontWeight:400,fontSize:11}}>({new Date(draftInfo.saved_at).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})})</span>
+                </button>
+                <button className="draft-btn draft-del" onClick={handleDeleteDraft}>🗑️ Delete Draft</button>
+              </div>
+            )}
 
-      <SectionBlock title="1. Today's Work Summary" defaultOpen>
-        <textarea className="finput" rows={4} value={summary} onChange={e=>setSummary(e.target.value)} placeholder="Describe completed work activities…"/>
-      </SectionBlock>
+            <SectionBlock title="1. Today's Work Summary" defaultOpen>
+              <textarea className="finput" rows={4} value={summary} onChange={e=>setSummary(e.target.value)} placeholder="Describe completed work activities…"/>
+            </SectionBlock>
 
-      <SectionBlock title="2. Manpower Report">
-        <ManpowerSection list={manpower} setList={setManpower} showToast={showToast}/>
-      </SectionBlock>
+            <SectionBlock title="2. Manpower Report">
+              <ManpowerSection list={manpower} setList={setManpower} showToast={showToast}/>
+            </SectionBlock>
 
-      <SectionBlock title="3. Equipment (Client / Contractor)">
-        <EquipmentSection list={equipment} setList={setEquipment}/>
-      </SectionBlock>
+            <SectionBlock title="3. Equipment (Client / Contractor)">
+              <EquipmentSection list={equipment} setList={setEquipment}/>
+            </SectionBlock>
 
-      {reportType==="evening" && (<>
-        <SectionBlock title="4. Cement Stock">
-          <div className="cement-row" style={{marginBottom:12}}>
-            <div className="fg"><label className="flabel">Available on Site</label><input className="finput" type="number" value={cementAvail} onChange={e=>setCementAvail(e.target.value)} placeholder="0"/></div>
-            <div className="fg"><label className="flabel">New Received</label><input className="finput" type="number" value={cementRcvd} onChange={e=>setCementRcvd(e.target.value)} placeholder="0"/></div>
-            <div className="fg"><label className="flabel">Used Today</label><input className="finput" type="number" value={cementUsed} onChange={e=>setCementUsed(e.target.value)} placeholder="0"/></div>
-            <div className="fg"><label className="flabel">Balance (auto)</label><input className="finput" value={cementBalance} readOnly style={{background:"#f0fdf4",color:"#166534",fontWeight:700}}/></div>
+            {reportType==="evening" && (<>
+              <SectionBlock title="4. Cement Stock">
+                <div className="cement-row" style={{marginBottom:12}}>
+                  <div className="fg"><label className="flabel">Available on Site</label><input className="finput" type="number" value={cementAvail} onChange={e=>setCementAvail(e.target.value)} placeholder="0"/></div>
+                  <div className="fg"><label className="flabel">New Received</label><input className="finput" type="number" value={cementRcvd} onChange={e=>setCementRcvd(e.target.value)} placeholder="0"/></div>
+                  <div className="fg"><label className="flabel">Used Today</label><input className="finput" type="number" value={cementUsed} onChange={e=>setCementUsed(e.target.value)} placeholder="0"/></div>
+                  <div className="fg"><label className="flabel">Balance (auto)</label><input className="finput" value={cementBalance} readOnly style={{background:"#f0fdf4",color:"#166534",fontWeight:700}}/></div>
+                </div>
+                <div className="fg"><label className="flabel">Usage Description</label><textarea className="finput" rows={2} value={cementUsedDesc} onChange={e=>setCementUsedDesc(e.target.value)} placeholder="Describe where cement was used…"/></div>
+              </SectionBlock>
+
+              <SectionBlock title="5. Concrete Consumption">
+                <div className="cement-row" style={{marginBottom:12}}>
+                  <div className="fg"><label className="flabel">Theoretical Qty</label><input className="finput" type="number" value={concreteTh} onChange={e=>setConcreteTh(e.target.value)} placeholder="0"/></div>
+                  <div className="fg"><label className="flabel">On-Site Consumption</label><input className="finput" type="number" value={concreteOn} onChange={e=>setConcreteOn(e.target.value)} placeholder="0"/></div>
+                </div>
+                <div className="fg"><label className="flabel">Description</label><textarea className="finput" rows={2} value={concreteDesc} onChange={e=>setConcreteDesc(e.target.value)} placeholder="Describe on-site concrete consumption…"/></div>
+              </SectionBlock>
+
+              <SectionBlock title="6. Material Received">
+                <MaterialSection list={material} setList={setMaterial}/>
+              </SectionBlock>
+
+              <SectionBlock title="7. Material Requirement">
+                <MaterialSection list={matReq} setList={setMatReq} showDesc label="Material"/>
+              </SectionBlock>
+
+              <SectionBlock title="8. Cube Test Results">
+                <textarea className="finput" rows={3} value={cube} onChange={e=>setCube(e.target.value)} placeholder="Enter cube test results…"/>
+              </SectionBlock>
+
+              <SectionBlock title="9. Site Visit &amp; Instructions">
+                <VisitorsSection visitors={visitors} setVisitors={setVisitors}/>
+              </SectionBlock>
+
+              <SectionBlock title="10. Additional Custom Fields">
+                <CustomFieldsSection fields={customFields} setFields={setCustomFields}/>
+              </SectionBlock>
+
+              <SectionBlock title="11. Work Progress Photos">
+                <div className="info-banner info-blue" style={{marginBottom:12}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  Photos are required for Evening DPR.
+                </div>
+                <PhotosSection photos={photos} setPhotos={setPhotos}/>
+              </SectionBlock>
+
+              <SectionBlock title="12. Tomorrow's Planning">
+                <textarea className="finput" rows={4} value={planning} onChange={e=>setPlanning(e.target.value)} placeholder="Plan for tomorrow's activities…"/>
+              </SectionBlock>
+            </>)}
+
+            <div className="act-row">
+              <button className="btn btn-out" onClick={handleSaveDraft} disabled={submitting}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                Save Draft
+              </button>
+
+              {reportType === "morning" ? (
+                <button className="btn btn-whatsapp" onClick={handleWhatsApp} disabled={submitting}>
+                  {submitting ? <><Spinner/> Saving…</> : <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                    </svg>
+                    Send via WhatsApp
+                  </>}
+                </button>
+              ) : (
+                <button className="btn btn-orange" onClick={handleEveningSubmit} disabled={submitting}>
+                  {submitting ? <><Spinner/> Generating…</> : <>Generate Evening DPR</>}
+                </button>
+              )}
+            </div>
+
+            {submitting && reportType==="evening" && <SubmitOverlay currentStep={submitStep} detail={submitDetail}/>}
+
+            {toast && (
+              <div className={`dpr-toast ${toast.type==="ok"?"dpr-toast-ok":"dpr-toast-err"}`}>
+                {toast.type==="ok"
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>}
+                {toast.msg}
+              </div>
+            )}
           </div>
-          <div className="fg"><label className="flabel">Usage Description</label><textarea className="finput" rows={2} value={cementUsedDesc} onChange={e=>setCementUsedDesc(e.target.value)} placeholder="Describe where cement was used…"/></div>
-        </SectionBlock>
-
-        <SectionBlock title="5. Concrete Consumption">
-          <div className="cement-row" style={{marginBottom:12}}>
-            <div className="fg"><label className="flabel">Theoretical Qty</label><input className="finput" type="number" value={concreteTh} onChange={e=>setConcreteTh(e.target.value)} placeholder="0"/></div>
-            <div className="fg"><label className="flabel">On-Site Consumption</label><input className="finput" type="number" value={concreteOn} onChange={e=>setConcreteOn(e.target.value)} placeholder="0"/></div>
-          </div>
-          <div className="fg"><label className="flabel">Description</label><textarea className="finput" rows={2} value={concreteDesc} onChange={e=>setConcreteDesc(e.target.value)} placeholder="Describe on-site concrete consumption…"/></div>
-        </SectionBlock>
-
-        <SectionBlock title="6. Material Received">
-          <MaterialSection list={material} setList={setMaterial}/>
-        </SectionBlock>
-
-        <SectionBlock title="7. Material Requirement">
-          <MaterialSection list={matReq} setList={setMatReq} showDesc label="Material"/>
-        </SectionBlock>
-
-        <SectionBlock title="8. Cube Test Results">
-          <textarea className="finput" rows={3} value={cube} onChange={e=>setCube(e.target.value)} placeholder="Enter cube test results…"/>
-        </SectionBlock>
-
-        <SectionBlock title="9. Site Visit &amp; Instructions">
-          <VisitorsSection visitors={visitors} setVisitors={setVisitors}/>
-        </SectionBlock>
-
-        <SectionBlock title="10. Additional Custom Fields">
-          <CustomFieldsSection fields={customFields} setFields={setCustomFields}/>
-        </SectionBlock>
-
-        <SectionBlock title="11. Work Progress Photos">
-          <div className="info-banner info-blue" style={{marginBottom:12}}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Photos are required for Evening DPR.
-          </div>
-          <PhotosSection photos={photos} setPhotos={setPhotos}/>
-        </SectionBlock>
-
-        <SectionBlock title="12. Tomorrow's Planning">
-          <textarea className="finput" rows={4} value={planning} onChange={e=>setPlanning(e.target.value)} placeholder="Plan for tomorrow's activities…"/>
-        </SectionBlock>
-      </>)}
-
-      <div className="act-row">
-        <button className="btn btn-out" onClick={handleSaveDraft} disabled={submitting}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-            <polyline points="17 21 17 13 7 13 7 21"/>
-            <polyline points="7 3 7 8 15 8"/>
-          </svg>
-          Save Draft
-        </button>
-
-        {reportType === "morning" ? (
-          <button className="btn btn-whatsapp" onClick={handleWhatsApp} disabled={submitting}>
-            {submitting ? <><Spinner/> Saving…</> : <>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-              </svg>
-              Send via WhatsApp
-            </>}
-          </button>
-        ) : (
-          <button className="btn btn-orange" onClick={handleEveningSubmit} disabled={submitting}>
-            {submitting ? <><Spinner/> Generating…</> : <>Generate Evening DPR</>}
-          </button>
-        )}
-      </div>
-
-      {submitting && reportType==="evening" && <SubmitOverlay currentStep={submitStep} detail={submitDetail}/>}
-
-      {toast && (
-        <div className={`dpr-toast ${toast.type==="ok"?"dpr-toast-ok":"dpr-toast-err"}`}>
-          {toast.type==="ok"
-            ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-            : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>}
-          {toast.msg}
-        </div>
-      )}
-    </div>
-  );
+      );
 }
 
 export default function DPR({ user }) {

@@ -7,6 +7,7 @@ import Navbar from "../components/Navbar";
 import DPR from "./Dpr.jsx";
 import ManpowerReport from "./Manpowerreport.jsx";
 import Profile from "./Profile";
+import WprGenerator from "./Wprgenerator.jsx";
 // ─── Supabase ────────────────────────────────────────────────────────────────
 // TODO: Replace with your project URL & anon key
 const SUPABASE_URL  = "https://efqfjfthsleymhljswcq.supabase.co";
@@ -740,7 +741,8 @@ const NAV = [
   { section:"reports", label:"Reports",
     children:[
       { key:"daily-report",   label:"Daily Report",   icon:Ico.report  },
-      { key:"weekly-report",  label:"Weekly Report",  icon:Ico.weekly  },
+      { key:"weekly-report",  label:"Weekly Planning",  icon:Ico.weekly  },
+      { key:"wpr-generator", label:"Weekly Report", icon: Ico.weekly },
       { key:"monthly-report", label:"Monthly Report", icon:Ico.monthly },
       { key:"site-report", label:"Site Visit Report", icon:Ico.site },
       { key:"my-reports",     label:"My Reports",     icon:Ico.myRpt   },
@@ -1286,6 +1288,7 @@ useEffect(() => {
       case "apply-leave":    return <ApplyLeave user={user}/>;
       case "daily-report":   return <DPR user={user}/>;
       case "weekly-report":  return <WeeklyReport user={user}/>;
+      case "wpr-generator":  return <WprGenerator user={user} supabase={supabase}/>;
       case "monthly-report": return <MonthlyReport/>;
       case "site-report":    return <SiteReport user={user} />;
       case "my-reports": return <MyReports user={user} />;

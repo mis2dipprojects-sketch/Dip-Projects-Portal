@@ -2,17 +2,23 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 // ─── CSS ────────────────────────────────────────────────────────────────────
 const WPR_CSS = `
-.wpr-wrap { max-width: 860px; margin: 0 auto; }
+.wpr-wrap {
+  --wpr-grad: linear-gradient(135deg, #3d1200 0%, #7a2e00 50%, #c96a10 100%);
+  --wpr-1: #3d1200;
+  --wpr-2: #7a2e00;
+  --wpr-3: #c96a10;
+}
+.wpr-wrap { max-width: 1500px; margin: 0 auto; }
 .wpr-status-bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
 .wpr-pill { display:inline-flex; align-items:center; gap:5px; padding:4px 11px; border-radius:20px; font-size:11.5px; font-weight:700; border:1.5px solid var(--line2); background:var(--paper); color:var(--ink2); transition:all .15s; }
-.wpr-pill.done { background:#f0fdf4; color:#15803d; border-color:#bbf7d0; }
-.wpr-pill.partial { background:#fffbeb; color:#d97706; border-color:#fde68a; }
-.wpr-acc { border:1px solid var(--line); border-radius:12px; margin-bottom:12px; overflow:hidden; background:var(--surface); }
+.wpr-pill.done { background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); color:#fff; border-color:#c96a10; }
+.wpr-pill.partial { background:rgba(201,106,16,0.15); color:#c96a10; border-color:#c96a10; }
+.wpr-acc { border:1.5px solid #c96a10; border-radius:12px; margin-bottom:12px; overflow:hidden; background:var(--surface); }
 .wpr-acc-hdr { display:flex; align-items:center; gap:12px; padding:0 18px; height:62px; cursor:pointer; user-select:none; background:var(--paper); border-bottom:1px solid transparent; transition:background .15s; }
 .wpr-acc.open .wpr-acc-hdr { border-bottom-color:var(--line); }
-.wpr-acc-hdr:hover { background:var(--line); }
-.wpr-acc-ico { width:36px; height:36px; border-radius:9px; background:var(--amber-bg); display:flex; align-items:center; justify-content:center; color:var(--amber); font-size:17px; flex-shrink:0; }
-.wpr-acc.open .wpr-acc-ico { background:var(--amber); color:#fff; }
+.wpr-acc-hdr:hover { background:rgba(201,106,16,0.08); }
+.wpr-acc-ico { width:36px; height:36px; border-radius:9px; background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); display:flex; align-items:center; justify-content:center; color:#fff; font-size:17px; flex-shrink:0; }
+.wpr-acc.open .wpr-acc-ico { background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); color:#fff; }
 .wpr-acc-titles { flex:1; min-width:0; }
 .wpr-acc-title { font-size:14px; font-weight:700; color:var(--ink); }
 .wpr-acc-sub { font-size:11.5px; color:var(--ink3); margin-top:1px; }
@@ -25,61 +31,61 @@ const WPR_CSS = `
 @media(max-width:600px) { .wpr-g2,.wpr-g3 { grid-template-columns:1fr; } }
 .wpr-fg { display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
 .wpr-lbl { font-size:11.5px; font-weight:700; color:var(--ink2); }
-.wpr-act-card { background:var(--paper); border:1.5px solid var(--line2); border-radius:11px; padding:14px 16px; margin-bottom:12px; position:relative; }
-.wpr-act-num { width:32px; height:32px; background:var(--amber); color:#fff; border-radius:8px; font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.wpr-act-card { background:var(--paper); border:1.5px solid #c96a10; border-radius:11px; padding:14px 16px; margin-bottom:12px; position:relative; }
+.wpr-act-num { width:32px; height:32px; background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); color:#fff; border-radius:8px; font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .wpr-act-del { position:absolute; top:12px; right:12px; width:28px; height:28px; background:#fef2f2; border:1.5px solid #fecaca; border-radius:7px; color:#dc2626; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-.wpr-plan-item { display:flex; align-items:center; gap:10px; padding:10px 13px; background:var(--paper); border:1.5px solid var(--line2); border-radius:9px; margin-bottom:10px; }
-.wpr-plan-num { width:28px; height:28px; border-radius:7px; background:var(--line); color:var(--ink2); font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--mono); }
+.wpr-plan-item { display:flex; align-items:center; gap:10px; padding:10px 13px; background:var(--paper); border:1.5px solid #c96a10; border-radius:9px; margin-bottom:10px; }
+.wpr-plan-num { width:28px; height:28px; border-radius:7px; background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); color:#fff; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--mono); }
 .wpr-plan-item input { border:none!important; background:transparent!important; flex:1; font-size:14px!important; color:var(--ink); padding:0!important; box-shadow:none!important; }
-.wpr-drop-zone { border:2px dashed var(--line2); border-radius:11px; padding:28px 20px; text-align:center; cursor:pointer; transition:all .18s; background:var(--paper); }
-.wpr-drop-zone:hover,.wpr-drop-zone.over { border-color:var(--amber); background:var(--amber-bg); }
+.wpr-drop-zone { border:2px dashed #c96a10; border-radius:11px; padding:28px 20px; text-align:center; cursor:pointer; transition:all .18s; background:var(--paper); }
+.wpr-drop-zone:hover,.wpr-drop-zone.over { border-color:#c96a10; background:rgba(201,106,16,0.07); }
 .wpr-photo-grid { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
-.wpr-photo-card { position:relative; width:140px; border:1.5px solid var(--line2); border-radius:9px; overflow:hidden; background:var(--paper); }
+.wpr-photo-card { position:relative; width:140px; border:1.5px solid #c96a10; border-radius:9px; overflow:hidden; background:var(--paper); }
 .wpr-photo-card img { width:100%; height:100px; object-fit:cover; display:block; }
 .wpr-photo-del { position:absolute; top:5px; right:5px; width:22px; height:22px; background:rgba(220,38,38,.88); color:#fff; border:none; border-radius:50%; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:700; }
 .wpr-photo-cap input { width:100%; border:none!important; border-top:1px solid var(--line)!important; border-radius:0!important; font-size:12px!important; padding:6px 8px!important; background:var(--surface)!important; box-shadow:none!important; }
-.wpr-tbl-hdr { display:flex; align-items:center; gap:8px; padding:9px 12px; background:var(--amber-bg); border:1.5px solid var(--amber-line); border-radius:8px 8px 0 0; font-size:11.5px; font-weight:800; color:var(--amber2); text-transform:uppercase; letter-spacing:.06em; }
-.wpr-tbl-row { display:grid; gap:8px; align-items:center; padding:8px 12px; background:var(--surface); border:1.5px solid var(--line); border-top:none; }
+.wpr-tbl-hdr { display:flex; align-items:center; gap:8px; padding:9px 12px; background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); border:1.5px solid #c96a10; border-radius:8px 8px 0 0; font-size:11.5px; font-weight:800; color:#fff; text-transform:uppercase; letter-spacing:.06em; }
+.wpr-tbl-row { display:grid; gap:8px; align-items:center; padding:8px 12px; background:var(--surface); border:1.5px solid #c96a10; border-top:none; }
 .wpr-tbl-row:last-of-type { border-radius:0 0 8px 8px; }
 .wpr-tbl-row input { border:1.5px solid transparent!important; background:transparent!important; padding:6px 8px!important; font-size:13px!important; box-shadow:none!important; }
-.wpr-tbl-row input:focus { border-color:var(--amber)!important; background:var(--paper)!important; border-radius:6px!important; }
-.wpr-rc-item { background:var(--surface); border:1.5px solid var(--line2); border-radius:10px; margin-bottom:10px; overflow:hidden; }
+.wpr-tbl-row input:focus { border-color:#c96a10!important; background:var(--paper)!important; border-radius:6px!important; }
+.wpr-rc-item { background:var(--surface); border:1.5px solid #c96a10; border-radius:10px; margin-bottom:10px; overflow:hidden; }
 .wpr-rc-hdr { display:flex; align-items:center; gap:9px; padding:12px 14px; background:var(--paper); border-bottom:1px solid var(--line); flex-wrap:wrap; }
-.wpr-rc-badge { width:30px; height:30px; border-radius:8px; background:var(--amber-bg); border:1px solid var(--amber-line); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.wpr-rc-badge { width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); border:1px solid #c96a10; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; color:#fff; }
 .wpr-rc-title { flex:1; min-width:120px; font-size:13.5px; font-weight:700; color:var(--ink); background:transparent; border:none; outline:none; }
 .wpr-rc-actions { display:flex; gap:5px; margin-left:auto; }
 .wpr-rc-btn { width:30px; height:30px; border-radius:7px; border:1.5px solid var(--line2); background:var(--surface); color:var(--ink2); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .13s; }
-.wpr-rc-btn:hover { border-color:var(--amber); color:var(--amber); }
-.wpr-rc-btn.hide-active { background:var(--amber-bg); border-color:var(--amber); color:var(--amber); }
+.wpr-rc-btn:hover { border-color:#c96a10; color:#c96a10; }
+.wpr-rc-btn.hide-active { background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); border-color:#c96a10; color:#fff; }
 .wpr-rc-btn.del:hover { border-color:#dc2626; color:#dc2626; background:#fef2f2; }
-.wpr-hint { display:flex; gap:9px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:11px 14px; font-size:12.5px; color:#1d4ed8; line-height:1.55; margin-bottom:14px; }
+.wpr-hint { display:flex; gap:9px; background:rgba(201,106,16,0.07); border:1px solid #c96a10; border-radius:9px; padding:11px 14px; font-size:12.5px; color:#7a2e00; line-height:1.55; margin-bottom:14px; }
 .wpr-budget { display:flex; align-items:center; gap:10px; padding:9px 14px; background:var(--paper); border:1px solid var(--line); border-radius:9px; margin-bottom:14px; }
 .wpr-budget-track { flex:1; height:7px; background:var(--line2); border-radius:7px; overflow:hidden; }
-.wpr-budget-fill { height:100%; border-radius:7px; transition:width .35s,background .35s; }
-.wpr-draft-banner { display:flex; align-items:center; gap:12px; padding:12px 16px; background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; margin-bottom:16px; font-size:13px; }
-.wpr-draft-title { font-weight:700; color:#92400e; flex:1; }
-.wpr-draft-sub { font-size:11.5px; color:#b45309; margin-top:1px; }
+.wpr-budget-fill { height:100%; border-radius:7px; transition:width .35s,background .35s; background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)!important; }
+.wpr-draft-banner { display:flex; align-items:center; gap:12px; padding:12px 16px; background:rgba(201,106,16,0.07); border:1.5px solid #c96a10; border-radius:10px; margin-bottom:16px; font-size:13px; }
+.wpr-draft-title { font-weight:700; color:#7a2e00; flex:1; }
+.wpr-draft-sub { font-size:11.5px; color:#c96a10; margin-top:1px; }
 .wpr-fab-wrap { position:sticky; bottom:0; padding:12px 0 4px; background:linear-gradient(to top,var(--paper) 70%,transparent); pointer-events:none; margin-top:20px; }
-.wpr-fab { width:100%; height:56px; background:var(--amber); border:none; border-radius:14px; font-family:var(--font); font-size:16px; font-weight:800; color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; pointer-events:all; box-shadow:0 4px 18px rgba(217,119,6,.35); transition:all .15s; }
-.wpr-fab:hover { background:var(--amber2); transform:translateY(-1px); }
+.wpr-fab { width:100%; height:56px; background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); border:none; border-radius:14px; font-family:var(--font); font-size:16px; font-weight:800; color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; pointer-events:all; box-shadow:0 4px 18px rgba(61,18,0,0.4); transition:all .15s; }
+.wpr-fab:hover { background:linear-gradient(135deg,#4a1600,#8f3600,#d97a20); transform:translateY(-1px); }
 .wpr-fab:disabled { opacity:.6; cursor:not-allowed; transform:none; }
 .wpr-overlay { position:fixed; inset:0; z-index:9999; background:rgba(15,13,10,.88); backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; padding:16px; }
-.wpr-overlay-card { background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:32px 28px; max-width:480px; width:100%; display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; box-shadow:0 16px 48px rgba(0,0,0,.3); }
-.wpr-spinner { width:48px; height:48px; border:4px solid var(--line2); border-top-color:var(--amber); border-radius:50%; animation:wprSpin .7s linear infinite; }
+.wpr-overlay-card { background:var(--surface); border:1.5px solid #c96a10; border-radius:18px; padding:32px 28px; max-width:480px; width:100%; display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; box-shadow:0 16px 48px rgba(0,0,0,.3); }
+.wpr-spinner { width:48px; height:48px; border:4px solid rgba(201,106,16,0.2); border-top-color:#c96a10; border-radius:50%; animation:wprSpin .7s linear infinite; }
 @keyframes wprSpin { to { transform:rotate(360deg); } }
 .wpr-progress-bar { width:260px; height:7px; background:var(--line2); border-radius:7px; overflow:hidden; margin-top:4px; }
-.wpr-progress-fill { height:100%; background:var(--amber); border-radius:7px; transition:width .5s ease; }
+.wpr-progress-fill { height:100%; background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); border-radius:7px; transition:width .5s ease; }
 .wpr-toast { position:fixed; bottom:80px; right:16px; z-index:10000; padding:12px 18px; border-radius:11px; font-size:13px; font-weight:700; max-width:300px; box-shadow:0 4px 18px rgba(0,0,0,.15); animation:wprSlideUp .25s ease; }
 @keyframes wprSlideUp { from{transform:translateY(16px);opacity:0} to{transform:translateY(0);opacity:1} }
 .wpr-toast.success { background:#f0fdf4; border:1.5px solid #bbf7d0; color:#15803d; }
 .wpr-toast.error { background:#fef2f2; border:1.5px solid #fecaca; color:#dc2626; }
-.wpr-toast.info { background:#fffbeb; border:1.5px solid #fde68a; color:#92400e; }
-.wpr-vis-card { background:var(--paper); border:1.5px solid var(--line2); border-radius:10px; padding:13px 15px; margin-bottom:11px; }
+.wpr-toast.info { background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); border:1.5px solid #c96a10; color:#fff; }
+.wpr-vis-card { background:var(--paper); border:1.5px solid #c96a10; border-radius:10px; padding:13px 15px; margin-bottom:11px; }
 .wpr-success-title { font-size:18px; font-weight:800; color:var(--ink); }
 .wpr-success-sub { font-size:13px; color:var(--ink2); line-height:1.6; }
 .wpr-success-links { width:100%; display:flex; flex-direction:column; gap:10px; margin-top:8px; }
 .wpr-link-row { display:flex; align-items:center; gap:10px; padding:12px 14px; background:var(--paper); border:1.5px solid var(--line2); border-radius:10px; text-decoration:none; color:var(--ink); font-size:13px; font-weight:600; transition:all .15s; }
-.wpr-link-row:hover { border-color:var(--amber); background:var(--amber-bg); }
+.wpr-link-row:hover { border-color:#c96a10; background:rgba(201,106,16,0.07); }
 .wpr-link-icon { font-size:20px; flex-shrink:0; }
 .wpr-link-label { flex:1; text-align:left; }
 .wpr-link-arrow { color:var(--ink3); font-size:12px; }
@@ -774,9 +780,6 @@ async function generatePPT({ site, engineer, reportDate, reportNum, location,
       fontSize: 11, fontFace: "Calibri", color: C.ink3, align: "center",
     });
   }
-// Trigger download directly from inside generation function
-  const fileName = `WPR_${zp(reportNum)}_${site.replace(/\s+/g,"_")}.pptx`;
-  await pres.writeFile({ fileName });
 
   // Also return blob for Supabase upload
   const base64 = await pres.write({ outputType: "base64" });
@@ -887,7 +890,21 @@ export default function WprGenerator({ user, supabase }) {
   const [genStep, setGenStep] = useState("");
   const [genProgress, setGenProgress] = useState(0);
   const [successUrls, setSuccessUrls] = useState(null);
+const saveDraftRef = useRef(null);
 
+// Keep ref always up to date
+// useEffect(() => {
+//   saveDraftRef.current = () => saveDraft(true);
+// });
+
+// // Autosave every 25 seconds
+// useEffect(() => {
+//   if (!site || !engineer || !supabase) return;
+//   const t = setInterval(() => {
+//     saveDraftRef.current?.();
+//   }, 25000);
+//   return () => clearInterval(t);
+// }, [site, engineer, supabase]);
   const showToast = (msg, type = "info", ms = 3000) => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), ms);
@@ -914,11 +931,36 @@ export default function WprGenerator({ user, supabase }) {
 
   useEffect(() => { if (site && engineer) checkDraft(); }, [site, engineer, checkDraft]);
 
-  useEffect(() => {
-    if (!site || !engineer || !supabase) return;
-    const t = setInterval(() => { saveDraft(true); }, 25000);
-    return () => clearInterval(t);
-  }, [site, engineer, activities, plans, officeItems, delayPoints, drawingData, visitors, drawDecision]);
+const hasAnyData = useCallback(() => {
+  if (activities.filter(a => a.name).length > 0) return true;
+  if (plans.filter(Boolean).length > 0) return true;
+  if (officeItems.filter(Boolean).length > 0) return true;
+  if (delayPoints.filter(Boolean).length > 0) return true;
+  if (drawingData.length > 0) return true;
+  if (visitors.filter(v => v.name).length > 0) return true;
+  if (drawDecision.filter(d => d.drawingName).length > 0) return true;
+  if (location.trim()) return true;
+  return false;
+}, [activities, plans, officeItems, delayPoints, drawingData, visitors, drawDecision, location]);
+
+const [isDirty, setIsDirty] = useState(false);
+
+// Mark dirty whenever any field changes
+useEffect(() => {
+  if (hasAnyData()) setIsDirty(true);
+}, [activities, plans, officeItems, delayPoints, drawingData, visitors, drawDecision, location]);
+
+// Autosave every 25s — only if dirty and has real data
+useEffect(() => {
+  if (!site || !engineer || !supabase) return;
+  const t = setInterval(() => {
+    if (isDirty && hasAnyData()) {
+      saveDraft(true);
+      setIsDirty(false);
+    }
+  }, 20000);
+  return () => clearInterval(t);
+}, [site, engineer, supabase, isDirty, hasAnyData]);
 
   const totalImages = () => {
     let n = 0;
@@ -945,39 +987,86 @@ export default function WprGenerator({ user, supabase }) {
     })),
   });
 
-  const saveDraft = async (silent = false) => {
-    if (!supabase) { if (!silent) showToast("Database initializing…","info"); return; }
-    if (!site || !engineer) { if (!silent) showToast("Select site and engineer first","error"); return; }
-    setAutoSavePending(true);
-    const payload = collectPayload(false);
-    const { error } = await supabase.from("wpr_drafts")
-      .upsert({ ...payload, updated_at:new Date().toISOString() }, { onConflict:"site_name,engineer_name" });
-    setAutoSavePending(false);
-    if (!error) {
-      const ts = new Date().toLocaleString("en-IN",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit",hour12:true});
-      setDraftExists(true); setDraftSavedAt(ts);
-      if (!silent) showToast("✅ Draft saved — " + ts, "success");
-    } else { if (!silent) showToast("❌ Save failed: " + error.message,"error"); }
+const saveDraft = async (silent = false) => {
+    console.log("btn clicked");
+  if (!supabase) { if (!silent) showToast("Database not ready","error"); return; }
+  if (!site || !engineer) { if (!silent) showToast("Site and engineer required","error"); return; }
+  
+  setAutoSavePending(true);
+  
+  const payload = {
+    site_name: site,
+    engineer_name: engineer,
+    report_date: reportDate,
+    report_number: reportNum,
+    location,
+    activities: activities.map(a => ({
+      name: a.name || "",
+      status: a.status || "",
+      progressImages: a.progressImages || [],
+    })),
+    next_week_plans: plans,
+    drawing_register_headers: drawingHeaders,
+    drawing_register_data: drawingData,
+    office_activity_items: officeItems,
+    visitor_register_data: visitors,
+    drawing_decision_data: drawDecision,
+    delay_points: delayPoints,
+    report_sections: sections.map(s => ({
+      title: s.title, isStandard: s.isStandard,
+      hidden: s.hidden, slideHidden: s.slideHidden,
+      type: s.type, textItems: s.textItems || [],
+    })),
+    updated_at: new Date().toISOString(),
   };
 
-  const loadDraft = async () => {
-    const { data, error } = await supabase.from("wpr_drafts").select("*")
-      .eq("site_name",site).eq("engineer_name",engineer).maybeSingle();
-    if (error || !data) { showToast("No draft found","error"); return; }
-    if (data.report_date) setReportDate(data.report_date);
-    setLocation(data.location ?? ""); 
-    if (data.report_number) setReportNum(data.report_number);
-    if (Array.isArray(data.activities)) setActivities(data.activities.map(a=>({...a,progressImages:a.progressImages||[]})));
-    if (Array.isArray(data.next_week_plans)) setPlans(data.next_week_plans);
-    if (Array.isArray(data.drawing_register_headers)) setDrawingHeaders(data.drawing_register_headers);
-    if (Array.isArray(data.drawing_register_data)) setDrawingData(data.drawing_register_data);
-    if (Array.isArray(data.office_activity_items)) setOfficeItems(data.office_activity_items);
-    if (Array.isArray(data.visitor_register_data)) setVisitors(data.visitor_register_data);
-    if (Array.isArray(data.drawing_decision_data)) setDrawDecision(data.drawing_decision_data);
-    if (data.location !== undefined) setLocation(data.location ?? "");
-    if (data.report_number) setReportNum(data.report_number);
-    showToast("✅ Draft restored!", "success");
-  };
+  console.log("💾 Saving draft:", payload);
+
+  const { data, error } = await supabase
+    .from("wpr_drafts")
+    .upsert(payload, { onConflict: "site_name,engineer_name" })
+    .select();
+
+  setAutoSavePending(false);
+
+  if (error) {
+    console.error("❌ Draft save error:", error);
+    if (!silent) showToast("❌ Save failed: " + error.message, "error");
+    return;
+  }
+
+  console.log("✅ Draft saved:", data);
+  const ts = new Date().toLocaleString("en-IN", {
+    day:"numeric", month:"short",
+    hour:"2-digit", minute:"2-digit", hour12:true
+  });
+  setDraftExists(true);
+  setDraftSavedAt(ts);
+  if (!silent) showToast("✅ Draft saved — " + ts, "success");
+};
+const loadDraft = async () => {
+  const { data, error } = await supabase.from("wpr_drafts").select("*")
+    .eq("site_name", site).eq("engineer_name", engineer).maybeSingle();
+  if (error || !data) { showToast("No draft found", "error"); return; }
+
+  if (data.report_date) setReportDate(data.report_date);
+  if (data.location !== undefined) setLocation(data.location ?? "");
+  if (data.report_number) setReportNum(data.report_number);
+  if (Array.isArray(data.activities)) 
+    setActivities(data.activities.map(a => ({ ...a, progressImages: a.progressImages || [] })));
+  if (Array.isArray(data.next_week_plans)) setPlans(data.next_week_plans);
+  if (Array.isArray(data.drawing_register_headers)) setDrawingHeaders(data.drawing_register_headers);
+  if (Array.isArray(data.drawing_register_data)) setDrawingData(data.drawing_register_data);
+  if (Array.isArray(data.office_activity_items)) setOfficeItems(data.office_activity_items);
+  if (Array.isArray(data.visitor_register_data)) setVisitors(data.visitor_register_data);
+  if (Array.isArray(data.drawing_decision_data)) setDrawDecision(data.drawing_decision_data);
+  if (Array.isArray(data.delay_points)) setDelayPoints(data.delay_points);
+  if (Array.isArray(data.report_sections)) setSections(data.report_sections.map(s => ({
+    ...s, textItems: s.textItems || [], images: s.images || [],
+  })));
+
+  showToast("✅ Draft restored!", "success");
+};
 
   const deleteDraft = async () => {
     await supabase.from("wpr_drafts").delete().eq("site_name",site).eq("engineer_name",engineer);
@@ -1133,19 +1222,22 @@ const closeOverlay = () => {
       <style>{WPR_CSS}</style>
       <div className="wpr-wrap">
 
-        {/* Status pills */}
+            {/* Status pills */}
         <div className="wpr-status-bar">
-          <Pill icon="📋" label={site ? `✓ ${site}` : "Info"} state={site && engineer && reportDate ? "done" : site ? "partial" : ""} />
-          <Pill icon="📊" label={actsCount > 0 ? `✓ ${actsCount} acts` : "Activities"} state={actsCount ? "done" : ""} />
-          <Pill icon="📷" label={imgCount > 0 ? `✓ ${imgCount} imgs` : "Images"} state={imgCount ? "done" : ""} />
-          <Pill icon="🏗" label={photosCount > 0 ? `✓ ${photosCount} photos` : "Photos"} state={photosCount ? "done" : ""} />
-          <Pill icon="📅" label={plans.filter(Boolean).length > 0 ? `✓ ${plans.filter(Boolean).length} plans` : "Plan"} state={plans.filter(Boolean).length ? "done" : ""} />
+            <Pill icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} label={site ? `✓ ${site}` : "Info"} state={site && engineer && reportDate ? "done" : site ? "partial" : ""} />
+            <Pill icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>} label={actsCount > 0 ? `✓ ${actsCount} acts` : "Activities"} state={actsCount ? "done" : ""} />
+            <Pill icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>} label={imgCount > 0 ? `✓ ${imgCount} imgs` : "Images"} state={imgCount ? "done" : ""} />
+            <Pill icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>} label={photosCount > 0 ? `✓ ${photosCount} photos` : "Photos"} state={photosCount ? "done" : ""} />
+            <Pill icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} label={plans.filter(Boolean).length > 0 ? `✓ ${plans.filter(Boolean).length} plans` : "Plan"} state={plans.filter(Boolean).length ? "done" : ""} />
         </div>
 
         {/* Image budget */}
         {imgCount > 0 && (
           <div className="wpr-budget">
-            <span style={{fontSize:12,fontWeight:700,color:"var(--ink2)",whiteSpace:"nowrap"}}>📷 Image Budget</span>
+            <span style={{fontSize:12,fontWeight:700,color:"var(--ink2)",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:5}}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                Image Budget
+            </span>
             <div className="wpr-budget-track">
               <div className="wpr-budget-fill" style={{
                 width:`${Math.min(100,(imgCount/25)*100)}%`,
@@ -1162,16 +1254,24 @@ const closeOverlay = () => {
         {draftExists && (
           <div className="wpr-draft-banner">
             <div>
-              <div className="wpr-draft-title">📝 Saved draft found</div>
+              <div className="wpr-draft-title" style={{display:"flex",alignItems:"center",gap:6}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                Draft found
+              </div>
               <div className="wpr-draft-sub">Saved on {draftSavedAt}</div>
             </div>
-            <button className="btn btn-amber" style={{height:36,fontSize:12,padding:"0 13px"}} onClick={loadDraft}>📂 Open</button>
-            <button className="btn btn-red" style={{height:36,fontSize:12,padding:"0 11px"}} onClick={deleteDraft}>🗑</button>
+            <button className="btn btn-amber" style={{height:36,fontSize:12,padding:"0 13px",display:"flex",alignItems:"center",gap:6}} onClick={loadDraft}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                Open
+            </button>
+            <button className="btn btn-red" style={{height:36,fontSize:12,padding:"0 11px",display:"flex",alignItems:"center",justifyContent:"center"}} onClick={deleteDraft}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+            </button>
           </div>
         )}
 
         {/* ① PROJECT INFO */}
-        <Acc id="info" icon="📋" title="Project Information" sub={site || "Site, engineer, date"} open={openSec.info} onToggle={() => toggle("info")}>
+        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} title="Project Information" sub={site || "Site, engineer, date"} open={openSec.info} onToggle={() => toggle("info")}>
           <div className="wpr-g2">
             <div className="wpr-fg">
               <label className="wpr-lbl">Site Name *</label>
@@ -1196,11 +1296,11 @@ const closeOverlay = () => {
               <input className="finput" type="date" value={reportDate} onChange={e => setReportDate(e.target.value)} />
             </div>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"var(--amber-bg)",border:"1.5px solid var(--amber-line)",borderRadius:10,marginBottom:16}}>
-            <span style={{fontSize:20}}>📄</span>
+          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",border:"1.5px solid #c96a10",borderRadius:10,marginBottom:16}}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             <div>
-              <div style={{fontSize:11,fontWeight:800,color:"var(--amber2)",textTransform:"uppercase",letterSpacing:".06em"}}>Report Number</div>
-              <div style={{fontSize:22,fontWeight:800,fontFamily:"var(--mono)",color:"var(--amber)"}}>WPR — {zp(reportNum)}</div>
+              <div style={{fontSize:11,fontWeight:800,color:"#ffcfa0",textTransform:"uppercase",letterSpacing:".06em"}}>Report Number</div>
+              <div style={{fontSize:22,fontWeight:800,fontFamily:"var(--mono)",color:"#fff"}}>WPR — {zp(reportNum)}</div>
             </div>
           </div>
           <div className="wpr-fg">
@@ -1212,7 +1312,11 @@ const closeOverlay = () => {
               </div>
             ) : (
               <label className="wpr-drop-zone" style={{display:"block",textAlign:"center",cursor:"pointer",padding:"20px"}}>
-                <div style={{fontSize:28,marginBottom:6}}>📸</div>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" strokeWidth="1.5" strokeLinecap="round" style={{marginBottom:8}}>
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+                </svg>
                 <div style={{fontSize:13,color:"var(--ink2)",fontWeight:600}}>Upload site overview photo</div>
                 <input type="file" accept="image/*" style={{display:"none"}}
                   onChange={async e => { if (e.target.files[0]) setSiteImage(await readFileAsDataUrl(e.target.files[0])); }} />
@@ -1222,7 +1326,7 @@ const closeOverlay = () => {
         </Acc>
 
         {/* ② ACTIVITIES */}
-        <Acc icon="📊" title="Activities" sub={actsCount ? `${actsCount} activities` : "Add construction activities"} open={openSec.acts} onToggle={() => toggle("acts")}>
+        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>} title="Activities" sub={actsCount ? `${actsCount} activities` : "Add construction activities"} open={openSec.acts} onToggle={() => toggle("acts")}>
           {activities.map((act, i) => (
             <div key={i} className="wpr-act-card">
               <button className="wpr-act-del" onClick={() => setActivities(p => p.filter((_,x)=>x!==i))}>✕</button>
@@ -1263,7 +1367,7 @@ const closeOverlay = () => {
         </Acc>
 
         {/* ③ GRAPHICAL REPORT */}
-        <Acc icon="📷" title="Graphical Report of Work" sub={graphicalImages.filter(i=>i.dataUrl).length ? `${graphicalImages.filter(i=>i.dataUrl).length} images` : "Upload progress images"} open={openSec.graph} onToggle={() => toggle("graph")}>
+        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>} title="Graphical Report of Work" sub={graphicalImages.filter(i=>i.dataUrl).length ? `${graphicalImages.filter(i=>i.dataUrl).length} images` : "Upload progress images"} open={openSec.graph} onToggle={() => toggle("graph")}>
           <PhotoGrid
             photos={graphicalImages}
             onRemove={i => setGraphicalImages(p => p.filter((_,x)=>x!==i))}
@@ -1279,7 +1383,7 @@ const closeOverlay = () => {
         </Acc>
 
         {/* ④ SITE PHOTOGRAPHS */}
-        <Acc icon="🏗" title="Site Photographs" sub={photosCount ? `${photosCount} photos` : "General site photos"} open={openSec.photos} onToggle={() => toggle("photos")}>
+        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>} title="Site Photographs" sub={photosCount ? `${photosCount} photos` : "General site photos"} open={openSec.photos} onToggle={() => toggle("photos")}>
           <PhotoGrid
             photos={sitePhotos}
             onRemove={i => setSitePhotos(p => p.filter((_,x)=>x!==i))}
@@ -1295,7 +1399,7 @@ const closeOverlay = () => {
         </Acc>
 
         {/* ⑤ DRAWING REGISTER */}
-        <Acc icon="📐" title="Drawing Register" sub={drawingData.length ? `${drawingData.length} rows` : "GFC Drawing entries"} open={openSec.drawing} onToggle={() => toggle("drawing")}>
+        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>} title="Drawing Register" sub={drawingData.length ? `${drawingData.length} rows` : "GFC Drawing entries"} open={openSec.drawing} onToggle={() => toggle("drawing")}>
           <div className="wpr-hint">ℹ Column headers become table headers in the report. Add/remove columns as needed.</div>
           <div className="wpr-tbl-hdr">
             <div style={{width:32,flexShrink:0,textAlign:"center"}}>#</div>
@@ -1330,7 +1434,7 @@ const closeOverlay = () => {
         </Acc>
 
         {/* ⑥ OFFICE ACTIVITY */}
-        <Acc icon="🏢" title="Office Activity" sub={officeItems.filter(Boolean).length ? `${officeItems.filter(Boolean).length} items` : "Back office work"} open={openSec.office} onToggle={() => toggle("office")}>
+        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>} title="Office Activity" sub={officeItems.filter(Boolean).length ? `${officeItems.filter(Boolean).length} items` : "Back office work"} open={openSec.office} onToggle={() => toggle("office")}>
           {officeItems.map((item,i) => (
             <div key={i} className="wpr-plan-item">
               <div className="wpr-plan-num">{i+1}</div>
@@ -1344,7 +1448,7 @@ const closeOverlay = () => {
         </Acc>
 
         {/* ⑦ VISITOR REGISTER */}
-        <Acc icon="👥" title="Visitor Register" sub={visitors.filter(v=>v.name).length ? `${visitors.filter(v=>v.name).length} visitors` : "Record site visitors"} open={openSec.visitor} onToggle={() => toggle("visitor")}>
+        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>} title="Visitor Register" sub={visitors.filter(v=>v.name).length ? `${visitors.filter(v=>v.name).length} visitors` : "Record site visitors"} open={openSec.visitor} onToggle={() => toggle("visitor")}>
           {visitors.map((row, i) => (
             <div key={i} className="wpr-vis-card">
               <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:12}}>
@@ -1375,7 +1479,7 @@ const closeOverlay = () => {
         </Acc>
 
         {/* ⑧ DRAWING & DECISION PENDING */}
-        <Acc icon="⏳" title="Drawing & Decision Pending" sub={drawDecision.filter(r=>r.drawingName).length ? `${drawDecision.filter(r=>r.drawingName).length} items` : "Pending drawings"} open={openSec.drawdec} onToggle={() => toggle("drawdec")}>
+        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} title="Drawing & Decision Pending" sub={drawDecision.filter(r=>r.drawingName).length ? `${drawDecision.filter(r=>r.drawingName).length} items` : "Pending drawings"} open={openSec.drawdec} onToggle={() => toggle("drawdec")}>
           {drawDecision.length > 0 && (
             <div className="wpr-tbl-hdr">
               <div style={{flex:2}}>Drawing / Decision Name</div>
@@ -1398,7 +1502,7 @@ const closeOverlay = () => {
         </Acc>
 
         {/* ⑨ WEEKLY CHECKLIST */}
-        <Acc icon="✅" title="Weekly Site Checklist" sub={checklistPhotos.filter(p=>p.dataUrl).length ? `${checklistPhotos.filter(p=>p.dataUrl).length} photos` : "Checklist photos"} open={openSec.checklist} onToggle={() => toggle("checklist")}>
+        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>} title="Weekly Site Checklist" sub={checklistPhotos.filter(p=>p.dataUrl).length ? `${checklistPhotos.filter(p=>p.dataUrl).length} photos` : "Checklist photos"} open={openSec.checklist} onToggle={() => toggle("checklist")}>
           <PhotoGrid
             photos={checklistPhotos}
             onRemove={i => setChecklistPhotos(p => p.filter((_,x)=>x!==i))}
@@ -1414,7 +1518,7 @@ const closeOverlay = () => {
         </Acc>
 
         {/* ⑩ DELAY POINTS */}
-        <Acc icon="🚩" title="Delay Points / Highlights / Red Flag" sub={delayPoints.filter(Boolean).length ? `${delayPoints.filter(Boolean).length} points` : "Issues and flags"} open={openSec.delay} onToggle={() => toggle("delay")}>
+        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>} title="Delay Points / Highlights / Red Flag" sub={delayPoints.filter(Boolean).length ? `${delayPoints.filter(Boolean).length} points` : "Issues and flags"} open={openSec.delay} onToggle={() => toggle("delay")}>
           {delayPoints.map((pt, i) => (
             <div key={i} className="wpr-plan-item" style={{borderColor:"rgba(220,38,38,.25)"}}>
               <div className="wpr-plan-num" style={{background:"rgba(220,38,38,.1)",color:"#dc2626"}}>{i+1}</div>
@@ -1428,7 +1532,7 @@ const closeOverlay = () => {
         </Acc>
 
         {/* ⑪ NEXT WEEK PLANNING */}
-        <Acc icon="📅" title="Next Week Planning" sub={plans.filter(Boolean).length ? `${plans.filter(Boolean).length} plans` : "Planned activities"} open={openSec.plan} onToggle={() => toggle("plan")}>
+        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} title="Next Week Planning" sub={plans.filter(Boolean).length ? `${plans.filter(Boolean).length} plans` : "Planned activities"} open={openSec.plan} onToggle={() => toggle("plan")}>
           {plans.map((pl, i) => (
             <div key={i} className="wpr-plan-item">
               <div className="wpr-plan-num">{i+1}</div>
@@ -1442,7 +1546,7 @@ const closeOverlay = () => {
         </Acc>
 
         {/* ⑫ REPORT CONTENTS */}
-        <Acc icon="📑" title="Report Contents & Sections" sub="Reorder, hide, or add custom sections" open={openSec.rc} onToggle={() => toggle("rc")}>
+        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>} title="Report Contents & Sections" sub="Reorder, hide, or add custom sections" open={openSec.rc} onToggle={() => toggle("rc")}>
           <div className="wpr-hint">ℹ Standard sections are always included. Use Hide to exclude from PPT. Use 🚫 to omit from report entirely.</div>
           {sections.map((sec, si) => (
             <div key={si} className="wpr-rc-item">
@@ -1480,13 +1584,18 @@ const closeOverlay = () => {
 
         {/* FAB */}
         <div className="wpr-fab-wrap">
-          <button className="btn btn-out" style={{width:"100%",height:40,marginBottom:8,fontSize:13}}
-            onClick={() => saveDraft(false)} disabled={autoSavePending}>
-            {autoSavePending ? "⏳ Saving…" : "💾 Save Draft"}
-          </button>
-          <button className="wpr-fab" onClick={generate} disabled={generating}>
-            🚀 Generate Report + PPT
-          </button>
+         <button onClick={() => saveDraft(false)} disabled={autoSavePending} style={{width:"100%",height:40,marginBottom:8,fontSize:13,fontFamily:"var(--font)",fontWeight:700,background:"linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)", color:"#fff", border:"1.5px solid #c96a10",borderRadius:10,cursor:"pointer",pointerEvents:"all",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+  {autoSavePending ? (
+    <><div className="wpr-spinner" style={{width:14,height:14,borderWidth:2}}/> Saving…</>
+  ) : (
+    <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Draft</>
+  )}
+</button>
+
+<button className="wpr-fab" onClick={generate} disabled={generating} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:9}}>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+  Generate Report + PPT
+</button>
         </div>
 
         {/* Generation Overlay */}
@@ -1504,7 +1613,9 @@ const closeOverlay = () => {
               </div>
             ) : (
               <div className="wpr-overlay-card">
-                <div style={{fontSize:52}}>🎉</div>
+                <div style={{width:64,height:64,borderRadius:"50%",background:"#f0fdf4",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                </div>
                 <div className="wpr-success-title">Report Generated!</div>
                 <div className="wpr-success-sub">
                   WPR — {zp(reportNum)} for <strong>{site}</strong> has been saved with all images uploaded and a PowerPoint presentation created.
@@ -1513,31 +1624,36 @@ const closeOverlay = () => {
                 <div className="wpr-success-links">
                   {/* PPT download */}
                   {/* PPT download — already auto-downloaded above */}
-<div className="wpr-link-row" style={{background:"#fffbeb", border:"1.5px solid #fde68a"}}>
-  <span className="wpr-link-icon">📊</span>
+<div className="wpr-link-row" style={{background:"linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)", border:"1.5px solid #c96a10", color:"#fff"}}>
+  <span className="wpr-link-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 12h2l2-4 2 8 2-4h2"/></svg></span>
   <div className="wpr-link-label">
-    <div style={{fontWeight:800, color:"#92400e"}}>PowerPoint Downloaded!</div>
-    <div style={{fontSize:11, color:"#b45309", marginTop:2}}>
+        <div style={{fontWeight:800, color:"#ffcfa0"}}>PowerPoint Downloaded!</div>
+        <div style={{fontSize:11, color:"rgba(255,255,255,0.7)", marginTop:2}}>
       WPR_{zp(reportNum)}_{site}.pptx — check your Downloads folder
     </div>
   </div>
-  <span style={{fontSize:16}}>✓</span>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
 </div>
 
                   {/* View report */}
-                  <a href={successUrls.viewUrl} target="_blank" rel="noreferrer" className="wpr-link-row">
-                    <span className="wpr-link-icon">🔗</span>
-                    <div className="wpr-link-label">
-                      <div style={{fontWeight:800}}>View Report</div>
-                      <div style={{fontSize:11,color:"var(--ink3)",marginTop:2}}>Open full report page</div>
-                    </div>
-                    <span className="wpr-link-arrow">→</span>
-                  </a>
+<a 
+  href={`https://docs.google.com/viewer?url=${encodeURIComponent(successUrls.pptUrl)}`} 
+  target="_blank" 
+  rel="noreferrer" 
+  className="wpr-link-row"
+>
+  <span className="wpr-link-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span>    
+  <div className="wpr-link-label">
+    <div style={{fontWeight:800}}>View Report</div>
+    <div style={{fontSize:11,color:"var(--ink3)",marginTop:2}}>Preview in browser</div>
+  </div>
+  <span className="wpr-link-arrow">→</span>
+</a>
 
                   {/* Graphical images link */}
                   {graphicalImages.filter(i=>i.dataUrl).length > 0 && (
                     <div className="wpr-link-row" style={{cursor:"default"}}>
-                      <span className="wpr-link-icon">🖼️</span>
+                      <span className="wpr-link-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
                       <div className="wpr-link-label">
                         <div style={{fontWeight:800}}>Graphical Images Uploaded</div>
                         <div style={{fontSize:11,color:"var(--ink3)",marginTop:2}}>
@@ -1551,7 +1667,7 @@ const closeOverlay = () => {
                   {/* Site photos link */}
                   {sitePhotos.filter(i=>i.dataUrl).length > 0 && (
                     <div className="wpr-link-row" style={{cursor:"default"}}>
-                      <span className="wpr-link-icon">🏗</span>
+                      <span className="wpr-link-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
                       <div className="wpr-link-label">
                         <div style={{fontWeight:800}}>Site Photos Uploaded</div>
                         <div style={{fontSize:11,color:"var(--ink3)",marginTop:2}}>

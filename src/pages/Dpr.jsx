@@ -1385,8 +1385,14 @@ async function deleteDraft(site, engineer) {
   await supabase.from("dpr_drafts").delete().eq("site",site).eq("engineer",engineer);
 }
 
-async function uploadPdfToSupabase(blob, fileName) {
-  const path = `pdfs/${fileName}`;
+async function uploadPdfToSupabase(blob, fileName, site, date) {
+  const [year, month, day] = date.split("-");
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const monthName = monthNames[parseInt(month, 10) - 1];
+  const safeSite = (site || "site").replace(/[\s/\\:*?"<>|]/g, "_");
+  const dayFolder = `${day}-${month}-${year}`;
+  const path = `${safeSite}/${year}/${monthName}/${dayFolder}/pdf/${fileName}`;
+
   const { error } = await supabase.storage.from("dpr-reports").upload(path, blob, { contentType:"application/pdf", upsert:true });
   if (error) throw new Error(`PDF upload failed: ${error.message} (bucket: dpr-reports, path: ${path})`);
   const { data: urlData } = supabase.storage.from("dpr-reports").getPublicUrl(path);
@@ -2676,13 +2682,18 @@ useEffect(() => {
     setSubmitting(true);
     const payload = collectPayload();
     try {
-      const photoFolder = `${site.replace(/[\s/\\:*?"<>|]/g,"_")}/${date}`;
+      const [year, month, day] = date.split("-");
+      const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      const monthName = monthNames[parseInt(month, 10) - 1];
+      const safeSite = site.replace(/[\s/\\:*?"<>|]/g, "_");
+      const dayFolder = `${day}-${month}-${year}`;
+      const photoFolder = `${safeSite}/${year}/${monthName}/${dayFolder}`;
       const uploadedPhotos = [];
 
       setSubmitStep("photos");
       for (let i=0; i<photos.length; i++) {
         setSubmitDetail(`Photo ${i+1} of ${photos.length}…`);
-        const path = `${photoFolder}/photo_${i+1}_${Date.now()}.jpg`;
+        const path = `${photoFolder}/photos/photo_${i+1}_${Date.now()}.jpg`;
         const url = await uploadPhotoToSupabase(photos[i].data, path);
         uploadedPhotos.push({...photos[i], supabaseUrl:url, storagePath:path});
       }
@@ -2694,7 +2705,7 @@ useEffect(() => {
 
       setSubmitStep("pdfup");
       setSubmitDetail(fileName);
-      const pdfPublicUrl = await uploadPdfToSupabase(blob, fileName);
+      const pdfPublicUrl = await uploadPdfToSupabase(blob, fileName, site, date);
 
       setSubmitStep("db");
       setSubmitDetail("Writing to dpr_reports…");

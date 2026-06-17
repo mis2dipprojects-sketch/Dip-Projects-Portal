@@ -23,6 +23,7 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
   const [loading, setLoading] = useState(true);
   const [freshRole, setFreshRole] = useState(user?.role || "");
  const [freshName, setFreshName] = useState(user?.name || "");
+ const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -83,6 +84,7 @@ const initials = getInitials(freshName || user?.name || "");
 const bgColor  = avatarColor(freshName || user?.name || "");
 
   return (
+    
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
       {/* ── Top: Avatar + Identity ── */}
@@ -213,7 +215,7 @@ const bgColor  = avatarColor(freshName || user?.name || "");
 
           {/* Logout */}
           <button
-            onClick={onLogout}
+            onClick={() => setShowLogoutModal(true)}
             style={{
               display: "flex", alignItems: "center", gap: 10,
               padding: "12px 16px", background: "#fef2f2",
@@ -231,6 +233,111 @@ const bgColor  = avatarColor(freshName || user?.name || "");
           </button>
         </div>
       </div>
+      {/* ── Logout Confirmation Modal ── */}
+{showLogoutModal && (
+  <div
+    onClick={() => setShowLogoutModal(false)}
+    style={{
+      position: "fixed", inset: 0, zIndex: 99999,
+      background: "rgba(15,10,5,0.65)",
+      backdropFilter: "blur(6px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 16, animation: "nbFadeIn .18s ease",
+    }}
+  >
+    <div
+      onClick={e => e.stopPropagation()}
+      style={{
+        background: "var(--surface)",
+        border: "1.5px solid #c96a10",
+        borderRadius: 18, padding: "32px 28px 24px",
+        maxWidth: 360, width: "100%",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", gap: 10, textAlign: "center",
+        boxShadow: "0 16px 48px rgba(61,18,0,0.25)",
+        animation: "nbSlideUp .2s ease",
+      }}
+    >
+      {/* Icon */}
+      <div style={{
+        width: 56, height: 56, borderRadius: "50%",
+        background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        marginBottom: 4,
+      }}>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </div>
+
+      <div style={{ fontSize: 18, fontWeight: 800, color: "var(--ink)" }}>Sign Out?</div>
+      <div style={{ fontSize: 13.5, color: "var(--ink2)", lineHeight: 1.6 }}>
+        You'll be returned to the login screen. Any unsaved changes will be lost.
+      </div>
+
+      {/* User chip */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "10px 16px", width: "100%", margin: "4px 0",
+        background: "linear-gradient(135deg,rgba(61,18,0,0.06),rgba(201,106,16,0.08))",
+        border: "1px solid #c96a10", borderRadius: 10,
+      }}>
+        <div style={{
+          width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+          background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
+          color: "#fff", fontSize: 14, fontWeight: 800,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          {(freshName || user?.name || "").charAt(0).toUpperCase()}
+        </div>
+        <div style={{ textAlign: "left" }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--ink)" }}>{freshName || user?.name}</div>
+          <div style={{ fontSize: 11, color: "#7a2e00", fontWeight: 500 }}>{freshRole || user?.role || ""}</div>
+        </div>
+      </div>
+
+      {/* Buttons */}
+      <div style={{ display: "flex", gap: 10, width: "100%", marginTop: 6 }}>
+        <button
+          onClick={() => setShowLogoutModal(false)}
+          style={{
+            flex: 1, height: 44, borderRadius: 10,
+            border: "1.5px solid #c96a10", background: "var(--surface)",
+            color: "#7a2e00", fontFamily: "var(--font)",
+            fontSize: 14, fontWeight: 700, cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            transition: "all .15s",
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+          Cancel
+        </button>
+        <button
+          onClick={onLogout}
+          style={{
+            flex: 1, height: 44, borderRadius: 10, border: "none",
+            background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
+            color: "#fff", fontFamily: "var(--font)",
+            fontSize: 14, fontWeight: 700, cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            boxShadow: "0 3px 12px rgba(61,18,0,0.3)", transition: "all .15s",
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Yes, Sign Out
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

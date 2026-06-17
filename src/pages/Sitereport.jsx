@@ -113,7 +113,6 @@ export default function SiteReport({ user }) {
   }
   setPhotosProcessing(false);
 };
-
   const compressImage = (dataUrl, cb) => {
     const img = new Image();
     img.onload = () => {
@@ -191,7 +190,12 @@ const handleSubmit = async () => {
           try {
             const resp = await fetch(ph.dataUrl);
             const blob = await resp.blob();
-            const path = `site-reports/${reportId}/photo_${i + 1}.jpg`;
+            const [year, month, day] = form.visit_date.split("-");
+            const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+            const monthName = monthNames[parseInt(month, 10) - 1];
+            const safeSite = form.site_name.replace(/[\s/\\:*?"<>|]/g, "_");
+            const dayFolder = `${day}-${month}-${year}`;
+            const path = `${safeSite}/${year}/${monthName}/${dayFolder}/photo_${i + 1}.jpg`;
 
             const { data: storageData, error: upErr } = await supabase.storage
               .from("site-report-photos")
@@ -262,7 +266,12 @@ const handleSubmit = async () => {
         console.log("✅ PDF generated:", fileName, pdfBlob.size, "bytes");
 
         setSubmitStage("Uploading PDF…");
-        const pdfPath = `site-reports/${reportId}/${fileName}`;
+        const [year, month, day] = form.visit_date.split("-");
+        const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        const monthName = monthNames[parseInt(month, 10) - 1];
+        const safeSite = form.site_name.replace(/[\s/\\:*?"<>|]/g, "_");
+        const dayFolder = `${day}-${month}-${year}`;
+        const pdfPath = `${safeSite}/${year}/${monthName}/${dayFolder}/${fileName}`;
         const { data: pdfStorageData, error: pdfUpErr } = await supabase.storage
           .from("site-report-pdfs")
           .upload(pdfPath, pdfBlob, { contentType: "application/pdf", upsert: true });

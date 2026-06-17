@@ -7,7 +7,7 @@ import HRPortal from "./pages/HRPortal";
 import ClientPortal from "./pages/ClientPortal";
 import AdminPortal from "./pages/AdminPortal";
 import OfficePortal from "./pages/OfficePortal";
-import SitePortal from "./pages/SitePortal";
+//import SitePortal from "./pages/SitePortal";
 import MDOPortal from "./pages/MDOPortal";
 import EmployeeForm from "./pages/EmployeeForm";
 import ProjectHeadPortal from "./pages/ProjectHeadPortal";
@@ -15,9 +15,11 @@ import ApplyLeave from "./pages/ApplyLeave";
 import MyLeaves from "./pages/MyLeaves";
 import LeaveApprovals from "./pages/LeaveApprovals";
 import ManpowerReport from "./pages/Manpowerreport";
-//import SitePortal from "./pages/SitePortal_disabled.jsx";
+import SitePortal from "./pages/SitePortal_disabled.jsx";
+
 function App() {
   return (
+    
     <Routes>
 
       <Route path="/" element={<Login />} />
@@ -27,7 +29,6 @@ function App() {
       <Route path="/admin" element={<AdminPortal />} />
       <Route path="/office" element={<OfficePortal />} />
       <Route path="/site" element={<SitePortal />} />
-      {/* <Route path="/site" element={<SitePortal/>}/> */}
 
       <Route path="/mdo" element={<MDOPortal />} />
       <Route path="/head" element={<ProjectHeadPortal/>} />

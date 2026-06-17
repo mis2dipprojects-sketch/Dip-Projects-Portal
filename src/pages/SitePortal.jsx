@@ -471,6 +471,8 @@ const DARK_CSS = `
 [data-theme="dark"] .btn-pri{background:rgb(37, 32, 25);color:white;box-shadow:0 3px 10px rgba(15,13,10,.2); border:1px solid white;}
 [data-theme="dark"] .btn-pri:hover{background:#2a2520;transform:translateY(-1px);color:#fff;}
 [data-theme="dark"] .btn-pri:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+
+
 `;
 // ─── CSS ─────────────────────────────────────────────────────────────────────
 const CSS = `
@@ -710,7 +712,8 @@ const Ico = {
   leave:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>,
   apply:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg>,
   report:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>,
-  weekly:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 12h2l2-4 2 8 2-4h2"/></svg>,
+  weeklyPlan:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 12h2l2-4 2 8 2-4h2"/></svg>,
+  weekly:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/><line x1="2" y1="21" x2="22" y2="21"/></svg>,
   monthly: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>,
   site:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
   myRpt:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
@@ -741,7 +744,7 @@ const NAV = [
   { section:"reports", label:"Reports",
     children:[
       { key:"daily-report",   label:"Daily Report",   icon:Ico.report  },
-      { key:"weekly-report",  label:"Weekly Planning",  icon:Ico.weekly  },
+      { key:"weekly-report",  label:"Weekly Planning",  icon:Ico.weeklyPlan  },
       { key:"wpr-generator", label:"Weekly Report", icon: Ico.weekly },
       { key:"monthly-report", label:"Monthly Report", icon:Ico.monthly },
       { key:"site-report", label:"Site Visit Report", icon:Ico.site },
@@ -1303,15 +1306,15 @@ const nav = (key) => {
       case "wpr-generator":  return <WprGenerator user={user} supabase={supabase}/>;
       case "monthly-report": return <MonthlyReport/>;
       case "site-report":    return <SiteReport user={user} />;
-      case "my-reports": return <MyReports user={user} />;
+      case "my-reports": return <MyReports user={user}/>;
       case "manpower-reports": return <ManpowerReport user={user}/>;
       case "profile":     return <Profile user={user} onLogout={handleLogout} onThemeToggle={toggleTheme} isDark={isDark} />;
       case "report-submissions": {
-const role = user?.role?.toLowerCase().trim();
-if (role !== "project head" && role !== "site incharge") return null;
+      const role = user?.role?.toLowerCase().trim();
+      if (role !== "project head" && role !== "site incharge") return null;
 
-  const fmtD  = (d)  => d  ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" }) : "—";
-  const fmtDT = (dt) => dt ? new Date(dt).toLocaleString("en-IN", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:true }) : "—";
+      const fmtD  = (d)  => d  ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" }) : "—";
+      const fmtDT = (dt) => dt ? new Date(dt).toLocaleString("en-IN", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:true }) : "—";
 
   // Filter by tab
   const tabFiltered = siteReports.filter(r => {

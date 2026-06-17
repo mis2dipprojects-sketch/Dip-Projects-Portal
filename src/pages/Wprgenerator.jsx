@@ -1584,7 +1584,7 @@ const closeOverlay = () => {
 
         {/* FAB */}
         <div className="wpr-fab-wrap">
-         <button onClick={() => saveDraft(false)} disabled={autoSavePending} style={{width:"100%",height:40,marginBottom:8,fontSize:13,fontFamily:"var(--font)",fontWeight:700,background:"linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)", color:"#fff", border:"1.5px solid #c96a10",borderRadius:10,cursor:"pointer",pointerEvents:"all",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+         <button onClick={() => saveDraft(false)} disabled={autoSavePending} style={{width:"100%",height:40,marginBottom:8,fontSize:13,fontFamily:"var(--font)",fontWeight:700,background:"linear-gradient(135deg,var(--amber),#7a2e00,#c96a10)", color:"#fff", border:"1.5px solid #c96a10",borderRadius:10,cursor:"pointer",pointerEvents:"all",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
   {autoSavePending ? (
     <><div className="wpr-spinner" style={{width:14,height:14,borderWidth:2}}/> Saving…</>
   ) : (

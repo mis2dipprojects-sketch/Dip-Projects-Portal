@@ -23,7 +23,7 @@ async function downloadPdf(url) {
     setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
   } catch (e) {
     window.open(url, "_blank"); // fallback if fetch fails (e.g. CORS)
-  }
+  } 
 }
 
 const TAB_CONFIG = [
@@ -119,12 +119,14 @@ function ReportCard({ r }) {
   const [open, setOpen] = useState(false);
   const badge  = getBadge(r);
   const accent = getAccent(r);
-
-  const displayDate  = r._source === "svr" ? r.visit_date  : r.date;
+const isOfficeDoc = (url) => /\.(pptx|ppt|docx|doc|xlsx|xls)(\?|$)/i.test(url || "");
+  const displayDate  = r._source === "svr" ? r.visit_date : r.date;
   const displayName  = r._source === "svr" ? r.reporter_name : r.engineer;
-  const displaySite  = r._source === "svr" ? r.site_name   : r.site;
+  const displaySite  = r._source === "svr" ? r.site_name : r._source === "wpr" ? r.site_name : r.site;
   const previewText  = r._source === "svr"
     ? r.progress_of_work
+    : r._source === "wpr"
+    ? `WPR — ${String(r.report_number || 1).padStart(2,"0")}  •  ${r.status === "uploaded" ? "Uploaded" : "Generated"}`
     : r.payload?.work_done;
   return (
     <div className="rs-card" style={{
@@ -191,34 +193,42 @@ function ReportCard({ r }) {
 
         {/* PDF buttons */}
         {r.pdf_url ? (
-          <div style={{ display:"flex", gap:8 }} onClick={e => e.stopPropagation()}>
-            <a href={r.pdf_url} target="_blank" rel="noopener noreferrer" className="rs-btn-view" style={{
-              display:"inline-flex", alignItems:"center", gap:6,
-              fontSize:12, fontWeight:600, color:"#475569",
-              background:"#f8fafc", border:"1px solid #e2e8f0",
-              borderRadius:7, padding:"6px 12px", textDecoration:"none",
-            }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-              </svg>
-              View
-            </a>
-            <button onClick={() => downloadPdf(r.pdf_url)} className="rs-btn-download" style={{
-                display:"inline-flex", alignItems:"center", gap:6,
-                fontSize:12, fontWeight:600, color:"#7a2e00",
-                background:"#eff6ff", border:"1px solid #bfdbfe",
-                borderRadius:7, padding:"6px 12px", cursor:"pointer", fontFamily:"inherit",
-              }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                Download
-            </button>
-          </div>
-        ) : (
-          <span className="rs-no-pdf" style={{ fontSize:11, color:"#94a3b8", fontStyle:"italic" }}>No PDF attached</span>
-        )}
+  <div style={{ display:"flex", gap:8 }} onClick={e => e.stopPropagation()}>
+      
+    <a    href={r._source === "wpr" && isOfficeDoc(r.pdf_url)
+      ? `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(r.pdf_url)}`
+      : r.pdf_url}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="rs-btn-view" 
+      style={{
+        display:"inline-flex", alignItems:"center", gap:6,
+        fontSize:12, fontWeight:600, color:"#475569",
+        background:"#f8fafc", border:"1px solid #e2e8f0",
+        borderRadius:7, padding:"6px 12px", textDecoration:"none",
+      }}
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+      </svg>
+      View
+    </a>
+    <button onClick={() => downloadPdf(r.pdf_url)} className="rs-btn-download" style={{
+        display:"inline-flex", alignItems:"center", gap:6,
+        fontSize:12, fontWeight:600, color:"#7a2e00",
+        background:"#eff6ff", border:"1px solid #bfdbfe",
+        borderRadius:7, padding:"6px 12px", cursor:"pointer", fontFamily:"inherit",
+      }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download
+    </button>
+  </div>
+) : (
+  <span className="rs-no-pdf" style={{ fontSize:11, color:"#94a3b8", fontStyle:"italic" }}>No PDF attached</span>
+)}
       </div>
 
       {/* ── Expanded detail ── */}
@@ -245,64 +255,89 @@ export default function MyReports({ user }) {
   const PER_PAGE = 10;
   // ── Fetch ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    setSiteFilter("");
-    if (tab === "wpr") return;
-    setData([]); setErr("");
-    setLoading(true);
+  setSiteFilter("");
+  setData([]); setErr("");
+  setLoading(true);
 
-    (async () => {
-      try {
-        const [y, m] = month.split("-").map(Number);
-        const lastDay    = new Date(y, m, 0).getDate();
-        const monthStart = `${month}-01`;
-        const monthEnd   = `${month}-${String(lastDay).padStart(2,"0")}`;
+  (async () => {
+    try {
+      const [y, m] = month.split("-").map(Number);
+      const lastDay    = new Date(y, m, 0).getDate();
+      const monthStart = `${month}-01`;
+      const monthEnd   = `${month}-${String(lastDay).padStart(2,"0")}`;
 
-        if (tab === "dpr") {
-          const { data: rows, error } = await supabase
-            .from("dpr_reports")
-            .select("id, site, engineer, report_type, date, pdf_url, payload, created_at")
-            .gte("date", monthStart)
-            .lte("date", monthEnd)
-            .order("date", { ascending: false })
-            .limit(200);
+      if (tab === "dpr") {
+        const { data: rows, error } = await supabase
+          .from("dpr_reports")
+          .select("id, site, engineer, report_type, date, pdf_url, payload, created_at")
+          .gte("date", monthStart)
+          .lte("date", monthEnd)
+          .order("date", { ascending: false })
+          .limit(200);
 
-          if (error) { setErr(error.message); setLoading(false); return; }
+        if (error) { setErr(error.message); setLoading(false); return; }
 
-          const mine = (rows || []).filter(r =>
-            (r.engineer === user.user_name || r.engineer === user.name) &&
-            r.report_type !== "morning"
-          ).map(r => ({ ...r, _source:"dpr" }));
+        const mine = (rows || []).filter(r =>
+          (r.engineer === user.user_name || r.engineer === user.name) &&
+          r.report_type !== "morning"
+        ).map(r => ({ ...r, _source:"dpr" }));
 
-          setData(mine);
+        setData(mine);
 
-        } else if (tab === "svr") {
-          const { data: rows, error } = await supabase
-            .from("site_reports")
-            .select("*")
-            .gte("visit_date", monthStart)
-            .lte("visit_date", monthEnd)
-            .order("visit_date", { ascending: false })
-            .limit(200);
+      } else if (tab === "svr") {
+        const { data: rows, error } = await supabase
+          .from("site_reports")
+          .select("*")
+          .gte("visit_date", monthStart)
+          .lte("visit_date", monthEnd)
+          .order("visit_date", { ascending: false })
+          .limit(200);
 
-          if (error) { setErr(error.message); setLoading(false); return; }
+        if (error) { setErr(error.message); setLoading(false); return; }
 
-          const mine = (rows || []).filter(r =>
-            r.submitted_by === user.user_name ||
-            r.submitted_by === user.name      ||
-            r.submitted_by_name === user.name
-          ).map(r => ({ ...r, _source:"svr" }));
+        const mine = (rows || []).filter(r =>
+          r.submitted_by === user.user_name ||
+          r.submitted_by === user.name      ||
+          r.submitted_by_name === user.name
+        ).map(r => ({ ...r, _source:"svr" }));
 
-          setData(mine);
-        }
-      } catch(e) {
-        setErr(e.message);
+        setData(mine);
+
+      } else if (tab === "wpr") {
+        const { data: rows, error } = await supabase
+          .from("wpr_reports")
+          .select("id, site_name, engineer_name, report_date, report_number, presentation_url, status, created_at")
+          .gte("created_at", `${monthStart}T00:00:00`)
+          .lte("created_at", `${monthEnd}T23:59:59`)
+          .order("created_at", { ascending: false })
+          .limit(200);
+
+        if (error) { setErr(error.message); setLoading(false); return; }
+
+        const mine = (rows || []).filter(r =>
+          r.engineer_name === user.user_name ||
+          r.engineer_name === user.name
+        ).map(r => ({
+          ...r,
+          _source:  "wpr",
+          site:     r.site_name,
+          engineer: r.engineer_name,
+          date:     r.created_at?.slice(0, 10),
+          pdf_url:  r.presentation_url,
+        }));
+
+        setData(mine);
       }
-      setLoading(false);
-    })();
-  }, [tab, month, user.user_name, user.name]);
+
+    } catch(e) {
+      setErr(e.message);
+    }
+    setLoading(false);
+  })();
+}, [tab, month, user.user_name, user.name]);
 
   // ── Derived ──────────────────────────────────────────────────────────────
-  const siteKey     = (r) => r._source === "svr" ? r.site_name : r.site;
+  const siteKey = (r) => r._source === "svr" ? r.site_name : r._source === "wpr" ? r.site_name : r.site;
   const siteOptions = [...new Set(data.map(siteKey).filter(Boolean))].sort();
   const filtered    = siteFilter ? data.filter(r => siteKey(r) === siteFilter) : data;
 
@@ -315,20 +350,21 @@ export default function MyReports({ user }) {
   const sortedDates = Object.keys(grouped).sort((a,b) => b.localeCompare(a));
 
 // Pagination — slice by dates, not individual reports
+// Pagination — strict 10 reports per page, can split within a date
 const totalReports = filtered.length;
-const allSorted = sortedDates.flatMap(d => grouped[d]);
+const limit = page * PER_PAGE;
 
-// Count reports date by date until we hit the page limit
+const paginatedGrouped = {};
 let countSoFar = 0;
-const paginatedDates = [];
 for (const date of sortedDates) {
-  if (countSoFar >= page * PER_PAGE) break;
-  paginatedDates.push(date);
-  countSoFar += grouped[date].length;
+  if (countSoFar >= limit) break;
+  const remaining = limit - countSoFar;
+  const reportsForDate = grouped[date].slice(0, remaining);
+  paginatedGrouped[date] = reportsForDate;
+  countSoFar += reportsForDate.length;
 }
-
-const paginatedGrouped = grouped; // reuse existing grouped
-const paginated = paginatedDates.flatMap(d => grouped[d]);
+const paginatedDates = Object.keys(paginatedGrouped);
+const paginated = paginatedDates.flatMap(d => paginatedGrouped[d]);
 const hasMore = paginated.length < totalReports;
 
   return (
@@ -408,18 +444,9 @@ const hasMore = paginated.length < totalReports;
         ))}
       </div>
 
-      {/* ── WPR coming soon ── */}
-      {tab === "wpr" && (
-        <div className="rs-wpr-empty" style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10, padding:"52px 24px", color:"#94a3b8" }}>
-          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity:0.3 }}>
-            <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
-          </svg>
-          <p style={{ fontWeight:700, color:"#64748b", margin:0 }}>Weekly Reports coming soon</p>
-          <p style={{ fontSize:12, color:"#94a3b8", margin:0 }}>WPR history will appear here once the feature is live.</p>
-        </div>
-      )}
+{/* WPR is handled by the shared tab !== "wpr" block below — nothing needed here */}  
 
-      {tab !== "wpr" && (
+      {(tab !== "wpr" || true) && (
         <>
           {/* ── Filter row ── */}
           <div className="rs-filter-row" style={{

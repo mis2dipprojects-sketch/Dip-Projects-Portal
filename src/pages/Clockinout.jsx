@@ -186,6 +186,9 @@ export const CLOCK_CSS = `
   color: #374151;
 }
 [data-theme="light"] .cam-btn-retake:hover {background: #e5e7eb;}
+/* in CLOCK_CSS */
+.select-all-label{color:#aaa;}  
+[data-theme="light"] .select-all-label{color:#374151;}
 `;
 async function uploadClockPhoto(supabase, base64, userName, type) {
   // base64 → blob
@@ -428,6 +431,18 @@ function ClockOutTasksModal({ user, attendanceId, clockOutData, onDone, onClose,
 
   const setSub = (key, field, val) =>
     setSubs(p => ({ ...p, [key]: { ...p[key], [field]: val } }));
+  const toggleAll = (checked) => {
+  setSubs(prev => {
+    const next = { ...prev };
+    Object.keys(next).forEach(key => {
+      next[key] = { ...next[key], checked };
+    });
+    return next;
+  });
+};
+const totalItems    = checkpoints.length + tasks.length;            // ← but declared down here
+const checkedCount  = Object.entries(subs).filter(([, s]) => s.checked).length;
+const allChecked = totalItems > 0 && checkedCount === totalItems;
 
   const handleFile = (key, e) => {
     const file = e.target.files?.[0];
@@ -520,8 +535,6 @@ function ClockOutTasksModal({ user, attendanceId, clockOutData, onDone, onClose,
     return acc;
   }, {});
 
-  const totalItems    = checkpoints.length + tasks.length;
-  const checkedCount  = Object.entries(subs).filter(([, s]) => s.checked).length;
 
   // ── Reusable item renderer ────────────────────────────────────────────────
   const renderItem = (key, label, subLabel) => {
@@ -653,36 +666,65 @@ function ClockOutTasksModal({ user, attendanceId, clockOutData, onDone, onClose,
     <div className="cam-modal-bg" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="task-panel" style={{ maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
 
-        {/* Header */}
-        <div className="task-panel-hdr">
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span className="task-panel-title">
-              {loading ? "Loading…" : "End-of-Day Checkpoints"}
-            </span>
-            {!loading && totalItems > 0 && (
-              <span style={{ fontSize: 11, color: "#888" }}>
-                {checkedCount} of {totalItems} completed
-              </span>
-            )}
-          </div>
-          {/* Progress bar */}
-          {!loading && totalItems > 0 && (
-            <div style={{ width: 80, height: 4, background: "#333", borderRadius: 4, overflow: "hidden" }}>
-              <div style={{
-                height: "100%",
-                width: `${(checkedCount / totalItems) * 100}%`,
-                background: "#16a34a",
-                borderRadius: 4,
-                transition: "width .3s ease",
-              }}/>
-            </div>
-          )}
-          <button className="cam-close" onClick={onClose}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
+{/* Header */}
+<div className="task-panel-hdr">
+  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <span className="task-panel-title">
+      {loading ? "Loading…" : "End-of-Day Checkpoints"}
+    </span>
+    {!loading && totalItems > 0 && (
+      <span style={{ fontSize: 11, color: "#888" }}>
+        {checkedCount} of {totalItems} completed
+      </span>
+    )}
+  </div>
+
+  {/* Select All toggle */}
+  {!loading && totalItems > 0 && (
+    <div
+      style={{
+        display: "flex", alignItems: "center", gap: 6,
+        cursor: "pointer", flexShrink: 0,
+      }}
+      onClick={() => toggleAll(!allChecked)}
+    >
+      <div style={{
+        width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+        border:     allChecked ? "2px solid #16a34a" : "2px solid #555",
+        background: allChecked ? "#16a34a" : "transparent",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "all .15s ease",
+      }}>
+        {allChecked && (
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+        )}
+      </div>
+      <span style={{ fontSize: 11.5, fontWeight: 600, color: "#aaa", whiteSpace: "nowrap" }}>
+        Select All
+      </span>
+    </div>
+  )}
+
+  {/* Progress bar */}
+  {!loading && totalItems > 0 && (
+    <div style={{ width: 60, height: 4, background: "#333", borderRadius: 4, overflow: "hidden", flexShrink: 0 }}>
+      <div style={{
+        height: "100%",
+        width: `${(checkedCount / totalItems) * 100}%`,
+        background: "#16a34a",
+        borderRadius: 4,
+        transition: "width .3s ease",
+      }}/>
+    </div>
+  )}
+  <button className="cam-close" onClick={onClose}>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  </button>
+</div>
 
         {/* Body */}
         <div className="task-list-modal" style={{ flex: 1, overflowY: "auto" }}>

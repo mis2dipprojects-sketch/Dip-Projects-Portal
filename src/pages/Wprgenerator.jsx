@@ -1192,7 +1192,7 @@ const handleAutoSplitCapture = async () => {
                   <button title="Shrink header" onClick={() => adjustHeader(-1)}>−</button>
                   <button title="Extend header" onClick={() => adjustHeader(1)}>+</button>
                 </div>
-              </div>
+              </div>  
 
               <div className="wpr-range-bar">
                 <span className="wpr-range-label">Selected:</span>
@@ -1402,7 +1402,7 @@ const [sections, setSections] = useState(() =>
   const [genStep, setGenStep] = useState("");
   const [genProgress, setGenProgress] = useState(0);
   const [successUrls, setSuccessUrls] = useState(null);
-
+const uploadWprRef = useRef();
   const showToast = (msg, type = "info", ms = 3000) => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), ms);
@@ -1624,7 +1624,75 @@ const [sections, setSections] = useState(() =>
       showToast("❌ " + (err.message || "Generation failed"), "error", 6000);
     }
   };
+const uploadExistingWpr = async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!site) { showToast("Select a site first", "error"); return; }
+  if (!engineer) { showToast("Enter engineer name first", "error"); return; }
+  if (!reportDate) { showToast("Select report date first", "error"); return; }
 
+  setGenerating(true);
+  setGenProgress(10);
+  setGenStep("Reading file…");
+  setSuccessUrls(null);
+
+  try {
+    const dateFormatted = new Date(reportDate + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+    const dateStr = reportDate.replace(/-/g, "");
+    const safeEng = engineer.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
+    const safeSite = site.replace(/\s+/g, "_");
+    const folder = `${dateStr}_${safeEng}`;
+
+    setGenProgress(25); setGenStep("Saving report record…");
+
+    const { data: reportData, error: reportError } = await supabase.from("wpr_reports").insert({
+      site_name: site,
+      engineer_name: engineer,
+      report_date: dateFormatted,
+      report_number: reportNum,
+      location,
+      status: "uploaded",
+      activities: [],
+      next_week_plans: [],
+      drawing_register_headers: drawingHeaders,
+      drawing_register_data: [],
+      office_activity_items: [],
+      visitor_register_data: [],
+      drawing_decision_data: [],
+      delay_points: [],
+      report_sections: sections.map((s) => ({ title: s.title, isStandard: s.isStandard, hidden: s.hidden, slideHidden: s.slideHidden, type: s.type, textItems: s.textItems || [] })),
+      submitted_by: user?.user_name || engineer,
+    }).select("id").single();
+
+    if (reportError) throw reportError;
+    const reportId = reportData.id;
+
+    setGenProgress(55); setGenStep("Uploading file…");
+
+    const ext = file.name.split(".").pop() || "pptx";
+    const pptPath = `${safeSite}/${folder}/WPR_${zp(reportNum)}_${safeSite}_uploaded.${ext}`;
+    const contentType = file.type || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
+    const { error: upErr } = await supabase.storage
+      .from("wpr-images")
+      .upload(pptPath, file, { contentType, upsert: true });
+    if (upErr) throw upErr;
+
+    const { data: urlData } = supabase.storage.from("wpr-images").getPublicUrl(pptPath);
+    const pptUrl = urlData.publicUrl;
+
+    await supabase.from("wpr_reports").update({ presentation_url: pptUrl }).eq("id", reportId);
+
+    setGenProgress(100); setGenStep("Done!");
+    await fetchReportNum(site, reportDate);
+    setSuccessUrls({ reportId, pptUrl, viewUrl: `/wpr/${reportId}` });
+  } catch (err) {
+    setGenerating(false);
+    showToast("❌ " + (err.message || "Upload failed"), "error", 6000);
+  }
+
+  e.target.value = "";
+};
   const closeOverlay = () => { setGenerating(false); setSuccessUrls(null); setGenProgress(0); };
   const imgCount = totalImages();
   const actsCount = activities.filter((a) => a.name).length;
@@ -1637,6 +1705,53 @@ const [sections, setSections] = useState(() =>
     <>
       <style>{WPR_CSS}</style>
       <div className="wpr-wrap">
+        {/* Upload Existing WPR */}
+{/* Upload Existing WPR */}
+<button
+  onClick={() => {
+    if (!site) { showToast("Select a site first", "error"); return; }
+    if (!engineer) { showToast("Enter engineer name first", "error"); return; }
+    if (!reportDate) { showToast("Select report date first", "error"); return; }
+    uploadWprRef.current?.click();
+  }}
+  style={{
+    width: "100%", marginBottom: 14,
+    display: "flex", alignItems: "center", gap: 10,
+    padding: "11px 16px",
+    background: "var(--paper)",
+    border: "1.5px solid #c96a10",
+    borderRadius: 10,
+    cursor: "pointer",
+    fontFamily: "var(--font)",
+    textAlign: "left",
+  }}
+>
+  <div style={{
+    width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+    background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+  }}>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+  </div>
+  <div style={{ flex: 1, minWidth: 0 }}>
+    <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)" }}>Upload Existing WPR</div>
+    <div style={{ fontSize: 11.5, color: "var(--ink3)", marginTop: 1 }}>Previously made PPT · stored for selected date</div>
+  </div>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c96a10" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+</button>
+<input
+  type="file"
+  ref={uploadWprRef}
+ accept="*/*" 
+  style={{ display: "none" }}
+  onChange={uploadExistingWpr}
+/>
 
         {/* Status pills */}
         <div className="wpr-status-bar">

@@ -8,6 +8,24 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 const fmtD  = (d)  => d  ? new Date(d+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}) : "—";
 const fmtDT = (dt) => dt ? new Date(dt).toLocaleString("en-IN",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:true}) : "—";
 
+async function downloadPdf(url) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const filename = url.split("/").pop().split("?")[0] || "report.pdf";
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+  } catch (e) {
+    window.open(url, "_blank"); // fallback if fetch fails (e.g. CORS)
+  }
+}
+
 const TAB_CONFIG = [
   { key:"dpr", label:"DPR", color:"#7a2e00", bg:"#eff6ff", border:"#bfdbfe" },
   { key:"wpr", label:"WPR", color:"#a55622", bg:"#f5f3ff", border:"#e0e7ff" },
@@ -185,18 +203,18 @@ function ReportCard({ r }) {
               </svg>
               View
             </a>
-            <a href={r.pdf_url} download className="rs-btn-download" style={{
-              display:"inline-flex", alignItems:"center", gap:6,
-              fontSize:12, fontWeight:600, color:"#7a2e00",
-              background:"#eff6ff", border:"1px solid #bfdbfe",
-              borderRadius:7, padding:"6px 12px", textDecoration:"none",
-            }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              Download
-            </a>
+            <button onClick={() => downloadPdf(r.pdf_url)} className="rs-btn-download" style={{
+                display:"inline-flex", alignItems:"center", gap:6,
+                fontSize:12, fontWeight:600, color:"#7a2e00",
+                background:"#eff6ff", border:"1px solid #bfdbfe",
+                borderRadius:7, padding:"6px 12px", cursor:"pointer", fontFamily:"inherit",
+              }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download
+            </button>
           </div>
         ) : (
           <span className="rs-no-pdf" style={{ fontSize:11, color:"#94a3b8", fontStyle:"italic" }}>No PDF attached</span>
@@ -313,7 +331,6 @@ const paginatedGrouped = grouped; // reuse existing grouped
 const paginated = paginatedDates.flatMap(d => grouped[d]);
 const hasMore = paginated.length < totalReports;
 
-  // ──────────────────────────────────────────────────────────────────────────
   return (
     <div>
 

@@ -102,7 +102,7 @@ const userData = {
           <div className="lp-panel-tagline">Civil Project Management Consultants</div>
           <div className="lp-panel-divider" />
           <div className="lp-panel-quote">
-            "Quality + Quantity - to be dilevered on time."
+            "Quality + Quantity to be dilevered on time."
           </div>
           <div className="lp-panel-dots">
             

@@ -79,8 +79,15 @@ const CSS = `
 .mreq-empty-sub{font-size:12.5px;color:var(--ink3);}
 
 .mreq-loading{display:flex;align-items:center;justify-content:center;padding:36px;color:var(--ink2);font-size:13px;gap:10px;}
-The portal is working but the popup-backdrop and popup-box CSS isn't loaded in this component — it's defined in Dpr.jsx's CSS string, not in MatRequirement.jsx. So the styles don't apply and it renders as a plain unstyled div at the bottom of the page.
-Fix — add the popup styles directly to the CSS string in MatRequirement.jsx:
+@keyframes mreq-bulb {
+  0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(22,163,74,0.7); }
+  50% { transform: scale(1.3); opacity: 0.85; box-shadow: 0 0 0 5px rgba(22,163,74,0); }
+}
+.mreq-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #16a34a; display: inline-block; flex-shrink: 0;
+  animation: mreq-bulb 1.4s ease-in-out infinite;
+}
 
 [data-theme="dark"] .mreq-tabs{border-color:#3a3733;}
 [data-theme="dark"] .mreq-tab-btn{color:#7a7368;background:#1e1c19;}
@@ -443,17 +450,31 @@ const handleSiteChange = (newSite) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // MATERIAL RECEIVED — filterable status list with receive action
 // ═══════════════════════════════════════════════════════════════════════════
-function MaterialReceived({ user, showToast }) {
+function MaterialReceived({ user, showToast, onFilterSeen }) {
   const [filter, setFilter] = useState("pending");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  const [localReceivedCount, setLocalReceivedCount] = useState(0);
+  const [dotSeen, setDotSeen] = useState(false);
   const allowReceive = canMarkReceived(user);
-const userSites = Array.isArray(user?.site_names) && user.site_names.length
-  ? user.site_names.map(s => titleCase(s))
-  : user?.site_name ? [titleCase(user.site_name)] : [];
+  const userSites = Array.isArray(user?.site_names) && user.site_names.length
+    ? user.site_names.map(s => titleCase(s))
+    : user?.site_name ? [titleCase(user.site_name)] : [];
+  const [site, setSite] = useState(userSites[0] || "");
 
-const [site, setSite] = useState(userSites[0] || "");
+  // Fetch received count for current site
+  useEffect(() => {
+    if (!site) return;
+    setDotSeen(false); // reset dot when site changes
+    supabase
+      .from("material_requirements")
+      .select("id", { count: "exact", head: true })
+      .eq("site_name", site)
+      .eq("status", "received")
+      .then(({ count }) => setLocalReceivedCount(count || 0));
+  }, [site]);
+
+  const showDot = localReceivedCount > 0 && !dotSeen;
   const load = useCallback(async () => {
     if (!site) { setLoading(false); return; }
     setLoading(true);
@@ -481,20 +502,26 @@ const [site, setSite] = useState(userSites[0] || "");
     <div>
       <div className="mreq-filter-row">
         {userSites.length > 1 && (
-  <div className="fg" style={{ marginBottom: 16 }}>
-    <label className="flabel">Site / Project <span className="req">*</span></label>
-    <select
-      className="finput"
-      value={site}
-      onChange={e => setSite(e.target.value)}
-    >
-      <option value="">Select Site</option>
-      {userSites.map(s => <option key={s} value={s}>{s}</option>)}
-    </select>
-  </div>
-)}
+          <div className="fg" style={{ marginBottom: 16 }}>
+            <label className="flabel">Site / Project <span className="req">*</span></label>
+            <select
+              className="finput"
+              value={site}
+              onChange={e => setSite(e.target.value)}
+            >
+              <option value="">Select Site</option>
+              {userSites.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        )}
         {[["pending","Pending"],["received","Received"],["all","All"]].map(([key,label]) => (
-          <button key={key} className={`mreq-chip${filter===key?" act":""}`} onClick={() => setFilter(key)}>{label}</button>
+          <button key={key} className={`mreq-chip${filter===key?" act":""}`}
+            onClick={() => { setFilter(key); if (key === "received") setDotSeen(true); }}>
+            {label}
+             {key === "received" && showDot && (
+                <span className="mreq-dot" style={{ marginLeft: 5, marginBottom: 5 }} />
+              )}
+          </button>
         ))}
       </div>
 
@@ -558,6 +585,21 @@ function MatReqCard({ r, showReceiveBtn, onReceive }) {
 export default function MatRequirement({ user }) {
   const [tab, setTab] = useState("required");
   const [toast, setToast] = useState(null);
+  const [receivedCount, setReceivedCount] = useState(0);
+  const [dotSeen, setDotSeen] = useState(false);
+
+  useEffect(() => {
+    const site = Array.isArray(user?.site_names) && user.site_names.length
+      ? user.site_names[0]
+      : user?.site_name || "";
+    if (!site) return;
+    supabase
+      .from("material_requirements")
+      .select("id", { count: "exact", head: true })
+      .eq("site_name", site)
+      .eq("status", "received")
+      .then(({ count }) => setReceivedCount(count || 0));
+  }, [user]);
 
   const showToast = (type, msg, dur = 4500) => {
     setToast({ type, msg });
@@ -574,15 +616,18 @@ export default function MatRequirement({ user }) {
             <button className={`mreq-tab-btn${tab === "required" ? " act" : ""}`} onClick={() => setTab("required")}>
               {Ico.plus} Material Required
             </button>
-            <button className={`mreq-tab-btn${tab === "received" ? " act" : ""}`} onClick={() => setTab("received")}>
+            <button className={`mreq-tab-btn${tab === "received" ? " act" : ""}`} onClick={() => { setTab("received"); setDotSeen(true); }}>
               {Ico.check} Material Received
+               {receivedCount > 0 && !dotSeen && (
+                  <span className="mreq-dot" style={{ marginLeft: 6, marginBottom: 8 }} />
+                )}
             </button>
           </div>
 
           <div className="mreq-card">
             {tab === "required"
               ? <MaterialRequired user={user} showToast={showToast} onSubmitted={() => {}} />
-              : <MaterialReceived user={user} showToast={showToast} />}
+              : <MaterialReceived user={user} showToast={showToast} onFilterSeen={() => setDotSeen(true)} />}
           </div>
 
           {toast && (

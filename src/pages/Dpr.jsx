@@ -901,9 +901,11 @@ function buildPhotosHtml(photos) {
     const ph1 = pair[0];
     html += `
       <div style="border:1px solid #cbd5e1;overflow:hidden;">
-        <img src="${ph1.supabaseUrl || ph1.data}"
-          style="width:100%;height:340px;object-fit:cover;display:block;"
-          crossorigin="anonymous">
+        <div style="width:100%;height:340px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;">
+          <img src="${ph1.supabaseUrl || ph1.data}"
+            style="width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;display:block;"
+            crossorigin="anonymous">
+        </div>
         <div style="
           padding:8px 12px;font-size:13px;font-weight:600;
           text-align:center;color:#334155;background:#f8fafc;
@@ -915,9 +917,11 @@ function buildPhotosHtml(photos) {
       const ph2 = pair[1];
       html += `
         <div style="border:1px solid #cbd5e1;overflow:hidden;">
-          <img src="${ph2.supabaseUrl || ph2.data}"
-            style="width:100%;height:340px;object-fit:cover;display:block;"
-            crossorigin="anonymous">
+          <div style="width:100%;height:340px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;">
+            <img src="${ph2.supabaseUrl || ph2.data}"
+              style="width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;display:block;"
+              crossorigin="anonymous">
+          </div>
           <div style="
             padding:8px 12px;font-size:13px;font-weight:600;
             text-align:center;color:#334155;background:#f8fafc;
@@ -955,18 +959,16 @@ async function fetchPendingMaterials(site) {
 // shown at the very end of the report just before the Thank You page.
 function buildPendingMaterialsHtml(rows) {
   const list = rows || [];
-  
-  // Return nothing if no pending materials
-  if (!list.length) return "";
-
-  const rowsHtml = list.map(r => `
-    <tr>
-      <td class="pm-mat-name">${esc(r.material_name)}</td>
+  const rowsHtml = list.length
+    ? list.map(r => `
+      <tr>
+        <td class="pm-mat-name">${esc(r.material_name)}</td>
         <td class="pm-qty">${esc(String(r.quantity))}</td>
         <td><span class="pm-unit">${esc(r.unit_name)}</span></td>
         <td class="td-left">${esc(r.requested_by || "—")}</td>
         <td class="td-left">${esc(fmtDate((r.created_at || "").slice(0,10)))}</td>
-      </tr>`).join("");
+      </tr>`).join("")
+    : `<tr><td colspan="5" class="pm-empty">No pending material requests for this site at the time of report generation.</td></tr>`;
 
   return `<div class="pm-section-wrap">
     <div class="pm-header">
@@ -980,7 +982,7 @@ function buildPendingMaterialsHtml(rows) {
       </div>
       <span class="pm-badge">Action Required</span>
     </div>
-    <div class="pm-subtitle">Materials requested for this site that have not yet been received. Please action at the earliest.</div>
+    <div class="pm-subtitle">Materials requested for this site that have not yet been marked as received. Please action at the earliest.</div>
     <div class="pm-body">
       <table class="pm-table">
         <thead>
@@ -1324,6 +1326,7 @@ for (const [title, body] of sectionDefs) {
   _secNum++;
 
   const isPhotos = title === "WORK PROGRESS PHOTOS";
+  const isManpower = title === "MANPOWER REPORT";
 
 if (isPhotos) {
   const parser = new DOMParser();
@@ -1367,6 +1370,55 @@ if (isPhotos) {
 
     await addCanvasToPdf(pairCanvas, `photo pair ${pi + 1}`);
   }
+} else if (isManpower) {
+  // Parse out each manpower group + the trailing total bar, and render/paginate
+  // them as independent chunks — exactly like photo pairs — so a group's
+  // header table is never split across a page boundary.
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div>${body}</div>`, "text/html");
+  const groups = Array.from(doc.querySelectorAll(".mp-group"));
+  const totalBar = doc.querySelector(".mp-total");
+
+  const sectionHeaderHtml = `
+    <div class="sec-header" style="border:1.5px solid #cbd5e1;">
+      <div class="sec-left">
+        <span class="sec-num">${_secNum}</span>
+        <span class="sec-title">${title}</span>
+      </div>
+    </div>`;
+
+  for (let gi = 0; gi < groups.length; gi++) {
+    onProgress(`Rendering manpower group ${gi + 1} of ${groups.length}…`);
+
+    const isLastGroup = gi === groups.length - 1;
+    const groupBody = `
+      <div style="border:1.5px solid #cbd5e1;border-top:none;background:#fff;">
+        ${groups[gi].outerHTML}
+        ${isLastGroup && totalBar ? totalBar.outerHTML : ""}
+      </div>`;
+
+    // First group: glue the section header to it, same as photos
+    const chunkHtml = gi === 0
+      ? `<div>${sectionHeaderHtml}${groupBody}</div>`
+      : `<div>${groupBody}</div>`;
+
+    const groupCanvas = await renderChunk(chunkHtml);
+
+    // Pre-check: if this whole group won't fit on the current page,
+    // start a fresh page first rather than slicing mid-group.
+    const PX_PER_MM = groupCanvas.width / (A4_W - MARGIN * 2);
+    const groupHeightMM = groupCanvas.height / PX_PER_MM;
+    if (cursorY + groupHeightMM > A4_H - MARGIN - 10) {
+      addWatermark(pdf, logoBase64);
+      pdf.addPage();
+      pageNum++;
+      pdf.setFontSize(8); pdf.setTextColor(100);
+      pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
+      cursorY = MARGIN;
+    }
+
+    await addCanvasToPdf(groupCanvas, `manpower group ${gi + 1}`);
+  }
 } else {
     // ── All other sections: render as one chunk ──────────────────────────────
     const secHtml = `
@@ -1386,15 +1438,16 @@ if (isPhotos) {
 }
 
   // ── PENDING MATERIAL REQUIREMENTS — highlighted, just before Thank You ────
-  // ── PENDING MATERIAL REQUIREMENTS ────────────────────────────────────────
+  // Always rendered (even when empty, per spec) — live data from Supabase,
+  // independent of anything filled in the form.
   onProgress("Fetching pending materials…");
   const pendingMaterials = await fetchPendingMaterials(payload.site);
+  onProgress("Rendering pending materials…");
   const pmHtml = buildPendingMaterialsHtml(pendingMaterials);
-
-  // Only render if there are pending materials
-  if (pmHtml.trim()) {
-    onProgress("Rendering pending materials…");
-    const pmCanvas = await renderChunk(pmHtml);
+  const pmCanvas = await renderChunk(pmHtml);
+  // Pre-check: if it won't fit on current page, start a new one so the
+  // urgent section never gets visually split mid-table.
+  {
     const PX_PER_MM = pmCanvas.width / CONTENT_W;
     const pmHeightMM = pmCanvas.height / PX_PER_MM;
     if (cursorY + pmHeightMM > A4_H - MARGIN - 10) {
@@ -1405,8 +1458,8 @@ if (isPhotos) {
       pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
       cursorY = MARGIN;
     }
-    await addCanvasToPdf(pmCanvas, "pending materials");
   }
+  await addCanvasToPdf(pmCanvas, "pending materials");
 
   // Thank you page — always starts on a new page
   addWatermark(pdf, logoBase64);
@@ -2634,10 +2687,10 @@ function PhotosSection({ photos, setPhotos }) {
 }
 
 const SUBMIT_STEPS = [
-  { key:"photos", label:"Uploading photos to Supabase" },
-  { key:"pdf",    label:"Generating PDF" },
-  { key:"pdfup",  label:"Uploading PDF" },
-  { key:"db",     label:"Saving report record" },
+  { key:"photos", label:"Uploading photos..." },
+  { key:"pdf",    label:"Generating PDF..." },
+  { key:"pdfup",  label:"Uploading PDF..." },
+  { key:"db",     label:"Saving report record..." },
 ];
 
 function SubmitOverlay({ currentStep, detail }) {

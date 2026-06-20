@@ -23,16 +23,15 @@ const ORG    = 'E87722';
 const WHT    = 'FFFFFF';
 const MUT    = '888888';
 const YELLOW = 'F6E595';
-const HDR_BG = 'F4B183';   // orange-peach for site name box
-const SEC_BG = 'D9E1F2';   // blue-grey for section title box
-const CAP_BG = 'EEF3FB';   // light blue for caption bars
-const ALT_BG = 'F8F9FA';   // alternating row bg
+const HDR_BG = 'F4B183'; 
+const SEC_BG = 'D9E1F2';  
+const CAP_BG = 'EEF3FB'; 
+const ALT_BG = 'F8F9FA'; 
 
-// Table header colours (richer, more professional)
-const TBL_HDR_BG  = '1A3A5C';   // dark navy header bg
-const TBL_HDR_FG  = 'FFFFFF';   // white header text
-const TBL_ALT_BG  = 'F0F4FA';   // light blue alternating row
-const TBL_BORDER  = '9EB3CC';   // subtle border colour
+const TBL_HDR_BG  = '1A3A5C';  
+const TBL_HDR_FG  = 'FFFFFF';
+const TBL_ALT_BG  = 'F0F4FA';
+const TBL_BORDER  = '9EB3CC';   
 
 // Font
 const FONT   = 'Calibri';
@@ -54,6 +53,7 @@ export async function getLogoDataUrl() {
 
   return logoDataUrl;
 }
+
 
 // Text box
 function tx(slide, text, x, y, w, h, opts = {}) {
@@ -463,7 +463,7 @@ function getNativeImageSize(dataUrl) {
     img.src = dataUrl;
   });
 }
-
+  
 // addImage with correct aspect ratio, no stretching
 async function slide_addImage_contain(slide, dataUrl, x, y, w, h) {
   if (!dataUrl) return;

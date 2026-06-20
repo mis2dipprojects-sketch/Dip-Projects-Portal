@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import * as XLSX from 'xlsx';
+// import * as XLSX from 'xlsx';
 import generatePPT from './pptGenerator';
 // ─── CSS ────────────────────────────────────────────────────────────────────
 const WPR_CSS = `
@@ -187,26 +187,58 @@ function toPptxData(dataUrl) {
   const b64 = dataUrlToBase64(dataUrl);
   return `${mime};base64,${b64}`;
 }
+function bucketNameFor(site) {
+  return (site || "site")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 63) || "site";
+}
 
-async function uploadImage(supabase, dataUrl, path) {
+async function ensureBucket(supabase, site) {
+  const { data, error } = await supabase.functions.invoke("ensure-bucket", {
+    body: { site },
+  });
+  if (error) {
+    const msg = error.context?.error || error.message || "Failed to prepare storage bucket";
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+function buildSiteDatePath(date) {
+  const [year, month, day] = date.split("-");
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const monthName = monthNames[parseInt(month, 10) - 1];
+  const dayFolder = `${day}-${month}-${year}`;
+  return `${year}/${monthName}/${dayFolder}`;
+}
+
+function safeNamePart(s) {
+  return (s || "").toString().trim().replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
+}
+async function uploadImage(supabase, bucketName, dataUrl, path) {
   const base64 = dataUrl.split(",")[1];
   const mime = getMime(dataUrl);
   const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
   const blob = new Blob([bytes], { type: mime });
   const { data, error } = await supabase.storage
-    .from("wpr-images")
+    .from(bucketName)
     .upload(path, blob, { contentType: mime, upsert: true });
   if (error) throw error;
-  const { data: urlData } = supabase.storage.from("wpr-images").getPublicUrl(path);
+  const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(path);
   return urlData.publicUrl;
 }
 
-async function uploadBlob(supabase, blob, path, contentType) {
+async function uploadBlob(supabase, bucketName, blob, path, contentType) {
   const { data, error } = await supabase.storage
-    .from("wpr-images")
+    .from(bucketName)
     .upload(path, blob, { contentType, upsert: true });
   if (error) throw error;
-  const { data: urlData } = supabase.storage.from("wpr-images").getPublicUrl(path);
+  const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(path);
   return urlData.publicUrl;
 }
 
@@ -272,7 +304,61 @@ function colLetter(n) {
   while (n > 0) { s = String.fromCharCode(((n - 1) % 26) + 65) + s; n = Math.floor((n - 1) / 26); }
   return s;
 }
+function wrapTextToLines(ctx, text, maxWidth, maxLines = 2) {
+  const words = String(text).trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return [""];
+  const lines = [];
+  let current = "";
+  for (const word of words) {
+    const test = current ? current + " " + word : word;
+    if (ctx.measureText(test).width <= maxWidth || !current) {
+      current = test;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
 
+  if (lines.length > maxLines) {
+    const head = lines.slice(0, maxLines - 1);
+    let tail = lines.slice(maxLines - 1).join(" ");
+    while (ctx.measureText(tail + "…").width > maxWidth && tail.length > 1) {
+      tail = tail.slice(0, -1);
+    }
+    head.push(tail + "…");
+    return head;
+  }
+  return lines;
+}
+function measureWrappedWidth(ctx, text, font, maxLines = 2, minW = 80, maxW = 260, step = 8) {
+  ctx.font = font;
+  const words = String(text).trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return minW;
+
+  for (let w = minW; w <= maxW; w += step) {
+    const maxTextW = w - 14;
+    const lines = [];
+    let current = "";
+    let fits = true;
+
+    for (const word of words) {
+      const test = current ? current + " " + word : word;
+      if (ctx.measureText(test).width <= maxTextW || !current) {
+        current = test;
+      } else {
+        lines.push(current);
+        current = word;
+        if (lines.length >= maxLines) { fits = false; break; }
+      }
+    }
+    if (fits) {
+      if (current) lines.push(current);
+      if (lines.length <= maxLines) return w; // smallest width that fits cleanly
+    }
+  }
+  return maxW; // nothing under maxW worked — use the cap
+}
 // ─── Auto-detect header rows from a sheet ──────────────────────────────────
 function detectHeaderInfo(raw, merges) {
   if (!raw || !raw.length) return { titleRows: [], labelRows: [], headerEnd: -1 };
@@ -476,7 +562,7 @@ async function renderTableImageAsync({ raw, headerInfo, dataR1, dataR2, c1, c2, 
       reader.readAsDataURL(blob);
     },
     "image/jpeg",
-    0.85
+    0.7
   );
 }); 
 }
@@ -496,31 +582,19 @@ function loadPptxGen() {
   return _pptxPromise;
 }
 
-
 function ExcelRangeCapture({ items, setItems, sectionLabel, headerText, setHeaderText }) {
-  const [capturing, setCapturing] = useState(false);
   const [mode, setMode] = useState("images");
+  const [capturing, setCapturing] = useState(false);
   const [workbook, setWorkbook] = useState(null);
   const [activeSheet, setActiveSheet] = useState("");
   const [xlLoading, setXlLoading] = useState(false);
   const [xlFileName, setXlFileName] = useState("");
   const [xlError, setXlError] = useState("");
+  const [rowsPerImage, setRowsPerImage] = useState(12);
   const [headerInfo, setHeaderInfo] = useState({ titleRows: [], labelRows: [], headerEnd: -1 });
-  const [rowsPerImage, setRowsPerImage] = useState(8);
-  const [touchMode, setTouchMode] = useState("select");
-  const [rangeLabel, setRangeLabel] = useState("No range selected");
-  const [hasSelection, setHasSelection] = useState(false);
-
-  // ── Selection stored in REF — never causes re-render ──
-  const sel = useRef({ start: null, end: null, dragging: false });
-
+const [xlGenProgress, setXlGenProgress] = useState("");
   const photoRef = useRef();
   const xlRef = useRef();
-  const tableWrapRef = useRef(null);
-  const tableRef = useRef(null);
-
-  const isTouchDevice = typeof window !== "undefined" &&
-    ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
   const sheetData = workbook?.sheets?.[activeSheet]?.raw || [];
   const sheetMerges = workbook?.sheets?.[activeSheet]?.merges || [];
@@ -533,150 +607,6 @@ function ExcelRangeCapture({ items, setItems, sectionLabel, headerText, setHeade
     setHeaderInfo(detectHeaderInfo(sheetData, sheetMerges));
   }, [workbook, activeSheet]);
 
-  // ── Direct DOM highlight — zero React renders during drag ──
-  const highlightDOM = useCallback(() => {
-    const { start, end } = sel.current;
-    const table = tableRef.current;
-    if (!table) return;
-
-    // Clear all highlights
-    table.querySelectorAll("td.sel, td.sel-start").forEach(td => {
-      td.classList.remove("sel", "sel-start");
-    });
-
-    if (!start || !end) {
-      setRangeLabel("No range selected");
-      setHasSelection(false);
-      return;
-    }
-
-    const r1 = Math.min(start.r, end.r), r2 = Math.max(start.r, end.r);
-    const c1 = Math.min(start.c, end.c), c2 = Math.max(start.c, end.c);
-
-    // Highlight selected cells via DOM
-    for (let r = r1; r <= r2; r++) {
-      for (let c = c1; c <= c2; c++) {
-        const td = table.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
-        if (td) {
-          td.classList.add("sel");
-          if (r === start.r && c === start.c) td.classList.add("sel-start");
-        }
-      }
-    }
-
-    setRangeLabel(
-      `${colLetter(c1)}${r1 + 1} : ${colLetter(c2)}${r2 + 1}  (${r2 - r1 + 1} rows × ${c2 - c1 + 1} cols)`
-    );
-    setHasSelection(true);
-  }, []);
-
-  const getNorm = () => {
-    const { start, end } = sel.current;
-    if (!start || !end) return null;
-    return {
-      r1: Math.min(start.r, end.r), r2: Math.max(start.r, end.r),
-      c1: Math.min(start.c, end.c), c2: Math.max(start.c, end.c),
-    };
-  };
-
-  // ── Mouse events on TABLE (event delegation — one handler, not 4000) ──
-  const onTableMouseDown = useCallback((e) => {
-    const td = e.target.closest("td[data-r]");
-    if (!td) return;
-    e.preventDefault();
-    const r = +td.dataset.r, c = +td.dataset.c;
-    sel.current = { start: { r, c }, end: { r, c }, dragging: true };
-    highlightDOM();
-  }, [highlightDOM]);
-
-  const onTableMouseOver = useCallback((e) => {
-    if (!sel.current.dragging) return;
-    const td = e.target.closest("td[data-r]");
-    if (!td) return;
-    sel.current.end = { r: +td.dataset.r, c: +td.dataset.c };
-    highlightDOM();
-  }, [highlightDOM]);
-
-  const onTableMouseUp = useCallback(() => {
-    sel.current.dragging = false;
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener("mouseup", onTableMouseUp);
-    return () => window.removeEventListener("mouseup", onTableMouseUp);
-  }, [onTableMouseUp]);
-
-  // ── Touch events ──
-  useEffect(() => {
-    const el = tableWrapRef.current;
-    if (!el) return;
-
-    const cellFromPoint = (x, y) => {
-      const target = document.elementFromPoint(x, y);
-      const td = target?.closest?.("td[data-r]");
-      if (!td) return null;
-      return { r: +td.getAttribute("data-r"), c: +td.getAttribute("data-c") };
-    };
-
-    const onTouchStart = (e) => {
-      if (touchMode !== "select" || !e.touches.length) return;
-      const t = e.touches[0];
-      const cell = cellFromPoint(t.clientX, t.clientY);
-      if (!cell) return;
-      e.preventDefault();
-      sel.current = { start: cell, end: cell, dragging: true };
-      highlightDOM();
-    };
-
-    const onTouchMove = (e) => {
-      if (touchMode !== "select" || !e.touches.length || !sel.current.dragging) return;
-      const t = e.touches[0];
-      const cell = cellFromPoint(t.clientX, t.clientY);
-      if (cell) { e.preventDefault(); sel.current.end = cell; highlightDOM(); }
-    };
-
-    const onTouchEnd = () => { sel.current.dragging = false; };
-
-    el.addEventListener("touchstart", onTouchStart, { passive: false });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd, { passive: false });
-    el.addEventListener("touchcancel", onTouchEnd, { passive: false });
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-      el.removeEventListener("touchcancel", onTouchEnd);
-    };
-  }, [touchMode, highlightDOM]);
-
-  const isHeaderRow = (r) => headerInfo.headerEnd >= 0 && r <= headerInfo.headerEnd;
-
-  const headerLabel = () => {
-    if (headerInfo.headerEnd < 0) return "No header detected — using column letters as fallback";
-    return `Rows 1–${headerInfo.headerEnd + 1} (${headerInfo.titleRows.length ? `${headerInfo.titleRows.length} title row(s)` : ""}${headerInfo.titleRows.length && headerInfo.labelRows.length ? " + " : ""}${headerInfo.labelRows.length ? `${headerInfo.labelRows.length} label row(s)` : ""})`;
-  };
-
-  const adjustHeader = (delta) => {
-    setHeaderInfo((h) => {
-      if (delta > 0) {
-        const next = h.headerEnd + 1;
-        if (next >= sheetData.length) return h;
-        return { ...h, labelRows: [...h.labelRows, next], headerEnd: next };
-      }
-      if (h.labelRows.length) {
-        const labelRows = h.labelRows.slice(0, -1);
-        const headerEnd = labelRows.length ? labelRows[labelRows.length - 1]
-          : (h.titleRows.length ? h.titleRows[h.titleRows.length - 1] : -1);
-        return { ...h, labelRows, headerEnd };
-      }
-      if (h.titleRows.length) {
-        const titleRows = h.titleRows.slice(0, -1);
-        return { ...h, titleRows, headerEnd: titleRows.length ? titleRows[titleRows.length - 1] : -1 };
-      }
-      return h;
-    });
-  };
-
   const handleXlFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -685,9 +615,6 @@ function ExcelRangeCapture({ items, setItems, sectionLabel, headerText, setHeade
       const wb = await parseExcel(file);
       setWorkbook(wb);
       setActiveSheet(wb.sheetNames[0] || "");
-      sel.current = { start: null, end: null, dragging: false };
-      setHasSelection(false);
-      setRangeLabel("No range selected");
     } catch (err) {
       setXlError(err.message || "Failed to parse Excel file.");
       setWorkbook(null);
@@ -696,600 +623,447 @@ function ExcelRangeCapture({ items, setItems, sectionLabel, headerText, setHeade
     e.target.value = "";
   };
 
-  // ── Canvas render — pure Canvas 2D, async toBlob ──
-  // const renderToCanvas = async (r1, r2, c1, c2) => {
-  //   const cols = Array.from({ length: c2 - c1 + 1 }, (_, i) => i + c1);
-  //   const titleRows = headerInfo?.titleRows || [];
-  //   const labelRows = headerInfo?.labelRows || [];
-  //   const useFallbackColHeader = labelRows.length === 0;
-
-  //   const MAX_CANVAS_W = 1400;
-  //   const idealCellW = Math.floor((MAX_CANVAS_W - 24) / cols.length);
-  //   const CELL_W = Math.max(60, Math.min(120, idealCellW));
-  //   const CELL_H = 26, BAND_H = 38, TITLE_H = 22, LABEL_H = 24, PAD = 12;
-
-  //   const dataRows = [];
-  //   for (let r = r1; r <= r2; r++) dataRows.push(sheetData[r] || []);
-
-  //   const titleBlockH = titleRows.length * TITLE_H;
-  //   const labelBlockH = useFallbackColHeader ? LABEL_H : labelRows.length * LABEL_H;
-  //   const W = PAD * 2 + cols.length * CELL_W;
-  //   const H = BAND_H + titleBlockH + labelBlockH + dataRows.length * CELL_H + PAD;
-
-  //   const canvas = document.createElement("canvas");
-  //   canvas.width = W; canvas.height = H;
-  //   const ctx = canvas.getContext("2d");
-
-  //   ctx.fillStyle = "#fff";
-  //   ctx.fillRect(0, 0, W, H);
-
-  //   let y = 0;
-
-  //   // Band
-  //   const grad = ctx.createLinearGradient(0, 0, W, BAND_H);
-  //   grad.addColorStop(0, "#3d1200"); grad.addColorStop(0.5, "#7a2e00"); grad.addColorStop(1, "#c96a10");
-  //   ctx.fillStyle = grad;
-  //   ctx.fillRect(0, y, W, BAND_H);
-  //   ctx.fillStyle = "#fff";
-  //   ctx.font = "bold 14px Arial,sans-serif";
-  //   ctx.textBaseline = "middle";
-  //   ctx.fillText(headerText || sectionLabel, PAD, y + BAND_H / 2);
-  //   y += BAND_H;
-
-  //   // Title rows
-  //   titleRows.forEach((rIdx) => {
-  //     const text = (sheetData[rIdx] || []).find((c) => c !== "" && c != null) ?? "";
-  //     ctx.fillStyle = "#fdf3e7"; ctx.fillRect(0, y, W, TITLE_H);
-  //     ctx.strokeStyle = "rgba(201,106,16,0.3)"; ctx.lineWidth = 0.75; ctx.strokeRect(0, y, W, TITLE_H);
-  //     ctx.fillStyle = "#7a2e00"; ctx.font = "bold 12px Arial,sans-serif";
-  //     ctx.textBaseline = "middle"; ctx.fillText(String(text), PAD, y + TITLE_H / 2);
-  //     y += TITLE_H;
-  //   });
-
-  //   // Label rows
-  //   if (!useFallbackColHeader) {
-  //     labelRows.forEach((rIdx) => {
-  //       const row = sheetData[rIdx] || [];
-  //       ctx.fillStyle = "#f0e4d4"; ctx.fillRect(0, y, W, LABEL_H);
-  //       cols.forEach((ci, xi) => {
-  //         const x = PAD + xi * CELL_W;
-  //         ctx.fillStyle = "#3d1200"; ctx.font = "bold 11.5px Arial,sans-serif";
-  //         ctx.textBaseline = "middle";
-  //         let text = String(row[ci] ?? "");
-  //         const maxTW = CELL_W - 10;
-  //         while (ctx.measureText(text).width > maxTW && text.length > 1) text = text.slice(0, -1) + "…";
-  //         ctx.fillText(text, x + 5, y + LABEL_H / 2);
-  //         if (xi > 0) { ctx.strokeStyle = "rgba(201,106,16,0.3)"; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + LABEL_H); ctx.stroke(); }
-  //       });
-  //       ctx.strokeStyle = "#c96a10"; ctx.lineWidth = 1;
-  //       ctx.beginPath(); ctx.moveTo(0, y + LABEL_H); ctx.lineTo(W, y + LABEL_H); ctx.stroke();
-  //       y += LABEL_H;
-  //     });
-  //   } else {
-  //     ctx.fillStyle = "#f5f0e8"; ctx.fillRect(0, y, W, LABEL_H);
-  //     cols.forEach((ci, xi) => {
-  //       const x = PAD + xi * CELL_W;
-  //       const label = colLetter(ci);
-  //       ctx.fillStyle = "#7a2e00"; ctx.font = "bold 10px Arial,sans-serif";
-  //       ctx.textBaseline = "middle";
-  //       ctx.fillText(label, x + CELL_W / 2 - ctx.measureText(label).width / 2, y + LABEL_H / 2);
-  //       if (xi > 0) { ctx.strokeStyle = "rgba(201,106,16,0.25)"; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + LABEL_H); ctx.stroke(); }
-  //     });
-  //     y += LABEL_H;
-  //   }
-
-  //   // Data rows — yield every 30 rows
-  //   const CHUNK = 30;
-  //   for (let start = 0; start < dataRows.length; start += CHUNK) {
-  //     await new Promise(resolve => setTimeout(resolve, 0));
-  //     const end = Math.min(start + CHUNK, dataRows.length);
-  //     for (let ri = start; ri < end; ri++) {
-  //       const row = dataRows[ri];
-  //       const ry = y + ri * CELL_H;
-  //       ctx.fillStyle = ri % 2 === 0 ? "#ffffff" : "#fdf9f4";
-  //       ctx.fillRect(0, ry, W, CELL_H);
-  //       ctx.strokeStyle = "rgba(201,106,16,0.18)"; ctx.lineWidth = 0.5;
-  //       ctx.beginPath(); ctx.moveTo(0, ry + CELL_H); ctx.lineTo(W, ry + CELL_H); ctx.stroke();
-  //       cols.forEach((ci, xi) => {
-  //         const x = PAD + xi * CELL_W;
-  //         let text = String(row[ci] ?? "");
-  //         ctx.fillStyle = "#1c1917"; ctx.font = "12px Arial,sans-serif"; ctx.textBaseline = "middle";
-  //         const maxTW = CELL_W - 8;
-  //         while (ctx.measureText(text).width > maxTW && text.length > 1) text = text.slice(0, -1) + "…";
-  //         ctx.fillText(text, x + 4, ry + CELL_H / 2);
-  //         if (xi > 0) { ctx.strokeStyle = "rgba(201,106,16,0.15)"; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(x, ry); ctx.lineTo(x, ry + CELL_H); ctx.stroke(); }
-  //       });
-  //     }
-  //   }
-
-  //   ctx.strokeStyle = "#c96a10"; ctx.lineWidth = 1.5; ctx.strokeRect(0, 0, W, H);
-
-  //   // ── Async encode — toBlob is non-blocking unlike toDataURL ──
-  //   return new Promise((resolve) => {
-  //     canvas.toBlob(
-  //       (blob) => {
-  //         if (!blob) { resolve(canvas.toDataURL("image/jpeg", 0.85)); return; }
-  //         const reader = new FileReader();
-  //         reader.onload = (e) => resolve(e.target.result);
-  //         reader.onerror = () => resolve(canvas.toDataURL("image/jpeg", 0.85));
-  //         reader.readAsDataURL(blob);
-  //       },
-  //       "image/jpeg",
-  //       0.85
-  //     );
-  //   });
-  // };
-
-  // const handleCaptureRange = async () => {
-  //   const n = getNorm();
-  //   if (!n) return;
-  //   setCapturing(true);
-  //   await new Promise(r => setTimeout(r, 80));
-  //   try {
-  //     const dataUrl = await renderToCanvas(n.r1, n.r2, n.c1, n.c2);
-  //     if (dataUrl) {
-  //       setItems(prev => [...prev, {
-  //         dataUrl, caption: `${activeSheet} — ${colLetter(n.c1)}${n.r1 + 1}:${colLetter(n.c2)}${n.r2 + 1}`,
-  //         kind: "table-image", sheet: activeSheet,
-  //       }]);
-  //       sel.current = { start: null, end: null, dragging: false };
-  //       highlightDOM();
-  //     }
-  //   } catch (err) { console.error("Capture error:", err); }
-  //   finally { setCapturing(false); }
-  // };
-
-  // const handleAutoSplitCapture = async () => {
-  //   const n = getNorm();
-  //   if (!n) return;
-  //   const chunkSize = Math.max(1, parseInt(rowsPerImage, 10) || 8);
-  //   const newItems = [];
-  //   setCapturing(true);
-  //   await new Promise(r => setTimeout(r, 80));
-  //   try {
-  //     for (let start = n.r1; start <= n.r2; start += chunkSize) {
-  //       const end = Math.min(start + chunkSize - 1, n.r2);
-  //       await new Promise(r => setTimeout(r, 0));
-  //       const dataUrl = await renderToCanvas(start, end, n.c1, n.c2);
-  //       if (dataUrl) {
-  //         newItems.push({
-  //           dataUrl, caption: `${activeSheet} — rows ${start + 1}–${end + 1}`,
-  //           kind: "table-image", sheet: activeSheet,
-  //         });
-  //       }
-  //     }
-  //     if (newItems.length) {
-  //       setItems(prev => [...prev, ...newItems]);
-  //       sel.current = { start: null, end: null, dragging: false };
-  //       highlightDOM();
-  //     }
-  //   } catch (err) { console.error("Auto-split error:", err); }
-  //   finally { setCapturing(false); }
-  // };
-  
-function renderInWorker(params) {
-  return new Promise((resolve, reject) => {
-    let worker;
-    try {
-      worker = new Worker("/tableWorker.js");
-    } catch (e) {
-      reject(new Error("Worker unavailable: " + e.message));
-      return;
-    }
-    // 10s timeout — if OffscreenCanvas unsupported it fails fast
-    const timeout = setTimeout(() => {
-      worker.terminate();
-      reject(new Error("Worker timeout"));
-    }, 10000);
-    worker.onmessage = (e) => {
-      clearTimeout(timeout);
-      worker.terminate();
-      if (e.data.error) { reject(new Error(e.data.error)); return; }
-      if (e.data.arrayBuffer) {
-        const blob = new Blob([e.data.arrayBuffer], { type: "image/jpeg" });
-        const reader = new FileReader();
-        reader.onload = (ev) => resolve(ev.target.result);
-        reader.onerror = () => reject(new Error("FileReader failed"));
-        reader.readAsDataURL(blob);
-      } else { resolve(null); }
-    };
-    worker.onerror = (err) => {
-      clearTimeout(timeout);
-      worker.terminate();
-      reject(new Error(err.message || "Worker error"));
-    };
-    worker.postMessage(params);
-  });
-}
-
-
-const renderCanvas = useCallback(async (r1, r2, c1, c2) => {
-  const cols = Array.from({ length: c2 - c1 + 1 }, (_, i) => i + c1).slice(0, 15);
-  if (!cols.length || r2 < r1) return null;
-
+  // Draw one image: header rows + dataRows slice
+const drawImage = async (dataSlice, globalStartIdx) => {
   const titleRows = headerInfo?.titleRows || [];
   const labelRows = headerInfo?.labelRows || [];
   const useFallback = labelRows.length === 0;
-  const MAX_W = 1400;
-  const idealCW = Math.floor((MAX_W - 24) / cols.length);
-  const CW = Math.max(60, Math.min(120, idealCW));
-  const CH=26, BH=38, TH=22, LH=24, PAD=12;
-  const dataRows = [];
-  for (let r = r1; r <= r2; r++) dataRows.push(sheetData[r] || []);
-  const W = PAD*2 + cols.length*CW;
-  const H = BH + titleRows.length*TH + (useFallback ? LH : labelRows.length*LH) + dataRows.length*CH + PAD;
 
-  // ── Split into vertical strips of MAX_H pixels each ──────────────────────
-  // Canvas has a max height limit (~32767px in Chrome). Large sheets hit this.
-  // We render in strips and stitch them into one final canvas.
-  const MAX_STRIP_ROWS = 200; // rows per strip — well under any canvas limit
-
-  // Draw a single strip to a canvas, returns ImageData
-  const drawStrip = async (startRow, endRow, isFirst) => {
-    const stripDataRows = dataRows.slice(startRow, endRow);
-    const stripH = (isFirst ? BH + titleRows.length*TH + (useFallback ? LH : labelRows.length*LH) : 0) + stripDataRows.length*CH + (endRow >= dataRows.length ? PAD : 0);
-    if (stripH <= 0) return null;
-
-    const c = document.createElement("canvas");
-    c.width = W; c.height = stripH;
-    const ctx = c.getContext("2d");
-    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, stripH);
-    let y = 0;
-
-    if (isFirst) {
-      // Band
-      const grad = ctx.createLinearGradient(0,0,W,BH);
-      grad.addColorStop(0,"#3d1200"); grad.addColorStop(0.5,"#7a2e00"); grad.addColorStop(1,"#c96a10");
-      ctx.fillStyle=grad; ctx.fillRect(0,y,W,BH);
-      ctx.fillStyle="#fff"; ctx.font="bold 14px Arial,sans-serif"; ctx.textBaseline="middle";
-      ctx.fillText(headerText||sectionLabel,PAD,y+BH/2); y+=BH;
-
-      // Title rows
-      titleRows.forEach(ri => {
-        const text=(sheetData[ri]||[]).find(c=>c!==""&&c!=null)??"";
-        ctx.fillStyle="#fdf3e7"; ctx.fillRect(0,y,W,TH);
-        ctx.strokeStyle="rgba(201,106,16,0.3)"; ctx.lineWidth=0.75; ctx.strokeRect(0,y,W,TH);
-        ctx.fillStyle="#7a2e00"; ctx.font="bold 12px Arial,sans-serif"; ctx.textBaseline="middle";
-        ctx.fillText(String(text),PAD,y+TH/2); y+=TH;
-      });
-
-      // Label / fallback header
-      if (!useFallback) {
-        labelRows.forEach(ri => {
-          const row=sheetData[ri]||[];
-          ctx.fillStyle="#f0e4d4"; ctx.fillRect(0,y,W,LH);
-          cols.forEach((ci,xi) => {
-            const x=PAD+xi*CW; ctx.fillStyle="#3d1200"; ctx.font="bold 11.5px Arial,sans-serif"; ctx.textBaseline="middle";
-            let t=String(row[ci]??"");
-            while(ctx.measureText(t).width>CW-10&&t.length>1) t=t.slice(0,-1)+"…";
-            ctx.fillText(t,x+5,y+LH/2);
-            if(xi>0){ctx.strokeStyle="rgba(201,106,16,0.3)";ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+LH);ctx.stroke();}
-          });
-          ctx.strokeStyle="#c96a10";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,y+LH);ctx.lineTo(W,y+LH);ctx.stroke();
-          y+=LH;
-        });
-      } else {
-        ctx.fillStyle="#f5f0e8"; ctx.fillRect(0,y,W,LH);
-        cols.forEach((ci,xi) => {
-          const x=PAD+xi*CW; const label=colLetter(ci);
-          ctx.fillStyle="#7a2e00"; ctx.font="bold 10px Arial,sans-serif"; ctx.textBaseline="middle";
-          ctx.fillText(label,x+CW/2-ctx.measureText(label).width/2,y+LH/2);
-          if(xi>0){ctx.strokeStyle="rgba(201,106,16,0.25)";ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+LH);ctx.stroke();}
-        });
-        y+=LH;
-      }
+  const allRows = [
+    ...titleRows.map(ri => sheetData[ri] || []),
+    ...labelRows.map(ri => sheetData[ri] || []),
+    ...dataSlice,
+  ];
+  const maxCols = allRows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.filter(c => c !== "" && c != null).length : 0), 0);
+  const colCount = Math.min(Math.max(maxCols, 1), 20);
+  const cols = Array.from({ length: colCount }, (_, i) => i);
+  // ── Generic merge-awareness for header rows (works for ANY file's merge layout) ──
+const mergeSpansByRow = {};
+(sheetMerges || []).forEach(m => {
+  if (m.s.r === m.e.r) { // horizontal merges only
+    const span = m.e.c - m.s.c + 1;
+    if (span > 1) {
+      if (!mergeSpansByRow[m.s.r]) mergeSpansByRow[m.s.r] = [];
+      mergeSpansByRow[m.s.r].push({ startCol: m.s.c, span });
     }
+  }
+});
 
-    // Data rows — synchronous, but strip is small enough to not freeze
-    stripDataRows.forEach((row, ri) => {
-      const globalRi = startRow + ri;
-      const ry = y + ri*CH;
-      ctx.fillStyle=globalRi%2===0?"#ffffff":"#fdf9f4"; ctx.fillRect(0,ry,W,CH);
-      ctx.strokeStyle="rgba(201,106,16,0.18)";ctx.lineWidth=0.5;
-      ctx.beginPath();ctx.moveTo(0,ry+CH);ctx.lineTo(W,ry+CH);ctx.stroke();
-      cols.forEach((ci,xi) => {
-        const x=PAD+xi*CW;
-        let t=String(row[ci]??"");
-        ctx.fillStyle="#1c1917";ctx.font="12px Arial,sans-serif";ctx.textBaseline="middle";
-        while(ctx.measureText(t).width>CW-8&&t.length>1) t=t.slice(0,-1)+"…";
-        ctx.fillText(t,x+4,ry+CH/2);
-        if(xi>0){ctx.strokeStyle="rgba(201,106,16,0.15)";ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(x,ry);ctx.lineTo(x,ry+CH);ctx.stroke();}
+function getMergeSpan(ri, ci) {
+  const spans = mergeSpansByRow[ri] || [];
+  const found = spans.find(s => s.startCol === ci);
+  return found ? found.span : 1;
+}
+
+function isMergeContinuation(ri, ci) {
+  const spans = mergeSpansByRow[ri] || [];
+  return spans.some(s => ci > s.startCol && ci < s.startCol + s.span);
+}
+ const BH = 48, TH = 30, LH = 50, CH = 40, PAD = 14 ; 
+
+  // ── Auto column widths based on actual content ──
+  const measureCanvas = document.createElement("canvas");
+  const mctx = measureCanvas.getContext("2d");
+
+const colWidths = cols.map(ci => {
+  let maxW = 70; // minimum width
+  mctx.font = "bold 13px Arial,sans-serif";
+  labelRows.forEach(ri => {
+    const text = String((sheetData[ri] || [])[ci] ?? "");
+    const neededW = measureWrappedWidth(mctx, text, "bold 13px Arial,sans-serif", 2, 70, 260, 8);
+    maxW = Math.max(maxW, neededW);
+  });
+  mctx.font = "14px Arial,sans-serif";
+  dataSlice.forEach(row => {
+    const text = String(row[ci] ?? "");
+    maxW = Math.max(maxW, mctx.measureText(text).width + 18);
+  });
+  return Math.min(Math.max(maxW, 70), 260); // clamp 70–260px (raised cap a bit)
+});
+
+  const colX = [];
+  let acc = PAD;
+  colWidths.forEach(w => { colX.push(acc); acc += w; });
+
+  const W = PAD + acc;
+  const H = BH
+    + titleRows.length * TH
+    + (useFallback ? LH : labelRows.length * LH)
+    + dataSlice.length * CH
+    + PAD;
+
+  // Render at 2x for crisp text
+  const SCALE = 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = W * SCALE;
+  canvas.height = H * SCALE;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(SCALE, SCALE);
+
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, W, H);
+
+  let y = 0;
+
+  const grad = ctx.createLinearGradient(0, 0, W, BH);
+  grad.addColorStop(0, "#3d1200");
+  grad.addColorStop(0.5, "#7a2e00");
+  grad.addColorStop(1, "#c96a10");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, y, W, BH);
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 16px Arial,sans-serif";
+  ctx.textBaseline = "middle";
+  ctx.fillText(headerText || sectionLabel, PAD, y + BH / 2);
+  y += BH;
+
+  titleRows.forEach(ri => {
+  const row = sheetData[ri] || [];
+  ctx.fillStyle = "#fdf3e7";
+  ctx.fillRect(0, y, W, TH);
+  ctx.strokeStyle = "rgba(201,106,16,0.35)";
+  ctx.lineWidth = 0.75;
+  ctx.strokeRect(0, y, W, TH);
+  ctx.fillStyle = "#7a2e00";
+  ctx.font = "bold 15px Arial,sans-serif";
+  ctx.textBaseline = "middle";
+
+  cols.forEach(ci => {
+    if (isMergeContinuation(ri, ci)) return; // skip cells swallowed by a merge to the left
+    const val = row[ci];
+    if (val === "" || val == null) return;
+
+    const span = getMergeSpan(ri, ci);
+    let spanWidth = 0;
+    for (let k = ci; k < ci + span && k < colWidths.length; k++) spanWidth += colWidths[k];
+
+    const x = colX[ci] ?? PAD;
+    ctx.fillText(String(val), x + 6, y + TH / 2);
+  });
+  y += TH;
+});
+
+  if (!useFallback) {
+    labelRows.forEach(ri => {
+      const row = sheetData[ri] || [];
+      ctx.fillStyle = "#f0e4d4";
+      ctx.fillRect(0, y, W, LH);
+      cols.forEach((ci, xi) => {
+        const x = colX[xi];
+        const cw = colWidths[xi];
+        ctx.fillStyle = "#3d1200";
+        ctx.font = "bold 12.5px Arial,sans-serif";
+        ctx.textBaseline = "middle";
+
+        const text = String(row[ci] ?? "");
+        const lines = wrapTextToLines(ctx, text, cw - 14, 2);
+        const lineH = 15;
+        const startY = y + LH / 2 - ((lines.length - 1) * lineH) / 2;
+        lines.forEach((line, li) => {
+          ctx.fillText(line, x + 6, startY + li * lineH);
+        });
+
+        if (xi > 0) {
+          ctx.strokeStyle = "rgba(201,106,16,0.3)";
+          ctx.lineWidth = 0.5;
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + LH); ctx.stroke();
+        }
       });
+      ctx.strokeStyle = "#c96a10"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, y + LH); ctx.lineTo(W, y + LH); ctx.stroke();
+      y += LH;
     });
-
-    if (endRow >= dataRows.length) {
-      ctx.strokeStyle="#c96a10";ctx.lineWidth=1.5;ctx.strokeRect(0,0,W,stripH);
-    }
-    return c;
-  };
-
-  // ── Build strips with a yield between each ────────────────────────────────
-  const strips = [];
-  for (let start = 0; start < Math.max(dataRows.length, 1); start += MAX_STRIP_ROWS) {
-    // Yield to browser — lets spinner animate and prevents "page unresponsive"
-    await new Promise(res => setTimeout(res, 0));
-    await new Promise(res => requestAnimationFrame(res));
-
-    const end = Math.min(start + MAX_STRIP_ROWS, dataRows.length);
-    const strip = await drawStrip(start, end, start === 0);
-    if (strip) strips.push(strip);
+  } else {
+    ctx.fillStyle = "#f5f0e8";
+    ctx.fillRect(0, y, W, LH);
+    cols.forEach((ci, xi) => {
+      const x = colX[xi];
+      const label = colLetter(ci);
+      ctx.fillStyle = "#7a2e00";
+      ctx.font = "bold 12px Arial,sans-serif";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, x + 6, y + LH / 2);
+      if (xi > 0) {
+        ctx.strokeStyle = "rgba(201,106,16,0.25)";
+        ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + LH); ctx.stroke();
+      }
+    });
+    y += LH;
   }
 
-  if (!strips.length) return null;
-  // ── Stitch strips into final canvas ──────────────────────────────────────
-  const finalCanvas = document.createElement("canvas");
-  finalCanvas.width = W;
-  finalCanvas.height = H;
-  const finalCtx = finalCanvas.getContext("2d");
+  dataSlice.forEach((row, ri) => {
+    const globalRi = globalStartIdx + ri;
+    const ry = y + ri * CH;
+    ctx.fillStyle = globalRi % 2 === 0 ? "#ffffff" : "#fdf9f4";
+    ctx.fillRect(0, ry, W, CH);
+    ctx.strokeStyle = "rgba(201,106,16,0.18)";
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(0, ry + CH); ctx.lineTo(W, ry + CH); ctx.stroke();
+    cols.forEach((ci, xi) => {
+      const x = colX[xi];
+      const cw = colWidths[xi];
+      let base = String(row[ci] ?? "");
+      let t = base;
+      ctx.fillStyle = "#1c1917";
+      ctx.font = "14px Arial,sans-serif";
+      ctx.textBaseline = "middle";
+      while (ctx.measureText(t).width > cw - 14 && base.length > 1) {
+        base = base.slice(0, -1);
+        t = base + "…";
+      }
+      ctx.fillText(t, x + 6, ry + CH / 2);
+      if (xi > 0) {
+        ctx.strokeStyle = "rgba(201,106,16,0.15)";
+        ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(x, ry); ctx.lineTo(x, ry + CH); ctx.stroke();
+      }
+    });
+  });
 
-  let stitchY = 0;
-  for (const strip of strips) {
-    finalCtx.drawImage(strip, 0, stitchY);
-    stitchY += strip.height;
-    // Free memory
-    strip.width = 0;
-    strip.height = 0;
-  }
-
-  // Final border over the stitched canvas
-  finalCtx.strokeStyle="#c96a10";
-  finalCtx.lineWidth=1.5;
-  finalCtx.strokeRect(0,0,W,H);
+  ctx.strokeStyle = "#c96a10";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(0, 0, W, H);
 
   return new Promise(resolve => {
-    finalCanvas.toBlob(blob => {
-      if (!blob) { resolve(finalCanvas.toDataURL("image/jpeg", 0.85)); return; }
+    canvas.toBlob(blob => {
+      if (!blob) { resolve(canvas.toDataURL("image/jpeg", 0.9)); return; }
       const reader = new FileReader();
       reader.onload = ev => resolve(ev.target.result);
-      reader.onerror = () => resolve(finalCanvas.toDataURL("image/jpeg", 0.85));
+      reader.onerror = () => resolve(canvas.toDataURL("image/jpeg", 0.9));
       reader.readAsDataURL(blob);
-    }, "image/jpeg", 0.85);
+    }, "image/jpeg", 0.9);
   });
-}, [sheetData, headerInfo, headerText, sectionLabel]);
-
-const handleCaptureRange = async () => {
-  const n = getNorm();
-  if (!n) return;
-  setCapturing(true);
-  try {
-    const dataUrl = await renderCanvas(n.r1, n.r2, n.c1, n.c2);
-    if (dataUrl) {
-      setItems(prev => [...prev, {
-        dataUrl,
-        caption: `${activeSheet} — ${colLetter(n.c1)}${n.r1+1}:${colLetter(n.c2)}${n.r2+1}`,
-        kind: "table-image", sheet: activeSheet,
-      }]);
-      sel.current = { start: null, end: null, dragging: false };
-      highlightDOM();
-    }
-  } catch (err) {
-    console.error("Capture error:", err);
-  } finally {
-    setCapturing(false);
-  }
 };
-const handleAutoSplitCapture = async () => {
-  const n = getNorm();
-  if (!n) return;
-  const chunkSize = Math.max(1, parseInt(rowsPerImage, 10) || 8);
-  const newItems = [];
+  const generateImages = async () => {
+  console.log("1. generateImages called", { workbook, activeSheet });
+  if (!workbook || !activeSheet) {
+    console.log("2. EARLY EXIT - no workbook or activeSheet");
+    return;
+  }
   setCapturing(true);
+  console.log("3. capturing set to true");
+
   try {
-    for (let start = n.r1; start <= n.r2; start += chunkSize) {
-      const end = Math.min(start + chunkSize - 1, n.r2);
-      const dataUrl = await renderCanvas(start, end, n.c1, n.c2);
+    const dataStart = headerInfo.headerEnd >= 0 ? headerInfo.headerEnd + 1 : 0;
+    const allDataRows = sheetData.slice(dataStart);
+    console.log("4. dataStart:", dataStart, "allDataRows.length:", allDataRows.length);
+
+    if (!allDataRows.length) {
+      console.log("5. EARLY EXIT - no data rows");
+      alert("No data rows found after header.");
+      setCapturing(false);
+      return;
+    }
+
+    const chunk = Math.max(1, parseInt(rowsPerImage, 10) || 6);
+    const newItems = [];
+    console.log("6. starting loop, chunk size:", chunk);
+
+    for (let start = 0; start < allDataRows.length; start += chunk) {
+      console.log("7. processing chunk starting at row", start);
+      await new Promise(res => setTimeout(res, 0));
+      await new Promise(res => requestAnimationFrame(res));
+
+      const slice = allDataRows.slice(start, start + chunk);
+      const dataUrl = await drawImage(slice, start);
+      console.log("8. drawImage returned:", dataUrl ? "✅ got dataUrl, length=" + dataUrl.length : "❌ null/undefined");
+
       if (dataUrl) {
-        newItems.push({
-          dataUrl,
-          caption: `${activeSheet} — rows ${start+1}–${end+1}`,
-          kind: "table-image", sheet: activeSheet,
-        });
+          newItems.push({
+            dataUrl,
+            caption: "",
+            kind: "table-image",
+            sheet: activeSheet,
+          });
       }
     }
+
+    console.log("9. loop finished, newItems.length:", newItems.length);
+
     if (newItems.length) {
       setItems(prev => [...prev, ...newItems]);
-      sel.current = { start: null, end: null, dragging: false };
-      highlightDOM();
+      console.log("10. setItems called");
     }
   } catch (err) {
-    console.error("Auto-split error:", err);
+    console.error("11. CAUGHT ERROR:", err);
   } finally {
     setCapturing(false);
+    console.log("12. capturing set to false, done");
   }
 };
-
-  const maxCols = sheetData.reduce((m, row) => Math.max(m, Array.isArray(row) ? row.length : 0), 0);
-  const colCount = Math.min(maxCols, 20);
-
-  return (
+return (
     <div>
+      {/* Spinner overlay */}
       {capturing && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 99999, background: "rgba(15,13,10,0.7)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
-          <div style={{ width: 40, height: 40, border: "4px solid rgba(201,106,16,0.2)", borderTop: "4px solid #c96a10", borderRadius: "50%", animation: "wprSpin .7s linear infinite" }} />
-          <div style={{ color: "#ffcfa0", fontWeight: 700, fontSize: 15 }}>Generating image…</div>
+        <div style={{ position:"fixed", inset:0, zIndex:99999, background:"rgba(15,13,10,0.75)",
+          backdropFilter:"blur(4px)", display:"flex", alignItems:"center",
+          justifyContent:"center", flexDirection:"column", gap:14 }}>
+          <div style={{ width:44, height:44, border:"4px solid rgba(201,106,16,0.2)",
+            borderTop:"4px solid #c96a10", borderRadius:"50%", animation:"wprSpin .7s linear infinite" }} />
+          <div style={{ color:"#ffcfa0", fontWeight:700, fontSize:15 }}>Generating images…</div>
         </div>
       )}
 
       {/* Mode tabs */}
       <div className="wpr-xl-tabs">
-        <button className={`wpr-xl-tab${mode === "images" ? " active" : ""}`} onClick={() => setMode("images")}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <button className={`wpr-xl-tab${mode==="images"?" active":""}`} onClick={() => setMode("images")}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
           Upload Photos
         </button>
-        <button className={`wpr-xl-tab${mode === "excel" ? " active" : ""}`} onClick={() => setMode("excel")}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="8 13 10.5 16 14 11"/></svg>
-          Capture from Excel
+        <button className={`wpr-xl-tab${mode==="excel"?" active":""}`} onClick={() => setMode("excel")}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/><polyline points="8 13 10.5 16 14 11"/>
+          </svg>
+          From Excel
         </button>
       </div>
 
-      {/* IMAGE UPLOAD MODE */}
+      {/* ── PHOTO UPLOAD MODE ── */}
       {mode === "images" && (
         <div>
-          <button className="btn btn-out" style={{ height: 42, fontSize: 13 }} onClick={() => photoRef.current?.click()}>
+          <button className="btn btn-out" style={{ height:42, fontSize:13 }}
+            onClick={() => photoRef.current?.click()}>
             📁 Upload Images
           </button>
-          <input type="file" ref={photoRef} accept="image/*" multiple style={{ display: "none" }}
+          <input type="file" ref={photoRef} accept="image/*" multiple style={{ display:"none" }}
             onChange={async (e) => {
               const files = Array.from(e.target.files || []);
-              const imgs = await Promise.all(files.map(f => readFileAsDataUrl(f).then(d => ({ dataUrl: d, caption: "", kind: "image" }))));
+              const imgs = await Promise.all(files.map(f =>
+                readFileAsDataUrl(f).then(d => ({ dataUrl:d, caption:"", kind:"image" }))
+              ));
               setItems(p => [...p, ...imgs]);
               e.target.value = "";
             }} />
         </div>
       )}
 
-      {/* EXCEL RANGE CAPTURE MODE */}
+      {/* ── EXCEL MODE ── */}
       {mode === "excel" && (
         <div className="wpr-xl-section">
-          <div className="wpr-xl-title">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            Excel Range → Image
-          </div>
 
+          {/* Header text input */}
           <div className="wpr-xl-hdr-field">
             <label className="wpr-lbl">Report Header Text</label>
-            <input className="finput" value={headerText} onChange={(e) => setHeaderText(e.target.value)} placeholder={`e.g. ${sectionLabel} — Week 24`} />
+            <input className="finput" value={headerText}
+              onChange={e => setHeaderText(e.target.value)}
+              placeholder={`e.g. ${sectionLabel} — Week 24`} />
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-            <button className="btn btn-amber" style={{ height: 38, fontSize: 12.5, padding: "0 14px", display: "flex", alignItems: "center", gap: 7 }}
+          {/* Upload Excel button */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14, flexWrap:"wrap" }}>
+            <button className="btn btn-amber"
+              style={{ height:38, fontSize:12.5, padding:"0 14px", display:"flex", alignItems:"center", gap:7 }}
               onClick={() => xlRef.current?.click()} disabled={xlLoading}>
               {xlLoading
-                ? <><div className="wpr-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Parsing…</>
-                : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload Excel (.xlsx / .xls)</>}
+                ? <><div className="wpr-spinner" style={{ width:14, height:14, borderWidth:2 }}/> Parsing…</>
+                : <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    Upload Excel (.xlsx / .xls)
+                  </>}
             </button>
-            <input type="file" ref={xlRef} accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={handleXlFile} />
-            {xlFileName && !xlError && <span style={{ fontSize: 12, color: "#c96a10", fontWeight: 700 }}>📊 {xlFileName}</span>}
+            <input type="file" ref={xlRef} accept=".xlsx,.xls,.csv"
+              style={{ display:"none" }} onChange={handleXlFile} />
+            {xlFileName && !xlError &&
+              <span style={{ fontSize:12, color:"#c96a10", fontWeight:700 }}>📊 {xlFileName}</span>}
           </div>
 
           {xlError && (
-            <div className="wpr-hint" style={{ background: "#fef2f2", borderColor: "#fecaca", color: "#dc2626", marginBottom: 12 }}>
+            <div className="wpr-hint" style={{ background:"#fef2f2", borderColor:"#fecaca", color:"#dc2626", marginBottom:12 }}>
               {xlError}
             </div>
           )}
 
-          {workbook && (
-            <div className="wpr-xl-workbook">
-              <div className="wpr-xl-workbook-hdr">
-                {xlFileName} — Click &amp; drag to select a range
-              </div>
-
-              {workbook.sheetNames.length > 1 && (
-                <div className="wpr-xl-sheet-tabs">
-                  {workbook.sheetNames.map(name => (
-                    <button key={name} className={`wpr-xl-sheet-tab${name === activeSheet ? " active" : ""}`}
-                      onClick={() => { setActiveSheet(name); sel.current = { start: null, end: null, dragging: false }; setHasSelection(false); setRangeLabel("No range selected"); }}>
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div className="wpr-xl-hdr-info" style={{ margin: "10px 10px 0" }}>
-                <span className="wpr-range-label" style={{ color: "#7a2e00" }}>Auto header:</span>
-                <span className="wpr-range-val" style={{ color: "#7a2e00" }}>{headerLabel()}</span>
-                <div className="wpr-xl-hdr-stepper">
-                  <button title="Shrink header" onClick={() => adjustHeader(-1)}>−</button>
-                  <button title="Extend header" onClick={() => adjustHeader(1)}>+</button>
-                </div>
-              </div>  
-
-              <div className="wpr-range-bar">
-                <span className="wpr-range-label">Selected:</span>
-                <span className="wpr-range-val">{rangeLabel}</span>
-                <button onClick={handleCaptureRange} disabled={!hasSelection || capturing}
-                  style={{ height: 32, padding: "0 14px", fontSize: 12, fontWeight: 700, fontFamily: "var(--font)", background: (!hasSelection || capturing) ? "var(--surface)" : "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)", color: (!hasSelection || capturing) ? "var(--ink3)" : "#fff", border: "1.5px solid #c96a10", borderRadius: 7, cursor: (!hasSelection || capturing) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-                  {capturing ? "Processing…" : "📷 Capture as 1 Image"}
+          {/* Sheet tabs */}
+          {workbook && workbook.sheetNames.length > 1 && (
+            <div className="wpr-xl-sheet-tabs" style={{ marginBottom:10 }}>
+              {workbook.sheetNames.map(name => (
+                <button key={name}
+                  className={`wpr-xl-sheet-tab${name===activeSheet?" active":""}`}
+                  onClick={() => setActiveSheet(name)}>
+                  {name}
                 </button>
-              </div>
-
-              <div className="wpr-range-bar" style={{ marginTop: -4 }}>
-                <span className="wpr-range-label">Or split into images of</span>
-                <div className="wpr-xl-rows-field">
-                  <input className="finput" type="number" min="1" max="40" value={rowsPerImage} onChange={(e) => setRowsPerImage(e.target.value)} />
-                  <span className="wpr-range-label" style={{ fontWeight: 600 }}>rows each</span>
-                </div>
-                <button onClick={handleAutoSplitCapture} disabled={!hasSelection || capturing}
-                  style={{ height: 32, padding: "0 14px", fontSize: 12, fontWeight: 700, fontFamily: "var(--font)", background: (!hasSelection || capturing) ? "var(--surface)" : "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)", color: (!hasSelection || capturing) ? "var(--ink3)" : "#fff", border: "1.5px solid #c96a10", borderRadius: 7, cursor: (!hasSelection || capturing) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-                  {capturing ? "Processing…" : "🔲 Auto-Split & Capture"}
-                </button>
-                {isTouchDevice && (
-                  <button className={`wpr-touch-toggle${touchMode === "select" ? " on" : ""}`}
-                    onClick={() => setTouchMode(m => m === "select" ? "scroll" : "select")}>
-                    {touchMode === "select" ? "👆 Selecting" : "↕ Scrolling"}
-                  </button>
-                )}
-              </div>
-
-              {/* ── THE TABLE — event delegation, no per-cell handlers ── */}
-              <div className="wpr-xl-table-wrap" ref={tableWrapRef}>
-                <table
-                  className="wpr-xl-table"
-                  ref={tableRef}
-                  onMouseDown={onTableMouseDown}
-                  onMouseOver={onTableMouseOver}
-                  onMouseUp={onTableMouseUp}
-                >
-                  <thead>
-                    <tr>
-                      <th style={{ width: 32, minWidth: 32 }}>#</th>
-                      {Array.from({ length: colCount }, (_, ci) => (
-                        <th key={ci}>{colLetter(ci)}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sheetData.slice(0, 200).map((row, ri) => (
-                      <tr key={ri} className={isHeaderRow(ri) ? "wpr-hdr-row" : ""}>
-                        <td style={{ background: isHeaderRow(ri) ? undefined : "linear-gradient(135deg,#3d1200,#7a2e00)", color: isHeaderRow(ri) ? undefined : "#ffcfa0", fontWeight: 800, textAlign: "center", fontSize: 10, userSelect: "none", pointerEvents: "none" }}>
-                          {ri + 1}
-                        </td>
-                        {Array.from({ length: colCount }, (_, ci) => (
-                          <td key={ci} data-r={ri} data-c={ci}>
-                            {String(Array.isArray(row) ? (row[ci] ?? "") : "")}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {sheetData.length > 200 && (
-                  <div style={{ padding: "8px 12px", fontSize: 11.5, color: "#c96a10", fontWeight: 700, background: "rgba(201,106,16,0.08)" }}>
-                    Showing first 200 rows. All {sheetData.length} rows captured on export.
-                  </div>
-                )}
-              </div>
-
-              {headerText && (
-                <div className="wpr-xl-hdr-preview" style={{ margin: "10px 10px 10px" }}>
-                  <div className="wpr-xl-hdr-preview-bar">Preview: {headerText}</div>
-                </div>
-              )}
+              ))}
             </div>
           )}
 
+          {/* Rows per image control */}
+          {workbook && (
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14, flexWrap:"wrap" }}>
+              <span className="wpr-range-label">Rows per image:</span>
+              <input className="finput" type="number" min="1" max="50"
+                value={rowsPerImage}
+                onChange={e => setRowsPerImage(e.target.value)}
+                style={{ width:64, textAlign:"center" }} />
+
+              {/* Preview info */}
+              {sheetData.length > 0 && (() => {
+                const dataStart = headerInfo.headerEnd >= 0 ? headerInfo.headerEnd + 1 : 0;
+                const totalData = Math.max(0, sheetData.length - dataStart);
+                const chunk = Math.max(1, parseInt(rowsPerImage,10) || 6);
+                const imgCount = Math.ceil(totalData / chunk);
+                return (
+                  <span style={{ fontSize:11.5, color:"#c96a10", fontWeight:700 }}>
+                    → {totalData} data rows → {imgCount} image{imgCount!==1?"s":""} 
+                  </span>
+                );
+              })()}
+
+              <button
+                onClick={generateImages}
+                disabled={capturing || !workbook}
+                style={{
+                  height:36, padding:"0 18px", fontSize:13, fontWeight:700,
+                  fontFamily:"var(--font)",
+                  background: capturing||!workbook ? "var(--surface)" : "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
+                  color: capturing||!workbook ? "var(--ink3)" : "#fff",
+                  border:"1.5px solid #c96a10", borderRadius:8,
+                  cursor: capturing||!workbook ? "not-allowed" : "pointer",
+                  display:"flex", alignItems:"center", gap:7,
+                }}>
+                {capturing ? "Generating…" : "⚡ Generate Images"}
+                {capturing && xlGenProgress  && (
+  <div style={{ fontSize: 12, color: "#c96a10", marginTop: 6 }}>{xlGenProgress }</div>
+)}
+              </button>
+            </div>
+          )}
+
+          {/* Hint when no file uploaded */}
           {!workbook && !xlLoading && !xlError && (
-            <div className="wpr-hint" style={{ marginTop: 10 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c96a10" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              Upload an Excel file, then click &amp; drag over the data range and capture.
+            <div className="wpr-hint">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c96a10" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              Upload an Excel file — images will be auto-generated with header + {rowsPerImage} rows each.
             </div>
           )}
         </div>
       )}
 
-      {/* Captured items grid */}
+      {/* ── Captured items grid ── */}
       {items.length > 0 && (
         <div className="wpr-xl-captured-grid">
           {items.map((item, i) => item.dataUrl ? (
             <div key={i} className="wpr-xl-captured-card">
               <div className="wpr-xl-captured-card-hdr">
-                {item.kind === "table-image" ? "📊" : "🖼"} {item.caption || `Item ${i + 1}`}
+                {item.kind==="table-image" ? "📊" : "🖼"} {item.caption || `Item ${i+1}`}
               </div>
               <img src={item.dataUrl} alt="" />
-              <button className="wpr-xl-captured-del" onClick={() => setItems(p => p.filter((_, x) => x !== i))}>✕</button>
+              <button className="wpr-xl-captured-del"
+                onClick={() => setItems(p => p.filter((_,x) => x!==i))}>✕</button>
               <div className="wpr-xl-captured-cap">
-                <input value={item.caption || ""} placeholder="Caption…"
-                  onChange={(e) => setItems(p => p.map((it, x) => x === i ? { ...it, caption: e.target.value } : it))} />
+                <input value={item.caption||""} placeholder="Caption…"
+                  onChange={e => setItems(p => p.map((it,x) => x===i ? {...it, caption:e.target.value} : it))} />
               </div>
             </div>
           ) : null)}
@@ -1393,7 +1167,7 @@ const [sections, setSections] = useState(() =>
   const [cubeHeader, setCubeHeader] = useState("");
   const [momItems, setMomItems] = useState([]);
   const [momHeader, setMomHeader] = useState("");
-
+const [draftSite, setDraftSite] = useState("");
   const [draftExists, setDraftExists] = useState(false);
   const [draftSavedAt, setDraftSavedAt] = useState("");
   const [autoSavePending, setAutoSavePending] = useState(false);
@@ -1417,17 +1191,23 @@ const uploadWprRef = useRef();
 
   useEffect(() => { fetchReportNum(site, reportDate); }, [site, reportDate, fetchReportNum]);
 
-  const checkDraft = useCallback(async () => {
-    if (!site || !engineer || !supabase) return;
-    const { data } = await supabase.from("wpr_drafts").select("updated_at")
-      .eq("site_name", site).eq("engineer_name", engineer).maybeSingle();
-    if (data) {
-      setDraftExists(true);
-      setDraftSavedAt(new Date(data.updated_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: true }));
-    } else { setDraftExists(false); setDraftSavedAt(""); }
-  }, [site, engineer, supabase]);
+const checkDraft = useCallback(async () => {
+  if (!engineer || !supabase) return;
+  let query = supabase.from("wpr_drafts").select("site_name, updated_at")
+    .eq("engineer_name", engineer);
+  query = site ? query.eq("site_name", site) : query;
+  const { data } = await query.order("updated_at", { ascending: false }).limit(1).maybeSingle();
+  if (data) {
+    setDraftExists(true);
+    setDraftSite(data.site_name);
+    setDraftSavedAt(new Date(data.updated_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: true }));
+  } else {
+    setDraftExists(false); setDraftSavedAt(""); setDraftSite("");
+  }
+}, [site, engineer, supabase]);
 
-  useEffect(() => { if (site && engineer) checkDraft(); }, [site, engineer, checkDraft]);
+// Run on mount (as soon as engineer is known) AND whenever site/engineer change
+useEffect(() => { if (engineer) checkDraft(); }, [engineer, site, checkDraft]);
 
   const hasAnyData = useCallback(() => {
     if (activities.filter((a) => a.name).length > 0) return true;
@@ -1490,32 +1270,36 @@ const uploadWprRef = useRef();
     if (!silent) showToast("✅ Draft saved — " + ts, "success");
   };
 
-  const loadDraft = async () => {
-    const { data, error } = await supabase.from("wpr_drafts").select("*").eq("site_name", site).eq("engineer_name", engineer).maybeSingle();
-    if (error || !data) { showToast("No draft found", "error"); return; }
-    if (data.report_date) setReportDate(data.report_date);
-    if (data.location !== undefined) setLocation(data.location ?? "");
-    if (data.report_number) setReportNum(data.report_number);
-    if (Array.isArray(data.activities)) setActivities(data.activities.map((a) => ({ ...a, progressImages: a.progressImages || [] })));
-    if (Array.isArray(data.next_week_plans)) setPlans(data.next_week_plans);
-    if (Array.isArray(data.drawing_register_headers)) setDrawingHeaders(data.drawing_register_headers);
-    if (Array.isArray(data.drawing_register_data)) setDrawingData(data.drawing_register_data);
-    if (Array.isArray(data.office_activity_items)) setOfficeItems(data.office_activity_items);
-    if (Array.isArray(data.visitor_register_data)) setVisitors(data.visitor_register_data);
-    if (Array.isArray(data.drawing_decision_data)) setDrawDecision(data.drawing_decision_data);
-    if (Array.isArray(data.delay_points)) setDelayPoints(data.delay_points);
-    if (Array.isArray(data.report_sections)) setSections(data.report_sections.map((s) => ({ key: s.key || s.title, ...s, textItems: s.textItems || [], images: s.images || [] })));
-    if (data.barchart_header) setBarchartHeader(data.barchart_header);
-    if (data.cube_header) setCubeHeader(data.cube_header);
-    if (data.mom_header) setMomHeader(data.mom_header);
-    showToast("✅ Draft restored! (Re-upload images/Excel files)", "success");
-  };
+const loadDraft = async () => {
+  const targetSite = site || draftSite;
+  const { data, error } = await supabase.from("wpr_drafts").select("*")
+    .eq("site_name", targetSite).eq("engineer_name", engineer).maybeSingle();
+  if (error || !data) { showToast("No draft found", "error"); return; }
+  if (data.site_name && !site) setSite(data.site_name);
+  if (data.report_date) setReportDate(data.report_date);
+  if (data.location !== undefined) setLocation(data.location ?? "");
+  if (data.report_number) setReportNum(data.report_number);
+  if (Array.isArray(data.activities)) setActivities(data.activities.map((a) => ({ ...a, progressImages: a.progressImages || [] })));
+  if (Array.isArray(data.next_week_plans)) setPlans(data.next_week_plans);
+  if (Array.isArray(data.drawing_register_headers)) setDrawingHeaders(data.drawing_register_headers);
+  if (Array.isArray(data.drawing_register_data)) setDrawingData(data.drawing_register_data);
+  if (Array.isArray(data.office_activity_items)) setOfficeItems(data.office_activity_items);
+  if (Array.isArray(data.visitor_register_data)) setVisitors(data.visitor_register_data);
+  if (Array.isArray(data.drawing_decision_data)) setDrawDecision(data.drawing_decision_data);
+  if (Array.isArray(data.delay_points)) setDelayPoints(data.delay_points);
+  if (Array.isArray(data.report_sections)) setSections(data.report_sections.map((s) => ({ key: s.key || s.title, ...s, textItems: s.textItems || [], images: s.images || [] })));
+  if (data.barchart_header) setBarchartHeader(data.barchart_header);
+  if (data.cube_header) setCubeHeader(data.cube_header);
+  if (data.mom_header) setMomHeader(data.mom_header);
+  showToast("✅ Draft restored! (Re-upload images/Excel files)", "success");
+};
 
-  const deleteDraft = async () => {
-    await supabase.from("wpr_drafts").delete().eq("site_name", site).eq("engineer_name", engineer);
-    setDraftExists(false); setDraftSavedAt("");
-    showToast("🗑 Draft deleted", "info");
-  };
+const deleteDraft = async () => {
+  const targetSite = site || draftSite;
+  await supabase.from("wpr_drafts").delete().eq("site_name", targetSite).eq("engineer_name", engineer);
+  setDraftExists(false); setDraftSavedAt(""); setDraftSite("");
+  showToast("🗑 Draft deleted", "info");
+};
 
   const generate = async () => {
     if (!site) { showToast("Select a site", "error"); return; }
@@ -1564,55 +1348,74 @@ const uploadWprRef = useRef();
       dlA.href = dlUrl; dlA.download = `WPR_${zp(reportNum)}_${site.replace(/\s+/g, "_")}.pptx`;
       dlA.style.display = "none"; document.body.appendChild(dlA); dlA.click();
       document.body.removeChild(dlA); setTimeout(() => URL.revokeObjectURL(dlUrl), 10000);
+     const bucketName = bucketNameFor(site);
+await ensureBucket(supabase, site);
 
-      setGenProgress(55); setGenStep("Uploading presentation…");
-      const pptPath = `${safeSite}/${folder}/WPR_${zp(reportNum)}_${safeSite}.pptx`;
-      const pptUrl = await uploadBlob(supabase, pptBlob, pptPath, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+const datePath = buildSiteDatePath(reportDate);
+const wprBase = `${datePath}/wpr`;
+
+setGenProgress(55); setGenStep("Uploading presentation…");
+const pptPath = `${wprBase}/reports/WPR_${zp(reportNum)}_${safeSite}.pptx`;
+const pptUrl = await uploadBlob(supabase, bucketName, pptBlob, pptPath, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
       await supabase.from("wpr_reports").update({ presentation_url: pptUrl }).eq("id", reportId);
 
       setGenProgress(65); setGenStep("Uploading images…");
       let uploadedCount = 0;
+      // Only graphical + site photos count toward the upload total now —
+      // cube/mom/barchart/checklist/progress are PPT-only and skipped here.
       const allImgCounts = [
-        graphicalImages.filter((i) => i.dataUrl).length, sitePhotos.filter((i) => i.dataUrl).length,
-        checklistPhotos.filter((i) => i.dataUrl).length, barchartItems.filter((i) => i.dataUrl).length,
-        cubeItems.filter((i) => i.dataUrl).length, momItems.filter((i) => i.dataUrl).length,
-        ...activities.map((a) => (a.progressImages || []).filter((i) => i.dataUrl).length),
+        graphicalImages.filter((i) => i.dataUrl).length,
+        sitePhotos.filter((i) => i.dataUrl).length,
       ];
       const totalUp = allImgCounts.reduce((a, b) => a + b, 0);
 
-      const uploadBatch = async (images, imageType, prefix, activityIndex = null) => {
-        for (let i = 0; i < images.length; i++) {
-          const img = images[i];
-          if (!img.dataUrl) continue;
-          const ext = img.dataUrl.split(";")[0].split("/")[1] || "jpg";
-          const cap = (img.label || img.caption || "").replace(/[^a-zA-Z0-9_]/g, "").slice(0, 25);
-          const fname = `${prefix}_${i + 1}${cap ? "_" + cap : ""}.${ext}`;
-          const path = `${safeSite}/${folder}/${imageType}/${fname}`;
-          const publicUrl = await uploadImage(supabase, img.dataUrl, path);
-          await supabase.from("wpr_images").insert({ wpr_report_id: reportId, image_type: imageType, activity_index: activityIndex, storage_path: path, public_url: publicUrl, caption: img.label || img.caption || "", sort_order: i });
-          uploadedCount++;
-          setGenProgress(65 + Math.round((uploadedCount / Math.max(totalUp, 1)) * 28));
-          setGenStep(`Uploading images… (${uploadedCount}/${totalUp})`);
-        }
-      };
+const uploadBatch = async (images, imageType, subfolder, namePrefix) => {
+  for (let i = 0; i < images.length; i++) {
+    const img = images[i];
+    if (!img.dataUrl) continue;
+    const ext = img.dataUrl.split(";")[0].split("/")[1] || "jpg";
+    const cap = safeNamePart(img.label || img.caption || "");
+    const fname = `${namePrefix}_${i + 1}${cap ? "_" + cap : ""}.${ext}`;
+    const path = `${wprBase}/${subfolder}/${fname}`;
+    const publicUrl = await uploadImage(supabase, bucketName, img.dataUrl, path);
+    await supabase.from("wpr_images").insert({
+      wpr_report_id: reportId,
+      image_type: imageType,
+      storage_path: path,
+      public_url: publicUrl,
+      caption: img.label || img.caption || "",
+      sort_order: i,
+    });
+    uploadedCount++;
+    setGenProgress(65 + Math.round((uploadedCount / Math.max(totalUp, 1)) * 28));
+    setGenStep(`Uploading images… (${uploadedCount}/${totalUp})`);
+  }
+};
 
-      if (siteImage) {
-        const path = `${safeSite}/${folder}/site_image/title.jpg`;
-        const url = await uploadImage(supabase, siteImage, path);
-        await supabase.from("wpr_images").insert({ wpr_report_id: reportId, image_type: "site_image", storage_path: path, public_url: url, caption: "Site Title Image", sort_order: 0 });
-        await supabase.from("wpr_reports").update({ site_image_url: url }).eq("id", reportId);
-      }
+if (siteImage) {
+  const path = `${wprBase}/title_img/title.jpg`;
+  const url = await uploadImage(supabase, bucketName, siteImage, path);
+  await supabase.from("wpr_images").insert({
+    wpr_report_id: reportId,
+    image_type: "site_image",
+    storage_path: path,
+    public_url: url,
+    caption: "Site Title Image",
+    sort_order: 0,
+  });
+  await supabase.from("wpr_reports").update({ site_image_url: url }).eq("id", reportId);
+}
 
-      await uploadBatch(graphicalImages, "graphical", "graphical");
-      await uploadBatch(sitePhotos, "site_photo", "site");
-      await uploadBatch(checklistPhotos, "checklist", "checklist");
-      await uploadBatch(barchartItems, "barchart", "barchart");
-      await uploadBatch(cubeItems, "cube_testing", "cube");
-      await uploadBatch(momItems, "mom_review", "mom");
-      for (let ai = 0; ai < activities.length; ai++) {
-        const imgs = activities[ai].progressImages || [];
-        if (imgs.length) await uploadBatch(imgs, "progress", `act${ai + 1}`, ai);
-      }
+await uploadBatch(graphicalImages, "graphical", "graphical", "graphical");
+await uploadBatch(sitePhotos, "site_photo", "site_photos", "site");
+await uploadBatch(checklistPhotos, "checklist", "checklist", "checklist");
+await uploadBatch(barchartItems, "barchart", "barchart", "barchart");
+await uploadBatch(cubeItems, "cube_testing", "cube_testing", "cube");
+await uploadBatch(momItems, "mom_review", "mom_review", "mom");
+for (let ai = 0; ai < activities.length; ai++) {
+  const imgs = activities[ai].progressImages || [];
+  if (imgs.length) await uploadBatch(imgs, "progress", "progress", `act${ai + 1}_progress`);
+}
 
       setGenProgress(100); setGenStep("Done!");
       if (draftExists) await supabase.from("wpr_drafts").delete().eq("site_name", site).eq("engineer_name", engineer);
@@ -1642,8 +1445,15 @@ const uploadExistingWpr = async (e) => {
     const safeEng = engineer.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
     const safeSite = site.replace(/\s+/g, "_");
     const folder = `${dateStr}_${safeEng}`;
+   
+const pptPath = `${datePath}/wpr/reports/WPR_${zp(reportNum)}_${safeSite}_uploaded.${ext}`;
+const bucketName = bucketNameFor(site);
+setGenProgress(20); setGenStep("Preparing storage…");
+await ensureBucket(supabase, site);
 
-    setGenProgress(25); setGenStep("Saving report record…");
+const datePath = buildSiteDatePath(reportDate);
+
+    setGenProgress(35); setGenStep("Saving report record…");
 
     const { data: reportData, error: reportError } = await supabase.from("wpr_reports").insert({
       site_name: site,
@@ -1667,18 +1477,18 @@ const uploadExistingWpr = async (e) => {
     if (reportError) throw reportError;
     const reportId = reportData.id;
 
-    setGenProgress(55); setGenStep("Uploading file…");
+    setGenProgress(60); setGenStep("Uploading file…");
 
     const ext = file.name.split(".").pop() || "pptx";
-    const pptPath = `${safeSite}/${folder}/WPR_${zp(reportNum)}_${safeSite}_uploaded.${ext}`;
+    //const pptPath = `wpr/reports/WPR_${zp(reportNum)}_${safeSite}_uploaded.${ext}`;
     const contentType = file.type || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
     const { error: upErr } = await supabase.storage
-      .from("wpr-images")
+      .from(bucketName)
       .upload(pptPath, file, { contentType, upsert: true });
     if (upErr) throw upErr;
 
-    const { data: urlData } = supabase.storage.from("wpr-images").getPublicUrl(pptPath);
+    const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(pptPath);
     const pptUrl = urlData.publicUrl;
 
     await supabase.from("wpr_reports").update({ presentation_url: pptUrl }).eq("id", reportId);
@@ -2253,7 +2063,7 @@ const uploadExistingWpr = async (e) => {
         {/* FAB */}
         <div className="wpr-fab-wrap">
           <button onClick={() => saveDraft(false)} disabled={autoSavePending}
-            style={{ width: "100%", height: 40, marginBottom: 8, fontSize: 13, fontFamily: "var(--font)", fontWeight: 700, background: "linear-gradient(135deg,var(--amber),#7a2e00,#c96a10)", color: "#fff", border: "1.5px solid #c96a10", borderRadius: 10, cursor: "pointer", pointerEvents: "all", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            style={{ width: "100%", height: 40, marginBottom: 8, fontSize: 13, fontFamily: "var(--font)", fontWeight: 700, background: "linear-gradient(135deg,#fff,var(--amber),#7a2e00,#c96a10,#fff)", color: "#fff", border: "1.5px solid linear-gradient(#fff,var(--amber),#7a2e00,#c96a10,#fff)", borderRadius: 10, cursor: "pointer", pointerEvents: "all", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
             {autoSavePending ? (
               <><div className="wpr-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Saving…</>
             ) : (
@@ -2295,7 +2105,7 @@ const uploadExistingWpr = async (e) => {
                     </div>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
                   </div>
-                  <a href={`https://docs.google.com/viewer?url=${encodeURIComponent(successUrls.pptUrl)}`} target="_blank" rel="noreferrer" className="wpr-link-row">
+                  <a href={`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(successUrls.pptUrl)}`} target="_blank" rel="noreferrer" className="wpr-link-row">
                     <span className="wpr-link-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></span>
                     <div className="wpr-link-label">
                       <div style={{ fontWeight: 800 }}>View Report</div>

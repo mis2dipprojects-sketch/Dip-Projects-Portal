@@ -63,7 +63,42 @@ async function compressImage(file) {
     reader.readAsDataURL(sourceFile);
   });
 }
+// ─── Bucket helpers (per-site buckets, auto-created) ─────────────────────────
+function sanitizeBucketName(site) {
+  // Supabase bucket names: lowercase letters, numbers, hyphens only, no leading/trailing hyphen
+  return (site || "site")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 63) || "site";
+}
+const _bucketEnsuredCache = new Set();
 
+async function ensureBucketExists(bucketName, site) {
+  if (_bucketEnsuredCache.has(bucketName)) return;
+
+  const { data, error } = await supabase.functions.invoke("ensure-bucket", {
+    body: { site },
+  });
+
+  if (error) {
+    throw new Error(`Could not provision storage bucket "${bucketName}": ${error.message}`);
+  }
+  if (data?.error) {
+    throw new Error(`Could not provision storage bucket "${bucketName}": ${data.error}`);
+  }
+
+  _bucketEnsuredCache.add(bucketName);
+}
+function buildSiteDatePath(date) {
+  const [year, month, day] = date.split("-");
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const monthName = monthNames[parseInt(month, 10) - 1];
+  const dayFolder = `${day}-${month}-${year}`;
+  return `${year}/${monthName}/${dayFolder}`;
+}
 async function dataUrlToBlob(dataUrl) {
   const res = await fetch(dataUrl);
   return res.blob();
@@ -496,7 +531,7 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 .mp-source-tag{font-size:14px;font-weight:700;color:#1d4ed8;}
 .mp-total{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:#1e293b;}
 .mp-total-label{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;}
-.mp-total-val{font-size:24px;font-weight:900;color:#800000;}
+.mp-total-val{font-size:24px;font-weight:900;color:#fff;}
 
 /* BADGES */
 .badge{display:inline-block;padding:3px 10px;border-radius:4px;font-size:13px;font-weight:700;}
@@ -589,6 +624,27 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 .info-row:last-child{border-bottom:none;}
 .info-key{font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;min-width:160px;flex-shrink:0;padding-top:2px;}
 .info-val{font-size:15px;color:#0f172a;}
+
+/* ── PENDING MATERIALS — HIGH-URGENCY SECTION ───────────────────────────── */
+.pm-section-wrap{margin-bottom:18px;border:2.5px solid #800000;page-break-inside:avoid;break-inside:avoid;box-shadow:0 0 0 4px rgba(128,0,0,.08);}
+.pm-header{display:flex;justify-content:space-between;align-items:center;background:#800000;padding:13px 16px;position:relative;overflow:hidden;}
+.pm-header::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:repeating-linear-gradient(45deg,#fbbf24,#fbbf24 10px,#800000 10px,#800000 20px);}
+.pm-header-left{display:flex;align-items:center;gap:10px;}
+.pm-icon{width:26px;height:26px;flex-shrink:0;}
+.pm-title{font-size:18px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#fff;}
+.pm-badge{background:#fbbf24;color:#7c2d12;font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;padding:5px 12px;border-radius:20px;white-space:nowrap;}
+.pm-subtitle{background:#fef2f2;border-bottom:2px solid #800000;padding:9px 16px;font-size:12.5px;color:#7f1d1d;font-weight:600;}
+.pm-body{background:#fff;}
+.pm-table{width:100%;border-collapse:collapse;font-size:14px;}
+.pm-table thead th{background:#1e293b;color:#fff;border:1px solid #334155;font-size:12.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:10px 14px;text-align:left;}
+.pm-table thead th.center{text-align:center;}
+.pm-table td{border:1px solid #fecaca;padding:11px 14px;vertical-align:middle;}
+.pm-table tbody tr:nth-child(even) td{background:#fef2f2;}
+.pm-table tbody tr:nth-child(odd) td{background:#fff;}
+.pm-mat-name{font-weight:800;color:#0f172a;font-size:14.5px;}
+.pm-qty{font-weight:900;color:#800000;font-size:16px;text-align:center;}
+.pm-unit{display:inline-block;padding:3px 10px;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;font-size:12.5px;font-weight:700;border-radius:4px;}
+.pm-empty{padding:24px 16px;text-align:center;color:#64748b;font-size:14px;font-style:italic;}
 
 `;
 
@@ -876,8 +932,74 @@ function buildPhotosHtml(photos) {
   }
   return html;
 }
-// ─── Full PDF HTML builder ────────────────────────────────────────────────────
-function buildEveningPdfHtml(payload) {
+
+// ─── Pending materials (live, from Supabase material_requirements) ──────────
+// Fetches all status='pending' rows for the given site. Independent of the
+// in-form payload — always reflects current outstanding requests for the site.
+async function fetchPendingMaterials(site) {
+  if (!site) return [];
+  const { data, error } = await supabase
+    .from("material_requirements")
+    .select("material_name, quantity, unit_name, requested_by, created_at")
+    .eq("site_name", site)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.error("fetchPendingMaterials error:", error.message);
+    return [];
+  }
+  return data || [];
+}
+
+// High-urgency styled section — always renders (even with 0 rows, per spec),
+// shown at the very end of the report just before the Thank You page.
+function buildPendingMaterialsHtml(rows) {
+  const list = rows || [];
+  
+  // Return nothing if no pending materials
+  if (!list.length) return "";
+
+  const rowsHtml = list.map(r => `
+    <tr>
+      <td class="pm-mat-name">${esc(r.material_name)}</td>
+        <td class="pm-qty">${esc(String(r.quantity))}</td>
+        <td><span class="pm-unit">${esc(r.unit_name)}</span></td>
+        <td class="td-left">${esc(r.requested_by || "—")}</td>
+        <td class="td-left">${esc(fmtDate((r.created_at || "").slice(0,10)))}</td>
+      </tr>`).join("");
+
+  return `<div class="pm-section-wrap">
+    <div class="pm-header">
+      <div class="pm-header-left">
+        <svg class="pm-icon" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <span class="pm-title">Pending Material Requirements</span>
+      </div>
+      <span class="pm-badge">Action Required</span>
+    </div>
+    <div class="pm-subtitle">Materials requested for this site that have not yet been received. Please action at the earliest.</div>
+    <div class="pm-body">
+      <table class="pm-table">
+        <thead>
+          <tr>
+            <th>Material</th>
+            <th class="center">Qty</th>
+            <th>Unit</th>
+            <th>Requested By</th>
+            <th>Date Requested</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ─── Full PDF HTML builder (preview/legacy, non-paginated) ──────────────────
+function buildEveningPdfHtml(payload, pendingMaterials) {
   _secNum = 0;
   const dispDate = fmtDate(payload.date);
 
@@ -888,12 +1010,13 @@ function buildEveningPdfHtml(payload) {
   sections += pdfSection("CEMENT STOCK",            buildCementHtml(payload));
   sections += pdfSection("CONCRETE CONSUMPTION",    buildConcreteHtml(payload));
   sections += pdfSection("MATERIAL USED / RECEIVED",buildMaterialHtml(payload.material));
-  sections += pdfSection("MATERIAL REQUIREMENT",    buildMaterialHtml(payload.matReq, true));
   sections += pdfSection("CUBE TEST RESULTS",       buildCubeHtml(payload.cube));
   sections += pdfSection("SITE VISIT & INSTRUCTIONS", buildVisitorsHtml(payload.visitors));
   sections += pdfSection("ADDITIONAL INFORMATION",  buildCustomFieldsHtml(payload.customFields));
   sections += pdfSection("WORK PROGRESS PHOTOS",    buildPhotosHtml(payload.photos));
   sections += pdfSection("TOMORROW'S PLANNING",     buildPlanningHtml(payload.planning));
+
+  const pendingMaterialsHtml = buildPendingMaterialsHtml(pendingMaterials);
 
   const genTime = new Date().toLocaleString("en-IN", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
 
@@ -927,6 +1050,8 @@ function buildEveningPdfHtml(payload) {
 </div>
 
 ${sections}
+
+${pendingMaterialsHtml}
 
 <div style="page-break-before:always;">
   <div class="ty-page">
@@ -1002,7 +1127,7 @@ async function getLogoBase64() {
 async function generateEveningPdf(payload, onProgress) {
   
   await ensurePdfDeps();
-   const logoBase64 = await getLogoBase64();
+  const logoBase64 = await getLogoBase64();
   const { jsPDF } = window.jspdf;
   const A4_W = 210, A4_H = 297, MARGIN = 10;
   const CONTENT_W = A4_W - MARGIN * 2;
@@ -1099,7 +1224,7 @@ async function renderChunk(html) {
         pdf.addPage();
         pageNum++;
         pdf.setFontSize(8); pdf.setTextColor(100);
-        pdf.text(`Page ${pageNum}  ·  DIP Projects  ·  Evening DPR`, A4_W / 2, A4_H - 5, { align: "center" });
+        pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
         cursorY = MARGIN;
       }
 
@@ -1129,7 +1254,7 @@ async function renderChunk(html) {
         pdf.addPage();
         pageNum++;
         pdf.setFontSize(8); pdf.setTextColor(100);
-        pdf.text(`Page ${pageNum}  ·  DIP Projects  ·  Evening DPR`, A4_W / 2, A4_H - 5, { align: "center" });
+        pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
         cursorY = MARGIN;
       }
     }
@@ -1137,7 +1262,7 @@ async function renderChunk(html) {
 
   // ── page footer for page 1 ─────────────────────────────────────────────────
   pdf.setFontSize(8); pdf.setTextColor(100);
-  pdf.text(`Page 1  ·  DIP Projects  ·  Evening DPR`, A4_W / 2, A4_H - 5, { align: "center" });
+  pdf.text(`Page 1  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
 
   // ── BUILD SECTIONS ─────────────────────────────────────────────────────────
   const dispDate = fmtDate(payload.date);
@@ -1181,7 +1306,6 @@ const coverHtml = `
     ["CEMENT STOCK",              buildCementHtml(payload)],
     ["CONCRETE CONSUMPTION",      buildConcreteHtml(payload)],
     ["MATERIAL USED / RECEIVED",  buildMaterialHtml(payload.material)],
-    ["MATERIAL REQUIREMENT",      buildMaterialHtml(payload.matReq, true)],
     ["CUBE TEST RESULTS",         buildCubeHtml(payload.cube)],
     ["SITE VISIT & INSTRUCTIONS", buildVisitorsHtml(payload.visitors)],
     ["ADDITIONAL INFORMATION",    buildCustomFieldsHtml(payload.customFields)],
@@ -1237,7 +1361,7 @@ if (isPhotos) {
       pdf.addPage();
       pageNum++;
       pdf.setFontSize(8); pdf.setTextColor(100);
-      pdf.text(`Page ${pageNum}  ·  DIP Projects  ·  Evening DPR`, A4_W / 2, A4_H - 5, { align: "center" });
+      pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
       cursorY = MARGIN;
     }
 
@@ -1260,6 +1384,29 @@ if (isPhotos) {
     await addCanvasToPdf(canvas, title);
   }
 }
+
+  // ── PENDING MATERIAL REQUIREMENTS — highlighted, just before Thank You ────
+  // ── PENDING MATERIAL REQUIREMENTS ────────────────────────────────────────
+  onProgress("Fetching pending materials…");
+  const pendingMaterials = await fetchPendingMaterials(payload.site);
+  const pmHtml = buildPendingMaterialsHtml(pendingMaterials);
+
+  // Only render if there are pending materials
+  if (pmHtml.trim()) {
+    onProgress("Rendering pending materials…");
+    const pmCanvas = await renderChunk(pmHtml);
+    const PX_PER_MM = pmCanvas.width / CONTENT_W;
+    const pmHeightMM = pmCanvas.height / PX_PER_MM;
+    if (cursorY + pmHeightMM > A4_H - MARGIN - 10) {
+      addWatermark(pdf, logoBase64);
+      pdf.addPage();
+      pageNum++;
+      pdf.setFontSize(8); pdf.setTextColor(100);
+      pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
+      cursorY = MARGIN;
+    }
+    await addCanvasToPdf(pmCanvas, "pending materials");
+  }
 
   // Thank you page — always starts on a new page
   addWatermark(pdf, logoBase64);
@@ -1384,31 +1531,30 @@ async function loadDraft(site, engineer) {
 async function deleteDraft(site, engineer) {
   await supabase.from("dpr_drafts").delete().eq("site",site).eq("engineer",engineer);
 }
-
 async function uploadPdfToSupabase(blob, fileName, site, date) {
-  const [year, month, day] = date.split("-");
-  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const monthName = monthNames[parseInt(month, 10) - 1];
-  const safeSite = (site || "site").replace(/[\s/\\:*?"<>|]/g, "_");
-  const dayFolder = `${day}-${month}-${year}`;
-  const path = `${safeSite}/${year}/${monthName}/${dayFolder}/pdf/${fileName}`;
+  const bucketName = sanitizeBucketName(site);
+  await ensureBucketExists(bucketName, site);
 
-  const { error } = await supabase.storage.from("dpr-reports").upload(path, blob, { contentType:"application/pdf", upsert:true });
-  if (error) throw new Error(`PDF upload failed: ${error.message} (bucket: dpr-reports, path: ${path})`);
-  const { data: urlData } = supabase.storage.from("dpr-reports").getPublicUrl(path);
+  const datePath = buildSiteDatePath(date);
+  const path = `${datePath}/dpr/reports/${fileName}`;
+
+  const { error } = await supabase.storage.from(bucketName).upload(path, blob, { contentType:"application/pdf", upsert:true });
+  if (error) throw new Error(`PDF upload failed: ${error.message} (bucket: ${bucketName}, path: ${path})`);
+  const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(path);
   if (!urlData?.publicUrl) throw new Error("PDF uploaded but could not get public URL.");
   return urlData.publicUrl;
 }
+async function uploadPhotoToSupabase(dataUrl, site, storagePath) {
+  const bucketName = sanitizeBucketName(site);
+  await ensureBucketExists(bucketName, site);
 
-async function uploadPhotoToSupabase(dataUrl, storagePath) {
   const blob = await dataUrlToBlob(dataUrl);
-  const { error } = await supabase.storage.from("dpr-photos").upload(storagePath, blob, { contentType:"image/jpeg", upsert:true });
-  if (error) throw new Error(`Photo upload failed: ${error.message} (bucket: dpr-photos, path: ${storagePath})`);
-  const { data: urlData } = supabase.storage.from("dpr-photos").getPublicUrl(storagePath);
+  const { error } = await supabase.storage.from(bucketName).upload(storagePath, blob, { contentType:"image/jpeg", upsert:true });
+  if (error) throw new Error(`Photo upload failed: ${error.message} (bucket: ${bucketName}, path: ${storagePath})`);
+  const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(storagePath);
   if (!urlData?.publicUrl) throw new Error(`Photo uploaded but could not get public URL (path: ${storagePath})`);
   return urlData.publicUrl;
 }
-
 // ─── UI helpers ───────────────────────────────────────────────────────────────
 function Spinner() { return <div className="spinner"/>; }
 
@@ -2536,7 +2682,6 @@ function DprForm({user}) {
   const [concreteOn,    setConcreteOn]    = useState("");
   const [concreteDesc,  setConcreteDesc]  = useState("");
   const [material,      setMaterial]      = useState([]);
-  const [matReq,        setMatReq]        = useState([]);
   const [cube,          setCube]          = useState("");
   const [visitors,      setVisitors]      = useState([{id:"v_init",name:"",instruction:""}]);
   const [customFields,  setCustomFields]  = useState([]);
@@ -2625,7 +2770,7 @@ useEffect(() => {
     site, engineer, employeeName:engineer, reportType, date, summary, manpower, equipment,
     cementAvailable:cementAvail, cementReceived:cementRcvd, cementUsed, cementBalance:String(cementBalance), cementUsedDesc,
     concreteTheoretical:concreteTh, concreteOnsite:concreteOn, concreteDescription:concreteDesc,
-    material, matReq, cube,
+    material, cube,
     visitors: visitors.filter(v=>v.name),
     customFields: customFields.filter(f=>f.title||f.value),
     photos, planning,
@@ -2645,7 +2790,7 @@ useEffect(() => {
     setEquipment(d.equipment||[]); setCementAvail(d.cementAvailable||""); setCementRcvd(d.cementReceived||"");
     setCementUsed(d.cementUsed||""); setCementUsedDesc(d.cementUsedDesc||""); setConcreteTh(d.concreteTheoretical||"");
     setConcreteOn(d.concreteOnsite||""); setConcreteDesc(d.concreteDescription||""); setMaterial(d.material||[]);
-    setMatReq(d.matReq||[]); setCube(d.cube||"");
+    setCube(d.cube||"");
     setVisitors(d.visitors?.length ? d.visitors.map((v,i)=>({...v,id:"dr_v_"+i})) : [{id:"v_init",name:"",instruction:""}]);
     setCustomFields(d.customFields||[]); setPhotos(d.photos||[]); setPlanning(d.planning||"");
     showToast("ok","Draft restored.");
@@ -2682,23 +2827,19 @@ useEffect(() => {
     setSubmitting(true);
     const payload = collectPayload();
     try {
-      const [year, month, day] = date.split("-");
-      const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-      const monthName = monthNames[parseInt(month, 10) - 1];
-      const safeSite = site.replace(/[\s/\\:*?"<>|]/g, "_");
-      const dayFolder = `${day}-${month}-${year}`;
-      const photoFolder = `${safeSite}/${year}/${monthName}/${dayFolder}`;
+      const photoFolder = `${buildSiteDatePath(date)}/dpr`;
       const uploadedPhotos = [];
 
       setSubmitStep("photos");
       for (let i=0; i<photos.length; i++) {
         setSubmitDetail(`Photo ${i+1} of ${photos.length}…`);
-        const path = `${photoFolder}/photos/photo_${i+1}_${Date.now()}.jpg`;
-        const url = await uploadPhotoToSupabase(photos[i].data, path);
+        const cap = (photos[i].caption || "").trim().replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
+        const fname = `photo_${i+1}${cap ? "_" + cap : ""}.jpg`;
+        const path = `${photoFolder}/photos/${fname}`;
+        const url = await uploadPhotoToSupabase(photos[i].data, site, path);
         uploadedPhotos.push({...photos[i], supabaseUrl:url, storagePath:path});
       }
       payload.photos = uploadedPhotos;
-
       setSubmitStep("pdf");
       setSubmitDetail("Building document…");
       const { blob, fileName } = await generateEveningPdf(payload, msg=>setSubmitDetail(msg));
@@ -2730,98 +2871,6 @@ useEffect(() => {
     setSubmitStep(""); setSubmitDetail("");
   };
 
-// function buildWhatsAppText(payload) {
-//   const LINE  = '─'.repeat(20);
-//   const RULE  = '━'.repeat(20);
-
-//   let msg = '';
-
-//   // ── Header ──────────────────────────────────────────────
-//   msg += '*MORNING REPORT*\n';
-//   msg += '_DIP Projects · Site Progress Update_\n';
-//   msg += `${RULE}\n`;
-//   msg += `*Site*      : ${payload.site}\n`;
-//   msg += `*Engineer*  : ${payload.employeeName}\n`;
-//   msg += `*Date*      : ${fmtDate(payload.date)}\n`;
-//   msg += `${RULE}\n`;
-
-//   // ── Work summary ────────────────────────────────────────
-//   if (payload.summary?.trim()) {
-//     msg += '\n*WORK SUMMARY*\n';
-//     msg += `${LINE}\n`;
-//     payload.summary.split('\n').filter(l => l.trim())
-//       .forEach((l, i) => {
-//         msg += `${i + 1}.  ${l.replace(/^[•\-]\s*/, '').trim()}\n`;
-//       });
-//   }
-
-//   // ── Manpower ────────────────────────────────────────────
-//   if (payload.manpower?.length) {
-//     msg += '\n*MANPOWER*\n';
-//     msg += `${LINE}\n`;
-
-//     let total = 0;
-//     const scopeGroups = {};
-//     payload.manpower.forEach(mp => {
-//       const scope    = (mp.displayScope || mp.scope || '').trim();
-//       const labour   = (mp.labour   || '').trim();
-//       const category = (mp.category || '').trim();
-//       const gender   = (mp.gender   || '').trim();
-//       const skill    = (mp.skill && mp.skill !== '—' ? mp.skill : '').trim();
-//       const count    = Number(mp.count) || 0;
-//       total += count;
-//       if (!scopeGroups[scope]) scopeGroups[scope] = {};
-//       const labourKey = labour || '—';
-//       if (!scopeGroups[scope][labourKey]) scopeGroups[scope][labourKey] = [];
-//       scopeGroups[scope][labourKey].push({ category, gender, skill, count });
-//     });
-
-//     Object.keys(scopeGroups).forEach(scope => {
-//       msg += `\n_${scope.toUpperCase()}_\n`;
-//       Object.keys(scopeGroups[scope]).forEach(labour => {
-//         scopeGroups[scope][labour].forEach(row => {
-//           const details = [
-//             row.category && row.category !== '—' ? row.category : null,
-//             row.gender,
-//             row.skill,
-//           ].filter(Boolean);
-//           const label     = labour && labour !== '—' ? labour : (row.category || 'Workers');
-//           const detailStr = details.length ? ` (${details.join(' · ')})` : '';
-//           msg += `   ▪ ${label}${detailStr}  →  *${row.count}*\n`;
-//         });
-//       });
-//     });
-
-//     msg += `${LINE}\n`;
-//     msg += `*Total Manpower*  :  *${total}*\n`;
-//     const LINE  = '─'.repeat(20);
-//   }
-
-//   // ── Equipment ───────────────────────────────────────────
-//   if (payload.equipment?.length) {
-//     msg += '\n*EQUIPMENT ON SITE*\n';
-//     msg += `${LINE}\n`;
-
-//     const clientEq     = payload.equipment.filter(e => e.source === 'client');
-//     const contractorEq = payload.equipment.filter(e => e.source === 'contractor');
-
-//     if (clientEq.length) {
-//       msg += '\n_CLIENT_\n';
-//       clientEq.forEach(e => { msg += `   ▪ ${e.name}  →  *${e.qty} ${e.unit}*\n`; });
-//     }
-//     if (contractorEq.length) {
-//       msg += '\n_CONTRACTOR_\n';
-//       contractorEq.forEach(e => { msg += `   ▪ ${e.name}  →  *${e.qty} ${e.unit}*\n`; });
-//     }
-//     msg += `${LINE}\n`;
-//   }
-
-//   // ── Footer ──────────────────────────────────────────────
-//   msg += `\n${RULE}\n`;
-//   msg += `_${new Date().toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}_`;
-
-//   return msg;
-// }
 function buildWhatsAppText(payload) {
   const LINE  = '─'.repeat(20);
   const RULE  = '━'.repeat(20);
@@ -2994,7 +3043,7 @@ const handleWhatsApp = async () => {
 
   const resetForm = () => {
     setSubmitted(false); setSummary(""); setManpower([]); setPhotos([]); setPlanning(""); setEquipment([]);
-    setMaterial([]); setMatReq([]); setCementAvail(""); setCementRcvd(""); setCementUsed(""); setCementUsedDesc("");
+    setMaterial([]); setCementAvail(""); setCementRcvd(""); setCementUsed(""); setCementUsedDesc("");
     setConcreteTh(""); setConcreteOn(""); setConcreteDesc(""); setCube("");
     setVisitors([{id:"v_init",name:"",instruction:""}]); setCustomFields([]); setPdfUrl(null);
   };
@@ -3126,23 +3175,19 @@ const handleWhatsApp = async () => {
                 <MaterialSection list={material} setList={setMaterial}/>
               </SectionBlock>
 
-              <SectionBlock title="7. Material Requirement">
-                <MaterialSection list={matReq} setList={setMatReq} showDesc label="Material"/>
-              </SectionBlock>
-
-              <SectionBlock title="8. Cube Test Results">
+              <SectionBlock title="7. Cube Test Results">
                 <textarea className="finput" rows={3} value={cube} onChange={e=>setCube(e.target.value)} placeholder="Enter cube test results…"/>
               </SectionBlock>
 
-              <SectionBlock title="9. Site Visit &amp; Instructions">
+              <SectionBlock title="8. Site Visit &amp; Instructions">
                 <VisitorsSection visitors={visitors} setVisitors={setVisitors}/>
               </SectionBlock>
 
-              <SectionBlock title="10. Additional Custom Fields">
+              <SectionBlock title="9. Additional Custom Fields">
                 <CustomFieldsSection fields={customFields} setFields={setCustomFields}/>
               </SectionBlock>
 
-              <SectionBlock title="11. Work Progress Photos">
+              <SectionBlock title="10. Work Progress Photos">
                 <div className="info-banner info-blue" style={{marginBottom:12}}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   Photos are required for Evening DPR.
@@ -3150,9 +3195,20 @@ const handleWhatsApp = async () => {
                 <PhotosSection photos={photos} setPhotos={setPhotos}/>
               </SectionBlock>
 
-              <SectionBlock title="12. Tomorrow's Planning">
+              <SectionBlock title="11. Tomorrow's Planning">
                 <textarea className="finput" rows={4} value={planning} onChange={e=>setPlanning(e.target.value)} placeholder="Plan for tomorrow's activities…"/>
               </SectionBlock>
+
+              <div className="info-banner" style={{
+                background:"#fef2f2", border:"1.5px solid #fecaca", color:"#991b1b",
+                marginTop:6,
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Any pending material requirements raised for this site will be pulled in automatically and shown as a highlighted section near the end of the generated PDF — no need to re-enter them here.
+              </div>
             </>)}
 
             <div className="act-row">

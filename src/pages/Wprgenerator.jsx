@@ -133,6 +133,54 @@ const WPR_CSS = `
 .wpr-xl-rows-field input { width:56px!important; text-align:center; }
 .wpr-touch-toggle { height:32px; padding:0 12px; font-size:11.5px; font-weight:700; border-radius:7px; border:1.5px solid #c96a10; background:var(--surface); color:#c96a10; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; }
 .wpr-touch-toggle.on { background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); color:#fff; }
+
+/* ── HEIC loading side toast ── */
+.wpr-heic-toast {
+  position: fixed;
+  bottom: 88px;
+  right: 16px;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 18px;
+  background: linear-gradient(135deg, #3d1200, #7a2e00, #c96a10);
+  border: 1.5px solid #c96a10;
+  border-radius: 13px;
+  box-shadow: 0 6px 24px rgba(61,18,0,0.45);
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  max-width: 300px;
+  pointer-events: none;
+  animation: wprSlideInRight .3s cubic-bezier(.22,1,.36,1);
+}
+.wpr-heic-toast-exit {
+  animation: wprSlideOutRight .25s ease forwards;
+}
+.wpr-heic-dots span {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ffcfa0;
+  margin: 0 2px;
+  animation: wprDotBounce 1.1s ease-in-out infinite;
+}
+.wpr-heic-dots span:nth-child(2) { animation-delay: .18s; }
+.wpr-heic-dots span:nth-child(3) { animation-delay: .36s; }
+@keyframes wprDotBounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: .5; }
+  40%            { transform: translateY(-5px); opacity: 1; }
+}
+@keyframes wprSlideInRight {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes wprSlideOutRight {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(110%); opacity: 0; }
+}
 `;
 
 const STANDARD_SECTIONS = [
@@ -151,44 +199,29 @@ const VISITOR_TYPES = [
 const zp = (n) => String(parseInt(n) || 1).padStart(2, "0");
 const today = () => new Date().toISOString().split("T")[0];
 
-// ─── Image compression ───────────────────────────────────────────────────────
-// function compress(dataUrl, maxW = 1200, quality = 0.72) {
-//   return new Promise((resolve) => {
-//     const img = new Image();
-//     img.onload = () => {
-//       const scale = Math.min(1, maxW / img.width);
-//       const w = Math.round(img.width * scale);
-//       const h = Math.round(img.height * scale);
-//       const canvas = document.createElement("canvas");
-//       canvas.width = w; canvas.height = h;
-//       canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-//       let q = quality;
-//       let result = canvas.toDataURL("image/jpeg", q);
-//       while (result.length / 1024 > 180 && q > 0.3) { q -= 0.06; result = canvas.toDataURL("image/jpeg", q); }
-//       resolve(result);
-//     };
-//     img.onerror = () => resolve(dataUrl);
-//     img.src = dataUrl;
-//   });
-// }
-
-// function readFileAsDataUrl(file) {
-//   return new Promise((resolve) => {
-//     const reader = new FileReader();
-//     reader.onload = (e) => compress(e.target.result).then(resolve);
-//     reader.readAsDataURL(file);
-//   });
-// }
 // ─── HEIC loader (lazy) ──────────────────────────────────────────────────────
 let _heic2anyPromise = null;
 function loadHeic2Any() {
   if (_heic2anyPromise) return _heic2anyPromise;
+  // Signal loading started
+  window.dispatchEvent(new CustomEvent("wpr:heic-loading", { detail: { loading: true } }));
   _heic2anyPromise = new Promise((resolve, reject) => {
-    if (window.heic2any) { resolve(window.heic2any); return; }
+    if (window.heic2any) {
+      window.dispatchEvent(new CustomEvent("wpr:heic-loading", { detail: { loading: false } }));
+      resolve(window.heic2any);
+      return;
+    }
     const s = document.createElement("script");
     s.src = "https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js";
-    s.onload  = () => resolve(window.heic2any);
-    s.onerror = () => { _heic2anyPromise = null; reject(new Error("Could not load HEIC converter")); };
+    s.onload = () => {
+      window.dispatchEvent(new CustomEvent("wpr:heic-loading", { detail: { loading: false } }));
+      resolve(window.heic2any);
+    };
+    s.onerror = () => {
+      window.dispatchEvent(new CustomEvent("wpr:heic-loading", { detail: { loading: false } }));
+      _heic2anyPromise = null;
+      reject(new Error("Could not load HEIC converter"));
+    };
     document.head.appendChild(s);
   });
   return _heic2anyPromise;
@@ -1292,6 +1325,12 @@ const [jobNo, setJobNo] = useState("");
   const [checklistPhotos, setChecklistPhotos] = useState([]);
   const [delayPoints, setDelayPoints] = useState([]);
   const [plans, setPlans] = useState([]);
+  const [heicLoading, setHeicLoading] = useState(false);
+  useEffect(() => {
+  const handler = (e) => setHeicLoading(e.detail.loading);
+  window.addEventListener("wpr:heic-loading", handler);
+  return () => window.removeEventListener("wpr:heic-loading", handler);
+}, []);
 const [sections, setSections] = useState(() =>
   STANDARD_SECTIONS.map((title) => ({ key: title, title, isStandard: true, hidden: false, slideHidden: false, type: "text", textItems: [], images: [] }))
 );
@@ -2368,6 +2407,26 @@ const datePath = buildSiteDatePath(reportDate);
         {/* Toast */}
         {toast && <div className={`wpr-toast ${toast.type}`}>{toast.msg}</div>}
       </div>
+      {/* HEIC library loading toast */}
+{heicLoading && (
+  <div className="wpr-heic-toast">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+      stroke="#ffcfa0" strokeWidth="2.2" strokeLinecap="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+    <div>
+      <div style={{ fontSize: 12.5, fontWeight: 800, color: "#ffcfa0", marginBottom: 3 }}>
+        Loading HEIC Converter
+      </div>
+      <div style={{ fontSize: 11.5, color: "rgba(255,207,160,0.75)", display: "flex", alignItems: "center", gap: 5 }}>
+        Converting your image
+        <span className="wpr-heic-dots">
+          <span/><span/><span/>
+        </span>
+      </div>
+    </div>
+  </div>
+)}
     </>
   );
 }

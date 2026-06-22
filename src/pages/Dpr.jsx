@@ -499,7 +499,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:14px;line-height:1.7;colo
 .doc-sub{font-size:13px;color:#64748b;margin-top:3px;text-align:right;}
 .cover-doc-type{font-size:13px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#64748b;margin-bottom:6px;}
 .cover-main-title{font-size:34px;font-weight:900;letter-spacing:-0.5px;color:#0f172a;line-height:1.1;margin-bottom:8px;}
-.cover-subtitle{font-size:14px;color:#64748b;border-left:3px solid #800000;padding-left:10px;margin-bottom:20px;}
+.cover-subtitle{font-size:14px;color:#64748b;border-left:3px solid #c8641a;padding-left:10px;margin-bottom:20px;}
 .meta-bar{display:table;width:100%;border-collapse:collapse;border:1.5px solid #cbd5e1;}
 .meta-cell{display:table-cell;padding:11px 16px;border-right:1.5px solid #cbd5e1;vertical-align:top;}
 .meta-cell:last-child{border-right:none;}
@@ -508,7 +508,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:14px;line-height:1.7;colo
 
 /* SECTION */
 .section-wrap{margin-bottom:18px;border:1.5px solid #cbd5e1;}
-.sec-header{display:flex;justify-content:space-between;align-items:center;background:#800000;padding:10px 14px;}
+.sec-header{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#6b2d0f,#c8641a);padding:10px 14px;}
 .sec-left{display:flex;align-items:center;gap:10px;}
 .sec-num{font-size:18px;font-weight:900;color:#fff;}
 .sec-title{font-size:17px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#fff;}
@@ -603,22 +603,22 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 /* ADD to .cover rule */
 .cover { margin-bottom:24px; page-break-inside:avoid; break-inside:avoid; }
 
-/* REPLACE the existing .ty-page block */
 .ty-page {
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   text-align:center; padding:120px 40px; min-height:100vh;
+  background:#fff;
   page-break-before:always; break-before:always;
 }
-.ty-line { width:80px; height:5px; background:#800000; margin:0 auto 28px; }
+.ty-line { width:80px; height:5px; background:linear-gradient(135deg,#6b2d0f,#c8641a); margin:0 auto 28px; }
 .ty-title { font-size:52px; font-weight:900; color:#0f172a; margin-bottom:16px; letter-spacing:-1px; }
 .ty-sub { font-size:18px; color:#64748b; max-width:480px; margin:0 auto 32px; line-height:1.8; }
-.ty-badge {
-  display:inline-block; background:#1e293b; color:#fff;
+.ty-badge {display:inline-block; background:linear-gradient(135deg,#6b2d0f,#c8641a); color:#fff;
   font-size:15px; font-weight:700; letter-spacing:3px;
   text-transform:uppercase; padding:14px 36px;
 }
-.ty-meta { margin-top:36px; font-size:13px; color:#94a3b8; letter-spacing:.5px; }
 
+.ty-meta { margin-top:36px; font-size:13px; color:#94a3b8; letter-spacing:.5px; }
+.ty-logo { width:120px; height:120px; object-fit:contain; margin-bottom:28px; }
 /* INFO ROWS */
 .info-row{display:flex;gap:20px;padding:10px 16px;border-bottom:1px solid #cbd5e1;}
 .info-row:last-child{border-bottom:none;}
@@ -626,14 +626,14 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 .info-val{font-size:15px;color:#0f172a;}
 
 /* ── PENDING MATERIALS — HIGH-URGENCY SECTION ───────────────────────────── */
-.pm-section-wrap{margin-bottom:18px;border:2.5px solid #800000;page-break-inside:avoid;break-inside:avoid;box-shadow:0 0 0 4px rgba(128,0,0,.08);}
-.pm-header{display:flex;justify-content:space-between;align-items:center;background:#800000;padding:13px 16px;position:relative;overflow:hidden;}
+.pm-section-wrap{margin-bottom:18px;border:2.5px solid #c8641a;page-break-inside:avoid;break-inside:avoid;box-shadow:0 0 0 4px rgba(128,0,0,.08);}
+.pm-header{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#6b2d0f,#c8641a);padding:13px 16px;position:relative;overflow:hidden;}
 .pm-header::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:repeating-linear-gradient(45deg,#fbbf24,#fbbf24 10px,#800000 10px,#800000 20px);}
 .pm-header-left{display:flex;align-items:center;gap:10px;}
 .pm-icon{width:26px;height:26px;flex-shrink:0;}
 .pm-title{font-size:18px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#fff;}
 .pm-badge{background:#fbbf24;color:#7c2d12;font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;padding:5px 12px;border-radius:20px;white-space:nowrap;}
-.pm-subtitle{background:#fef2f2;border-bottom:2px solid #800000;padding:9px 16px;font-size:12.5px;color:#7f1d1d;font-weight:600;}
+.pm-subtitle{background:#fef3c7;border-bottom:2px solid #c8641a;padding:9px 16px;font-size:12.5px;color:#78350f;font-weight:600;}
 .pm-body{background:#fff;}
 .pm-table{width:100%;border-collapse:collapse;font-size:14px;}
 .pm-table thead th{background:#1e293b;color:#fff;border:1px solid #334155;font-size:12.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:10px 14px;text-align:left;}
@@ -1463,14 +1463,17 @@ if (isPhotos) {
   pdf.addPage();
   pageNum++;
   onProgress("Building thank you page…");
-  const tyHtml = `
-    <div class="ty-page" style="min-height:900px;">
-      <div class="ty-line"></div>
-      <div class="ty-title">Thank You</div>
-      <div class="ty-sub">This report has been prepared to ensure transparency, quality, and continuous improvement at the project site.</div>
-      <div class="ty-badge">DIP PROJECTS</div>
-      <div class="ty-meta">Generated ${esc(genTime)} · Evening DPR · ${esc(payload.site)}</div>
-    </div>`;
+const tyHtml = `
+  <div class="ty-page" style="min-height:900px;">
+    <img src="${logoBase64 || ""}" class="ty-logo"
+      style="${!logoBase64 ? 'display:none;' : ''}"
+      crossorigin="anonymous">
+    <div class="ty-line"></div>
+    <div class="ty-title">Thank You</div>
+    <div class="ty-sub">This report has been prepared to ensure transparency, quality, and continuous improvement at the project site.</div>
+    <div class="ty-badge">DIP PROJECTS</div>
+    <div class="ty-meta">Generated ${esc(genTime)} · Evening DPR · ${esc(payload.site)}</div>
+  </div>`;
   const tyCanvas = await renderChunk(tyHtml);
   // Center thank-you on the page
   const PX_PER_MM = tyCanvas.width / CONTENT_W;

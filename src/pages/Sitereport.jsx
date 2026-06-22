@@ -1,14 +1,105 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { supabase } from "../supabase";
-import { generateSiteReportPDF } from "./generateSiteReportPDF"; // adjust path
+import { generateSiteReportPDF } from "./generateSiteReportPDF";
 import logoAsset from "../assets/logo.png";
 import { processImage } from "../utils/imageUtils.js";
 import './Sitereport.css';
+
+// ─── Bucket helpers (mirrors DPR.jsx) ────────────────────────────────────────
+function sanitizeBucketName(site) {
+  return (site || "site")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 63) || "site";
+}
+
+const _bucketEnsuredCache = new Set();
+
+async function ensureBucketExists(bucketName, site) {
+  if (_bucketEnsuredCache.has(bucketName)) return;
+  const { data, error } = await supabase.functions.invoke("ensure-bucket", {
+    body: { site },
+  });
+  if (error) throw new Error(`Could not provision storage bucket "${bucketName}": ${error.message}`);
+  if (data?.error) throw new Error(`Could not provision storage bucket "${bucketName}": ${data.error}`);
+  _bucketEnsuredCache.add(bucketName);
+}
+
+function buildSiteDatePath(date) {
+  const [year, month, day] = date.split("-");
+  const monthNames = [
+    "January","February","March","April","May","June",
+    "July","August","September","October","November","December",
+  ];
+  const monthName = monthNames[parseInt(month, 10) - 1];
+  const dayFolder = `${day}-${month}-${year}`;
+  return `${year}/${monthName}/${dayFolder}`;
+}
+
+async function uploadSvrPdfToSupabase(blob, fileName, site, date) {
+  const bucketName = sanitizeBucketName(site);
+  await ensureBucketExists(bucketName, site);
+  const datePath = buildSiteDatePath(date);
+  // SVR reports live alongside DPR reports but under an "svr" subfolder
+  const path = `${datePath}/svr/reports/${fileName}`;
+  const { error } = await supabase.storage
+    .from(bucketName)
+    .upload(path, blob, { contentType: "application/pdf", upsert: true });
+  if (error) throw new Error(`PDF upload failed: ${error.message} (bucket: ${bucketName}, path: ${path})`);
+  const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(path);
+  if (!urlData?.publicUrl) throw new Error("PDF uploaded but could not get public URL.");
+  return urlData.publicUrl;
+}
+// ADD after the uploadSvrPdfToSupabase function
+
+// REPLACE WITH:
+async function saveSvrDraft(payload) {
+  const { error } = await supabase
+    .from("svr_drafts")
+    .upsert(
+      {
+        site_name: payload.site_name,
+        reporter:  payload.reporter_name,
+        payload:   JSON.parse(JSON.stringify(payload)), // ensure serializable
+        saved_at:  new Date().toISOString(),
+      },
+      { onConflict: "site_name,reporter", ignoreDuplicates: false }
+    );
+  if (error) { console.error("saveSvrDraft error:", error); return { ok: false, error: error.message }; }
+  return { ok: true };
+} 
+
+async function loadSvrDraft(site_name, reporter) {
+  if (!site_name || !reporter) return { ok: true, draft: null };
+  const { data, error } = await supabase
+    .from("svr_drafts")
+    .select("*")
+    .eq("site_name", site_name)
+    .eq("reporter", reporter)
+    .order("saved_at", { ascending: false })
+    .limit(1);
+  if (error) return { ok: false, error: error.message, draft: null };
+  return { ok: true, draft: (data && data[0]) || null };
+}
+
+async function deleteSvrDraft(site_name, reporter) {
+  if (!site_name || !reporter) return { ok: true };
+  const { error } = await supabase
+    .from("svr_drafts")
+    .delete()
+    .eq("site_name", site_name)
+    .eq("reporter", reporter);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+// ─── Sub-components ───────────────────────────────────────────────────────────
 function Section({ num, title, children, openSections, toggleSection }) {
   const open = !!openSections[num];
   return (
     <div className="svr-section">
-
       <button
         className={`svr-sec-header${open ? " open" : ""}`}
         onClick={() => toggleSection(num)}
@@ -65,6 +156,7 @@ function TextArea({ value, onChange, placeholder }) {
   );
 }
 
+// ─── Main component ───────────────────────────────────────────────────────────
 export default function SiteReport({ user }) {
   const [form, setForm] = useState({
     visit_date: new Date().toISOString().split("T")[0],
@@ -80,13 +172,18 @@ export default function SiteReport({ user }) {
     site_visit_instructions: "",
     key_instructions: "",
   });
+
   const [photosProcessing, setPhotosProcessing] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-  const [submitStage, setSubmitStage] = useState(""); // progress label
+  const [submitStage, setSubmitStage] = useState("");
   const [toast, setToast] = useState(null);
   const [openSections, setOpenSections] = useState({ 1: true });
+// REPLACE WITH:
+  const [draftInfo,        setDraftInfo]        = useState(null);
+  const [draftCheckStatus, setDraftCheckStatus] = useState("idle");
+  const [savingDraft,      setSavingDraft]      = useState(false);
   const fileRef = useRef();
 
   const showToast = (type, msg) => {
@@ -94,51 +191,98 @@ export default function SiteReport({ user }) {
     setTimeout(() => setToast(null), 5000);
   };
 
+  useEffect(() => {
+    const site = form.site_name?.trim();
+    const rep  = form.reporter_name?.trim();
+    if (!site || !rep) { setDraftInfo(null); setDraftCheckStatus("idle"); return; }
+    let cancelled = false;
+    setDraftCheckStatus("checking");
+    loadSvrDraft(site, rep).then(res => {
+      if (cancelled) return;
+      if (!res.ok) { setDraftInfo(null); setDraftCheckStatus("error"); return; }
+      setDraftInfo(res.draft);
+      setDraftCheckStatus(res.draft ? "found" : "none");
+    });
+    return () => { cancelled = true; };
+  }, [form.site_name, form.reporter_name]);
+
   const toggleSection = (n) =>
     setOpenSections((p) => ({ ...p, [n]: !p[n] }));
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
-  // ── Image handling ──
+  // ── Image handling (local only — no bucket upload) ──────────────────────────
   const handleFiles = async (files) => {
-  const fileArr = Array.from(files);
-  setPhotosProcessing(true);
-  for (const file of fileArr) {
-    try {
-      const processed = await processImage(file);
-      setPhotos((p) => [...p, { dataUrl: processed.dataUrl, caption: "", file }]);
-    } catch (err) {
-      showToast("error", `Could not load ${file.name}: ${err.message}`);
+    const fileArr = Array.from(files);
+    setPhotosProcessing(true);
+    for (const file of fileArr) {
+      try {
+        const processed = await processImage(file);
+        setPhotos((p) => [...p, { dataUrl: processed.dataUrl, caption: "", file }]);
+      } catch (err) {
+        showToast("error", `Could not load ${file.name}: ${err.message}`);
+      }
     }
-  }
-  setPhotosProcessing(false);
-};
-  const compressImage = (dataUrl, cb) => {
-    const img = new Image();
-    img.onload = () => {
-      const MAX = 1200;
-      const scale = Math.min(1, MAX / img.width, MAX / img.height);
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      const ctx = canvas.getContext("2d");
-      ctx.fillStyle = "#fff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      cb(canvas.toDataURL("image/jpeg", 0.78));
-    };
-    img.onerror = () => cb(dataUrl);
-    img.src = dataUrl;
+    setPhotosProcessing(false);
   };
 
-  const removePhoto = (i) =>
-    setPhotos((p) => p.filter((_, idx) => idx !== i));
+  const removePhoto = (i) => setPhotos((p) => p.filter((_, idx) => idx !== i));
 
   const updateCaption = (i, v) =>
     setPhotos((p) => p.map((ph, idx) => (idx === i ? { ...ph, caption: v } : ph)));
 
-  // ── Submit ──
-const handleSubmit = async () => {
+  // ── Submit ──────────────────────────────────────────────────────────────────
+// REPLACE WITH:
+  const handleSaveDraft = async () => {
+    const site = form.site_name?.trim();
+    const rep  = form.reporter_name?.trim();
+    if (!site || !rep) { showToast("error", "Site name and reporter name are required to save a draft."); return; }
+    setSavingDraft(true);
+    const res = await saveSvrDraft({ ...form, photos });
+    setSavingDraft(false);
+    if (res.ok) {
+      showToast("success", "✅ Draft saved successfully!");
+      const loaded = await loadSvrDraft(site, rep);
+      if (loaded.ok) { setDraftInfo(loaded.draft); setDraftCheckStatus(loaded.draft ? "found" : "none"); }
+    } else {
+      showToast("error", "Failed to save draft: " + res.error);
+    }
+  };
+
+// REPLACE WITH:
+  const handleOpenDraft = () => {
+    if (!draftInfo) { showToast("error", "No draft available."); return; }
+    const d = draftInfo.payload || {};
+    setForm({
+      visit_date:           d.visit_date           || new Date().toISOString().split("T")[0],
+      visit_time:           d.visit_time           || "",
+      site_name:            d.site_name            || "",
+      reporter_name:        d.reporter_name        || user?.name || "",
+      designation:          d.designation          || "",
+      designation_other:    d.designation_other    || "",
+      progress_of_work:     d.progress_of_work     || "",
+      quality_observations: d.quality_observations || "",
+      safety_concerns:      d.safety_concerns      || "",
+      issues_concerns:      d.issues_concerns      || "",
+      site_visit_instructions: d.site_visit_instructions || "",
+      key_instructions:     d.key_instructions     || "",
+    });
+    setPhotos((d.photos || []).map((p, i) => ({ ...p, file: undefined })));
+    const savedAt = draftInfo.saved_at
+      ? new Date(draftInfo.saved_at).toLocaleString("en-IN", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" })
+      : "";
+    showToast("success", `✅ Draft restored !`);
+  };
+
+  const handleDeleteDraft = async () => {
+    if (!window.confirm("Delete this draft?")) return;
+    const res = await deleteSvrDraft(form.site_name?.trim(), form.reporter_name?.trim());
+    if (res.ok) { setDraftInfo(null); setDraftCheckStatus("none"); showToast("success", "Draft deleted."); }
+    else showToast("error", "Failed to delete draft: " + res.error);
+  };
+
+  // ── Submit ──────────────────────────────────────────────────────────────────
+  const handleSubmit = async () => {
     if (!form.visit_date) return showToast("error", "Visit Date is required.");
     if (!form.site_name) return showToast("error", "Site Name is required.");
     if (!form.reporter_name.trim()) return showToast("error", "Reporter Name is required.");
@@ -149,11 +293,11 @@ const handleSubmit = async () => {
     setSubmitting(true);
     setSubmitStage("Saving report…");
 
-    try {
-      // ── 1. Insert report ──
+      try {
       const designationValue =
         form.designation === "other" ? form.designation_other.trim() : form.designation;
 
+      // ── 1. Insert report row (no photo URLs — photos stay local / in PDF) ──
       const { data: inserted, error: insertErr } = await supabase
         .from("site_reports")
         .insert([{
@@ -176,141 +320,60 @@ const handleSubmit = async () => {
 
       if (insertErr) throw new Error("Report insert failed: " + insertErr.message);
       const reportId = inserted.id;
-      console.log("✅ Report inserted:", reportId);
 
-      // ── 2. Upload photos ──
-      if (photos.length > 0) {
-        setSubmitStage(`Uploading ${photos.length} photo(s)…`);
-        const uploadedPhotos = [];
-
-        for (let i = 0; i < photos.length; i++) {
-          const ph = photos[i];
-          console.log(`📷 Uploading photo ${i + 1}/${photos.length}…`);
-
-          try {
-            const resp = await fetch(ph.dataUrl);
-            const blob = await resp.blob();
-            const [year, month, day] = form.visit_date.split("-");
-            const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-            const monthName = monthNames[parseInt(month, 10) - 1];
-            const safeSite = form.site_name.replace(/[\s/\\:*?"<>|]/g, "_");
-            const dayFolder = `${day}-${month}-${year}`;
-            const path = `${safeSite}/${year}/${monthName}/${dayFolder}/photo_${i + 1}.jpg`;
-
-            const { data: storageData, error: upErr } = await supabase.storage
-              .from("site-report-photos")
-              .upload(path, blob, { contentType: "image/jpeg", upsert: true });
-
-            if (upErr) {
-              // Surface the EXACT error
-              console.error(`❌ Storage upload failed for photo ${i + 1}:`, upErr);
-              showToast("error", `Photo ${i + 1} upload failed: ${upErr.message}`);
-              continue;
-            }
-
-            console.log(`✅ Photo ${i + 1} uploaded:`, storageData);
-
-            const { data: pub } = supabase.storage
-              .from("site-report-photos")
-              .getPublicUrl(path);
-
-            uploadedPhotos.push({
-              report_id: reportId,
-              photo_url: pub.publicUrl,
-              caption: ph.caption?.trim() || null,
-              sort_order: i,
-            });
-          } catch (e) {
-            console.error(`❌ Photo ${i + 1} exception:`, e);
-          }
-        }
-
-        console.log(`📋 Inserting ${uploadedPhotos.length} photo rows…`, uploadedPhotos);
-
-        if (uploadedPhotos.length > 0) {
-          const { data: photoRows, error: photosInsertErr } = await supabase
-            .from("site_report_photos")
-            .insert(uploadedPhotos)
-            .select();
-
-          if (photosInsertErr) {
-            console.error("❌ site_report_photos insert error:", photosInsertErr);
-            showToast("error", "Photos uploaded but DB insert failed: " + photosInsertErr.message);
-          } else {
-            console.log("✅ Photos saved to DB:", photoRows);
-          }
-        }
-      }
-
-      // ── 3. Generate + upload PDF ──
+      // ── 2. Generate PDF (photos embedded as base64 — no bucket storage) ─────
       setSubmitStage("Generating PDF…");
+      const { blob: pdfBlob, fileName } = await generateSiteReportPDF(
+        {
+          visit_date: form.visit_date,
+          visit_time: form.visit_time,
+          site_name: form.site_name,
+          reporter_name: form.reporter_name.trim(),
+          designation: designationValue,
+          progress_of_work: form.progress_of_work,
+          quality_observations: form.quality_observations,
+          safety_concerns: form.safety_concerns,
+          issues_concerns: form.issues_concerns,
+          site_visit_instructions: form.site_visit_instructions,
+          key_instructions: form.key_instructions,
+        },
+        photos,   // data URLs passed directly to the PDF generator
+        logoAsset
+      );
+
+      // Trigger local download immediately so the user always gets the file
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(pdfBlob);
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      // ── 3. Upload PDF to per-site bucket (same structure as DPR) ────────────
+      setSubmitStage("Uploading PDF…");
+      let pdfPublicUrl = null;
       try {
-        const { blob: pdfBlob, fileName } = await generateSiteReportPDF(  
-          {
-            visit_date: form.visit_date,
-            visit_time: form.visit_time,
-            site_name: form.site_name,
-            reporter_name: form.reporter_name.trim(),
-            designation: designationValue,
-            progress_of_work: form.progress_of_work,
-            quality_observations: form.quality_observations,
-            safety_concerns: form.safety_concerns,
-            issues_concerns: form.issues_concerns,
-            site_visit_instructions: form.site_visit_instructions,
-            key_instructions: form.key_instructions,
-          },
-          photos,
-          logoAsset
+        pdfPublicUrl = await uploadSvrPdfToSupabase(
+          pdfBlob,
+          fileName,
+          form.site_name,
+          form.visit_date
         );
-        setSubmitResult({ type: "success", msg: "Report generated and downloaded successfully!" })
-        console.log("✅ PDF generated:", fileName, pdfBlob.size, "bytes");
 
-        setSubmitStage("Uploading PDF…");
-        const [year, month, day] = form.visit_date.split("-");
-        const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-        const monthName = monthNames[parseInt(month, 10) - 1];
-        const safeSite = form.site_name.replace(/[\s/\\:*?"<>|]/g, "_");
-        const dayFolder = `${day}-${month}-${year}`;
-        const pdfPath = `${safeSite}/${year}/${monthName}/${dayFolder}/${fileName}`;
-        const { data: pdfStorageData, error: pdfUpErr } = await supabase.storage
-          .from("site-report-pdfs")
-          .upload(pdfPath, pdfBlob, { contentType: "application/pdf", upsert: true });
-
-        if (pdfUpErr) {
-          console.error("❌ PDF storage upload failed:", pdfUpErr);
-          showToast("error", "PDF upload failed: " + pdfUpErr.message);
-        } else {
-          console.log("✅ PDF uploaded:", pdfStorageData);
-          const { data: pdfPub } = supabase.storage
-            .from("site-report-pdfs")
-            .getPublicUrl(pdfPath);
-
-          const { error: pdfUpdateErr } = await supabase
-            .from("site_reports")
-            .update({ pdf_url: pdfPub.publicUrl })
-            .eq("id", reportId);
-
-          if (pdfUpdateErr) {
-            console.error("❌ pdf_url update failed:", pdfUpdateErr);
-          } else {
-            console.log("✅ pdf_url saved:", pdfPub.publicUrl);
-          }
-
-          // Trigger download
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(pdfBlob);
-          a.download = fileName;
-          a.click();
-          URL.revokeObjectURL(a.href);
-        }
-      } catch (pdfErr) {
-          setSubmitResult({ type: "error", msg: "Failed to generate report. " + pdfErr.message });
-        console.error("❌ PDF generation error:", pdfErr);
-        showToast("error", "PDF generation failed: " + pdfErr.message);
+        // Persist public URL back to the report row
+        await supabase
+          .from("site_reports")
+          .update({ pdf_url: pdfPublicUrl })
+          .eq("id", reportId);
+      } catch (uploadErr) {
+        // Non-fatal: the PDF was already downloaded locally
+        console.error("PDF upload failed (non-fatal):", uploadErr);
+        showToast("error", "PDF saved locally but cloud upload failed: " + uploadErr.message);
       }
 
+      setSubmitResult({ type: "success", msg: "Report generated and downloaded successfully!" });
       showToast("success", "Site Visit Report submitted successfully!");
 
+      // Reset form
       setForm({
         visit_date: new Date().toISOString().split("T")[0],
         visit_time: "",
@@ -329,7 +392,8 @@ const handleSubmit = async () => {
       setOpenSections({ 1: true });
 
     } catch (err) {
-      console.error("❌ Submit error:", err);
+      console.error("Submit error:", err);
+      setSubmitResult({ type: "error", msg: "Submission failed: " + err.message });
       showToast("error", "Submission failed: " + err.message);
     } finally {
       setSubmitting(false);
@@ -337,10 +401,9 @@ const handleSubmit = async () => {
     }
   };
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <>
-
-
       <div className="svr-root">
         {toast && (
           <div className={`svr-toast svr-toast-${toast.type}`}>
@@ -351,12 +414,64 @@ const handleSubmit = async () => {
           </div>
         )}
 
-      <div className="svr-info-banner">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0, marginTop:1}}>
-          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-        Fill in all sections below and attach site photos. On submit, the report is saved to the database, photos are uploaded, and a PDF is generated and stored.
-      </div>
+        <div className="svr-info-banner">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 1 }}>
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          Fill in all sections below and attach site photos. On submit, the report is saved to the database, a PDF is generated and downloaded, then uploaded to cloud storage.
+        </div>
+
+        {/* ── 1. Visit Details ── */}
+        {/* ── Draft bar ── */}
+        {draftCheckStatus === "checking" && (
+          <div style={{
+            display:"flex", alignItems:"center", gap:8,
+            padding:"10px 14px", fontSize:12.5, fontWeight:600,
+            color:"#64748b", background:"#f8fafc",
+            border:"1.5px solid #e2e8f0", borderRadius:7,
+          }}>
+            <div style={{
+              width:14, height:14, borderRadius:"50%",
+              border:"2px solid #e2e8f0", borderTopColor:"#800000",
+              animation:"spin .7s linear infinite", flexShrink:0,
+            }}/>
+            Checking for a saved draft…
+          </div>
+        )}
+
+        {draftCheckStatus === "error" && (
+          <div style={{
+            display:"flex", gap:8, alignItems:"flex-start",
+            background:"#fef2f2", border:"1.5px solid #fecaca",
+            color:"#dc2626", borderRadius:8, padding:"11px 14px", fontSize:13,
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{flexShrink:0,marginTop:1}}>
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Couldn't check for a saved draft. Your work is safe — try saving again.
+          </div>
+        )}
+
+        {draftCheckStatus === "found" && draftInfo && (
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={handleOpenDraft} style={{
+              flex:1, padding:"10px 14px", fontFamily:"'DM Sans',sans-serif",
+              fontSize:12.5, fontWeight:700, borderRadius:7, cursor:"pointer",
+              background:"#fefce8", color:"#854d0e", border:"1.5px solid #fde68a", transition:"all .15s",
+            }}>
+              📂 Open Draft <span style={{fontWeight:400,fontSize:11}}>
+                ({new Date(draftInfo.saved_at).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})})
+              </span>
+            </button>
+            <button onClick={handleDeleteDraft} style={{
+              flex:1, padding:"10px 14px", fontFamily:"'DM Sans',sans-serif",
+              fontSize:12.5, fontWeight:700, borderRadius:7, cursor:"pointer",
+              background:"#fef2f2", color:"#dc2626", border:"1.5px solid #fecaca", transition:"all .15s",
+            }}>
+              🗑️ Delete Draft
+            </button>
+          </div>
+        )}
 
         {/* ── 1. Visit Details ── */}
         <Section num={1} title="Visit Details" openSections={openSections} toggleSection={toggleSection}>
@@ -428,11 +543,28 @@ const handleSubmit = async () => {
 
         <Section num={8} title="Site Photos" openSections={openSections} toggleSection={toggleSection}>
           <div>
-            <label className={`svr-photo-btn${photos.length > 0 ? " has-photos" : ""}`} onClick={() => fileRef.current?.click()} style={{ cursor: "pointer" }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              {photos.length > 0 ? `${photos.length} photo${photos.length > 1 ? "s" : ""} selected` : "Choose Photos"}
+            <label
+              className={`svr-photo-btn${photos.length > 0 ? " has-photos" : ""}`}
+              onClick={() => fileRef.current?.click()}
+              style={{ cursor: "pointer" }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              {photos.length > 0
+                ? `${photos.length} photo${photos.length > 1 ? "s" : ""} selected`
+                : "Choose Photos"}
             </label>
-            <input ref={fileRef} type="file" accept="image/*,.heic,.heif" multiple hidden onChange={e => { handleFiles(e.target.files); e.target.value = ""; }} />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,.heic,.heif"
+              multiple
+              hidden
+              onChange={e => { handleFiles(e.target.files); e.target.value = ""; }}
+            />
             {photos.length > 0 && (
               <div className="svr-photo-grid">
                 {photos.map((ph, i) => (
@@ -441,75 +573,107 @@ const handleSubmit = async () => {
                       <img src={ph.dataUrl} alt={`photo ${i + 1}`} />
                       <button className="svr-photo-remove" onClick={() => removePhoto(i)}>×</button>
                     </div>
-                    <textarea className="svr-caption-input" rows={2} placeholder="Caption…" value={ph.caption} onChange={e => updateCaption(i, e.target.value)} />
+                    <textarea
+                      className="svr-caption-input"
+                      rows={2}
+                      placeholder="Caption…"
+                      value={ph.caption}
+                      onChange={e => updateCaption(i, e.target.value)}
+                    />
                   </div>
                 ))}
               </div>
             )}
           </div>
         </Section>
-          {/* Inline submit result — shows above submit button */}
-{submitResult && (
-  <div className={`svr-result svr-result-${submitResult.type}`}>
-    {submitResult.type === "success"
-      ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-      : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    }
-    {submitResult.msg}
-    <button onClick={() => setSubmitResult(null)} style={{
-      marginLeft: "auto", background: "none", border: "none",
-      cursor: "pointer", color: "inherit", padding: 2, display: "flex",
-    }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-      </svg>
-    </button>
-  </div>
-)}
 
-{/* Submit button — disabled while photos loading or submitting */}
-<button
-  onClick={handleSubmit}
-  disabled={photosProcessing || submitting}
-  className="svr-submit"
->
-  {submitting ? "Generating PDF…" : "Generate Report"}
-</button>
-        {/* <button className="svr-submit" onClick={handleSubmit} disabled={submitting}>
-          {submitting
-            ? <><span className="op-mini-spinner" />&nbsp;{submitStage || "Submitting…"}</>
-            : <><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>&nbsp;Submit Site Visit Report</>
-          }
-        </button> */}
-        {submitting && submitStage && <div className="svr-stage">{submitStage}</div>}
+        {/* Inline submit result */}
+        {submitResult && (
+          <div className={`svr-result svr-result-${submitResult.type}`}>
+            {submitResult.type === "success"
+              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            }
+            {submitResult.msg}
+            <button
+              onClick={() => setSubmitResult(null)}
+              style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 2, display: "flex" }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        )}
+
+        <button
+          onClick={handleSaveDraft}
+          disabled={submitting || savingDraft}
+          style={{
+            display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+            width:"100%", marginTop:4, padding:"12px 24px",
+            fontFamily:"'DM Sans',sans-serif", fontSize:14, fontWeight:700,
+            borderRadius:9, border:"1.5px solid #e2e8f0", cursor: (submitting || savingDraft) ? "not-allowed" : "pointer",
+            background:"#fff", color: savingDraft ? "#94a3b8" : "#475569",
+            transition:"all .15s", opacity: (submitting || savingDraft) ? 0.7 : 1,
+          }}
+        >
+          {savingDraft ? (
+            <>
+              <div style={{
+                width:13, height:13, borderRadius:"50%",
+                border:"2px solid #e2e8f0", borderTopColor:"#475569",
+                animation:"spin .7s linear infinite", flexShrink:0,
+              }}/>
+              Saving Draft…
+            </>
+          ) : (
+            <>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              Save Draft
+            </>
+          )}
+        </button> 
+
+        <button
+          onClick={handleSubmit}
+          disabled={photosProcessing || submitting}
+          className="svr-submit"
+        >
+          {submitting ? "Generating PDF…" : "Generate Report"}
+        </button>
+
+        {submitting && submitStage && (
+          <div className="svr-stage">{submitStage}</div>
+        )}
       </div>
-      {/* Photo processing popup — bottom-left floating */}
-{photosProcessing && (
-  <div style={{
-    position: "fixed", bottom: 28, left: 28, zIndex: 9999,
-    display: "flex", alignItems: "center", gap: 12,
-    background: "#fff", border: "1px solid #e2e8f0",
-    borderRadius: 12, padding: "14px 18px",
-    boxShadow: "0 8px 28px rgba(0,0,0,0.12)",
-    fontSize: 13.5, fontWeight: 500, color: "#1e293b",
-    animation: "slideUp .25s ease",
-  }}>
-    {/* Spinner */}
-    <div style={{
-      width: 18, height: 18, borderRadius: "50%",
-      border: "2.5px solid #e2e8f0",
-      borderTopColor: "#dc2626",
-      animation: "spin .7s linear infinite",
-      flexShrink: 0,
-    }}/>
-    <div>
-      <div style={{ fontWeight: 600, marginBottom: 2 }}>Processing images…</div>
-      <div style={{ fontSize: 12, color: "#64748b" }}>
-        Converting &amp; compressing, please wait
-      </div>
-    </div>
-  </div>
-)}
+
+      {/* Photo processing indicator */}
+      {photosProcessing && (
+        <div style={{
+          position: "fixed", bottom: 28, left: 28, zIndex: 9999,
+          display: "flex", alignItems: "center", gap: 12,
+          background: "#fff", border: "1px solid #e2e8f0",
+          borderRadius: 12, padding: "14px 18px",
+          boxShadow: "0 8px 28px rgba(0,0,0,0.12)",
+          fontSize: 13.5, fontWeight: 500, color: "#1e293b",
+          animation: "slideUp .25s ease",
+        }}>
+          <div style={{
+            width: 18, height: 18, borderRadius: "50%",
+            border: "2.5px solid #e2e8f0", borderTopColor: "#dc2626",
+            animation: "spin .7s linear infinite", flexShrink: 0,
+          }}/>
+          <div>
+            <div style={{ fontWeight: 600, marginBottom: 2 }}>Processing images…</div>
+            <div style={{ fontSize: 12, color: "#64748b" }}>Converting &amp; compressing, please wait</div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

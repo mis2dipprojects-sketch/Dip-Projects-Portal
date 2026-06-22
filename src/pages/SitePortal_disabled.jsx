@@ -789,7 +789,7 @@ const NAV = [
   { section:"reports", label:"Reports",
     children:[
       { key:"daily-report",          label:"Daily Report",        icon:Ico.report             },
-      { key:"weekly-report",         label:"Weekly Planning",     icon:Ico.weeklyPlan         },
+      { key:"weekly-planning",         label:"Weekly Planning",     icon:Ico.weeklyPlan         },
       { key:"wpr-generator",         label:"Weekly Report",       icon:Ico.weekly             },
       { key:"monthly-report",        label:"Monthly Report",      icon:Ico.monthly            },
       { key:"site-report",           label:"Site Visit Report",   icon:Ico.site               },
@@ -818,6 +818,7 @@ const ENABLED_TABS = new Set([
   "daily-report",
   "site-report",
   "my-reports",
+  "wpr-generator",
   "report-submissions",
   "profile",
   "manpower-reports",
@@ -1345,7 +1346,7 @@ if (site) {
       case "my-leave":             return <MyLeave user={user} onApply={()=>nav("apply-leave")}/>;
       case "apply-leave":          return <ApplyLeave user={user}/>;
       case "daily-report":         return <DPR user={user}/>;
-      case "weekly-report":        return <WeeklyReport user={user}/>;
+      case "weekly-planning":        return <WeeklyReport user={user}/>;
       case "wpr-generator":        return <WprGenerator user={user} supabase={supabase}/>;
       case "monthly-report":       return <MonthlyReport/>;
       case "site-report":          return <SiteReport user={user} />;

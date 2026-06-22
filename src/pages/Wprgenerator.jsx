@@ -216,9 +216,16 @@ function loadHeic2Any() {
 }
 
 // ─── Processing counter (module-level so processImage can reach it) ───────────
+// ─── Processing counter ───────────────────────────────────────────────────────
 let _wprProcessingCount = 0;
 function _wprBumpProcessing(delta) {
   _wprProcessingCount = Math.max(0, _wprProcessingCount + delta);
+  // Drive the toast DOM directly — no React render cycle delay
+  const el = document.getElementById("wpr-proc-toast");
+  const ct = document.getElementById("wpr-proc-count");
+  if (el) el.style.display = _wprProcessingCount > 0 ? "flex" : "none";
+  if (ct) ct.textContent = `Processing ${_wprProcessingCount} image${_wprProcessingCount !== 1 ? "s" : ""}…`;
+  // Also fire event so React state stays in sync (for SSR / unmount cleanup)
   window.dispatchEvent(new CustomEvent("wpr:processing", {
     detail: { count: _wprProcessingCount }
   }));
@@ -1323,13 +1330,6 @@ const [jobNo, setJobNo] = useState("");
   const [checklistPhotos, setChecklistPhotos] = useState([]);
   const [delayPoints, setDelayPoints] = useState([]);
   const [plans, setPlans] = useState([]);
-const [processingCount, setProcessingCount] = useState(0);
-
-useEffect(() => {
-  const handler = (e) => setProcessingCount(e.detail.count);
-  window.addEventListener("wpr:processing", handler);
-  return () => window.removeEventListener("wpr:processing", handler);
-}, []);
 const [sections, setSections] = useState(() =>
   STANDARD_SECTIONS.map((title) => ({ key: title, title, isStandard: true, hidden: false, slideHidden: false, type: "text", textItems: [], images: [] }))
 );
@@ -2407,25 +2407,28 @@ const datePath = buildSiteDatePath(reportDate);
         {toast && <div className={`wpr-toast ${toast.type}`}>{toast.msg}</div>}
       </div>
      {/* Image processing toast */}
-{processingCount > 0 && (
-  <div className="wpr-heic-toast">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-      stroke="#ffcfa0" strokeWidth="2.2" strokeLinecap="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-    </svg>
-    <div>
-      <div style={{ fontSize: 12.5, fontWeight: 800, color: "#ffcfa0", marginBottom: 3 }}>
-        Processing {processingCount} image{processingCount > 1 ? "s" : ""}…
-      </div>
-      <div style={{ fontSize: 11.5, color: "rgba(255,207,160,0.75)", display: "flex", alignItems: "center", gap: 5 }}>
-        Converting &amp; compressing
-        <span className="wpr-heic-dots">
-          <span/><span/><span/>
-        </span>
-      </div>
+{/* Image processing toast — driven by DOM directly for zero-lag display */}
+<div
+  id="wpr-proc-toast"
+  className="wpr-heic-toast"
+  style={{ display: "none" }}
+>
+  <div style={{
+    width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
+    border: "2.5px solid rgba(255,207,160,0.3)",
+    borderTopColor: "#ffcfa0",
+    animation: "wprSpin .7s linear infinite",
+  }} />
+  <div>
+    <div id="wpr-proc-count" style={{ fontSize: 12.5, fontWeight: 800, color: "#ffcfa0", marginBottom: 3 }}>
+      Processing…
+    </div>
+    <div style={{ fontSize: 11.5, color: "rgba(255,207,160,0.75)", display: "flex", alignItems: "center", gap: 5 }}>
+      Converting &amp; compressing
+      <span className="wpr-heic-dots"><span/><span/><span/></span>
     </div>
   </div>
-)}
+</div>
     </>
   );
 }

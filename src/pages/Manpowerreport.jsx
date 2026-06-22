@@ -285,14 +285,33 @@ export default function ManpowerReport({ user }) {
       const colMap  = new Map();
       const dateMap = new Map();
 
-      for (const row of rows || []) {
+      // Sort rows so evening reports (if any) come last per date — 
+      // their summary & reportType will win, but counts are always merged
+      const sortedRows = [...(rows || [])].sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        // Within same date: morning first, evening last (so evening summary wins)
+        const order = { morning: 0, evening: 1 };
+        return (order[a.report_type] ?? 0) - (order[b.report_type] ?? 0);
+      });
+
+      for (const row of sortedRows) {
         const p      = row.payload || {};
         const date   = row.date;
         const mpList = p.manpower || [];
 
         if (!dateMap.has(date)) {
+          // First report for this date — initialise entry
           dateMap.set(date, { date, summary: p.summary || "", reportType: row.report_type, counts: new Map() });
+        } else {
+          // Another report for same date — update summary & reportType if this one is newer/evening
+          const existing = dateMap.get(date);
+          // Evening report summary takes priority; otherwise keep existing
+          if (row.report_type === "evening" || !existing.summary) {
+            existing.summary    = p.summary || existing.summary;
+            existing.reportType = row.report_type;
+          }
         }
+
         const dateEntry = dateMap.get(date);
 
         for (const mp of mpList) {
@@ -308,7 +327,8 @@ export default function ManpowerReport({ user }) {
               label:    colLabel(mp.scope, mp.category, mp.labour, mp.gender, mp.skill),
             });
           }
-          dateEntry.counts.set(key, (dateEntry.counts.get(key) || 0) + (Number(mp.count) || 0));
+          
+          dateEntry.counts.set(key, (Number(mp.count) || 0));
         }
       }
 

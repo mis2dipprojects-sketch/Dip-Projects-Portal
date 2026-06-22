@@ -982,7 +982,7 @@ function buildPendingMaterialsHtml(rows) {
       </div>
       <span class="pm-badge">Action Required</span>
     </div>
-    <div class="pm-subtitle">Materials requested for this site that have not yet been marked as received. Please action at the earliest.</div>
+    <div class="pm-subtitle">Materials requested for this site that have not yet been eceived. Please take action at the earliest.</div>
     <div class="pm-body">
       <table class="pm-table">
         <thead>
@@ -1437,9 +1437,6 @@ if (isPhotos) {
   }
 }
 
-  // ── PENDING MATERIAL REQUIREMENTS — highlighted, just before Thank You ────
-  // Always rendered (even when empty, per spec) — live data from Supabase,
-  // independent of anything filled in the form.
   onProgress("Fetching pending materials…");
   const pendingMaterials = await fetchPendingMaterials(payload.site);
   onProgress("Rendering pending materials…");
@@ -1573,16 +1570,60 @@ async function checkExists(table, col, val) {
   const { data } = await supabase.from(table).select("id").ilike(col,val).limit(1);
   return data?.length > 0;
 }
+// ── Draft persistence ─────────────────────────────────────────────────────
+// NOTE: saveDraft() relies on a UNIQUE constraint on (site, engineer) in the
+// dpr_drafts table for the upsert's onConflict to work as a true "replace".
+// If that constraint is missing, upsert silently behaves like insert and
+// creates duplicate rows per site+engineer — which then makes loadDraft()
+// look like the draft "disappeared" after refresh (the wrong row gets
+// returned, or .maybeSingle() errors out on multiple matches). The functions
+// below are defensive against that: loadDraft never throws, always returns
+// the MOST RECENT matching row (by saved_at), and surfaces real errors
+// instead of silently returning null.
 async function saveDraft(payload) {
-  const { error } = await supabase.from("dpr_drafts").upsert({ site:payload.site, engineer:payload.engineer, payload, saved_at:new Date().toISOString() }, { onConflict:"site,engineer" });
-  return !error;
+  const { error } = await supabase
+    .from("dpr_drafts")
+    .upsert(
+      { site: payload.site, engineer: payload.engineer, payload, saved_at: new Date().toISOString() },
+      { onConflict: "site,engineer" }
+    );
+  if (error) {
+    console.error("saveDraft error:", error.message);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }
+
 async function loadDraft(site, engineer) {
-  const { data } = await supabase.from("dpr_drafts").select("*").eq("site",site).eq("engineer",engineer).maybeSingle();
-  return data;
+  if (!site || !engineer) return { ok: true, draft: null };
+  // Deliberately NOT using .maybeSingle() — if duplicate rows ever exist
+  // for this site+engineer (e.g. from a missing unique constraint), single()
+  // / maybeSingle() throws on >1 row. order+limit(1) always returns the
+  // newest draft safely instead of erroring out.
+  const { data, error } = await supabase
+    .from("dpr_drafts")
+    .select("*")
+    .eq("site", site)
+    .eq("engineer", engineer)
+    .order("saved_at", { ascending: false })
+    .limit(1);
+  if (error) {
+    console.error("loadDraft error:", error.message);
+    return { ok: false, error: error.message, draft: null };
+  }
+  return { ok: true, draft: (data && data[0]) || null };
 }
+
 async function deleteDraft(site, engineer) {
-  await supabase.from("dpr_drafts").delete().eq("site",site).eq("engineer",engineer);
+  if (!site || !engineer) return { ok: true };
+  // Delete ALL matching rows, not just one — cleans up any duplicates left
+  // behind by a broken upsert from before this fix.
+  const { error } = await supabase.from("dpr_drafts").delete().eq("site", site).eq("engineer", engineer);
+  if (error) {
+    console.error("deleteDraft error:", error.message);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
 }
 async function uploadPdfToSupabase(blob, fileName, site, date) {
   const bucketName = sanitizeBucketName(site);
@@ -2722,7 +2763,9 @@ function DprForm({user}) {
   const [sites,    setSites]    = useState([]);
   const [engineers,setEngineers]= useState([]);
   const [loadingEng,setLoadingEng]=useState(false);
-  
+  // Add near the top of DprForm, alongside other refs
+const draftOpenedRef = useRef(false);
+const autoSaveTimerRef = useRef(null);
 
   const [summary,       setSummary]       = useState("");
   const [manpower,      setManpower]      = useState([]);
@@ -2742,6 +2785,7 @@ function DprForm({user}) {
   const [planning,      setPlanning]      = useState("");
 
   const [draftInfo,    setDraftInfo]    = useState(null);
+  const [draftCheckStatus, setDraftCheckStatus] = useState("idle"); // idle | checking | found | none | error
   const [submitting,   setSubmitting]   = useState(false);
   const [submitStep,   setSubmitStep]   = useState("");
   const [submitDetail, setSubmitDetail] = useState("");
@@ -2762,11 +2806,22 @@ function DprForm({user}) {
   },[site]);
 
   useEffect(() => {
-  if (!site || !engineer) return;
-  loadDraft(site, engineer).then(d => setDraftInfo(d || null));
+    if (!site || !engineer) { setDraftInfo(null); setDraftCheckStatus("idle"); return; }
+    let cancelled = false;
+    setDraftCheckStatus("checking");
+    loadDraft(site, engineer).then(res => {
+      if (cancelled) return;
+      if (!res.ok) { setDraftInfo(null); setDraftCheckStatus("error"); return; }
+      setDraftInfo(res.draft);
+      setDraftCheckStatus(res.draft ? "found" : "none");
+    });
+    return () => { cancelled = true; };
+  }, [site, engineer]);
 
-  // If evening report, autofill from last morning instance
-  if (reportType === "evening") {
+  // Pre-fill from this morning's report — independent of draft lookup above,
+  // only relevant once the user is on the evening tab.
+  useEffect(() => {
+    if (!site || !engineer || reportType !== "evening") return;
     getLastMorningPayload(site, engineer).then(mp => {
       if (!mp) return;
       if (mp.summary)   setSummary(mp.summary);
@@ -2774,8 +2829,7 @@ function DprForm({user}) {
       if (mp.equipment?.length) setEquipment(mp.equipment);
       showToast("ok", "Fields pre-filled from today's morning report.");
     });
-  }
-}, [site, engineer, reportType]);
+  }, [site, engineer, reportType]);
 
 useEffect(() => {
   (async () => {
@@ -2831,33 +2885,62 @@ useEffect(() => {
 
   const handleSaveDraft = async () => {
     if (!site||!engineer) { showToast("err","Select site and engineer first."); return; }
-    const ok = await saveDraft(collectPayload());
-    if (ok) { showToast("ok","Draft saved!"); loadDraft(site,engineer).then(d=>setDraftInfo(d||null)); }
-    else showToast("err","Failed to save draft.");
+    const res = await saveDraft(collectPayload());
+    if (res.ok) {
+      showToast("ok","Draft saved!");
+      const loaded = await loadDraft(site, engineer);
+      if (loaded.ok) {
+        setDraftInfo(loaded.draft);
+        setDraftCheckStatus(loaded.draft ? "found" : "none");
+      }
+    } else {
+      showToast("err", "Failed to save draft: " + (res.error || "unknown error"), 8000);
+    }
   };
 
-  const handleOpenDraft = () => {
-    if (!draftInfo) return;
-    const d = draftInfo.payload;
-    setReportType(d.reportType||"morning"); setSummary(d.summary||""); setManpower(d.manpower||[]);
-    setEquipment(d.equipment||[]); setCementAvail(d.cementAvailable||""); setCementRcvd(d.cementReceived||"");
-    setCementUsed(d.cementUsed||""); setCementUsedDesc(d.cementUsedDesc||""); setConcreteTh(d.concreteTheoretical||"");
-    setConcreteOn(d.concreteOnsite||""); setConcreteDesc(d.concreteDescription||""); setMaterial(d.material||[]);
-    setCube(d.cube||"");
-    setVisitors(d.visitors?.length ? d.visitors.map((v,i)=>({...v,id:"dr_v_"+i})) : [{id:"v_init",name:"",instruction:""}]);
-    setCustomFields(d.customFields||[]); setPhotos(d.photos||[]); setPlanning(d.planning||"");
-    showToast("ok","Draft restored.");
-  };
+const handleOpenDraft = () => {
+  if (!draftInfo) { showToast("err", "No draft available to open."); return; }
+  const d = draftInfo.payload || {};
+  setReportType(d.reportType || "morning");
+  setSummary(d.summary || "");
+  setManpower(d.manpower || []);
+  setEquipment(d.equipment || []);
+  setCementAvail(d.cementAvailable || "");
+  setCementRcvd(d.cementReceived || "");
+  setCementUsed(d.cementUsed || "");
+  setCementUsedDesc(d.cementUsedDesc || "");
+  setConcreteTh(d.concreteTheoretical || "");
+  setConcreteOn(d.concreteOnsite || "");
+  setConcreteDesc(d.concreteDescription || "");
+  setMaterial(d.material || []);
+  setCube(d.cube || "");
+  setVisitors(d.visitors?.length
+    ? d.visitors.map((v, i) => ({ ...v, id: "dr_v_" + i }))
+    : [{ id: "v_init", name: "", instruction: "" }]);
+  setCustomFields(d.customFields || []);
+  setPhotos(d.photos || []);
+  setPlanning(d.planning || "");
+  draftOpenedRef.current = true;  // ← mark as opened
+  showToast("ok", "Draft restored.");
+};
 
   const handleDeleteDraft = async () => {
     if (!window.confirm("Delete draft?")) return;
-    await deleteDraft(site,engineer); setDraftInfo(null); showToast("ok","Draft deleted.");
+    const res = await deleteDraft(site, engineer);
+    if (res.ok) {
+      setDraftInfo(null);
+      setDraftCheckStatus("none");
+      showToast("ok","Draft deleted.");
+    } else {
+      showToast("err", "Failed to delete draft: " + (res.error || "unknown error"), 8000);
+    }
   };
 
   // Morning report: just save to DB (no PDF)
   const handleMorningSave = async () => {
     if (!site||!engineer||!summary.trim()) { showToast("err","Site, engineer and work summary are required."); return; }
     setSubmitting(true);
+    draftOpenedRef.current = false;
     const payload = collectPayload();
     try {
       const { error } = await supabase.from("dpr_reports").insert({
@@ -2865,8 +2948,9 @@ useEffect(() => {
         pdf_url: null, photo_folder: null, created_at: new Date().toISOString(),
       });
       if (error) throw new Error(`DB insert failed: ${error.message}`);
-      if (draftInfo) await deleteDraft(site,engineer);
+     // if (draftInfo) { await deleteDraft(site,engineer); setDraftInfo(null); setDraftCheckStatus("none"); }
       setSubmitted(true);
+      draftOpenedRef.current = false;
     } catch(err) {
       showToast("err", err.message, 10000);
     }
@@ -2913,14 +2997,16 @@ useEffect(() => {
       });
       if (insertErr) throw new Error(`DB insert failed: ${insertErr.message}`);
 
-      if (draftInfo) await deleteDraft(site,engineer);
+     // if (draftInfo) { await deleteDraft(site,engineer); setDraftInfo(null); setDraftCheckStatus("none"); }
       setPdfUrl(pdfPublicUrl);
       setSubmitted(true);
+      draftOpenedRef.current = false;
     } catch(err) {
       console.error(err);
       showToast("err", err.message, 10000);
     }
     setSubmitting(false);
+    draftOpenedRef.current = false;
     setSubmitStep(""); setSubmitDetail("");
   };
 
@@ -3080,7 +3166,7 @@ const handleWhatsApp = async () => {
       pdf_url: null, photo_folder: null, created_at: new Date().toISOString(),
     });
     if (error) throw new Error(`DB insert failed: ${error.message}`);
-    if (draftInfo) await deleteDraft(site, engineer);
+   // if (draftInfo) { await deleteDraft(site, engineer); setDraftInfo(null); setDraftCheckStatus("none"); }
 
     // Build WhatsApp text and open
     const text = buildWhatsAppText(payload);
@@ -3095,12 +3181,13 @@ const handleWhatsApp = async () => {
 };
 
   const resetForm = () => {
+    draftOpenedRef.current = false; 
     setSubmitted(false); setSummary(""); setManpower([]); setPhotos([]); setPlanning(""); setEquipment([]);
     setMaterial([]); setCementAvail(""); setCementRcvd(""); setCementUsed(""); setCementUsedDesc("");
     setConcreteTh(""); setConcreteOn(""); setConcreteDesc(""); setCube("");
     setVisitors([{id:"v_init",name:"",instruction:""}]); setCustomFields([]); setPdfUrl(null);
   };
-
+ 
   if (submitted) return (
     <div className="success-state">
       <div className="success-ico">
@@ -3184,7 +3271,28 @@ const handleWhatsApp = async () => {
               </div>
             </div>
 
-            {draftInfo && (
+            {draftCheckStatus === "checking" && (
+              <div className="draft-bar">
+                <div style={{
+                  flex:1, display:"flex", alignItems:"center", gap:8,
+                  padding:"10px 14px", fontSize:12.5, fontWeight:600,
+                  color:"var(--ink3)", background:"var(--bg)",
+                  border:"1.5px solid var(--border)", borderRadius:7,
+                }}>
+                  <div className="spinner" style={{width:14,height:14,borderWidth:2}}/>
+                  Checking for a saved draft…
+                </div>
+              </div>
+            )}
+
+            {draftCheckStatus === "error" && (
+              <div className="info-banner" style={{background:"#fef2f2", border:"1.5px solid #fecaca", color:"var(--red)"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Couldn't check for a saved draft (connection issue). Your work below is safe — try Save Draft again, or refresh once your connection is back.
+              </div>
+            )}
+
+            {draftCheckStatus === "found" && draftInfo && (
               <div className="draft-bar">
                 <button className="draft-btn draft-open" onClick={handleOpenDraft}>
                   📂 Open Draft <span style={{fontWeight:400,fontSize:11}}>({new Date(draftInfo.saved_at).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})})</span>

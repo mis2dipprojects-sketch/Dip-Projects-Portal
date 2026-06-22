@@ -252,10 +252,23 @@ function drawTableRow(slide, colX, colWidths, vals, y, rowH, rowIdx, alignments,
 // ═══════════════════════════════════════════════════════════════════════════════
 // SLIDE BUILDERS
 // ═══════════════════════════════════════════════════════════════════════════════
-
-// ── Title Slide ───────────────────────────────────────────────────────────────
-async function buildTitleSlide(pres, fd) {
+// Wraps pres.addSlide() — if hidden=true, marks slide as hidden in PPT
+function makeSlide(pres, hidden = false) {
   const s = pres.addSlide();
+  if (hidden) {
+    // PptxGenJS exposes the underlying slide object — set hidden via presLayout
+    try { s.hidden = true; } catch(_) {}
+    // Fallback: set on the raw slide data object
+    try {
+      const raw = pres.slides?.[pres.slides.length - 1];
+      if (raw) raw.hidden = true;
+    } catch(_) {}
+  }
+  return s;
+}
+// ── Title Slide ───────────────────────────────────────────────────────────────
+async function buildTitleSlide(pres, fd, hidden = false) {
+  const s = makeSlide(pres, hidden);
   s.background = { color: WHT };
 
   // Logo top-right (only on title slide)
@@ -310,12 +323,12 @@ async function buildTitleSlide(pres, fd) {
 }
 
 // ── Contents Slide ───────────────────────────────────────────────────────────
-async function buildContentsSlide(pres, fd, sections) {
+async function buildContentsSlide(pres, fd, sections, hidden = false) {
   if (!sections || !sections.length) return;
   const LINE_H = pt(32);
   const GAP    = pt(5);
 
-  const s = pres.addSlide();
+  const s = makeSlide(pres, hidden);
   s.background = { color: WHT };
   const contentY = addHeader(s, fd, 'Report Contents');
 
@@ -343,7 +356,7 @@ async function buildContentsSlide(pres, fd, sections) {
 }
 
 // ── Activities Slide ─────────────────────────────────────────────────────────
-async function buildActivitiesSlide(pres, fd) { 
+async function buildActivitiesSlide(pres, fd, hidden = false) { 
   const acts = (fd.activities || []).filter(a => a.name);
   if (!acts.length) return;
 
@@ -358,7 +371,7 @@ async function buildActivitiesSlide(pres, fd) {
 
   let i = 0, slideNo = 1;
   while (i < acts.length) {
-    const s = pres.addSlide();
+    const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     const startY = addHeader(s, fd, 'Detailed Status of Activities') + pt(6);
     let y = startY;
@@ -401,7 +414,7 @@ async function buildActivitiesSlide(pres, fd) {
 }
 
 // ── Image grid helper (graphical / site photos / checklist / cube / mom / barchart)
-async function buildPhotoSlides(pres, fd, items, sectionTitle, perRow = 3) {
+async function buildPhotoSlides(pres, fd, items, sectionTitle, perRow = 3, hidden = false) {
   const photos = (items || []).filter(p => p && p.dataUrl);
   if (!photos.length) return;
 
@@ -412,7 +425,7 @@ async function buildPhotoSlides(pres, fd, items, sectionTitle, perRow = 3) {
 
   let i = 0, slideNo = 1;
   while (i < photos.length) {
-    const s = pres.addSlide();
+    const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     const startY = addHeader(s, fd, sectionTitle) + pt(16);
     const batch  = photos.slice(i, i + perRow);
@@ -482,7 +495,7 @@ async function slide_addImage_contain(slide, dataUrl, x, y, w, h) {
 
 // ── Graphical Report ─────────────────────────────────────────────────────────
 // Images are made as large as possible — full content area
-async function buildGraphicalSlides(pres, fd) {
+async function buildGraphicalSlides(pres, fd, hidden = false) {
   const imgs = (fd.graphicalImages || []).filter(i => i && i.dataUrl);
   if (!imgs.length) return;
 
@@ -491,7 +504,7 @@ async function buildGraphicalSlides(pres, fd) {
 
   let i = 0, slideNo = 1;
   while (i < imgs.length) {
-    const s = pres.addSlide();
+    const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     const imgTop = addHeader(s, fd, 'Graphical Report of Work') + pt(8);
 
@@ -518,7 +531,7 @@ async function buildGraphicalSlides(pres, fd) {
 }
 
 // ── Next Week Planning ───────────────────────────────────────────────────────
-async function buildNextWeekSlide(pres, fd) {
+async function buildNextWeekSlide(pres, fd, hidden = false) {
   const plans = (fd.nextWeekPlans || []).filter(Boolean);
   if (!plans.length) return;
 
@@ -526,7 +539,7 @@ async function buildNextWeekSlide(pres, fd) {
   let i = 0;
 
   while (i < plans.length) {
-    const s = pres.addSlide();
+    const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     const startY = addHeader(s, fd, 'Next Week Planning');
     let y = startY + pt(10);
@@ -560,7 +573,7 @@ async function buildNextWeekSlide(pres, fd) {
 }
 
 // ── Drawing Register ─────────────────────────────────────────────────────────
-async function buildDrawingRegisterSlide(pres, fd) {
+async function buildDrawingRegisterSlide(pres, fd, hidden = false) {
   const rows = (fd.drawingRegisterData || []).filter(r => {
     const hdrs = fd.drawingRegisterHeaders || [];
     return hdrs.some((_, hi) => r['col'+hi]);
@@ -583,7 +596,7 @@ const MAX_ROW  = pt(90);
   let idx = 0, slideNo = 1;
 
   while (idx < rows.length) {
-    const s = pres.addSlide();
+    const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     addHeader(s, fd, 'Drawing Register');
     let y = SAFE_TOP + pt(10);
@@ -607,7 +620,7 @@ while (idx < rows.length && placed < maxPerSlide) {
 }
 
 // ── Office Activity ───────────────────────────────────────────────────────────
-async function buildOfficeActivitySlide(pres, fd) {
+async function buildOfficeActivitySlide(pres, fd, hidden = false) {
   const items = (fd.officeActivityItems || []).filter(Boolean);
   if (!items.length) return;
 
@@ -625,7 +638,7 @@ async function buildOfficeActivitySlide(pres, fd) {
   let idx = 0;
 
   while (idx < items.length) {
-    const s = pres.addSlide();
+    const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     addHeader(s, fd, 'Office Activity');
     let y = SAFE_TOP + pt(10);
@@ -658,7 +671,7 @@ async function buildOfficeActivitySlide(pres, fd) {
 
 // ── Visitor Register ──────────────────────────────────────────────────────────
 // REPLACE buildVisitorRegisterSlide entirely:
-async function buildVisitorRegisterSlide(pres, fd) {
+async function buildVisitorRegisterSlide(pres, fd, hidden = false) {
   const rows = (fd.visitorRegisterData || []).filter(r => r.name || r.type);
   if (!rows.length) return;
 
@@ -679,7 +692,7 @@ async function buildVisitorRegisterSlide(pres, fd) {
 
   let idx = 0;
   while (idx < rows.length) {
-    const s = pres.addSlide();
+    const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     addHeader(s, fd, 'Visitor Register');
     let y = SAFE_TOP + pt(10);
@@ -704,7 +717,7 @@ async function buildVisitorRegisterSlide(pres, fd) {
 }
 
 // ── Drawing & Decision Pending ────────────────────────────────────────────────
-async function buildDrawingDecisionSlide(pres, fd) {
+async function buildDrawingDecisionSlide(pres, fd, hidden = false) {
   const rows = (fd.drawingDecisionData || []).filter(r => r.drawingName);
   if (!rows.length) return;
 
@@ -726,7 +739,7 @@ async function buildDrawingDecisionSlide(pres, fd) {
   let idx = 0;
 
   while (idx < rows.length) {
-    const s = pres.addSlide();
+    const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     addHeader(s, fd, 'Drawing & Decision Pending');
     let y = SAFE_TOP + pt(10);
@@ -758,7 +771,7 @@ async function buildDrawingDecisionSlide(pres, fd) {
 }
 
 // ── Delay Points ──────────────────────────────────────────────────────────────
-async function buildDelayPointsSlide(pres, fd) {
+async function buildDelayPointsSlide(pres, fd, hidden = false) {
   const points = (fd.delayPoints || []).filter(Boolean);
   if (!points.length) return;
 
@@ -770,7 +783,7 @@ async function buildDelayPointsSlide(pres, fd) {
   let idx = 0;
 
   while (idx < points.length) {
-    const s = pres.addSlide();
+    const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     const startY = addHeader(s, fd, 'Delay Points / Highlights / Red Flag');
     let y = startY + pt(6);
@@ -807,7 +820,7 @@ async function buildDelayPointsSlide(pres, fd) {
 }
 
 // ── MOM / Barchart / Cube (range-captured images) ────────────────────────────
-async function buildRangeCaptureSlides(pres, fd, items, sectionTitle) {
+async function buildRangeCaptureSlides(pres, fd, items, sectionTitle, hidden = false) {
   const filtered = (items || []).filter(i => i && i.dataUrl);
   if (!filtered.length) return;
 
@@ -816,7 +829,7 @@ async function buildRangeCaptureSlides(pres, fd, items, sectionTitle) {
 
   for (let slideNo = 0; slideNo < filtered.length; slideNo++) {
     const item = filtered[slideNo];
-    const s = pres.addSlide();
+    const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     const startY    = addHeader(s, fd, sectionTitle) + pt(8);
     const labelText = (item.caption || '').trim();
@@ -840,8 +853,8 @@ async function buildRangeCaptureSlides(pres, fd, items, sectionTitle) {
 }
 
 // ── Thank You Slide ───────────────────────────────────────────────────────────
-async function buildThankYouSlide(pres, fd) {
-  const s = pres.addSlide();
+async function buildThankYouSlide(pres, fd, hidden = false) {
+  const s = makeSlide(pres, hidden);
   s.background = { color: WHT };
 
   // Logo top-right (only on thank-you slide)
@@ -978,8 +991,9 @@ async function generatePPT({
     logoDataUrl,
   };
 
-  const activeSections = (sections || []).filter(sec => {
-    if (!sec || !sec.title || sec.hidden) return false;
+const activeSections = (sections || []).filter(sec => {
+    if (!sec || !sec.title) return false;
+    if (sec.hidden) return false;
     const title = sec.title.toLowerCase().trim();
     if (title === 'site photographs')
       return (sitePhotos||[]).some(p => p.dataUrl);
@@ -1017,23 +1031,24 @@ async function generatePPT({
   await buildContentsSlide(pres, fd, activeSections);
 
   // ── 3. Section slides ────────────────────────────────────────────────────────
-  for (const sec of activeSections) {
+for (const sec of activeSections) {
     if (!sec || !sec.title) continue;
+    const slideHidden = !!sec.slideHidden;  // 🙈 = add slide but mark hidden
     const title = sec.title.trim().toLowerCase();
 
-    if      (title === 'detailed status of activities')        await buildActivitiesSlide(pres, fd);
-    else if (title === 'graphical report of work')             await buildGraphicalSlides(pres, fd);
-    else if (title === 'site photographs')                     await buildPhotoSlides(pres, fd, sitePhotos.map(p => ({...p, label: p.label||p.caption})), 'Site Photographs', 3);
-    else if (title === 'cube testing register')                await buildRangeCaptureSlides(pres, fd, cubeItems, 'Cube Testing Register');
-    else if (title === 'next week planning')                   await buildNextWeekSlide(pres, fd);
-    else if (title === 'drawing register')                     await buildDrawingRegisterSlide(pres, fd);
-    else if (title === 'office activity')                      await buildOfficeActivitySlide(pres, fd);
-    else if (title === 'visitor register')                     await buildVisitorRegisterSlide(pres, fd);
-    else if (title === 'drawing & decision pending')           await buildDrawingDecisionSlide(pres, fd);
-    else if (title === 'weekly site checklist')                await buildPhotoSlides(pres, fd, checklistPhotos.map(p => ({...p})), 'Weekly Site Checklist', 3);
-    else if (title === 'delay points / highlights / red flag') await buildDelayPointsSlide(pres, fd);
-    else if (title === 'mom review')                           await buildRangeCaptureSlides(pres, fd, momItems, 'MOM Review');
-    else if (title === 'barchart & worksheet')                 await buildRangeCaptureSlides(pres, fd, barchartItems, 'Barchart & Worksheet');
+   if      (title === 'detailed status of activities')        await buildActivitiesSlide(pres, fd, slideHidden);
+    else if (title === 'graphical report of work')             await buildGraphicalSlides(pres, fd, slideHidden);
+    else if (title === 'site photographs')                     await buildPhotoSlides(pres, fd, sitePhotos.map(p => ({...p, label: p.label||p.caption})), 'Site Photographs', 3, slideHidden);
+    else if (title === 'cube testing register')                await buildRangeCaptureSlides(pres, fd, cubeItems, 'Cube Testing Register', slideHidden);
+    else if (title === 'next week planning')                   await buildNextWeekSlide(pres, fd, slideHidden);
+    else if (title === 'drawing register')                     await buildDrawingRegisterSlide(pres, fd, slideHidden);
+    else if (title === 'office activity')                      await buildOfficeActivitySlide(pres, fd, slideHidden);
+    else if (title === 'visitor register')                     await buildVisitorRegisterSlide(pres, fd, slideHidden);
+    else if (title === 'drawing & decision pending')           await buildDrawingDecisionSlide(pres, fd, slideHidden);
+    else if (title === 'weekly site checklist')                await buildPhotoSlides(pres, fd, checklistPhotos.map(p => ({...p})), 'Weekly Site Checklist', 3, slideHidden);
+    else if (title === 'delay points / highlights / red flag') await buildDelayPointsSlide(pres, fd, slideHidden);
+    else if (title === 'mom review')                           await buildRangeCaptureSlides(pres, fd, momItems, 'MOM Review', slideHidden);
+    else if (title === 'barchart & worksheet')                 await buildRangeCaptureSlides(pres, fd, barchartItems, 'Barchart & Worksheet', slideHidden);
   }
 
   // ── 4. Thank You ─────────────────────────────────────────────────────────────

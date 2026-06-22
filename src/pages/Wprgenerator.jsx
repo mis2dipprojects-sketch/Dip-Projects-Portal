@@ -200,6 +200,7 @@ function bucketNameFor(site) {
 async function ensureBucket(supabase, site) {
   const { data, error } = await supabase.functions.invoke("ensure-bucket", {
     body: { site },
+    
   });
   if (error) {
     const msg = error.context?.error || error.message || "Failed to prepare storage bucket";
@@ -590,331 +591,242 @@ function ExcelRangeCapture({ items, setItems, sectionLabel, headerText, setHeade
   const [xlLoading, setXlLoading] = useState(false);
   const [xlFileName, setXlFileName] = useState("");
   const [xlError, setXlError] = useState("");
-  const [rowsPerImage, setRowsPerImage] = useState(12);
-  const [headerInfo, setHeaderInfo] = useState({ titleRows: [], labelRows: [], headerEnd: -1 });
-const [xlGenProgress, setXlGenProgress] = useState("");
+  const [headerInfo, setHeaderInfo] = useState({ titleRows:[], labelRows:[], headerEnd:-1 });
+  const [selStart, setSelStart] = useState(null);
+  const [selEnd, setSelEnd]     = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [rowsPerImage, setRowsPerImage] = useState(8);
   const photoRef = useRef();
-  const xlRef = useRef();
+  const xlRef    = useRef();
 
-  const sheetData = workbook?.sheets?.[activeSheet]?.raw || [];
+  const sheetData   = workbook?.sheets?.[activeSheet]?.raw    || [];
   const sheetMerges = workbook?.sheets?.[activeSheet]?.merges || [];
+  const maxCols = sheetData.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
 
   useEffect(() => {
     if (!workbook || !activeSheet) {
-      setHeaderInfo({ titleRows: [], labelRows: [], headerEnd: -1 });
+      setHeaderInfo({ titleRows:[], labelRows:[], headerEnd:-1 });
       return;
     }
     setHeaderInfo(detectHeaderInfo(sheetData, sheetMerges));
+    setSelStart(null); setSelEnd(null);
   }, [workbook, activeSheet]);
 
   const handleXlFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const file = e.target.files?.[0]; if (!file) return;
     setXlLoading(true); setXlError(""); setXlFileName(file.name);
     try {
       const wb = await parseExcel(file);
-      setWorkbook(wb);
-      setActiveSheet(wb.sheetNames[0] || "");
+      setWorkbook(wb); setActiveSheet(wb.sheetNames[0] || "");
     } catch (err) {
       setXlError(err.message || "Failed to parse Excel file.");
       setWorkbook(null);
     }
-    setXlLoading(false);
-    e.target.value = "";
+    setXlLoading(false); e.target.value = "";
   };
 
-  // Draw one image: header rows + dataRows slice
-const drawImage = async (dataSlice, globalStartIdx) => {
-  const titleRows = headerInfo?.titleRows || [];
-  const labelRows = headerInfo?.labelRows || [];
-  const useFallback = labelRows.length === 0;
+  const getNorm = () => {
+    if (!selStart || !selEnd) return null;
+    return {
+      r1: Math.min(selStart.r, selEnd.r), r2: Math.max(selStart.r, selEnd.r),
+      c1: Math.min(selStart.c, selEnd.c), c2: Math.max(selStart.c, selEnd.c),
+    };
+  };
+  const isSel      = (r, c) => { const n = getNorm(); if (!n) return false; return r>=n.r1&&r<=n.r2&&c>=n.c1&&c<=n.c2; };
+  const isSelStart = (r, c) => selStart?.r===r && selStart?.c===c;
 
-  const allRows = [
-    ...titleRows.map(ri => sheetData[ri] || []),
-    ...labelRows.map(ri => sheetData[ri] || []),
-    ...dataSlice,
-  ];
-  const maxCols = allRows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.filter(c => c !== "" && c != null).length : 0), 0);
-  const colCount = Math.min(Math.max(maxCols, 1), 20);
-  const cols = Array.from({ length: colCount }, (_, i) => i);
-  // ── Generic merge-awareness for header rows (works for ANY file's merge layout) ──
-const mergeSpansByRow = {};
-(sheetMerges || []).forEach(m => {
-  if (m.s.r === m.e.r) { // horizontal merges only
-    const span = m.e.c - m.s.c + 1;
-    if (span > 1) {
-      if (!mergeSpansByRow[m.s.r]) mergeSpansByRow[m.s.r] = [];
-      mergeSpansByRow[m.s.r].push({ startCol: m.s.c, span });
-    }
-  }
-});
+  // ── Draw image from selected range ──────────────────────────────────────────
+  const drawRangeImage = async (r1, r2, c1, c2) => {
+    const titleRows   = headerInfo?.titleRows || [];
+    const labelRows   = headerInfo?.labelRows || [];
+    const useFallback = labelRows.length === 0;
+    const cols        = Array.from({ length: c2-c1+1 }, (_, i) => i+c1);
+    const dataSlice   = [];
+    for (let r = r1; r <= r2; r++) dataSlice.push(sheetData[r] || []);
 
-function getMergeSpan(ri, ci) {
-  const spans = mergeSpansByRow[ri] || [];
-  const found = spans.find(s => s.startCol === ci);
-  return found ? found.span : 1;
-}
-
-function isMergeContinuation(ri, ci) {
-  const spans = mergeSpansByRow[ri] || [];
-  return spans.some(s => ci > s.startCol && ci < s.startCol + s.span);
-}
- const BH = 48, TH = 30, LH = 50, CH = 40, PAD = 14 ; 
-
-  // ── Auto column widths based on actual content ──
-  const measureCanvas = document.createElement("canvas");
-  const mctx = measureCanvas.getContext("2d");
-
-const colWidths = cols.map(ci => {
-  let maxW = 70; // minimum width
-  mctx.font = "bold 13px Arial,sans-serif";
-  labelRows.forEach(ri => {
-    const text = String((sheetData[ri] || [])[ci] ?? "");
-    const neededW = measureWrappedWidth(mctx, text, "bold 13px Arial,sans-serif", 2, 70, 260, 8);
-    maxW = Math.max(maxW, neededW);
-  });
-  mctx.font = "14px Arial,sans-serif";
-  dataSlice.forEach(row => {
-    const text = String(row[ci] ?? "");
-    maxW = Math.max(maxW, mctx.measureText(text).width + 18);
-  });
-  return Math.min(Math.max(maxW, 70), 260); // clamp 70–260px (raised cap a bit)
-});
-
-  const colX = [];
-  let acc = PAD;
-  colWidths.forEach(w => { colX.push(acc); acc += w; });
-
-  const W = PAD + acc;
-  const H = BH
-    + titleRows.length * TH
-    + (useFallback ? LH : labelRows.length * LH)
-    + dataSlice.length * CH
-    + PAD;
-
-  // Render at 2x for crisp text
-  const SCALE = 2;
-  const canvas = document.createElement("canvas");
-  canvas.width = W * SCALE;
-  canvas.height = H * SCALE;
-  const ctx = canvas.getContext("2d");
-  ctx.scale(SCALE, SCALE);
-
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0, 0, W, H);
-
-  let y = 0;
-
-  const grad = ctx.createLinearGradient(0, 0, W, BH);
-  grad.addColorStop(0, "#3d1200");
-  grad.addColorStop(0.5, "#7a2e00");
-  grad.addColorStop(1, "#c96a10");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, y, W, BH);
-  ctx.fillStyle = "#fff";
-  ctx.font = "bold 16px Arial,sans-serif";
-  ctx.textBaseline = "middle";
-  ctx.fillText(headerText || sectionLabel, PAD, y + BH / 2);
-  y += BH;
-
-  titleRows.forEach(ri => {
-  const row = sheetData[ri] || [];
-  ctx.fillStyle = "#fdf3e7";
-  ctx.fillRect(0, y, W, TH);
-  ctx.strokeStyle = "rgba(201,106,16,0.35)";
-  ctx.lineWidth = 0.75;
-  ctx.strokeRect(0, y, W, TH);
-  ctx.fillStyle = "#7a2e00";
-  ctx.font = "bold 15px Arial,sans-serif";
-  ctx.textBaseline = "middle";
-
-  cols.forEach(ci => {
-    if (isMergeContinuation(ri, ci)) return; // skip cells swallowed by a merge to the left
-    const val = row[ci];
-    if (val === "" || val == null) return;
-
-    const span = getMergeSpan(ri, ci);
-    let spanWidth = 0;
-    for (let k = ci; k < ci + span && k < colWidths.length; k++) spanWidth += colWidths[k];
-
-    const x = colX[ci] ?? PAD;
-    ctx.fillText(String(val), x + 6, y + TH / 2);
-  });
-  y += TH;
-});
-
-  if (!useFallback) {
-    labelRows.forEach(ri => {
-      const row = sheetData[ri] || [];
-      ctx.fillStyle = "#f0e4d4";
-      ctx.fillRect(0, y, W, LH);
-      cols.forEach((ci, xi) => {
-        const x = colX[xi];
-        const cw = colWidths[xi];
-        ctx.fillStyle = "#3d1200";
-        ctx.font = "bold 12.5px Arial,sans-serif";
-        ctx.textBaseline = "middle";
-
-        const text = String(row[ci] ?? "");
-        const lines = wrapTextToLines(ctx, text, cw - 14, 2);
-        const lineH = 15;
-        const startY = y + LH / 2 - ((lines.length - 1) * lineH) / 2;
-        lines.forEach((line, li) => {
-          ctx.fillText(line, x + 6, startY + li * lineH);
-        });
-
-        if (xi > 0) {
-          ctx.strokeStyle = "rgba(201,106,16,0.3)";
-          ctx.lineWidth = 0.5;
-          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + LH); ctx.stroke();
+    // merge spans
+    const mergeSpansByRow = {};
+    (sheetMerges||[]).forEach(m => {
+      if (m.s.r === m.e.r) {
+        const span = m.e.c - m.s.c + 1;
+        if (span > 1) {
+          if (!mergeSpansByRow[m.s.r]) mergeSpansByRow[m.s.r] = [];
+          mergeSpansByRow[m.s.r].push({ startCol:m.s.c, span });
         }
+      }
+    });
+    const isMergeCont  = (ri,ci) => (mergeSpansByRow[ri]||[]).some(s => ci>s.startCol && ci<s.startCol+s.span);
+
+    const BH=48, TH=30, LH=50, CH=40, PAD=14;
+    const mc = document.createElement("canvas");
+    const mctx = mc.getContext("2d");
+
+    const colWidths = cols.map(ci => {
+      let maxW = 70;
+      mctx.font = "bold 13px Arial,sans-serif";
+      labelRows.forEach(ri => {
+        const t = String((sheetData[ri]||[])[ci]??"");
+        maxW = Math.max(maxW, measureWrappedWidth(mctx, t, "bold 13px Arial,sans-serif", 2, 70, 260, 8));
       });
-      ctx.strokeStyle = "#c96a10"; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, y + LH); ctx.lineTo(W, y + LH); ctx.stroke();
-      y += LH;
+      mctx.font = "14px Arial,sans-serif";
+      dataSlice.forEach(row => {
+        const t = String(row[ci]??"");
+        maxW = Math.max(maxW, mctx.measureText(t).width + 18);
+      });
+      return Math.min(Math.max(maxW, 70), 260);
     });
-  } else {
-    ctx.fillStyle = "#f5f0e8";
-    ctx.fillRect(0, y, W, LH);
-    cols.forEach((ci, xi) => {
-      const x = colX[xi];
-      const label = colLetter(ci);
-      ctx.fillStyle = "#7a2e00";
-      ctx.font = "bold 12px Arial,sans-serif";
-      ctx.textBaseline = "middle";
-      ctx.fillText(label, x + 6, y + LH / 2);
-      if (xi > 0) {
-        ctx.strokeStyle = "rgba(201,106,16,0.25)";
-        ctx.lineWidth = 0.5;
-        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + LH); ctx.stroke();
-      }
+
+    const colX=[]; let acc=PAD;
+    colWidths.forEach(w => { colX.push(acc); acc+=w; });
+
+    const W = PAD + acc;
+    const H = BH + titleRows.length*TH + (useFallback?LH:labelRows.length*LH) + dataSlice.length*CH + PAD;
+
+    const SCALE=2;
+    const canvas = document.createElement("canvas");
+    canvas.width=W*SCALE; canvas.height=H*SCALE;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(SCALE,SCALE);
+    ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H);
+
+    let y=0;
+    // brand header
+    const grad = ctx.createLinearGradient(0,0,W,BH);
+    grad.addColorStop(0,"#3d1200"); grad.addColorStop(0.5,"#7a2e00"); grad.addColorStop(1,"#c96a10");
+    ctx.fillStyle=grad; ctx.fillRect(0,y,W,BH);
+    ctx.fillStyle="#fff"; ctx.font="bold 16px Arial,sans-serif"; ctx.textBaseline="middle";
+    ctx.fillText(headerText||sectionLabel, PAD, y+BH/2);
+    y+=BH;
+
+    // title rows
+    titleRows.forEach(ri => {
+      const row=sheetData[ri]||[];
+      ctx.fillStyle="#fdf3e7"; ctx.fillRect(0,y,W,TH);
+      ctx.strokeStyle="rgba(201,106,16,0.35)"; ctx.lineWidth=0.75; ctx.strokeRect(0,y,W,TH);
+      ctx.fillStyle="#7a2e00"; ctx.font="bold 15px Arial,sans-serif"; ctx.textBaseline="middle";
+      cols.forEach(ci => {
+        if (isMergeCont(ri,ci)) return;
+        const val=row[ci]; if (val===""||val==null) return;
+        ctx.fillText(String(val), (colX[cols.indexOf(ci)]??PAD)+6, y+TH/2);
+      });
+      y+=TH;
     });
-    y += LH;
-  }
 
-  dataSlice.forEach((row, ri) => {
-    const globalRi = globalStartIdx + ri;
-    const ry = y + ri * CH;
-    ctx.fillStyle = globalRi % 2 === 0 ? "#ffffff" : "#fdf9f4";
-    ctx.fillRect(0, ry, W, CH);
-    ctx.strokeStyle = "rgba(201,106,16,0.18)";
-    ctx.lineWidth = 0.5;
-    ctx.beginPath(); ctx.moveTo(0, ry + CH); ctx.lineTo(W, ry + CH); ctx.stroke();
-    cols.forEach((ci, xi) => {
-      const x = colX[xi];
-      const cw = colWidths[xi];
-      let base = String(row[ci] ?? "");
-      let t = base;
-      ctx.fillStyle = "#1c1917";
-      ctx.font = "14px Arial,sans-serif";
-      ctx.textBaseline = "middle";
-      while (ctx.measureText(t).width > cw - 14 && base.length > 1) {
-        base = base.slice(0, -1);
-        t = base + "…";
-      }
-      ctx.fillText(t, x + 6, ry + CH / 2);
-      if (xi > 0) {
-        ctx.strokeStyle = "rgba(201,106,16,0.15)";
-        ctx.lineWidth = 0.5;
-        ctx.beginPath(); ctx.moveTo(x, ry); ctx.lineTo(x, ry + CH); ctx.stroke();
-      }
-    });
-  });
-
-  ctx.strokeStyle = "#c96a10";
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(0, 0, W, H);
-
-  return new Promise(resolve => {
-    canvas.toBlob(blob => {
-      if (!blob) { resolve(canvas.toDataURL("image/jpeg", 0.9)); return; }
-      const reader = new FileReader();
-      reader.onload = ev => resolve(ev.target.result);
-      reader.onerror = () => resolve(canvas.toDataURL("image/jpeg", 0.9));
-      reader.readAsDataURL(blob);
-    }, "image/jpeg", 0.9);
-  });
-};
-  const generateImages = async () => {
-  console.log("1. generateImages called", { workbook, activeSheet });
-  if (!workbook || !activeSheet) {
-    console.log("2. EARLY EXIT - no workbook or activeSheet");
-    return;
-  }
-  setCapturing(true);
-  console.log("3. capturing set to true");
-
-  try {
-    const dataStart = headerInfo.headerEnd >= 0 ? headerInfo.headerEnd + 1 : 0;
-    const allDataRows = sheetData.slice(dataStart);
-    console.log("4. dataStart:", dataStart, "allDataRows.length:", allDataRows.length);
-
-    if (!allDataRows.length) {
-      console.log("5. EARLY EXIT - no data rows");
-      alert("No data rows found after header.");
-      setCapturing(false);
-      return;
+    // label rows
+    if (!useFallback) {
+      labelRows.forEach(ri => {
+        const row=sheetData[ri]||[];
+        ctx.fillStyle="#f0e4d4"; ctx.fillRect(0,y,W,LH);
+        cols.forEach((ci,xi) => {
+          const x=colX[xi], cw=colWidths[xi];
+          ctx.fillStyle="#3d1200"; ctx.font="bold 12.5px Arial,sans-serif"; ctx.textBaseline="middle";
+          const lines=wrapTextToLines(ctx, String(row[ci]??""), cw-14, 2);
+          const lineH=15, startY=y+LH/2-((lines.length-1)*lineH)/2;
+          lines.forEach((line,li) => ctx.fillText(line, x+6, startY+li*lineH));
+          if (xi>0) { ctx.strokeStyle="rgba(201,106,16,0.3)"; ctx.lineWidth=0.5; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+LH); ctx.stroke(); }
+        });
+        ctx.strokeStyle="#c96a10"; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(0,y+LH); ctx.lineTo(W,y+LH); ctx.stroke();
+        y+=LH;
+      });
+    } else {
+      ctx.fillStyle="#f5f0e8"; ctx.fillRect(0,y,W,LH);
+      cols.forEach((ci,xi) => {
+        const x=colX[xi];
+        ctx.fillStyle="#7a2e00"; ctx.font="bold 12px Arial,sans-serif"; ctx.textBaseline="middle";
+        ctx.fillText(colLetter(ci), x+6, y+LH/2);
+        if (xi>0) { ctx.strokeStyle="rgba(201,106,16,0.25)"; ctx.lineWidth=0.5; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+LH); ctx.stroke(); }
+      });
+      y+=LH;
     }
 
-    const chunk = Math.max(1, parseInt(rowsPerImage, 10) || 6);
+    // data rows
+    dataSlice.forEach((row,ri) => {
+      const ry=y+ri*CH;
+      ctx.fillStyle=ri%2===0?"#ffffff":"#fdf9f4"; ctx.fillRect(0,ry,W,CH);
+      ctx.strokeStyle="rgba(201,106,16,0.18)"; ctx.lineWidth=0.5;
+      ctx.beginPath(); ctx.moveTo(0,ry+CH); ctx.lineTo(W,ry+CH); ctx.stroke();
+      cols.forEach((ci,xi) => {
+        const x=colX[xi], cw=colWidths[xi];
+        let base=String(row[ci]??""), t=base;
+        ctx.fillStyle="#1c1917"; ctx.font="14px Arial,sans-serif"; ctx.textBaseline="middle";
+        while (ctx.measureText(t).width>cw-14 && base.length>1) { base=base.slice(0,-1); t=base+"…"; }
+        ctx.fillText(t, x+6, ry+CH/2);
+        if (xi>0) { ctx.strokeStyle="rgba(201,106,16,0.15)"; ctx.lineWidth=0.5; ctx.beginPath(); ctx.moveTo(x,ry); ctx.lineTo(x,ry+CH); ctx.stroke(); }
+      });
+    });
+
+    ctx.strokeStyle="#c96a10"; ctx.lineWidth=1.5; ctx.strokeRect(0,0,W,H);
+
+    return new Promise(resolve => {
+      canvas.toBlob(blob => {
+        if (!blob) { resolve(canvas.toDataURL("image/jpeg",0.9)); return; }
+        const reader=new FileReader();
+        reader.onload=ev=>resolve(ev.target.result);
+        reader.onerror=()=>resolve(canvas.toDataURL("image/jpeg",0.9));
+        reader.readAsDataURL(blob);
+      },"image/jpeg",0.9);
+    });
+  };
+
+  // const captureSelection = async () => {
+  //   const n = getNorm();
+  //   if (!n) { alert("Select a range first by clicking and dragging on the table."); return; }
+  //   setCapturing(true);
+  //   try {
+  //     await new Promise(r => setTimeout(r,0));
+  //     const dataUrl = await drawRangeImage(n.r1, n.r2, n.c1, n.c2);
+  //     if (dataUrl) setItems(prev => [...prev, { dataUrl, caption:"", kind:"table-image", sheet:activeSheet }]);
+  //   } catch(err) { console.error(err); }
+  //   finally { setCapturing(false); }
+  // };
+
+  const captureSelection = async () => {
+    const n = getNorm();
+    if (!n) { alert("Select a range first by clicking and dragging on the table."); return; }
+    setCapturing(true);
+    const chunk = Math.max(1, parseInt(rowsPerImage, 10) || 8);
     const newItems = [];
-    console.log("6. starting loop, chunk size:", chunk);
-
-    for (let start = 0; start < allDataRows.length; start += chunk) {
-      console.log("7. processing chunk starting at row", start);
-      await new Promise(res => setTimeout(res, 0));
-      await new Promise(res => requestAnimationFrame(res));
-
-      const slice = allDataRows.slice(start, start + chunk);
-      const dataUrl = await drawImage(slice, start);
-      console.log("8. drawImage returned:", dataUrl ? "✅ got dataUrl, length=" + dataUrl.length : "❌ null/undefined");
-
-      if (dataUrl) {
-          newItems.push({
-            dataUrl,
-            caption: "",
-            kind: "table-image",
-            sheet: activeSheet,
-          });
+    try {
+      // chunk the selected row range into multiple images
+      for (let start = n.r1; start <= n.r2; start += chunk) {
+        await new Promise(r => setTimeout(r, 0));
+        const end = Math.min(start + chunk - 1, n.r2);
+        const dataUrl = await drawRangeImage(start, end, n.c1, n.c2);
+        if (dataUrl) newItems.push({ dataUrl, caption:"", kind:"table-image", sheet:activeSheet });
       }
-    }
+      if (newItems.length) setItems(prev => [...prev, ...newItems]);
+    } catch(err) { console.error(err); }
+    finally { setCapturing(false); }
+  };
 
-    console.log("9. loop finished, newItems.length:", newItems.length);
+  const VISIBLE_ROWS = Math.min(sheetData.length, 200);
+  const VISIBLE_COLS = Math.min(maxCols, 30);
+  const norm = getNorm();
+  const selInfo = norm
+    ? `Rows ${norm.r1+1}–${norm.r2+1}  ·  Cols ${colLetter(norm.c1)}–${colLetter(norm.c2)}  ·  ${norm.r2-norm.r1+1} rows × ${norm.c2-norm.c1+1} cols`
+    : null;
 
-    if (newItems.length) {
-      setItems(prev => [...prev, ...newItems]);
-      console.log("10. setItems called");
-    }
-  } catch (err) {
-    console.error("11. CAUGHT ERROR:", err);
-  } finally {
-    setCapturing(false);
-    console.log("12. capturing set to false, done");
-  }
-};
-return (
+  return (
     <div>
-      {/* Spinner overlay */}
       {capturing && (
-        <div style={{ position:"fixed", inset:0, zIndex:99999, background:"rgba(15,13,10,0.75)",
-          backdropFilter:"blur(4px)", display:"flex", alignItems:"center",
-          justifyContent:"center", flexDirection:"column", gap:14 }}>
-          <div style={{ width:44, height:44, border:"4px solid rgba(201,106,16,0.2)",
-            borderTop:"4px solid #c96a10", borderRadius:"50%", animation:"wprSpin .7s linear infinite" }} />
-          <div style={{ color:"#ffcfa0", fontWeight:700, fontSize:15 }}>Generating images…</div>
+        <div style={{ position:"fixed",inset:0,zIndex:99999,background:"rgba(15,13,10,0.75)",
+          backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14 }}>
+          <div style={{ width:44,height:44,border:"4px solid rgba(201,106,16,0.2)",
+            borderTop:"4px solid #c96a10",borderRadius:"50%",animation:"wprSpin .7s linear infinite" }}/>
+          <div style={{ color:"#ffcfa0",fontWeight:700,fontSize:15 }}>Generating image…</div>
         </div>
       )}
 
       {/* Mode tabs */}
       <div className="wpr-xl-tabs">
-        <button className={`wpr-xl-tab${mode==="images"?" active":""}`} onClick={() => setMode("images")}>
+        <button className={`wpr-xl-tab${mode==="images"?" active":""}`} onClick={()=>setMode("images")}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-            <polyline points="21 15 16 10 5 21"/>
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
           </svg>
           Upload Photos
         </button>
-        <button className={`wpr-xl-tab${mode==="excel"?" active":""}`} onClick={() => setMode("excel")}>
+        <button className={`wpr-xl-tab${mode==="excel"?" active":""}`} onClick={()=>setMode("excel")}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/><polyline points="8 13 10.5 16 14 11"/>
@@ -923,150 +835,228 @@ return (
         </button>
       </div>
 
-      {/* ── PHOTO UPLOAD MODE ── */}
-      {mode === "images" && (
+      {/* Photo upload */}
+      {mode==="images" && (
         <div>
-          <button className="btn btn-out" style={{ height:42, fontSize:13 }}
-            onClick={() => photoRef.current?.click()}>
+          <button className="btn btn-out" style={{height:42,fontSize:13}} onClick={()=>photoRef.current?.click()}>
             📁 Upload Images
           </button>
-          <input type="file" ref={photoRef} accept="image/*" multiple style={{ display:"none" }}
-            onChange={async (e) => {
-              const files = Array.from(e.target.files || []);
-              const imgs = await Promise.all(files.map(f =>
-                readFileAsDataUrl(f).then(d => ({ dataUrl:d, caption:"", kind:"image" }))
-              ));
-              setItems(p => [...p, ...imgs]);
-              e.target.value = "";
-            }} />
+          <input type="file" ref={photoRef} accept="image/*" multiple style={{display:"none"}}
+            onChange={async(e)=>{
+              const files=Array.from(e.target.files||[]);
+              const imgs=await Promise.all(files.map(f=>readFileAsDataUrl(f).then(d=>({dataUrl:d,caption:"",kind:"image"}))));
+              setItems(p=>[...p,...imgs]); e.target.value="";
+            }}/>
         </div>
       )}
 
-      {/* ── EXCEL MODE ── */}
-      {mode === "excel" && (
+      {/* Excel mode */}
+      {mode==="excel" && (
         <div className="wpr-xl-section">
 
-          {/* Header text input */}
+          {/* Header text */}
           <div className="wpr-xl-hdr-field">
             <label className="wpr-lbl">Report Header Text</label>
-            <input className="finput" value={headerText}
-              onChange={e => setHeaderText(e.target.value)}
-              placeholder={`e.g. ${sectionLabel} — Week 24`} />
+            <input className="finput" value={headerText} onChange={e=>setHeaderText(e.target.value)}
+              placeholder={`e.g. ${sectionLabel} — Week 24`}/>
           </div>
 
-          {/* Upload Excel button */}
-          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14, flexWrap:"wrap" }}>
+          {/* Upload Excel */}
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,flexWrap:"wrap"}}>
             <button className="btn btn-amber"
-              style={{ height:38, fontSize:12.5, padding:"0 14px", display:"flex", alignItems:"center", gap:7 }}
-              onClick={() => xlRef.current?.click()} disabled={xlLoading}>
+              style={{height:38,fontSize:12.5,padding:"0 14px",display:"flex",alignItems:"center",gap:7}}
+              onClick={()=>xlRef.current?.click()} disabled={xlLoading}>
               {xlLoading
-                ? <><div className="wpr-spinner" style={{ width:14, height:14, borderWidth:2 }}/> Parsing…</>
-                : <>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                    Upload Excel (.xlsx / .xls)
-                  </>}
+                ? <><div className="wpr-spinner" style={{width:14,height:14,borderWidth:2}}/> Parsing…</>
+                : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg> Upload Excel (.xlsx / .xls)</>}
             </button>
-            <input type="file" ref={xlRef} accept=".xlsx,.xls,.csv"
-              style={{ display:"none" }} onChange={handleXlFile} />
-            {xlFileName && !xlError &&
-              <span style={{ fontSize:12, color:"#c96a10", fontWeight:700 }}>📊 {xlFileName}</span>}
+            <input type="file" ref={xlRef} accept=".xlsx,.xls,.csv" style={{display:"none"}} onChange={handleXlFile}/>
+            {xlFileName && !xlError && <span style={{fontSize:12,color:"#c96a10",fontWeight:700}}>📊 {xlFileName}</span>}
           </div>
 
           {xlError && (
-            <div className="wpr-hint" style={{ background:"#fef2f2", borderColor:"#fecaca", color:"#dc2626", marginBottom:12 }}>
+            <div className="wpr-hint" style={{background:"#fef2f2",borderColor:"#fecaca",color:"#dc2626",marginBottom:12}}>
               {xlError}
             </div>
           )}
 
           {/* Sheet tabs */}
-          {workbook && workbook.sheetNames.length > 1 && (
-            <div className="wpr-xl-sheet-tabs" style={{ marginBottom:10 }}>
-              {workbook.sheetNames.map(name => (
-                <button key={name}
-                  className={`wpr-xl-sheet-tab${name===activeSheet?" active":""}`}
-                  onClick={() => setActiveSheet(name)}>
+          {workbook && workbook.sheetNames.length>1 && (
+            <div className="wpr-xl-sheet-tabs" style={{marginBottom:10}}>
+              {workbook.sheetNames.map(name=>(
+                <button key={name} className={`wpr-xl-sheet-tab${name===activeSheet?" active":""}`}
+                  onClick={()=>{ setActiveSheet(name); setSelStart(null); setSelEnd(null); }}>
                   {name}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Rows per image control */}
-          {workbook && (
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14, flexWrap:"wrap" }}>
-              <span className="wpr-range-label">Rows per image:</span>
-              <input className="finput" type="number" min="1" max="50"
-                value={rowsPerImage}
-                onChange={e => setRowsPerImage(e.target.value)}
-                style={{ width:64, textAlign:"center" }} />
+          {/* ── Range selector ── */}
+          {workbook && sheetData.length>0 && (
+            <>
+              {/* Instruction hint */}
+              <div className="wpr-hint" style={{marginBottom:8}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c96a10" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span><strong>Click and drag</strong> on the table to select your data range, then click <strong>⚡ Capture</strong>. You can capture multiple ranges.</span>
+              </div>
 
-              {/* Preview info */}
-              {sheetData.length > 0 && (() => {
-                const dataStart = headerInfo.headerEnd >= 0 ? headerInfo.headerEnd + 1 : 0;
-                const totalData = Math.max(0, sheetData.length - dataStart);
-                const chunk = Math.max(1, parseInt(rowsPerImage,10) || 6);
-                const imgCount = Math.ceil(totalData / chunk);
-                return (
-                  <span style={{ fontSize:11.5, color:"#c96a10", fontWeight:700 }}>
-                    → {totalData} data rows → {imgCount} image{imgCount!==1?"s":""} 
+              {/* Rows per image control */}
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
+                <span className="wpr-range-label">Rows per image:</span>
+                <input className="finput" type="number" min="1" max="100"
+                  value={rowsPerImage}
+                  onChange={e=>setRowsPerImage(e.target.value)}
+                  style={{width:64,textAlign:"center"}}/>
+                {norm && (
+                  <span style={{fontSize:11.5,color:"#c96a10",fontWeight:700}}>
+                    → {norm.r2-norm.r1+1} rows selected → {Math.ceil((norm.r2-norm.r1+1)/Math.max(1,parseInt(rowsPerImage,10)||8))} image{Math.ceil((norm.r2-norm.r1+1)/Math.max(1,parseInt(rowsPerImage,10)||8))!==1?"s":""}
                   </span>
-                );
-              })()}
+                )}
+              </div>
+              {/* Selection bar */}
+              <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",
+                background:norm?"rgba(201,106,16,0.1)":"var(--surface)",
+                border:"1.5px solid #c96a10",borderRadius:9,marginBottom:8,flexWrap:"wrap"}}>
 
-              <button
-                onClick={generateImages}
-                disabled={capturing || !workbook}
-                style={{
-                  height:36, padding:"0 18px", fontSize:13, fontWeight:700,
-                  fontFamily:"var(--font)",
-                  background: capturing||!workbook ? "var(--surface)" : "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
-                  color: capturing||!workbook ? "var(--ink3)" : "#fff",
-                  border:"1.5px solid #c96a10", borderRadius:8,
-                  cursor: capturing||!workbook ? "not-allowed" : "pointer",
-                  display:"flex", alignItems:"center", gap:7,
-                }}>
-                {capturing ? "Generating…" : "⚡ Generate Images"}
-                {capturing && xlGenProgress  && (
-  <div style={{ fontSize: 12, color: "#c96a10", marginTop: 6 }}>{xlGenProgress }</div>
-)}
-              </button>
-            </div>
+                {/* Range display */}
+                <span style={{fontSize:12,fontWeight:700,color:norm?"#c96a10":"var(--ink3)",
+                  fontFamily:"var(--mono)",flex:1,minWidth:160}}>
+                  {selInfo || "No range selected — click & drag below"}
+                </span>
+
+                {norm && (
+                  <button onClick={()=>{setSelStart(null);setSelEnd(null);}}
+                    style={{fontSize:11,padding:"3px 10px",borderRadius:6,border:"1.5px solid #c96a10",
+                      background:"transparent",color:"#c96a10",cursor:"pointer",fontWeight:700,whiteSpace:"nowrap"}}>
+                    ✕ Clear
+                  </button>
+                )}
+
+                <button onClick={captureSelection} disabled={capturing||!norm}
+                  style={{height:32,padding:"0 16px",fontSize:12.5,fontWeight:700,fontFamily:"var(--font)",
+                    background:norm?"linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)":"var(--surface)",
+                    color:norm?"#fff":"var(--ink3)",
+                    border:"1.5px solid #c96a10",borderRadius:8,
+                    cursor:norm?"pointer":"not-allowed",
+                    display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap"}}>
+                  {capturing
+                    ? <><div style={{width:12,height:12,border:"2px solid rgba(255,255,255,0.3)",
+                        borderTop:"2px solid #fff",borderRadius:"50%",animation:"wprSpin .7s linear infinite"}}/> Working…</>
+                    : "⚡ Capture"}
+                </button>
+              </div>
+
+              {/* Excel table */}
+              <div className="wpr-xl-table-wrap"
+                style={{maxHeight:360,border:"1.5px solid #c96a10",borderRadius:8,overflow:"auto",userSelect:"none"}}
+                onMouseLeave={()=>{ if(isDragging) setIsDragging(false); }}>
+                <table className="wpr-xl-table" style={{minWidth:"100%"}}>
+                  <thead>
+                    <tr>
+                      <th style={{minWidth:36,width:36,position:"sticky",left:0,zIndex:2}}>#</th>
+                      {Array.from({length:VISIBLE_COLS},(_,ci)=>(
+                        <th key={ci} style={{minWidth:72}}>{colLetter(ci)}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({length:VISIBLE_ROWS},(_,ri)=>{
+                      const row=sheetData[ri]||[];
+                      return (
+                        <tr key={ri}>
+                          {/* Row number — sticky */}
+                          <td style={{
+                            background:"linear-gradient(135deg,#3d1200,#7a2e00)",
+                            color:"#ffcfa0",fontWeight:800,textAlign:"center",
+                            fontSize:10,padding:"3px 5px",
+                            position:"sticky",left:0,zIndex:1,userSelect:"none",
+                            borderRight:"1.5px solid #c96a10"
+                          }}>
+                            {ri+1}
+                          </td>
+                          {Array.from({length:VISIBLE_COLS},(_,ci)=>{
+                            const selected=isSel(ri,ci);
+                            const isStart=isSelStart(ri,ci);
+                            return (
+                              <td key={ci}
+                                className={selected?(isStart?"sel-start":"sel"):""}
+                                style={{
+                                  cursor:"crosshair",
+                                  minWidth:72,maxWidth:180,
+                                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                                  padding:"4px 8px",fontSize:11.5,
+                                }}
+                                onMouseDown={e=>{
+                                  e.preventDefault();
+                                  setSelStart({r:ri,c:ci});
+                                  setSelEnd({r:ri,c:ci});
+                                  setIsDragging(true);
+                                }}
+                                onMouseEnter={()=>{ if(isDragging) setSelEnd({r:ri,c:ci}); }}
+                                onMouseUp={()=>setIsDragging(false)}
+                              >
+                                {String(row[ci]??"")}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Overflow notices */}
+              <div style={{display:"flex",gap:12,marginTop:5,flexWrap:"wrap"}}>
+                {sheetData.length>200 && (
+                  <span style={{fontSize:11,color:"var(--ink3)"}}>
+                    ⚠ Showing first 200 of {sheetData.length} rows — selection captures exact rows chosen
+                  </span>
+                )}
+                {maxCols>30 && (
+                  <span style={{fontSize:11,color:"var(--ink3)"}}>
+                    ⚠ Showing first 30 of {maxCols} columns
+                  </span>
+                )}
+              </div>
+            </>
           )}
 
-          {/* Hint when no file uploaded */}
+          {/* No file yet */}
           {!workbook && !xlLoading && !xlError && (
             <div className="wpr-hint">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c96a10" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
-              Upload an Excel file — images will be auto-generated with header + {rowsPerImage} rows each.
+              Upload an Excel file — then select the exact range you want to capture as a branded image.
             </div>
           )}
         </div>
       )}
 
-      {/* ── Captured items grid ── */}
-      {items.length > 0 && (
+      {/* Captured items */}
+      {items.length>0 && (
         <div className="wpr-xl-captured-grid">
-          {items.map((item, i) => item.dataUrl ? (
+          {items.map((item,i)=>item.dataUrl?(
             <div key={i} className="wpr-xl-captured-card">
               <div className="wpr-xl-captured-card-hdr">
-                {item.kind==="table-image" ? "📊" : "🖼"} {item.caption || `Item ${i+1}`}
+                {item.kind==="table-image"?"📊":"🖼"} {item.caption||`Item ${i+1}`}
               </div>
-              <img src={item.dataUrl} alt="" />
+              <img src={item.dataUrl} alt=""/>
               <button className="wpr-xl-captured-del"
-                onClick={() => setItems(p => p.filter((_,x) => x!==i))}>✕</button>
+                onClick={()=>setItems(p=>p.filter((_,x)=>x!==i))}>✕</button>
               <div className="wpr-xl-captured-cap">
                 <input value={item.caption||""} placeholder="Caption…"
-                  onChange={e => setItems(p => p.map((it,x) => x===i ? {...it, caption:e.target.value} : it))} />
+                  onChange={e=>setItems(p=>p.map((it,x)=>x===i?{...it,caption:e.target.value}:it))}/>
               </div>
             </div>
-          ) : null)}
+          ):null)}
         </div>
       )}
     </div>
@@ -1139,6 +1129,7 @@ export default function WprGenerator({ user, supabase }) {
   const [openSec, setOpenSec] = useState({ info: true });
   const toggle = (k) => setOpenSec((p) => ({ ...p, [k]: !p[k] }));
 const [logoDataUrl, setLogoDataUrl] = useState(null); 
+const [jobNo, setJobNo] = useState("");
   const [site, setSite] = useState(user?.site_names?.[0] || user?.site_name || "");
   const [engineer, setEngineer] = useState(user?.name || "");
   const [reportDate, setReportDate] = useState(today());
@@ -1190,7 +1181,35 @@ const uploadWprRef = useRef();
   }, [supabase]);
 
   useEffect(() => { fetchReportNum(site, reportDate); }, [site, reportDate, fetchReportNum]);
-
+// ── Auto-load site image from site_details when site changes ──
+  useEffect(() => {
+    if (!site || !supabase) return;
+    (async () => {
+      const { data } = await supabase
+        .from("site_details")
+        .select("site_image_url")
+        .eq("site_name", site)
+        .maybeSingle();
+        if (data?.site_image_url) {
+        try {
+            // cache-bust so stale CDN copy doesn't block updated image
+          const bustUrl = data.site_image_url + "?t=" + Date.now();
+          const res = await fetch(bustUrl);
+          const blob = await res.blob();
+          const reader = new FileReader();
+          reader.onload = (e) => setSiteImage(e.target.result);
+          reader.readAsDataURL(blob);
+        } catch (_) { /* silently ignore if image fetch fails */ }
+      }
+      // Also fetch job_no
+      const { data: sd } = await supabase
+        .from("site_details")
+        .select("job_no")
+        .eq("site_name", site)
+        .maybeSingle();
+      if (sd?.job_no) setJobNo(sd.job_no);
+    })();
+  }, [site, supabase]);
 const checkDraft = useCallback(async () => {
   if (!engineer || !supabase) return;
   let query = supabase.from("wpr_drafts").select("site_name, updated_at")
@@ -1636,7 +1655,7 @@ const datePath = buildSiteDatePath(reportDate);
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             <div>
               <div style={{ fontSize: 11, fontWeight: 800, color: "#ffcfa0", textTransform: "uppercase", letterSpacing: ".06em" }}>Report Number</div>
-              <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--mono)", color: "#fff" }}>WPR — {zp(reportNum)}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,207,160,0.75)", marginTop: 3, fontFamily: "var(--mono)" }}>{jobNo || "—"}</div>
             </div>
           </div>
           <div className="wpr-fg">
@@ -1651,7 +1670,96 @@ const datePath = buildSiteDatePath(reportDate);
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" strokeWidth="1.5" strokeLinecap="round" style={{ marginBottom: 8 }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 <div style={{ fontSize: 13, color: "var(--ink2)", fontWeight: 600 }}>Upload site overview photo</div>
                 <input type="file" accept="image/*" style={{ display: "none" }}
-                  onChange={async (e) => { if (e.target.files[0]) setSiteImage(await readFileAsDataUrl(e.target.files[0])); }} />
+                 onChange={async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const dataUrl = await readFileAsDataUrl(file);
+  setSiteImage(dataUrl);
+
+  if (site && supabase) {
+    try {
+      await ensureBucket(supabase, site);
+      const bucketName = bucketNameFor(site);
+      const path = `SiteImg/site_title.jpg`;
+
+      // Step 1 — upload to bucket
+    const mime = getMime(dataUrl);
+      const base64 = dataUrlToBase64(dataUrl);
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: mime });
+
+     // ── Direct REST PUT — always overwrites, bypasses SDK policy quirks ──
+      // ── Extract Supabase URL + key from client (works for all client versions) ──
+      const supabaseUrl = (
+        supabase.supabaseUrl ||
+        supabase.storageUrl?.replace("/storage/v1", "") ||
+        supabase.rest?.url?.replace("/rest/v1", "") ||
+        supabase._supabaseUrl
+      )?.replace(/\/$/, "");
+
+// Get the active session JWT — required for storage writes
+      const { data: { session } } = await supabase.auth.getSession();
+      const supabaseKey = (
+        supabase.supabaseKey ||
+        supabase._supabaseKey ||
+        supabase.headers?.apikey ||
+        supabase.rest?.headers?.apikey
+      );
+      const authToken = session?.access_token || supabaseKey;
+
+      console.log("🔍 resolved url:", supabaseUrl, "| key prefix:", supabaseKey?.slice(0,12));
+
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error("Cannot resolve Supabase URL/key from client — check console");
+      }
+
+      const putRes = await fetch(
+        `${supabaseUrl}/storage/v1/object/${bucketName}/${path}`,
+        {
+          method: "PUT",
+          headers: {
+            "apikey": supabaseKey,
+            "Authorization": `Bearer ${authToken}`,  // ← JWT not anon key
+            "Content-Type": mime,
+            "Cache-Control": "no-cache, no-store",
+            "x-upsert": "true",
+          },
+          body: blob,
+        }
+      );
+
+      if (!putRes.ok) {
+        const errText = await putRes.text();
+        throw new Error(`Storage PUT failed ${putRes.status}: ${errText}`);
+      }
+      console.log("✅ Storage PUT success:", putRes.status);
+      // Step 2 — get public URL
+// Step 2 — get public URL with cache-bust timestamp
+      const { data: urlData } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(path);
+      const publicUrl = urlData?.publicUrl 
+        ? `${urlData.publicUrl}?t=${Date.now()}`
+        : null;
+      if (!publicUrl) throw new Error("Could not get public URL");
+
+      // Step 3 — update site_details (log result to verify)
+      const { data: updateData, error: updateErr } = await supabase
+        .from("site_details")
+        .update({ site_image_url: publicUrl })
+        .eq("site_name", site)
+        .select();                      // ← .select() forces it to return rows
+
+      if (updateErr) throw new Error("DB update failed: " + updateErr.message);
+      console.log("✅ site_image_url updated:", publicUrl, "rows:", updateData);
+      showToast("✅ Site image saved", "success");
+
+    } catch (err) {
+      console.error("❌ Site image sync failed:", err.message);
+      showToast("⚠ Image uploaded locally but DB sync failed: " + err.message, "error", 5000);
+    }
+  }
+}} />
               </label>
             )}
           </div>
@@ -1927,105 +2035,94 @@ const datePath = buildSiteDatePath(reportDate);
           <div className="wpr-hint">ℹ Standard sections are always included. Drag the ⠿ handle to reorder, use Hide to exclude from PPT, or 🚫 to omit entirely.</div>
           {sections.map((sec, si) => (
             <div
-  key={si}
-  className="wpr-rc-item"
-  draggable
-  onDragStart={(e) => {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", String(si));
-    e.currentTarget.style.opacity = "0.45";
-  }}
-  onDragEnd={(e) => {
-    e.currentTarget.style.opacity = "1";
-    document.querySelectorAll(".wpr-rc-item").forEach(el => {
-      el.style.borderTop = ""; el.style.borderBottom = "";
-    });
-  }}
-  onDragOver={(e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    const midY = e.currentTarget.getBoundingClientRect().top + e.currentTarget.getBoundingClientRect().height / 2;
-    document.querySelectorAll(".wpr-rc-item").forEach(el => { el.style.borderTop = ""; el.style.borderBottom = ""; });
-    if (e.clientY < midY) e.currentTarget.style.borderTop = "2.5px solid #c96a10";
-    else e.currentTarget.style.borderBottom = "2.5px solid #c96a10";
-  }}
-  onDragLeave={(e) => { e.currentTarget.style.borderTop = ""; e.currentTarget.style.borderBottom = ""; }}
-  onDrop={(e) => {
-    e.preventDefault();
-    e.currentTarget.style.borderTop = ""; e.currentTarget.style.borderBottom = "";
-    const fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
-    if (isNaN(fromIdx) || fromIdx === si) return;
-    const midY = e.currentTarget.getBoundingClientRect().top + e.currentTarget.getBoundingClientRect().height / 2;
-    const insertAfter = e.clientY >= midY;
-    setSections((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(fromIdx, 1);
-      let toIdx = fromIdx < si ? si - 1 : si;
-      if (insertAfter) toIdx += 1;
-      next.splice(toIdx, 0, moved);
-      return next;
-    });
-  }}
-  onTouchStart={(e) => {
-    const touch = e.touches[0];
-    e.currentTarget._touchStartY = touch.clientY;
-    e.currentTarget._touchIdx = si;
-    e.currentTarget.style.opacity = "0.55";
-    e.currentTarget.style.transform = "scale(1.02)";
-    e.currentTarget.style.zIndex = "100";
-    e.currentTarget.style.boxShadow = "0 8px 24px rgba(201,106,16,0.35)";
-  }}
-  onTouchMove={(e) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const allItems = Array.from(document.querySelectorAll(".wpr-rc-item"));
-    allItems.forEach(el => { el.style.borderTop = ""; el.style.borderBottom = ""; });
-    const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest(".wpr-rc-item");
-    if (target && target !== e.currentTarget) {
-      const rect = target.getBoundingClientRect();
-      if (touch.clientY < rect.top + rect.height / 2) target.style.borderTop = "2.5px solid #c96a10";
-      else target.style.borderBottom = "2.5px solid #c96a10";
-    }
-  }}
-  onTouchEnd={(e) => {
-    e.currentTarget.style.opacity = "1";
-    e.currentTarget.style.transform = "";
-    e.currentTarget.style.zIndex = "";
-    e.currentTarget.style.boxShadow = "";
-    document.querySelectorAll(".wpr-rc-item").forEach(el => { el.style.borderTop = ""; el.style.borderBottom = ""; });
-    const touch = e.changedTouches[0];
-    const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest(".wpr-rc-item");
-    if (!target || target === e.currentTarget) return;
-    const allItems = Array.from(document.querySelectorAll(".wpr-rc-item"));
-    const fromIdx = si;
-    const toIdx = allItems.indexOf(target);
-    if (toIdx === -1 || fromIdx === toIdx) return;
-    const rect = target.getBoundingClientRect();
-    const insertAfter = touch.clientY >= rect.top + rect.height / 2;
-    setSections((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(fromIdx, 1);
-      let finalIdx = fromIdx < toIdx ? toIdx - 1 : toIdx;
-      if (insertAfter) finalIdx += 1;
-      next.splice(finalIdx, 0, moved);
-      return next;
-    });
-  }}
->
+                key={si}
+                className="wpr-rc-item"
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", String(si));
+                  e.currentTarget.style.opacity = "0.45";
+                }}
+                onDragEnd={(e) => {
+                  e.currentTarget.style.opacity = "1";
+                  document.querySelectorAll(".wpr-rc-item").forEach(el => {
+                    el.style.borderTop = ""; el.style.borderBottom = "";
+                  });
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  const midY = e.currentTarget.getBoundingClientRect().top + e.currentTarget.getBoundingClientRect().height / 2;
+                  document.querySelectorAll(".wpr-rc-item").forEach(el => { el.style.borderTop = ""; el.style.borderBottom = ""; });
+                  if (e.clientY < midY) e.currentTarget.style.borderTop = "2.5px solid #c96a10";
+                  else e.currentTarget.style.borderBottom = "2.5px solid #c96a10";
+                }}
+                onDragLeave={(e) => { e.currentTarget.style.borderTop = ""; e.currentTarget.style.borderBottom = ""; }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.style.borderTop = ""; e.currentTarget.style.borderBottom = "";
+                  const fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
+                  if (isNaN(fromIdx) || fromIdx === si) return;
+                  const midY = e.currentTarget.getBoundingClientRect().top + e.currentTarget.getBoundingClientRect().height / 2;
+                  const insertAfter = e.clientY >= midY;
+                  setSections((prev) => {
+                    const next = [...prev];
+                    const [moved] = next.splice(fromIdx, 1);
+                    let toIdx = fromIdx < si ? si - 1 : si;
+                    if (insertAfter) toIdx += 1;
+                    next.splice(toIdx, 0, moved);
+                    return next;
+                  });
+                }}
+                onTouchStart={(e) => {
+                  const touch = e.touches[0];
+                  e.currentTarget._touchStartY = touch.clientY;
+                  e.currentTarget._touchIdx = si;
+                  e.currentTarget.style.opacity = "0.55";
+                  e.currentTarget.style.transform = "scale(1.02)";
+                  e.currentTarget.style.zIndex = "100";
+                  e.currentTarget.style.boxShadow = "0 8px 24px rgba(201,106,16,0.35)";
+                }}
+                onTouchMove={(e) => {
+                  e.preventDefault();
+                  const touch = e.touches[0];
+                  const allItems = Array.from(document.querySelectorAll(".wpr-rc-item"));
+                  allItems.forEach(el => { el.style.borderTop = ""; el.style.borderBottom = ""; });
+                  const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest(".wpr-rc-item");
+                  if (target && target !== e.currentTarget) {
+                    const rect = target.getBoundingClientRect();
+                    if (touch.clientY < rect.top + rect.height / 2) target.style.borderTop = "2.5px solid #c96a10";
+                    else target.style.borderBottom = "2.5px solid #c96a10";
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  e.currentTarget.style.opacity = "1";
+                  e.currentTarget.style.transform = "";
+                  e.currentTarget.style.zIndex = "";
+                  e.currentTarget.style.boxShadow = "";
+                  document.querySelectorAll(".wpr-rc-item").forEach(el => { el.style.borderTop = ""; el.style.borderBottom = ""; });
+                  const touch = e.changedTouches[0];
+                  const target = document.elementFromPoint(touch.clientX, touch.clientY)?.closest(".wpr-rc-item");
+                  if (!target || target === e.currentTarget) return;
+                  const allItems = Array.from(document.querySelectorAll(".wpr-rc-item"));
+                  const fromIdx = si;
+                  const toIdx = allItems.indexOf(target);
+                  if (toIdx === -1 || fromIdx === toIdx) return;
+                  const rect = target.getBoundingClientRect();
+                  const insertAfter = touch.clientY >= rect.top + rect.height / 2;
+                  setSections((prev) => {
+                    const next = [...prev];
+                    const [moved] = next.splice(fromIdx, 1);
+                    let finalIdx = fromIdx < toIdx ? toIdx - 1 : toIdx;
+                    if (insertAfter) finalIdx += 1;
+                    next.splice(finalIdx, 0, moved);
+                    return next;
+                  });
+                }}
+              >
               <div className="wpr-rc-hdr">
                 {/* Drag handle */}
-                <div
-                  title="Drag to reorder"
-                  style={{
-                    cursor: "grab",
-                    color: "var(--ink3)",
-                    fontSize: 18,
-                    lineHeight: 1,
-                    padding: "0 4px",
-                    userSelect: "none",
-                    flexShrink: 0,
-                  }}
-                >
+                <div title="Drag to reorder" style={{cursor: "grab",color: "var(--ink3)",fontSize: 18,lineHeight: 1,padding: "0 4px",userSelect: "none",flexShrink: 0,}}>
                   ⠿
                 </div>
                 <div className="wpr-rc-badge">{sec.isStandard ? "::" : "✨"}</div>
@@ -2045,11 +2142,13 @@ const datePath = buildSiteDatePath(reportDate);
                   }}>↓</button>
                   <button
                     className={`wpr-rc-btn${sec.slideHidden ? " hide-active" : ""}`}
+                    title={sec.slideHidden ? "Slide hidden in PPT — click to show" : "Hide slide in PPT (slide stays but is hidden)"}
                     onClick={() => setSections((p) => p.map((s, x) => x === si ? { ...s, slideHidden: !s.slideHidden } : s))}
                   >{sec.slideHidden ? "👁" : "Hide"}</button>
                   {sec.isStandard ? (
                     <button
                       className={`wpr-rc-btn${sec.hidden ? " hide-active" : ""}`}
+                      title={sec.hidden ? "Section excluded from PPT — click to include" : "Remove section from PPT completely"}
                       onClick={() => setSections((p) => p.map((s, x) => x === si ? { ...s, hidden: !s.hidden } : s))}
                     >🚫</button>
                   ) : (
@@ -2063,7 +2162,8 @@ const datePath = buildSiteDatePath(reportDate);
         {/* FAB */}
         <div className="wpr-fab-wrap">
           <button onClick={() => saveDraft(false)} disabled={autoSavePending}
-            style={{ width: "100%", height: 40, marginBottom: 8, fontSize: 13, fontFamily: "var(--font)", fontWeight: 700, background: "linear-gradient(135deg,#fff,var(--amber),#7a2e00,#c96a10,#fff)", color: "#fff", border: "1.5px solid linear-gradient(#fff,var(--amber),#7a2e00,#c96a10,#fff)", borderRadius: 10, cursor: "pointer", pointerEvents: "all", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+            style={{ width: "100%", height: 40, marginBottom: 8, fontSize: 13, fontFamily: "var(--font)", fontWeight: 700,  borderRadius:"10px",
+                border:"2px solid #e2e8f0", borderColor:"#475569", cursor: "pointer", pointerEvents: "all", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
             {autoSavePending ? (
               <><div className="wpr-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Saving…</>
             ) : (

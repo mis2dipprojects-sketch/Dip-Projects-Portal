@@ -43,7 +43,6 @@ async function uploadSvrPdfToSupabase(blob, fileName, site, date) {
   const bucketName = sanitizeBucketName(site);
   await ensureBucketExists(bucketName, site);
   const datePath = buildSiteDatePath(date);
-  // SVR reports live alongside DPR reports but under an "svr" subfolder
   const path = `${datePath}/svr/reports/${fileName}`;
   const { error } = await supabase.storage
     .from(bucketName)
@@ -53,9 +52,7 @@ async function uploadSvrPdfToSupabase(blob, fileName, site, date) {
   if (!urlData?.publicUrl) throw new Error("PDF uploaded but could not get public URL.");
   return urlData.publicUrl;
 }
-// ADD after the uploadSvrPdfToSupabase function
 
-// REPLACE WITH:
 async function saveSvrDraft(payload) {
   const { error } = await supabase
     .from("svr_drafts")
@@ -63,14 +60,14 @@ async function saveSvrDraft(payload) {
       {
         site_name: payload.site_name,
         reporter:  payload.reporter_name,
-        payload:   JSON.parse(JSON.stringify(payload)), // ensure serializable
+        payload:   JSON.parse(JSON.stringify(payload)),
         saved_at:  new Date().toISOString(),
       },
       { onConflict: "site_name,reporter", ignoreDuplicates: false }
     );
   if (error) { console.error("saveSvrDraft error:", error); return { ok: false, error: error.message }; }
   return { ok: true };
-} 
+}
 
 async function loadSvrDraft(site_name, reporter) {
   if (!site_name || !reporter) return { ok: true, draft: null };
@@ -95,6 +92,49 @@ async function deleteSvrDraft(site_name, reporter) {
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+// ─── Fetch all unique site names from user_details ────────────────────────────
+async function fetchAllSiteNames() {
+  const { data, error } = await supabase
+    .from("user_details")
+    .select("site_name, site_names")
+    .eq("status", "Active");
+
+  if (error) {
+    console.error("fetchAllSiteNames error:", error);
+    return [];
+  }
+
+  const siteSet = new Set();
+
+  (data || []).forEach((row) => {
+    // single site_name column
+    if (row.site_name && row.site_name.trim()) {
+      siteSet.add(row.site_name.trim());
+    }
+    // site_names array column (stored as text[] in Postgres)
+    if (Array.isArray(row.site_names)) {
+      row.site_names.forEach((s) => {
+        if (s && s.trim()) siteSet.add(s.trim());
+      });
+    }
+    // sometimes Supabase returns text[] as a JSON string like '["A","B"]'
+    if (typeof row.site_names === "string") {
+      try {
+        const parsed = JSON.parse(row.site_names);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((s) => { if (s && s.trim()) siteSet.add(s.trim()); });
+        }
+      } catch (_) {
+        // not JSON — treat as single value
+        if (row.site_names.trim()) siteSet.add(row.site_names.trim());
+      }
+    }
+  });
+
+  return Array.from(siteSet).sort((a, b) => a.localeCompare(b));
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function Section({ num, title, children, openSections, toggleSection }) {
   const open = !!openSections[num];
@@ -173,6 +213,39 @@ export default function SiteReport({ user }) {
     key_instructions: "",
   });
 
+  // ── Site name dropdown state ──────────────────────────────────────────────
+  const [siteOptions, setSiteOptions]         = useState([]);
+  const [siteOptionsLoading, setSiteOptionsLoading] = useState(true);
+  // "selected" tracks the dropdown value; "other" means user typed a custom name
+  const [siteSelectValue, setSiteSelectValue] = useState("");
+  const [customSiteName, setCustomSiteName]   = useState("");
+
+  // Fetch site names once on mount
+  useEffect(() => {
+    setSiteOptionsLoading(true);
+    fetchAllSiteNames().then((names) => {
+      setSiteOptions(names);
+      setSiteOptionsLoading(false);
+    });
+  }, []);
+
+  // Sync form.site_name whenever dropdown or custom input changes
+  const handleSiteSelectChange = (val) => {
+    setSiteSelectValue(val);
+    if (val === "__other__") {
+      // Keep whatever the user typed in the custom box (or empty)
+      setForm((p) => ({ ...p, site_name: customSiteName }));
+    } else {
+      setCustomSiteName("");
+      setForm((p) => ({ ...p, site_name: val }));
+    }
+  };
+
+  const handleCustomSiteChange = (val) => {
+    setCustomSiteName(val);
+    setForm((p) => ({ ...p, site_name: val }));
+  };
+
   const [photosProcessing, setPhotosProcessing] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
   const [photos, setPhotos] = useState([]);
@@ -180,7 +253,7 @@ export default function SiteReport({ user }) {
   const [submitStage, setSubmitStage] = useState("");
   const [toast, setToast] = useState(null);
   const [openSections, setOpenSections] = useState({ 1: true });
-// REPLACE WITH:
+
   const [draftInfo,        setDraftInfo]        = useState(null);
   const [draftCheckStatus, setDraftCheckStatus] = useState("idle");
   const [savingDraft,      setSavingDraft]      = useState(false);
@@ -211,7 +284,7 @@ export default function SiteReport({ user }) {
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
-  // ── Image handling (local only — no bucket upload) ──────────────────────────
+  // ── Image handling ──────────────────────────────────────────────────────────
   const handleFiles = async (files) => {
     const fileArr = Array.from(files);
     setPhotosProcessing(true);
@@ -231,8 +304,7 @@ export default function SiteReport({ user }) {
   const updateCaption = (i, v) =>
     setPhotos((p) => p.map((ph, idx) => (idx === i ? { ...ph, caption: v } : ph)));
 
-  // ── Submit ──────────────────────────────────────────────────────────────────
-// REPLACE WITH:
+  // ── Draft handlers ──────────────────────────────────────────────────────────
   const handleSaveDraft = async () => {
     const site = form.site_name?.trim();
     const rep  = form.reporter_name?.trim();
@@ -249,14 +321,15 @@ export default function SiteReport({ user }) {
     }
   };
 
-// REPLACE WITH:
   const handleOpenDraft = () => {
     if (!draftInfo) { showToast("error", "No draft available."); return; }
     const d = draftInfo.payload || {};
+    const restoredSite = d.site_name || "";
+
     setForm({
       visit_date:           d.visit_date           || new Date().toISOString().split("T")[0],
       visit_time:           d.visit_time           || "",
-      site_name:            d.site_name            || "",
+      site_name:            restoredSite,
       reporter_name:        d.reporter_name        || user?.name || "",
       designation:          d.designation          || "",
       designation_other:    d.designation_other    || "",
@@ -267,11 +340,21 @@ export default function SiteReport({ user }) {
       site_visit_instructions: d.site_visit_instructions || "",
       key_instructions:     d.key_instructions     || "",
     });
-    setPhotos((d.photos || []).map((p, i) => ({ ...p, file: undefined })));
-    const savedAt = draftInfo.saved_at
-      ? new Date(draftInfo.saved_at).toLocaleString("en-IN", { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" })
-      : "";
-    showToast("success", `✅ Draft restored !`);
+
+    // Restore dropdown to the correct option
+    if (restoredSite && siteOptions.includes(restoredSite)) {
+      setSiteSelectValue(restoredSite);
+      setCustomSiteName("");
+    } else if (restoredSite) {
+      setSiteSelectValue("__other__");
+      setCustomSiteName(restoredSite);
+    } else {
+      setSiteSelectValue("");
+      setCustomSiteName("");
+    }
+
+    setPhotos((d.photos || []).map((p) => ({ ...p, file: undefined })));
+    showToast("success", "✅ Draft restored!");
   };
 
   const handleDeleteDraft = async () => {
@@ -293,11 +376,10 @@ export default function SiteReport({ user }) {
     setSubmitting(true);
     setSubmitStage("Saving report…");
 
-      try {
+    try {
       const designationValue =
         form.designation === "other" ? form.designation_other.trim() : form.designation;
 
-      // ── 1. Insert report row (no photo URLs — photos stay local / in PDF) ──
       const { data: inserted, error: insertErr } = await supabase
         .from("site_reports")
         .insert([{
@@ -321,7 +403,6 @@ export default function SiteReport({ user }) {
       if (insertErr) throw new Error("Report insert failed: " + insertErr.message);
       const reportId = inserted.id;
 
-      // ── 2. Generate PDF (photos embedded as base64 — no bucket storage) ─────
       setSubmitStage("Generating PDF…");
       const { blob: pdfBlob, fileName } = await generateSiteReportPDF(
         {
@@ -337,18 +418,16 @@ export default function SiteReport({ user }) {
           site_visit_instructions: form.site_visit_instructions,
           key_instructions: form.key_instructions,
         },
-        photos,   // data URLs passed directly to the PDF generator
+        photos,
         logoAsset
       );
 
-      // Trigger local download immediately so the user always gets the file
       const a = document.createElement("a");
       a.href = URL.createObjectURL(pdfBlob);
       a.download = fileName;
       a.click();
       URL.revokeObjectURL(a.href);
 
-      // ── 3. Upload PDF to per-site bucket (same structure as DPR) ────────────
       setSubmitStage("Uploading PDF…");
       let pdfPublicUrl = null;
       try {
@@ -358,14 +437,11 @@ export default function SiteReport({ user }) {
           form.site_name,
           form.visit_date
         );
-
-        // Persist public URL back to the report row
         await supabase
           .from("site_reports")
           .update({ pdf_url: pdfPublicUrl })
           .eq("id", reportId);
       } catch (uploadErr) {
-        // Non-fatal: the PDF was already downloaded locally
         console.error("PDF upload failed (non-fatal):", uploadErr);
         showToast("error", "PDF saved locally but cloud upload failed: " + uploadErr.message);
       }
@@ -373,7 +449,6 @@ export default function SiteReport({ user }) {
       setSubmitResult({ type: "success", msg: "Report generated and downloaded successfully!" });
       showToast("success", "Site Visit Report submitted successfully!");
 
-      // Reset form
       setForm({
         visit_date: new Date().toISOString().split("T")[0],
         visit_time: "",
@@ -388,6 +463,8 @@ export default function SiteReport({ user }) {
         site_visit_instructions: "",
         key_instructions: "",
       });
+      setSiteSelectValue("");
+      setCustomSiteName("");
       setPhotos([]);
       setOpenSections({ 1: true });
 
@@ -421,7 +498,6 @@ export default function SiteReport({ user }) {
           Fill in all sections below and attach site photos. On submit, the report is saved to the database, a PDF is generated and downloaded, then uploaded to cloud storage.
         </div>
 
-        {/* ── 1. Visit Details ── */}
         {/* ── Draft bar ── */}
         {draftCheckStatus === "checking" && (
           <div style={{
@@ -482,9 +558,36 @@ export default function SiteReport({ user }) {
             <Field label="Visit Time">
               <input className="svr-input" type="time" value={form.visit_time} onChange={e => set("visit_time", e.target.value)} />
             </Field>
+
+            {/* ── Site / Project Name — dropdown + optional custom ── */}
             <Field label="Site / Project Name" required col2>
-              <input className="svr-input" placeholder="Enter site or project name…" value={form.site_name} onChange={e => set("site_name", e.target.value)} />
+              <select
+                className="svr-select"
+                value={siteSelectValue}
+                onChange={e => handleSiteSelectChange(e.target.value)}
+                disabled={siteOptionsLoading}
+                style={{ marginBottom: siteSelectValue === "__other__" ? 8 : 0 }}
+              >
+                <option value="">
+                  {siteOptionsLoading ? "Loading sites…" : "— Select a site —"}
+                </option>
+                {siteOptions.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+                <option value="__other__">Other (not listed)…</option>
+              </select>
+
+              {siteSelectValue === "__other__" && (
+                <input
+                  className="svr-input"
+                  placeholder="Type site / project name…"
+                  value={customSiteName}
+                  onChange={e => handleCustomSiteChange(e.target.value)}
+                  autoFocus
+                />
+              )}
             </Field>
+
             <Field label="Designation" required>
               <select className="svr-select" value={form.designation} onChange={e => set("designation", e.target.value)}>
                 <option value="">— Select —</option>
@@ -621,8 +724,8 @@ export default function SiteReport({ user }) {
           {savingDraft ? (
             <>
               <div style={{
-                width:13, height:13, borderRadius:"50%",
-                border:"2px solid #e2e8f0", borderTopColor:"#475569",
+                width:13, height:13, borderRadius:"10px",
+                border:"2px solid #475569", borderColor:"#475569",
                 animation:"spin .7s linear infinite", flexShrink:0,
               }}/>
               Saving Draft…
@@ -637,7 +740,7 @@ export default function SiteReport({ user }) {
               Save Draft
             </>
           )}
-        </button> 
+        </button>
 
         <button
           onClick={handleSubmit}

@@ -441,7 +441,6 @@ export async function generateSiteReportPDF(formData, photos, logoSrc) {
     MARGIN, tyY, CONTENT_W, tyHeightMM
   );
   // No footer, no watermark on thank-you page
-
   // ── Save & return blob ────────────────────────────────────────────────────
   const pdfBlob = pdf.output("blob");
   return { blob: pdfBlob, fileName };

@@ -152,34 +152,98 @@ const zp = (n) => String(parseInt(n) || 1).padStart(2, "0");
 const today = () => new Date().toISOString().split("T")[0];
 
 // ─── Image compression ───────────────────────────────────────────────────────
-function compress(dataUrl, maxW = 1200, quality = 0.72) {
-  return new Promise((resolve) => {
+// function compress(dataUrl, maxW = 1200, quality = 0.72) {
+//   return new Promise((resolve) => {
+//     const img = new Image();
+//     img.onload = () => {
+//       const scale = Math.min(1, maxW / img.width);
+//       const w = Math.round(img.width * scale);
+//       const h = Math.round(img.height * scale);
+//       const canvas = document.createElement("canvas");
+//       canvas.width = w; canvas.height = h;
+//       canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+//       let q = quality;
+//       let result = canvas.toDataURL("image/jpeg", q);
+//       while (result.length / 1024 > 180 && q > 0.3) { q -= 0.06; result = canvas.toDataURL("image/jpeg", q); }
+//       resolve(result);
+//     };
+//     img.onerror = () => resolve(dataUrl);
+//     img.src = dataUrl;
+//   });
+// }
+
+// function readFileAsDataUrl(file) {
+//   return new Promise((resolve) => {
+//     const reader = new FileReader();
+//     reader.onload = (e) => compress(e.target.result).then(resolve);
+//     reader.readAsDataURL(file);
+//   });
+// }
+// ─── HEIC loader (lazy) ──────────────────────────────────────────────────────
+let _heic2anyPromise = null;
+function loadHeic2Any() {
+  if (_heic2anyPromise) return _heic2anyPromise;
+  _heic2anyPromise = new Promise((resolve, reject) => {
+    if (window.heic2any) { resolve(window.heic2any); return; }
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js";
+    s.onload  = () => resolve(window.heic2any);
+    s.onerror = () => { _heic2anyPromise = null; reject(new Error("Could not load HEIC converter")); };
+    document.head.appendChild(s);
+  });
+  return _heic2anyPromise;
+}
+
+// ─── Image processing (HEIC + resize + compress) ─────────────────────────────
+async function processImage(file, maxW = 1920, maxSizeKB = 800, quality = 0.82) {
+  const isHeic =
+    file.type === "image/heic" ||
+    file.type === "image/heif" ||
+    /\.(heic|heif)$/i.test(file.name);
+
+  let sourceBlob = file;
+
+  if (isHeic) {
+    try {
+      const heic2any = await loadHeic2Any();
+      const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
+      sourceBlob = Array.isArray(converted) ? converted[0] : converted;
+    } catch (err) {
+      console.warn("HEIC conversion failed, trying raw:", err);
+      // fall through — browser may handle it natively (Safari)
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(sourceBlob);
     const img = new Image();
     img.onload = () => {
+      URL.revokeObjectURL(url);
       const scale = Math.min(1, maxW / img.width);
-      const w = Math.round(img.width * scale);
+      const w = Math.round(img.width  * scale);
       const h = Math.round(img.height * scale);
       const canvas = document.createElement("canvas");
       canvas.width = w; canvas.height = h;
       canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+
       let q = quality;
       let result = canvas.toDataURL("image/jpeg", q);
-      while (result.length / 1024 > 180 && q > 0.3) { q -= 0.06; result = canvas.toDataURL("image/jpeg", q); }
+      // squeeze until under maxSizeKB (min quality 0.30)
+      while (result.length / 1024 > maxSizeKB * 1.37 && q > 0.3) {
+        q -= 0.06;
+        result = canvas.toDataURL("image/jpeg", q);
+      }
       resolve(result);
     };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Image load failed")); };
+    img.src = url;
   });
 }
 
+// Kept for backwards-compat inside ExcelRangeCapture photo tab
 function readFileAsDataUrl(file) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => compress(e.target.result).then(resolve);
-    reader.readAsDataURL(file);
-  });
+  return processImage(file);
 }
-
 function dataUrlToBase64(dataUrl) { return dataUrl.split(",")[1] || ""; }
 function getMime(dataUrl) { return dataUrl.split(";")[0].split(":")[1] || "image/jpeg"; }
 function toPptxData(dataUrl) {
@@ -872,7 +936,7 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
     finally { setCapturing(false); }
   };
 
-  const VISIBLE_ROWS = Math.min(sheetData.length, 200);
+  const VISIBLE_ROWS = Math.min(sheetData.length, 1000);
   const VISIBLE_COLS = Math.min(maxCols, 30);
   const norm = getNorm();
   const selInfo = norm
@@ -913,7 +977,7 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
           <button className="btn btn-out" style={{height:42,fontSize:13}} onClick={()=>photoRef.current?.click()}>
             📁 Upload Images
           </button>
-          <input type="file" ref={photoRef} accept="image/*" multiple style={{display:"none"}}
+          <input type="file" ref={photoRef} accept="image/*,.heic,.heif" multiple style={{display:"none"}}
             onChange={async(e)=>{
               const files=Array.from(e.target.files||[]);
               const imgs=await Promise.all(files.map(f=>readFileAsDataUrl(f).then(d=>({dataUrl:d,caption:"",kind:"image"}))));
@@ -1037,7 +1101,7 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
                 onMouseMove={e=>{ if(!isDragging) return; autoScroll(e.clientX,e.clientY); }}
                 onMouseUp={()=>{ setIsDragging(false); stopAutoScroll(); }}
                 onMouseLeave={()=>{}}
-              >
+              > 
                 <table ref={tableRef} className="wpr-xl-table" style={{minWidth:"100%"}}>
                   <thead>
                     <tr>
@@ -1097,12 +1161,12 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
               <div style={{display:"flex",gap:12,marginTop:5,flexWrap:"wrap"}}>
                 {sheetData.length>200 && (
                   <span style={{fontSize:11,color:"var(--ink3)"}}>
-                    ⚠ Showing first 200 of {sheetData.length} rows — selection captures exact rows chosen
+                    ⚠ Showing {sheetData.length} rows — selection captures exact rows chosen
                   </span>
                 )}
                 {maxCols>30 && (
                   <span style={{fontSize:11,color:"var(--ink3)"}}>
-                    ⚠ Showing first 30 of {maxCols} columns
+                    ⚠ Showing {maxCols} columns
                   </span>
                 )}
               </div>
@@ -1754,7 +1818,7 @@ const datePath = buildSiteDatePath(reportDate);
                  onChange={async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  const dataUrl = await readFileAsDataUrl(file);
+  const dataUrl = await processImage(file, 1920, 800, 0.85);
   setSiteImage(dataUrl);
 
   if (site && supabase) {

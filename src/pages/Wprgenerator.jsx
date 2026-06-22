@@ -594,10 +594,13 @@ function ExcelRangeCapture({ items, setItems, sectionLabel, headerText, setHeade
   const [headerInfo, setHeaderInfo] = useState({ titleRows:[], labelRows:[], headerEnd:-1 });
   const [selStart, setSelStart] = useState(null);
   const [selEnd, setSelEnd]     = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
+const [isDragging, setIsDragging] = useState(false);
   const [rowsPerImage, setRowsPerImage] = useState(8);
-  const photoRef = useRef();
-  const xlRef    = useRef();
+const photoRef       = useRef();
+  const xlRef          = useRef();
+const tableRef       = useRef(null);
+  const scrollTimerRef = useRef(null);
+  const wrapperRef     = useRef(null);
 
   const sheetData   = workbook?.sheets?.[activeSheet]?.raw    || [];
   const sheetMerges = workbook?.sheets?.[activeSheet]?.merges || [];
@@ -780,7 +783,76 @@ function ExcelRangeCapture({ items, setItems, sectionLabel, headerText, setHeade
   //   } catch(err) { console.error(err); }
   //   finally { setCapturing(false); }
   // };
+const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap');
 
+  const autoScroll = (clientX, clientY) => {
+    const container = getScrollContainer();
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const ZONE=48, SPEED=10;
+    clearInterval(scrollTimerRef.current);
+    let dx=0, dy=0;
+    if (clientY < rect.top+ZONE)    dy=-SPEED;
+    if (clientY > rect.bottom-ZONE)  dy= SPEED;
+    if (clientX < rect.left+ZONE)    dx=-SPEED;
+    if (clientX > rect.right-ZONE)   dx= SPEED;
+    if (dx||dy) {
+      scrollTimerRef.current = setInterval(()=>{ container.scrollBy(dx,dy); }, 16);
+    }
+  };
+
+  const stopAutoScroll = () => {
+    clearInterval(scrollTimerRef.current);
+    scrollTimerRef.current = null;
+  };
+
+  const cellFromPoint = (clientX, clientY) => {
+    const els = document.elementsFromPoint(clientX, clientY);
+    for (const el of els) {
+      if (el.dataset?.r !== undefined && el.dataset?.c !== undefined) {
+        return { r:parseInt(el.dataset.r), c:parseInt(el.dataset.c) };
+      }
+    }
+    return null;
+  };
+  // ── Native touch listeners (passive:false allows preventDefault) ──
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+
+    const handleTouchStart = (e) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const cell = cellFromPoint(touch.clientX, touch.clientY);
+      if (!cell) return;
+      e.preventDefault();
+      setSelStart(cell); setSelEnd(cell); setIsDragging(true);
+    };
+
+    const handleTouchMove = (e) => {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      autoScroll(touch.clientX, touch.clientY);
+      const cell = cellFromPoint(touch.clientX, touch.clientY);
+      if (cell) setSelEnd(cell);
+    };
+
+    const handleTouchEnd = () => {
+      setIsDragging(false);
+      stopAutoScroll();
+    };
+
+    el.addEventListener("touchstart", handleTouchStart, { passive: false });
+    el.addEventListener("touchmove",  handleTouchMove,  { passive: false });
+    el.addEventListener("touchend",   handleTouchEnd,   { passive: false });
+
+    return () => {
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove",  handleTouchMove);
+      el.removeEventListener("touchend",   handleTouchEnd);
+    };
+  }, [isDragging, workbook, activeSheet]);
   const captureSelection = async () => {
     const n = getNorm();
     if (!n) { alert("Select a range first by clicking and dragging on the table."); return; }
@@ -953,15 +1025,25 @@ function ExcelRangeCapture({ items, setItems, sectionLabel, headerText, setHeade
               </div>
 
               {/* Excel table */}
-              <div className="wpr-xl-table-wrap"
-                style={{maxHeight:360,border:"1.5px solid #c96a10",borderRadius:8,overflow:"auto",userSelect:"none"}}
-                onMouseLeave={()=>{ if(isDragging) setIsDragging(false); }}>
-                <table className="wpr-xl-table" style={{minWidth:"100%"}}>
+
+              <div
+                ref={wrapperRef}
+                className="wpr-xl-table-wrap"
+                style={{
+                  maxHeight:360, border:"1.5px solid #c96a10", borderRadius:8,
+                  overflow:"auto", userSelect:"none", touchAction:"none",
+                  WebkitOverflowScrolling:"touch",
+                }}
+                onMouseMove={e=>{ if(!isDragging) return; autoScroll(e.clientX,e.clientY); }}
+                onMouseUp={()=>{ setIsDragging(false); stopAutoScroll(); }}
+                onMouseLeave={()=>{}}
+              >
+                <table ref={tableRef} className="wpr-xl-table" style={{minWidth:"100%"}}>
                   <thead>
                     <tr>
                       <th style={{minWidth:36,width:36,position:"sticky",left:0,zIndex:2}}>#</th>
                       {Array.from({length:VISIBLE_COLS},(_,ci)=>(
-                        <th key={ci} style={{minWidth:72}}>{colLetter(ci)}</th>
+                        <th key={ci} style={{minWidth:80}}>{colLetter(ci)}</th>
                       ))}
                     </tr>
                   </thead>
@@ -970,13 +1052,12 @@ function ExcelRangeCapture({ items, setItems, sectionLabel, headerText, setHeade
                       const row=sheetData[ri]||[];
                       return (
                         <tr key={ri}>
-                          {/* Row number — sticky */}
                           <td style={{
                             background:"linear-gradient(135deg,#3d1200,#7a2e00)",
                             color:"#ffcfa0",fontWeight:800,textAlign:"center",
                             fontSize:10,padding:"3px 5px",
                             position:"sticky",left:0,zIndex:1,userSelect:"none",
-                            borderRight:"1.5px solid #c96a10"
+                            borderRight:"1.5px solid #c96a10",
                           }}>
                             {ri+1}
                           </td>
@@ -985,12 +1066,14 @@ function ExcelRangeCapture({ items, setItems, sectionLabel, headerText, setHeade
                             const isStart=isSelStart(ri,ci);
                             return (
                               <td key={ci}
+                                data-r={ri}
+                                data-c={ci}
                                 className={selected?(isStart?"sel-start":"sel"):""}
                                 style={{
                                   cursor:"crosshair",
-                                  minWidth:72,maxWidth:180,
-                                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
-                                  padding:"4px 8px",fontSize:11.5,
+                                  minWidth:80,maxWidth:180,
+                                  overflow:"hidden",textOverflow:"ellipsis",
+                                  whiteSpace:"nowrap",padding:"5px 8px",fontSize:11.5,
                                 }}
                                 onMouseDown={e=>{
                                   e.preventDefault();
@@ -999,7 +1082,6 @@ function ExcelRangeCapture({ items, setItems, sectionLabel, headerText, setHeade
                                   setIsDragging(true);
                                 }}
                                 onMouseEnter={()=>{ if(isDragging) setSelEnd({r:ri,c:ci}); }}
-                                onMouseUp={()=>setIsDragging(false)}
                               >
                                 {String(row[ci]??"")}
                               </td>
@@ -1011,7 +1093,6 @@ function ExcelRangeCapture({ items, setItems, sectionLabel, headerText, setHeade
                   </tbody>
                 </table>
               </div>
-
               {/* Overflow notices */}
               <div style={{display:"flex",gap:12,marginTop:5,flexWrap:"wrap"}}>
                 {sheetData.length>200 && (

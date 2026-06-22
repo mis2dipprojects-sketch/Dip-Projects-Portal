@@ -200,80 +200,78 @@ const zp = (n) => String(parseInt(n) || 1).padStart(2, "0");
 const today = () => new Date().toISOString().split("T")[0];
 
 // ─── HEIC loader (lazy) ──────────────────────────────────────────────────────
+// ─── HEIC loader (lazy) ──────────────────────────────────────────────────────
 let _heic2anyPromise = null;
 function loadHeic2Any() {
   if (_heic2anyPromise) return _heic2anyPromise;
-  // Signal loading started
-  window.dispatchEvent(new CustomEvent("wpr:heic-loading", { detail: { loading: true } }));
   _heic2anyPromise = new Promise((resolve, reject) => {
-    if (window.heic2any) {
-      window.dispatchEvent(new CustomEvent("wpr:heic-loading", { detail: { loading: false } }));
-      resolve(window.heic2any);
-      return;
-    }
+    if (window.heic2any) { resolve(window.heic2any); return; }
     const s = document.createElement("script");
     s.src = "https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js";
-    s.onload = () => {
-      window.dispatchEvent(new CustomEvent("wpr:heic-loading", { detail: { loading: false } }));
-      resolve(window.heic2any);
-    };
-    s.onerror = () => {
-      window.dispatchEvent(new CustomEvent("wpr:heic-loading", { detail: { loading: false } }));
-      _heic2anyPromise = null;
-      reject(new Error("Could not load HEIC converter"));
-    };
+    s.onload  = () => resolve(window.heic2any);
+    s.onerror = () => { _heic2anyPromise = null; reject(new Error("Could not load HEIC converter")); };
     document.head.appendChild(s);
   });
   return _heic2anyPromise;
 }
 
-// ─── Image processing (HEIC + resize + compress) ─────────────────────────────
-async function processImage(file, maxW = 1920, maxSizeKB = 800, quality = 0.82) {
-  const isHeic =
-    file.type === "image/heic" ||
-    file.type === "image/heif" ||
-    /\.(heic|heif)$/i.test(file.name);
-
-  let sourceBlob = file;
-
-  if (isHeic) {
-    try {
-      const heic2any = await loadHeic2Any();
-      const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
-      sourceBlob = Array.isArray(converted) ? converted[0] : converted;
-    } catch (err) {
-      console.warn("HEIC conversion failed, trying raw:", err);
-      // fall through — browser may handle it natively (Safari)
-    }
-  }
-
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(sourceBlob);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const scale = Math.min(1, maxW / img.width);
-      const w = Math.round(img.width  * scale);
-      const h = Math.round(img.height * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = w; canvas.height = h;
-      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-
-      let q = quality;
-      let result = canvas.toDataURL("image/jpeg", q);
-      // squeeze until under maxSizeKB (min quality 0.30)
-      while (result.length / 1024 > maxSizeKB * 1.37 && q > 0.3) {
-        q -= 0.06;
-        result = canvas.toDataURL("image/jpeg", q);
-      }
-      resolve(result);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Image load failed")); };
-    img.src = url;
-  });
+// ─── Processing counter (module-level so processImage can reach it) ───────────
+let _wprProcessingCount = 0;
+function _wprBumpProcessing(delta) {
+  _wprProcessingCount = Math.max(0, _wprProcessingCount + delta);
+  window.dispatchEvent(new CustomEvent("wpr:processing", {
+    detail: { count: _wprProcessingCount }
+  }));
 }
 
-// Kept for backwards-compat inside ExcelRangeCapture photo tab
+// ─── Image processing (HEIC + resize + compress) ─────────────────────────────
+async function processImage(file, maxW = 1920, maxSizeKB = 800, quality = 0.82) {
+  _wprBumpProcessing(+1);
+  try {
+    const isHeic =
+      file.type === "image/heic" ||
+      file.type === "image/heif" ||
+      /\.(heic|heif)$/i.test(file.name);
+
+    let sourceBlob = file;
+
+    if (isHeic) {
+      try {
+        const heic2any = await loadHeic2Any();
+        const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.92 });
+        sourceBlob = Array.isArray(converted) ? converted[0] : converted;
+      } catch (err) {
+        console.warn("HEIC conversion failed, trying raw:", err);
+      }
+    }
+
+    return await new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(sourceBlob);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, maxW / img.width);
+        const w = Math.round(img.width  * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        let q = quality;
+        let result = canvas.toDataURL("image/jpeg", q);
+        while (result.length / 1024 > maxSizeKB * 1.37 && q > 0.3) {
+          q -= 0.06;
+          result = canvas.toDataURL("image/jpeg", q);
+        }
+        resolve(result);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Image load failed")); };
+      img.src = url;
+    });
+  } finally {
+    _wprBumpProcessing(-1);
+  }
+}
+
 function readFileAsDataUrl(file) {
   return processImage(file);
 }
@@ -1325,11 +1323,12 @@ const [jobNo, setJobNo] = useState("");
   const [checklistPhotos, setChecklistPhotos] = useState([]);
   const [delayPoints, setDelayPoints] = useState([]);
   const [plans, setPlans] = useState([]);
-  const [heicLoading, setHeicLoading] = useState(false);
-  useEffect(() => {
-  const handler = (e) => setHeicLoading(e.detail.loading);
-  window.addEventListener("wpr:heic-loading", handler);
-  return () => window.removeEventListener("wpr:heic-loading", handler);
+const [processingCount, setProcessingCount] = useState(0);
+
+useEffect(() => {
+  const handler = (e) => setProcessingCount(e.detail.count);
+  window.addEventListener("wpr:processing", handler);
+  return () => window.removeEventListener("wpr:processing", handler);
 }, []);
 const [sections, setSections] = useState(() =>
   STANDARD_SECTIONS.map((title) => ({ key: title, title, isStandard: true, hidden: false, slideHidden: false, type: "text", textItems: [], images: [] }))
@@ -2407,8 +2406,8 @@ const datePath = buildSiteDatePath(reportDate);
         {/* Toast */}
         {toast && <div className={`wpr-toast ${toast.type}`}>{toast.msg}</div>}
       </div>
-      {/* HEIC library loading toast */}
-{heicLoading && (
+     {/* Image processing toast */}
+{processingCount > 0 && (
   <div className="wpr-heic-toast">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
       stroke="#ffcfa0" strokeWidth="2.2" strokeLinecap="round">
@@ -2416,10 +2415,10 @@ const datePath = buildSiteDatePath(reportDate);
     </svg>
     <div>
       <div style={{ fontSize: 12.5, fontWeight: 800, color: "#ffcfa0", marginBottom: 3 }}>
-        Loading HEIC Converter
+        Processing {processingCount} image{processingCount > 1 ? "s" : ""}…
       </div>
       <div style={{ fontSize: 11.5, color: "rgba(255,207,160,0.75)", display: "flex", alignItems: "center", gap: 5 }}>
-        Converting your image
+        Converting &amp; compressing
         <span className="wpr-heic-dots">
           <span/><span/><span/>
         </span>

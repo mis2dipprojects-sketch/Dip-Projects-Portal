@@ -134,6 +134,89 @@ const WPR_CSS = `
 .wpr-touch-toggle { height:32px; padding:0 12px; font-size:11.5px; font-weight:700; border-radius:7px; border:1.5px solid #c96a10; background:var(--surface); color:#c96a10; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; }
 .wpr-touch-toggle.on { background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); color:#fff; }
 
+/* ── Mobile friendliness ── */
+
+@media(max-width:600px) {
+  /* Drawing register header — stack columns vertically */
+  .wpr-tbl-hdr { flex-direction:column; align-items:stretch; gap:6px; border-radius:8px; }
+  #wpr-tbl-hdr-draw { flex-direction:row; flex-wrap:wrap; }
+
+  /* Drawing register rows — stack cells vertically */
+  .wpr-tbl-row { grid-template-columns:1fr!important; gap:6px; }
+  .wpr-tbl-row > div:first-child { display:none; } /* hide row number on mobile */
+
+  /* Drawing & decision pending rows */
+  .wpr-drawdec-row { grid-template-columns:1fr!important; }
+
+  /* Visitor card 2-col → 1-col already handled by wpr-g2 */
+
+  /* Activity card */
+  .wpr-act-card { padding:12px; }
+  .wpr-act-del { top:10px; right:10px; }
+
+  /* Section RC actions wrap */
+  .wpr-rc-hdr { flex-wrap:wrap; gap:6px; }
+  .wpr-rc-actions { margin-left:0; width:100%; justify-content:flex-end; }
+
+  /* FAB area */
+  .wpr-fab { font-size:14px; height:50px; }
+
+  /* Budget bar */
+  .wpr-budget { flex-wrap:wrap; gap:6px; }
+
+  /* Status pills wrap */
+  .wpr-status-bar { gap:4px; }
+  .wpr-pill { font-size:10.5px; padding:3px 8px; }
+
+  /* Acc header */
+  .wpr-acc-hdr { padding:0 12px; height:56px; }
+  .wpr-acc-body { padding:12px; }
+
+  /* Plan items */
+  .wpr-plan-item input { font-size:13px!important; }
+
+  /* Photo grid — 2 per row on mobile */
+  .wpr-photo-grid { gap:8px; }
+  .wpr-photo-card { width:calc(50% - 4px); }
+  .wpr-photo-card img { height:80px; }
+
+  /* xl captured grid */
+  .wpr-xl-captured-grid { gap:8px; }
+  .wpr-xl-captured-card { width:calc(50% - 4px); }
+
+  /* Draft banner */
+  .wpr-draft-banner { flex-wrap:wrap; gap:8px; }
+  .wpr-draft-title { width:100%; }
+
+  /* Overlay card */
+  .wpr-overlay-card { padding:24px 16px; }
+}
+  .wpr-tbl-row-last { border-radius: 0 0 8px 8px; }
+
+@media(max-width:600px) {
+  /* Drawing & decision — stack name above date */
+  .wpr-drawdec-row,
+  [class*="drawdec"] > div[style*="grid-template-columns"] {
+    grid-template-columns: 28px 1fr 28px !important;
+  }
+}
+
+@media(max-width:600px) {
+  .wpr-drawdec-row {
+    grid-template-columns: 28px 1fr 28px !important;
+    grid-template-rows: auto auto;
+  }
+  .wpr-drawdec-fields {
+    display: contents !important;
+  }
+  .wpr-drawdec-row .finput:last-of-type {
+    grid-column: 2;
+  }
+}
+  @media(max-width:600px) {
+  .wpr-vis-card { padding: 10px 12px; }
+  .wpr-vis-card select.finput { font-size: 13px; }
+}
 /* ── HEIC loading side toast ── */
 .wpr-heic-toast {
   position: fixed;
@@ -216,7 +299,6 @@ function loadHeic2Any() {
 }
 
 // ─── Processing counter (module-level so processImage can reach it) ───────────
-// ─── Processing counter ───────────────────────────────────────────────────────
 let _wprProcessingCount = 0;
 function _wprBumpProcessing(delta) {
   _wprProcessingCount = Math.max(0, _wprProcessingCount + delta);
@@ -1288,10 +1370,21 @@ function PhotoGrid({ photos, onRemove, onCaption, onAdd, accept, multiple = true
   const fileRef = useRef();
   return (
     <div>
-      <button className="btn btn-out" style={{ height: 42, fontSize: 13 }} onClick={() => fileRef.current?.click()}>
+      <button
+        className="btn btn-out"
+        style={{ height: 42, fontSize: 13, width: "100%" }}   // ← full width on mobile
+        onClick={() => fileRef.current?.click()}
+      >
         📁 {label}
       </button>
-      <input type="file" ref={fileRef} accept={accept || "image/*"} multiple={multiple} style={{ display: "none" }} onChange={onAdd} />
+      <input
+        type="file"
+        ref={fileRef}
+        accept={accept || "image/*,.heic,.heif"}   // ← HEIC added as default
+        multiple={multiple}
+        style={{ display: "none" }}
+        onChange={onAdd}
+      />
       <div className="wpr-photo-grid">
         {photos.map((ph, i) => ph.dataUrl ? (
           <div key={i} className="wpr-photo-card">
@@ -2042,21 +2135,78 @@ const datePath = buildSiteDatePath(reportDate);
         {/* ⑥ DRAWING REGISTER */}
         <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>} title="Drawing Register" sub={drawingData.length ? `${drawingData.length} rows` : "GFC Drawing entries"} open={openSec.drawing} onToggle={() => toggle("drawing")}>
           <div className="wpr-hint">ℹ Column headers become table headers in the report. Add/remove columns as needed.</div>
-          <div className="wpr-tbl-hdr" id="wpr-tbl-hdr-draw">
-            <div style={{ width: 32, flexShrink: 0, textAlign: "center" }}>#</div>
-            {drawingHeaders.map((h, hi) => (
-              <div key={hi} style={{ flex: 1, display: "flex", alignItems: "center", gap: 4 }}>
-                <input value={h} onChange={(e) => setDrawingHeaders((p) => p.map((v, x) => x === hi ? e.target.value : v))}
-                  style={{ flex: 1, background: "transparent", border: "1.5px dashed rgba(201,106,16,0.4)", borderRadius: 6, padding: "4px 8px", fontSize: 11.5, fontWeight: 800, color: "#7a2e00", fontFamily: "var(--font)", outline: "none", textTransform: "uppercase", letterSpacing: ".05em" }} />
-                {drawingHeaders.length > 1 && (
-                  <button onClick={() => setDrawingHeaders((p) => p.filter((_, x) => x !== hi))}
-                    style={{ width: 18, height: 18, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 4, color: "#dc2626", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✕</button>
-                )}
-              </div>
-            ))}
-            <button onClick={() => setDrawingHeaders((p) => [...p, "New Column"])}
-              style={{ width: 26, height: 26, background: "#f0fdf4 !important", border: "1.5px solid #bbf7d0", borderRadius: 6, color: "#15803d", fontSize: 16, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
-          </div>
+          {/* ⑥ DRAWING REGISTER header */}
+<div style={{ marginBottom: 8 }}>
+  {/* Column header editors — scrollable on mobile */}
+  <div style={{
+    display: "flex", alignItems: "center", gap: 6,
+    padding: "8px 10px",
+    background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
+    border: "1.5px solid #c96a10", borderRadius: "8px 8px 0 0",
+    overflowX: "auto", WebkitOverflowScrolling: "touch",
+  }}>
+    <div style={{ width: 28, flexShrink: 0, fontSize: 11, fontWeight: 800, color: "#ffcfa0", textAlign: "center" }}>#</div>
+    {drawingHeaders.map((h, hi) => (
+      <div key={hi} style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 100, flex: 1 }}>
+        <input
+          value={h}
+          onChange={(e) => setDrawingHeaders((p) => p.map((v, x) => x === hi ? e.target.value : v))}
+          style={{
+            flex: 1, background: "rgba(255,255,255,0.15)", border: "1.5px dashed rgba(255,207,160,0.5)",
+            borderRadius: 6, padding: "4px 8px", fontSize: 11.5, fontWeight: 800,
+            color: "#ffcfa0", fontFamily: "var(--font)", outline: "none",
+            textTransform: "uppercase", letterSpacing: ".05em", minWidth: 80,
+          }}
+        />
+        {drawingHeaders.length > 1 && (
+          <button
+            onClick={() => setDrawingHeaders((p) => p.filter((_, x) => x !== hi))}
+            style={{ width: 18, height: 18, background: "rgba(220,38,38,.7)", border: "none", borderRadius: 4, color: "#fff", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+          >✕</button>
+        )}
+      </div>
+    ))}
+    <button
+      onClick={() => setDrawingHeaders((p) => [...p, "New Column"])}
+      style={{ width: 26, height: 26, background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,207,160,0.5)", borderRadius: 6, color: "#ffcfa0", fontSize: 16, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+    >+</button>
+  </div>
+
+  {/* Rows — horizontally scrollable on mobile */}
+  <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+    {drawingData.map((row, ri) => (
+      <div
+        key={ri}
+        style={{
+          display: "grid",
+          gridTemplateColumns: `28px ${drawingHeaders.map(() => "minmax(100px,1fr)").join(" ")} 28px`,
+          gap: 6, alignItems: "center",
+          padding: "7px 10px",
+          background: "var(--surface)",
+          border: "1.5px solid #c96a10", borderTop: "none",
+          minWidth: drawingHeaders.length > 3 ? `${drawingHeaders.length * 110 + 60}px` : "auto",
+        }}
+        className={ri === drawingData.length - 1 ? "wpr-tbl-row-last" : ""}
+      >
+        <div style={{ width: 24, height: 24, background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)", color: "#fff", borderRadius: 6, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{ri + 1}</div>
+        {drawingHeaders.map((h, hi) => (
+          <input
+            key={hi}
+            className="finput"
+            value={row[`col${hi}`] || ""}
+            placeholder={h}
+            onChange={(e) => setDrawingData((p) => p.map((r, x) => x === ri ? { ...r, [`col${hi}`]: e.target.value } : r))}
+            style={{ minWidth: 90 }}
+          />
+        ))}
+        <button
+          onClick={() => setDrawingData((p) => p.filter((_, x) => x !== ri))}
+          style={{ background: "none", border: "none", color: "var(--ink3)", fontSize: 18, cursor: "pointer", flexShrink: 0 }}
+        >✕</button>
+      </div>
+    ))}
+  </div>
+</div>
           {drawingData.map((row, ri) => (
             <div key={ri} className="wpr-tbl-row" style={{ gridTemplateColumns: `32px ${drawingHeaders.map(() => "1fr").join(" ")} 28px` }}>
               <div style={{ width: 28, height: 28, background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)", color: "#fff", borderRadius: 7, fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{ri + 1}</div>
@@ -2116,20 +2266,42 @@ const datePath = buildSiteDatePath(reportDate);
         {/* ⑨ DRAWING & DECISION PENDING */}
         <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} title="Drawing & Decision Pending" sub={drawDecision.filter((r) => r.drawingName).length ? `${drawDecision.filter((r) => r.drawingName).length} items` : "Pending drawings"} open={openSec.drawdec} onToggle={() => toggle("drawdec")}>
           {drawDecision.length > 0 && (
-            <div className="wpr-tbl-hdr">
-              <div style={{ flex: 2 }}>Drawing / Decision Name</div>
-              <div style={{ flex: 1 }}>Required Date</div>
-              <div style={{ width: 28 }}></div>
-            </div>
-          )}
-          {drawDecision.map((row, i) => (
-            <div key={i} className="wpr-tbl-row" style={{ gridTemplateColumns: "28px 1fr 160px 28px" }}>
-              <div style={{ width: 24, height: 24, background: "var(--blue)", color: "#fff", borderRadius: 6, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</div>
-              <input className="finput" value={row.drawingName || ""} placeholder="Drawing or decision name…" onChange={(e) => setDrawDecision((p) => p.map((r, x) => x === i ? { ...r, drawingName: e.target.value } : r))} />
-              <input className="finput" type="date" value={row.requiredDate || ""} onChange={(e) => setDrawDecision((p) => p.map((r, x) => x === i ? { ...r, requiredDate: e.target.value } : r))} />
-              <button onClick={() => setDrawDecision((p) => p.filter((_, x) => x !== i))} style={{ background: "none", border: "none", color: "var(--ink3)", fontSize: 18, cursor: "pointer" }}>✕</button>
-            </div>
-          ))}
+  <div style={{
+    display: "grid",
+    gridTemplateColumns: "28px 1fr 1fr 28px",
+    gap: 8, padding: "8px 12px",
+    background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
+    border: "1.5px solid #c96a10", borderRadius: "8px 8px 0 0",
+    fontSize: 11, fontWeight: 800, color: "#ffcfa0",
+    textTransform: "uppercase", letterSpacing: ".05em",
+  }}>
+    <div/>
+    <div>Drawing / Decision Name</div>
+    <div>Required Date</div>
+    <div/>
+  </div>
+)}
+{drawDecision.map((row, i) => (
+  <div key={i} className="wpr-drawdec-row" style={{
+    display: "grid",
+    gridTemplateColumns: "28px 1fr 1fr 28px",   // ← overridden by CSS on mobile
+    gap: 8, alignItems: "start",
+    padding: "8px 12px",
+    background: i % 2 === 0 ? "var(--surface)" : "var(--paper)",
+    border: "1.5px solid #c96a10", borderTop: "none",
+    borderRadius: i === drawDecision.length - 1 ? "0 0 8px 8px" : 0,
+  }}>
+    <div style={{ width: 24, height: 24, background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)", color: "#fff", borderRadius: 6, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 4 }}>{i + 1}</div>
+    <div style={{ display: "contents" }} className="wpr-drawdec-fields">
+      <input className="finput" value={row.drawingName || ""} placeholder="Drawing or decision name…"
+        onChange={(e) => setDrawDecision((p) => p.map((r, x) => x === i ? { ...r, drawingName: e.target.value } : r))} />
+      <input className="finput" type="date" value={row.requiredDate || ""}
+        onChange={(e) => setDrawDecision((p) => p.map((r, x) => x === i ? { ...r, requiredDate: e.target.value } : r))} />
+    </div>
+    <button onClick={() => setDrawDecision((p) => p.filter((_, x) => x !== i))}
+      style={{ background: "none", border: "none", color: "var(--ink3)", fontSize: 18, cursor: "pointer", marginTop: 2 }}>✕</button>
+  </div>
+))}
           <BtnAdd label="Add Pending Item" onClick={() => setDrawDecision((p) => [...p, { drawingName: "", requiredDate: "" }])} />
         </Acc>
 

@@ -1485,7 +1485,6 @@ return (
               {monthFiltered.length} of {tabFiltered.length} reports
             </span>
           </div>
-
           {/* ── Content ── */}
           {loadingReports ? (
             <div className="op-empty-state"><div className="op-spinner"/><p className="op-empty-text" style={{color:"gray"}}>Loading reports…</p></div>

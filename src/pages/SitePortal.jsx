@@ -1170,6 +1170,9 @@ export default function SitePortal() {
   const [siteReports,    setSiteReports]    = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [reportTab,      setReportTab]      = useState("dpr");
+  // ADD near other state declarations (after siteReports state):
+const [matReceivedCount, setMatReceivedCount] = useState(0);
+const [matDotSeen, setMatDotSeen] = useState(false);
   const [reportFilter,   setReportFilter]   = useState({ type:"", site:"", month:"" });
   const [isDark, setIsDark] = useState(() => {
   const saved = localStorage.getItem("theme");
@@ -1268,6 +1271,15 @@ useEffect(() => {
         setUser(updated);
         localStorage.setItem("user", JSON.stringify(updated)); // keep localStorage fresh
         fetchSiteReports(updated); 
+        const site = updated.site_names?.[0] || updated.site_name || "";
+if (site) {
+  supabase
+    .from("material_requirements")
+    .select("id", { count: "exact", head: true })
+    .eq("site_name", site)
+    .eq("status", "received")
+    .then(({ count }) => setMatReceivedCount(count || 0));
+}
       }
     })();
   }
@@ -1309,7 +1321,7 @@ const nav = (key) => {
       case "wpr-generator":  return <WprGenerator user={user} supabase={supabase}/>;
       case "monthly-report": return <MonthlyReport/>;
       case "site-report":    return <SiteReport user={user} />;
-      case "material-requirement":    return <MatRequirement user={user} />;
+      case "material-requirement": return <MatRequirement user={user} onDotSeen={() => setMatDotSeen(true)} />;
       case "my-reports": return <MyReports user={user}/>;
       case "manpower-reports": return <ManpowerReport user={user}/>;
       case "profile":     return <Profile user={user} onLogout={handleLogout} onThemeToggle={toggleTheme} isDark={isDark} />;
@@ -1617,8 +1629,19 @@ return (
                     </div>
                     <div className={`sgroup-kids${expanded[n.section] ? "" : " shut"}`}>
                       {n.children.map(c => (
-                        <button key={c.key} className={`sni${activeTab === c.key ? " act" : ""}`} onClick={() => nav(c.key)}>
+                       // REPLACE WITH:
+                        <button key={c.key} className={`sni${activeTab === c.key ? " act" : ""}`} onClick={() => {
+                          nav(c.key);
+                        }} style={{ overflow: "visible", position: "relative" }}>
                           {c.icon} {c.label}
+                          {c.key === "material-requirement" && matReceivedCount > 0 && !matDotSeen && (
+                            <span style={{
+                              width: 8, height: 8, borderRadius: "50%",
+                              background: "#16a34a", flexShrink: 0, marginLeft: "auto",
+                              animation: "mreq-bulb 1.4s ease-in-out infinite",
+                              display: "inline-block",
+                            }}/>
+                          )}
                         </button>
                       ))}
                     </div>

@@ -148,6 +148,10 @@ const POPUP_CSS = `
   [data-theme="dark"] .mreq-popup-title {
     color: #f0ede8;
   }
+@keyframes mreq-bulb {
+  0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(22,163,74,0.7); }
+  50% { transform: scale(1.3); opacity: 0.85; box-shadow: 0 0 0 5px rgba(22,163,74,0); }
+}
 `;
 
 // Inject once into <head>
@@ -296,7 +300,7 @@ const [site, setSite] = useState(userSites[0] || "");
       .select("*")
       .eq("site_name", site)
       .order("created_at", { ascending: false })
-      .limit(15);
+      .limit(7);
     setHistory(data || []);
     setLoadingHistory(false);
   }, [site]);
@@ -582,7 +586,8 @@ function MatReqCard({ r, showReceiveBtn, onReceive }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
-export default function MatRequirement({ user }) {
+// REPLACE WITH:
+export default function MatRequirement({ user, onDotSeen }) {
   const [tab, setTab] = useState("required");
   const [toast, setToast] = useState(null);
   const [receivedCount, setReceivedCount] = useState(0);
@@ -616,7 +621,7 @@ export default function MatRequirement({ user }) {
             <button className={`mreq-tab-btn${tab === "required" ? " act" : ""}`} onClick={() => setTab("required")}>
               {Ico.plus} Material Required
             </button>
-            <button className={`mreq-tab-btn${tab === "received" ? " act" : ""}`} onClick={() => { setTab("received"); setDotSeen(true); }}>
+            <button className={`mreq-tab-btn${tab === "received" ? " act" : ""}`} onClick={() => { setTab("received"); setDotSeen(true); onDotSeen?.(); }}>
               {Ico.check} Material Received
                {receivedCount > 0 && !dotSeen && (
                   <span className="mreq-dot" style={{ marginLeft: 6, marginBottom: 8 }} />
@@ -638,7 +643,7 @@ export default function MatRequirement({ user }) {
               {toast.msg}
             </div>
           )}
-
+  
         </div>
       </div>
     </>

@@ -813,6 +813,7 @@ const ALL_ITEMS = [
 ];
 
 // ─── Enabled tabs ─────────────────────────────────────────────────────────────
+// REPLACE WITH:
 const ENABLED_TABS = new Set([
   "daily-report",
   "site-report",
@@ -820,14 +821,13 @@ const ENABLED_TABS = new Set([
   "report-submissions",
   "profile",
   "manpower-reports",
-  "material-requirement",  // ← newly enabled
+  "material-requirement",
 ]);
 
 // ─── Loading ──────────────────────────────────────────────────────────────────
 function Loading() {
   return <div className="loading"><div className="spinner"/><span>Loading…</span></div>;
 }
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // MY LEAVE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1199,6 +1199,8 @@ export default function SitePortal() {
   const [loadingReports, setLoadingReports] = useState(false);
   const [reportTab,      setReportTab]      = useState("dpr");
   const [reportFilter,   setReportFilter]   = useState({ type:"", site:"", month:"" });
+const [matReceivedCount, setMatReceivedCount] = useState(0);
+const [matDotSeen, setMatDotSeen] = useState(false);
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem("theme");
     if (saved) document.documentElement.setAttribute("data-theme", saved);
@@ -1297,6 +1299,16 @@ export default function SitePortal() {
           setUser(updated);
           localStorage.setItem("user", JSON.stringify(updated));
           fetchSiteReports(updated);
+          // ADD inside the useEffect that fetches user data (after fetchSiteReports(updated)):
+const site = updated.site_names?.[0] || updated.site_name || "";
+if (site) {
+  supabase
+    .from("material_requirements")
+    .select("id", { count: "exact", head: true })
+    .eq("site_name", site)
+    .eq("status", "received")
+    .then(({ count }) => setMatReceivedCount(count || 0));
+} 
         }
       })();
     }
@@ -1337,7 +1349,7 @@ export default function SitePortal() {
       case "wpr-generator":        return <WprGenerator user={user} supabase={supabase}/>;
       case "monthly-report":       return <MonthlyReport/>;
       case "site-report":          return <SiteReport user={user} />;
-      case "material-requirement": return <MatRequirement user={user} />;
+      case "material-requirement": return <MatRequirement user={user} onDotSeen={() => setMatDotSeen(true)} />;
       case "my-reports":           return <MyReports user={user}/>;
       case "manpower-reports":     return <ManpowerReport user={user}/>;
       case "profile":              return <Profile user={user} onLogout={handleLogout} onThemeToggle={toggleTheme} isDark={isDark} />;
@@ -1636,13 +1648,28 @@ export default function SitePortal() {
                       {n.children.map(c => {
                         const enabled = ENABLED_TABS.has(c.key);
                         return (
-                          <button
-                            key={c.key}
-                            className={`sni${activeTab === c.key ? " act" : ""}${enabled ? "" : " disabled"}`}
-                            onClick={() => nav(c.key)}
-                          >
-                            {c.icon} {c.label}
-                          </button>
+
+                        // REPLACE WITH:
+                        <button key={c.key} className={`sni${activeTab === c.key ? " act" : ""}${!enabled ? " disabled" : ""}`} onClick={() => {
+                            if (enabled) nav(c.key);
+                          }} style={{ overflow: "visible", position: "relative" }}>
+                          {c.icon} {c.label}
+                          {c.key === "material-requirement" && matReceivedCount > 0 && !matDotSeen && (
+                            <span style={{
+                              position: "absolute",
+                              top: 8,
+                              right: 10,
+                              width: 9,
+                              height: 9,
+                              borderRadius: "50%",
+                              background: "#16a34a",
+                              boxShadow: "0 0 0 2px var(--surface)",
+                              animation: "mreq-bulb 1.4s ease-in-out infinite",
+                              display: "block",
+                              flexShrink: 0,
+                            }}/>
+                          )}
+                        </button>
                         );
                       })}
                     </div>

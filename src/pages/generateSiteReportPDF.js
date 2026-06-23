@@ -341,7 +341,7 @@ export async function generateSiteReportPDF(formData, photos, logoSrc) {
         </div>
         <div class="meta-cell">
           <span class="meta-key">R E P O R T E D &nbsp; B Y</span>
-          <span class="meta-val">${esc(formData.reporter_name)}</span>
+           <span class="meta-val">${esc(formData.reporter_name)}${formData.designation ? ` <span style="font-size:13px;font-weight:600;color:#64748b;">(${esc(formData.designation)})</span>` : ""}</span>
         </div>
         <div class="meta-cell">
           <span class="meta-key">V I S I T &nbsp; D A T E</span>
@@ -350,16 +350,32 @@ export async function generateSiteReportPDF(formData, photos, logoSrc) {
       </div>
     </div>`;
   await addChunk(coverHtml);
+// ── 1b. PRESENT MEMBERS (only if group visit) ────────────────────────────
+  if (formData.visitType === "group" && formData.visitors?.length) {
+    const filteredVisitors = formData.visitors.filter(v => v.name?.trim());
+    if (filteredVisitors.length) {
+const rowsHtml = filteredVisitors.map((v, i) => `
+        <div class="info-row" style="background:${i % 2 === 0 ? "#f8fafc" : "#fff"};">
+          <span class="info-key" style="min-width:40px;font-size:13px;color:#64748b;">${i + 1}.</span>
+          <span class="info-val" style="font-weight:700;">${esc(v.name)}</span>
+        </div>`).join("");
 
-  // ── 2. VISIT DETAILS ──────────────────────────────────────────────────────
-  const detailsHtml = `
-    <div class="info-row"><span class="info-key">Visit Date</span><span class="info-val">${esc(dispDate)}</span></div>
-    ${formData.visit_time ? `<div class="info-row"><span class="info-key">Visit Time</span><span class="info-val">${esc(dispTime)}</span></div>` : ""}
-    <div class="info-row"><span class="info-key">Site / Project</span><span class="info-val">${esc(formData.site_name)}</span></div>
-    <div class="info-row"><span class="info-key">Reporter Name</span><span class="info-val">${esc(formData.reporter_name)}</span></div>
-    <div class="info-row"><span class="info-key">Designation</span><span class="info-val">${esc(formData.designation)}</span></div>`;
-  const detailsSec = section("VISIT DETAILS", detailsHtml);
-  if (detailsSec) await addChunk(detailsSec);
+      const membersHtml = `
+        <div class="section-wrap">
+          <div class="sec-header">
+            <div class="sec-left">
+              <span class="sec-num">—</span>
+              <span class="sec-title">PRESENT MEMBERS</span>
+            </div>
+          </div>
+          <div class="sec-body">
+            ${rowsHtml}
+          </div>
+        </div>`;
+      await addChunk(membersHtml);
+    }
+  }
+ 
 
   // ── 3. TEXT SECTIONS ──────────────────────────────────────────────────────
   const textSections = [

@@ -5,7 +5,49 @@ import logoAsset from "../assets/logo.png";
 import { processImage } from "../utils/imageUtils.js";
 import './Sitereport.css';
 
-// ─── Bucket helpers (mirrors DPR.jsx) ────────────────────────────────────────
+// Add this constant at the top of SiteReport.jsx (after imports)
+const SUBMIT_STEPS = [
+  { key: "saving",    label: "Saving report…" },
+  { key: "pdf",       label: "Generating PDF…" },
+  { key: "uploading", label: "Uploading PDF…" },
+  { key: "done",      label: "Finalising…" },
+];
+
+// Add this component before SiteReport default export
+function SubmitOverlay({ currentStep }) {
+  const idx = SUBMIT_STEPS.findIndex(s => s.key === currentStep);
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(240, 237,232,.96)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      flexDirection: "column", zIndex: 9999, gap: 20, backdropFilter: "blur(4px)",
+    }}>
+      <div style={{ width: 44, height: 44, borderRadius: "50%", border: "4px solid #e2e8f0", borderTopColor: "#800000", animation: "spin .7s linear infinite" }} />
+      <div style={{ fontSize: 18, fontWeight: 800, color: "#800000" }}>Generating Site Visit Report…</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 340 }}>
+        {SUBMIT_STEPS.map((s, i) => {
+          const isDone    = i < idx;
+          const isActive  = i === idx;
+          const isPending = i > idx;
+          return (
+            <div key={s.key} style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "8px 12px", borderRadius: 7, fontSize: 12.5, fontWeight: 600,
+              background: isDone ? "#f0fdf4" : isActive ? "#eff6ff" : "#f8fafc",
+              color:      isDone ? "#166534" : isActive ? "#1e3a5f" : "#94a3b8",
+            }}>
+              <span style={{ fontSize: 13, minWidth: 16 }}>
+                {isDone ? "✓" : isActive ? "⟳" : "○"}
+              </span>
+              <span>{s.label}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function sanitizeBucketName(site) {
   return (site || "site")
     .toString()
@@ -220,6 +262,12 @@ export default function SiteReport({ user }) {
   const [siteSelectValue, setSiteSelectValue] = useState("");
   const [customSiteName, setCustomSiteName]   = useState("");
 
+  const [visitType, setVisitType] = useState("single");
+const [visitors, setVisitors] = useState([{ name: "", designation: "" }]);
+
+const addVisitor = () => setVisitors(p => [...p, { name: "", designation: "" }]);
+const removeVisitor = (i) => setVisitors(p => p.filter((_, idx) => idx !== i));
+const updateVisitor = (i, k, v) => setVisitors(p => p.map((r, idx) => idx === i ? { ...r, [k]: v } : r));
   // Fetch site names once on mount
   useEffect(() => {
     setSiteOptionsLoading(true);
@@ -249,8 +297,9 @@ export default function SiteReport({ user }) {
   const [photosProcessing, setPhotosProcessing] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
   const [photos, setPhotos] = useState([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitStage, setSubmitStage] = useState("");
+// Replace existing state declarations
+const [submitting, setSubmitting] = useState(false);
+const [submitStage, setSubmitStage] = useState(""); // "saving" | "pdf" | "uploading" | "done"
   const [toast, setToast] = useState(null);
   const [openSections, setOpenSections] = useState({ 1: true });
 
@@ -306,11 +355,12 @@ export default function SiteReport({ user }) {
 
   // ── Draft handlers ──────────────────────────────────────────────────────────
   const handleSaveDraft = async () => {
+    
     const site = form.site_name?.trim();
     const rep  = form.reporter_name?.trim();
     if (!site || !rep) { showToast("error", "Site name and reporter name are required to save a draft."); return; }
     setSavingDraft(true);
-    const res = await saveSvrDraft({ ...form, photos });
+    const res = await saveSvrDraft({ ...form, photos, visitType, visitors });
     setSavingDraft(false);
     if (res.ok) {
       showToast("success", "✅ Draft saved successfully!");
@@ -322,8 +372,11 @@ export default function SiteReport({ user }) {
   };
 
   const handleOpenDraft = () => {
+        const d = draftInfo.payload || {};
+    setVisitType(d.visitType || "single");
+setVisitors(d.visitors?.length ? d.visitors : [{ name: "", designation: "" }]);
     if (!draftInfo) { showToast("error", "No draft available."); return; }
-    const d = draftInfo.payload || {};
+
     const restoredSite = d.site_name || "";
 
     setForm({
@@ -363,120 +416,135 @@ export default function SiteReport({ user }) {
     if (res.ok) { setDraftInfo(null); setDraftCheckStatus("none"); showToast("success", "Draft deleted."); }
     else showToast("error", "Failed to delete draft: " + res.error);
   };
+// Add inside SiteReport component, alongside other state
+const [lightbox, setLightbox] = useState(null);
+const openLightbox = (idx) => {
+  const filtered = photos.filter(p => p.dataUrl);
+  if (!filtered.length) return;
+  setLightbox({ images: filtered, idx: Math.min(idx, filtered.length - 1) });
+};
+const closeLightbox = () => setLightbox(null);
+const lbPrev = () => setLightbox(p => ({ ...p, idx: (p.idx - 1 + p.images.length) % p.images.length }));
+const lbNext = () => setLightbox(p => ({ ...p, idx: (p.idx + 1) % p.images.length }));
 
-  // ── Submit ──────────────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
-    if (!form.visit_date) return showToast("error", "Visit Date is required.");
-    if (!form.site_name) return showToast("error", "Site Name is required.");
-    if (!form.reporter_name.trim()) return showToast("error", "Reporter Name is required.");
-    if (!form.designation) return showToast("error", "Designation is required.");
-    if (form.designation === "other" && !form.designation_other.trim())
-      return showToast("error", "Please specify designation.");
-
-    setSubmitting(true);
-    setSubmitStage("Saving report…");
-
-    try {
-      const designationValue =
-        form.designation === "other" ? form.designation_other.trim() : form.designation;
-
-      const { data: inserted, error: insertErr } = await supabase
-        .from("site_reports")
-        .insert([{
-          visit_date: form.visit_date,
-          visit_time: form.visit_time || null,
-          site_name: form.site_name,
-          reporter_name: form.reporter_name.trim(),
-          designation: designationValue,
-          progress_of_work: form.progress_of_work || null,
-          quality_observations: form.quality_observations || null,
-          safety_concerns: form.safety_concerns || null,
-          issues_concerns: form.issues_concerns || null,
-          site_visit_instructions: form.site_visit_instructions || null,
-          key_instructions: form.key_instructions || null,
-          submitted_by: user?.user_name || null,
-          submitted_by_name: user?.name || null,
-        }])
-        .select()
-        .single();
-
-      if (insertErr) throw new Error("Report insert failed: " + insertErr.message);
-      const reportId = inserted.id;
-
-      setSubmitStage("Generating PDF…");
-      const { blob: pdfBlob, fileName } = await generateSiteReportPDF(
-        {
-          visit_date: form.visit_date,
-          visit_time: form.visit_time,
-          site_name: form.site_name,
-          reporter_name: form.reporter_name.trim(),
-          designation: designationValue,
-          progress_of_work: form.progress_of_work,
-          quality_observations: form.quality_observations,
-          safety_concerns: form.safety_concerns,
-          issues_concerns: form.issues_concerns,
-          site_visit_instructions: form.site_visit_instructions,
-          key_instructions: form.key_instructions,
-        },
-        photos,
-        logoAsset
-      );
-
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(pdfBlob);
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(a.href);
-
-      setSubmitStage("Uploading PDF…");
-      let pdfPublicUrl = null;
-      try {
-        pdfPublicUrl = await uploadSvrPdfToSupabase(
-          pdfBlob,
-          fileName,
-          form.site_name,
-          form.visit_date
-        );
-        await supabase
-          .from("site_reports")
-          .update({ pdf_url: pdfPublicUrl })
-          .eq("id", reportId);
-      } catch (uploadErr) {
-        console.error("PDF upload failed (non-fatal):", uploadErr);
-        showToast("error", "PDF saved locally but cloud upload failed: " + uploadErr.message);
-      }
-
-      setSubmitResult({ type: "success", msg: "Report generated and downloaded successfully!" });
-      showToast("success", "Site Visit Report submitted successfully!");
-
-      setForm({
-        visit_date: new Date().toISOString().split("T")[0],
-        visit_time: "",
-        site_name: "",
-        reporter_name: user?.name || "",
-        designation: "",
-        designation_other: "",
-        progress_of_work: "",
-        quality_observations: "",
-        safety_concerns: "",
-        issues_concerns: "",
-        site_visit_instructions: "",
-        key_instructions: "",
-      });
-      setSiteSelectValue("");
-      setCustomSiteName("");
-      setPhotos([]);
-      setOpenSections({ 1: true });
-
-    } catch (err) {
-      console.error("Submit error:", err);
-      setSubmitResult({ type: "error", msg: "Submission failed: " + err.message });
-      showToast("error", "Submission failed: " + err.message);
-    } finally {
-      setSubmitting(false);
-      setSubmitStage("");
-    }
+// Add keyboard handler
+useEffect(() => {
+  const handler = (e) => {
+    if (!lightbox) return;
+    if (e.key === "ArrowRight") lbNext();
+    if (e.key === "ArrowLeft")  lbPrev();
+    if (e.key === "Escape")     closeLightbox();
   };
+  window.addEventListener("keydown", handler);
+  return () => window.removeEventListener("keydown", handler);
+}, [lightbox]);
+  // ── Submit ──────────────────────────────────────────────────────────────────
+// Replace handleSubmit entirely:
+const handleSubmit = async () => {
+  if (!form.visit_date) return showToast("error", "Visit Date is required.");
+  if (!form.site_name)  return showToast("error", "Site Name is required.");
+  if (!form.reporter_name.trim()) return showToast("error", "Reporter Name is required.");
+  if (!form.designation) return showToast("error", "Designation is required.");
+  if (form.designation === "other" && !form.designation_other.trim())
+    return showToast("error", "Please specify designation.");
+
+  setSubmitting(true);
+  setSubmitStage("saving");
+
+  try {
+    const designationValue =
+      form.designation === "other" ? form.designation_other.trim() : form.designation;
+
+    const { data: inserted, error: insertErr } = await supabase
+      .from("site_reports")
+      .insert([{
+        visit_date:              form.visit_date,
+        visit_time:              form.visit_time || null,
+        site_name:               form.site_name,
+        reporter_name:           form.reporter_name.trim(),
+        designation:             designationValue,
+        progress_of_work:        form.progress_of_work || null,
+        quality_observations:    form.quality_observations || null,
+        safety_concerns:         form.safety_concerns || null,
+        issues_concerns:         form.issues_concerns || null,
+        site_visit_instructions: form.site_visit_instructions || null,
+        key_instructions:        form.key_instructions || null,
+        submitted_by:            user?.user_name || null,
+        submitted_by_name:       user?.name || null,
+      }])
+      .select()
+      .single();
+
+    if (insertErr) throw new Error("Report insert failed: " + insertErr.message);
+    const reportId = inserted.id;
+
+    setSubmitStage("pdf");
+    const { blob: pdfBlob, fileName } = await generateSiteReportPDF(
+      {
+        visit_date:              form.visit_date,
+        visit_time:              form.visit_time,
+        site_name:               form.site_name,
+        reporter_name:           form.reporter_name.trim(),
+        designation:             designationValue,
+        progress_of_work:        form.progress_of_work,
+        quality_observations:    form.quality_observations,
+        safety_concerns:         form.safety_concerns,
+        issues_concerns:         form.issues_concerns,
+        site_visit_instructions: form.site_visit_instructions,
+        key_instructions:        form.key_instructions,
+          visitType,
+    visitors: visitType === "group" ? visitors.filter(v => v.name.trim()) : [],
+      },
+      photos,
+      logoAsset
+    );
+
+    setSubmitStage("uploading");
+    let pdfPublicUrl = null;
+    try {
+      pdfPublicUrl = await uploadSvrPdfToSupabase(pdfBlob, fileName, form.site_name, form.visit_date);
+      await supabase.from("site_reports").update({ pdf_url: pdfPublicUrl }).eq("id", reportId);
+    } catch (uploadErr) {
+      console.error("PDF upload failed (non-fatal):", uploadErr);
+      showToast("error", "PDF cloud upload failed: " + uploadErr.message);
+    }
+
+    setSubmitStage("done");
+
+    // ── Download ONLY after all steps complete ──
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(pdfBlob);
+    a.download = fileName;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+
+    setSubmitResult({ type: "success", msg: "Report generated and downloaded successfully!" });
+    showToast("success", "Site Visit Report submitted successfully!");
+
+    // Reset form
+    setForm({
+      visit_date: new Date().toISOString().split("T")[0],
+      visit_time: "", site_name: "", reporter_name: user?.name || "",
+      designation: "", designation_other: "", progress_of_work: "",
+      quality_observations: "", safety_concerns: "", issues_concerns: "",
+      site_visit_instructions: "", key_instructions: "",
+    });
+    setSiteSelectValue(""); setCustomSiteName(""); setPhotos([]);setVisitType("single");
+setVisitors([{ name: "", designation: "" }]);
+    setOpenSections({ 1: true });
+
+  } catch (err) {
+    console.error("Submit error:", err);
+    setSubmitResult({ type: "error", msg: "Submission failed: " + err.message });
+    showToast("error", "Submission failed: " + err.message);
+  } finally {
+    setSubmitting(false);
+    setSubmitStage("");
+  }
+};
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -597,6 +665,7 @@ export default function SiteReport({ user }) {
                 <option value="other">Other…</option>
               </select>
             </Field>
+            
             <Field label="Reporter Name" required>
               <input className="svr-input" placeholder="Full name…" value={form.reporter_name} onChange={e => set("reporter_name", e.target.value)} />
             </Field>
@@ -604,8 +673,92 @@ export default function SiteReport({ user }) {
               <Field label="Specify Designation" required col2>
                 <input className="svr-input" placeholder="Enter designation…" value={form.designation_other} onChange={e => set("designation_other", e.target.value)} />
               </Field>
+              
             )}
           </div>
+          <Field label="Visit Type" col2>
+  <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1.5px solid #e2e8f0", width: "fit-content" }}>
+{[
+  ["single", 
+    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Single Person</>
+  ],
+  ["group",
+    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> With Client / Contractor</>
+  ]
+].map(([val, label]) => (
+  <button
+    key={val}
+    type="button"
+    onClick={() => setVisitType(val)}
+    style={{
+      display: "inline-flex", alignItems: "center", gap: 6,
+      padding: "8px 16px",
+      fontFamily: "'DM Sans', sans-serif",
+      fontSize: 12.5, fontWeight: 700,
+      border: "none", cursor: "pointer",
+      transition: "all .15s",
+      background: visitType === val ? "#800000" : "#f8fafc",
+      color: visitType === val ? "#fff" : "#64748b",
+    }}
+  >
+    {label}
+  </button>
+))}
+  </div>
+</Field>
+
+{visitType === "group" && (
+  <Field label="Visitors / Present Members" col2>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {visitors.map((v, i) => (
+        <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            className="svr-input"
+            placeholder="Visitor name…"
+            value={v.name}
+            onChange={e => updateVisitor(i, "name", e.target.value)}
+            style={{ flex: 2 }}
+          />
+          <input
+            className="svr-input"
+            placeholder="Designation / Company…"
+            value={v.designation}
+            onChange={e => updateVisitor(i, "designation", e.target.value)}
+            style={{ flex: 2 }}
+          />
+          {visitors.length > 1 && (
+            <button
+              type="button"
+              onClick={() => removeVisitor(i)}
+              style={{
+                width: 32, height: 32, borderRadius: 7, border: "1.5px solid #fecaca",
+                background: "#fef2f2", color: "#dc2626", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, fontSize: 16, fontWeight: 700,
+              }}
+            >×</button>
+          )}
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addVisitor}
+        style={{
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "7px 14px", borderRadius: 7, border: "1.5px solid #e2e8f0",
+          background: "#f8fafc", color: "#475569",
+          fontFamily: "'DM Sans', sans-serif", fontSize: 12.5, fontWeight: 700,
+          cursor: "pointer", width: "fit-content",
+        }}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Add Visitor
+      </button>
+    </div>
+  </Field>
+)}
         </Section>
 
         <Section num={2} title="Progress of Work & Ongoing Activities" openSections={openSections} toggleSection={toggleSection}>
@@ -672,8 +825,13 @@ export default function SiteReport({ user }) {
               <div className="svr-photo-grid">
                 {photos.map((ph, i) => (
                   <div key={i} className="svr-photo-item">
-                    <div className="svr-photo-thumb">
-                      <img src={ph.dataUrl} alt={`photo ${i + 1}`} />
+                    <div className="svr-photo-thumb" style={{ position: "relative" }}>
+                      <img
+                        src={ph.dataUrl}
+                        alt={`photo ${i + 1}`}
+                        style={{ cursor: "zoom-in" }}
+                        onClick={() => openLightbox(i)}   // ← add this
+                      />
                       <button className="svr-photo-remove" onClick={() => removePhoto(i)}>×</button>
                     </div>
                     <textarea
@@ -777,6 +935,67 @@ export default function SiteReport({ user }) {
           </div>
         </div>
       )}
+      {/* Submit overlay */}
+{submitting && submitStage && <SubmitOverlay currentStep={submitStage} />}
+
+{/* Lightbox */}
+{lightbox && (() => {
+  const img = lightbox.images[lightbox.idx];
+  return (
+    <div onClick={closeLightbox} style={{
+      position: "fixed", inset: 0, zIndex: 99999,
+      background: "rgba(0,0,0,0.92)", backdropFilter: "blur(10px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <button onClick={closeLightbox} style={{
+        position: "absolute", top: 16, right: 16, width: 36, height: 36,
+        borderRadius: "50%", background: "#dc2626", border: "none",
+        color: "#fff", fontSize: 18, fontWeight: 800, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2,
+      }}>✕</button>
+      <div style={{
+        position: "absolute", top: 18, left: "50%", transform: "translateX(-50%)",
+        background: "rgba(255,255,255,0.1)", borderRadius: 20,
+        padding: "4px 14px", fontSize: 12, fontWeight: 700, color: "#fff",
+      }}>
+        {lightbox.idx + 1} / {lightbox.images.length}
+      </div>
+      <button onClick={e => { e.stopPropagation(); lbPrev(); }} style={{
+        position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+        width: 44, height: 44, borderRadius: "50%",
+        background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.3)",
+        color: "#fff", fontSize: 22, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2,
+      }}>‹</button>
+      <div onClick={e => e.stopPropagation()} style={{
+        maxWidth: "90vw", maxHeight: "85vh",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+      }}>
+        <img src={img.dataUrl} alt="" style={{
+          maxWidth: "90vw", maxHeight: "78vh", objectFit: "contain",
+          borderRadius: 10, border: "1.5px solid rgba(200,100,26,0.4)",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
+        }} />
+        {img.caption && (
+          <div style={{
+            background: "rgba(107,45,15,0.2)", border: "1px solid #c8641a",
+            borderRadius: 8, padding: "6px 16px", fontSize: 13,
+            fontWeight: 600, color: "#fbbf24", maxWidth: "80vw", textAlign: "center",
+          }}>
+            {img.caption}
+          </div>
+        )}
+      </div>
+      <button onClick={e => { e.stopPropagation(); lbNext(); }} style={{
+        position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+        width: 44, height: 44, borderRadius: "50%",
+        background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.3)",
+        color: "#fff", fontSize: 22, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2,
+      }}>›</button>
+    </div>
+  );
+})()}
     </>
   );
 }

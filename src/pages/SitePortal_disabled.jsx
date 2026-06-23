@@ -818,6 +818,7 @@ const ENABLED_TABS = new Set([
   "daily-report",
   "site-report",
   "my-reports",
+  "monthly-report",
   "wpr-generator",
   "report-submissions",
   "profile",
@@ -1200,8 +1201,8 @@ export default function SitePortal() {
   const [loadingReports, setLoadingReports] = useState(false);
   const [reportTab,      setReportTab]      = useState("dpr");
   const [reportFilter,   setReportFilter]   = useState({ type:"", site:"", month:"" });
-const [matReceivedCount, setMatReceivedCount] = useState(0);
-const [matDotSeen, setMatDotSeen] = useState(false);
+
+
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem("theme");
     if (saved) document.documentElement.setAttribute("data-theme", saved);
@@ -1308,7 +1309,6 @@ if (site) {
     .select("id", { count: "exact", head: true })
     .eq("site_name", site)
     .eq("status", "received")
-    .then(({ count }) => setMatReceivedCount(count || 0));
 } 
         }
       })();
@@ -1350,7 +1350,7 @@ if (site) {
       case "wpr-generator":        return <WprGenerator user={user} supabase={supabase}/>;
       case "monthly-report":       return <MonthlyReport/>;
       case "site-report":          return <SiteReport user={user} />;
-      case "material-requirement": return <MatRequirement user={user} onDotSeen={() => setMatDotSeen(true)} />;
+      case "material-requirement": return <MatRequirement user={user} />;
       case "my-reports":           return <MyReports user={user}/>;
       case "manpower-reports":     return <ManpowerReport user={user}/>;
       case "profile":              return <Profile user={user} onLogout={handleLogout} onThemeToggle={toggleTheme} isDark={isDark} />;
@@ -1655,21 +1655,6 @@ if (site) {
                             if (enabled) nav(c.key);
                           }} style={{ overflow: "visible", position: "relative" }}>
                           {c.icon} {c.label}
-                          {c.key === "material-requirement" && matReceivedCount > 0 && !matDotSeen && (
-                            <span style={{
-                              position: "absolute",
-                              top: 8,
-                              right: 10,
-                              width: 9,
-                              height: 9,
-                              borderRadius: "50%",
-                              background: "#16a34a",
-                              boxShadow: "0 0 0 2px var(--surface)",
-                              animation: "mreq-bulb 1.4s ease-in-out infinite",
-                              display: "block",
-                              flexShrink: 0,
-                            }}/>
-                          )}
                         </button>
                         );
                       })}

@@ -46,8 +46,7 @@ const CSS = `
 
 .mreq-tabs{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:20px;}
 .mreq-tab-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 10px;border:none;background:transparent;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;color:var(--ink3);transition:all .18s;}
-.mreq-tab-btn.act{background:#fff;  border: 2px solid; color:#3d1200 !important;
-  border-image: linear-gradient(135deg, #3d1200, #7a2e00, #c96a10) 1;color:black;}
+.mreq-tab-btn.act{background:#fff;  border: 2px solid; color:#3d1200 !important; border-image: linear-gradient(135deg, #3d1200, #7a2e00, #c96a10) 1;color:black;}
 .flabel{margin-top:20px}
 .mreq-card{background:var(--card);}
 
@@ -83,11 +82,10 @@ const CSS = `
   0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(22,163,74,0.7); }
   50% { transform: scale(1.3); opacity: 0.85; box-shadow: 0 0 0 5px rgba(22,163,74,0); }
 }
-.mreq-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: #16a34a; display: inline-block; flex-shrink: 0;
-  animation: mreq-bulb 1.4s ease-in-out infinite;
-}
+.mreq-dot { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; display: inline-block; flex-shrink: 0; animation: mreq-bulb 1.4s ease-in-out infinite;}
+.mreq-rcard.rejected { border-left-color: #dc2626; }
+
+[data-theme="dark"] .mreq-rcard.rejected { border-left-color: #f87171 !important; }
 
 [data-theme="dark"] .mreq-tabs{border-color:#3a3733;}
 [data-theme="dark"] .mreq-tab-btn{color:#7a7368;background:#1e1c19;}
@@ -96,21 +94,14 @@ const CSS = `
 [data-theme="dark"] .mreq-chip.act{background:rgba(107,45,15,.25);border-color:rgba(107,45,15,.5);color:#fbbf24;}
 [data-theme="dark"] .mreq-staged-row{background:#252320;border-color:#3a3733;}
 [data-theme="dark"] .mreq-staged-name{color:#f0ede8;}
-[data-theme="dark"] .mreq-rcard {
-  background: #1e1c19;
-  border: 1.5px solid #3a3733;
-  border-left: 4px solid #fbbf24;
-}
+[data-theme="dark"] .mreq-rcard { background: #1e1c19; border: 1.5px solid #3a3733; border-left: 4px solid #fbbf24;}
 
-[data-theme="dark"] .mreq-rcard.received {
-  border-left-color: #4ade80 !important;
-}
+[data-theme="dark"] .mreq-rcard.received { border-left-color: #4ade80 !important;}
 [data-theme="dark"] .mreq-rcard-name{color:#f0ede8;}
 [data-theme="dark"] .mreq-rcard-qty{color:#c4bdb4;}
 [data-theme="dark"] .mreq-rcard-meta{color:#7a7368;}
 [data-theme="dark"] .mreq-rcard-meta strong{color:#c4bdb4;}
-.mreq-rcard.rejected { border-left-color: #dc2626; }
-[data-theme="dark"] .mreq-rcard.rejected { border-left-color: #f87171 !important; }
+
 `;
 // Inject popup styles into <head> so portal can access them
 const POPUP_CSS = `
@@ -460,27 +451,14 @@ function MaterialReceived({ user, showToast, onFilterSeen }) {
   const [filter, setFilter] = useState("pending");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [localReceivedCount, setLocalReceivedCount] = useState(0);
-  const [dotSeen, setDotSeen] = useState(false);
   const allowReceive = canMarkReceived(user);
   const userSites = Array.isArray(user?.site_names) && user.site_names.length
     ? user.site_names.map(s => titleCase(s))
     : user?.site_name ? [titleCase(user.site_name)] : [];
   const [site, setSite] = useState(userSites[0] || "");
 
-  // Fetch received count for current site
-  useEffect(() => {
-    if (!site) return;
-    setDotSeen(false); // reset dot when site changes
-    supabase
-      .from("material_requirements")
-      .select("id", { count: "exact", head: true })
-      .eq("site_name", site)
-      .eq("status", "received")
-      .then(({ count }) => setLocalReceivedCount(count || 0));
-  }, [site]);
 
-  const showDot = localReceivedCount > 0 && !dotSeen;
+  
   const load = useCallback(async () => {
     if (!site) { setLoading(false); return; }
     setLoading(true);
@@ -503,7 +481,7 @@ function MaterialReceived({ user, showToast, onFilterSeen }) {
     showToast("ok", "Marked as received.");
     load();
   };
-
+  
   return (
     <div>
       <div className="mreq-filter-row">
@@ -522,11 +500,8 @@ function MaterialReceived({ user, showToast, onFilterSeen }) {
         )}
         {[["pending","Pending"],["received","Received"],["rejected","Rejected"],["all","All"]].map(([key,label]) => (
           <button key={key} className={`mreq-chip${filter===key?" act":""}`}
-            onClick={() => { setFilter(key); if (key === "received") setDotSeen(true); }}>
+           onClick={() => setFilter(key)}>
             {label}
-             {key === "received" && showDot && (
-                <span className="mreq-dot" style={{ marginLeft: 5, marginBottom: 5 }} />
-              )}
           </button>
         ))}
       </div>
@@ -598,21 +573,6 @@ function MatReqCard({ r, showReceiveBtn, onReceive }) {
 export default function MatRequirement({ user, onDotSeen }) {
   const [tab, setTab] = useState("required");
   const [toast, setToast] = useState(null);
-  const [receivedCount, setReceivedCount] = useState(0);
-  const [dotSeen, setDotSeen] = useState(false);
-
-  useEffect(() => {
-    const site = Array.isArray(user?.site_names) && user.site_names.length
-      ? user.site_names[0]
-      : user?.site_name || "";
-    if (!site) return;
-    supabase
-      .from("material_requirements")
-      .select("id", { count: "exact", head: true })
-      .eq("site_name", site)
-      .eq("status", "received")
-      .then(({ count }) => setReceivedCount(count || 0));
-  }, [user]);
 
   const showToast = (type, msg, dur = 4500) => {
     setToast({ type, msg });
@@ -629,18 +589,15 @@ export default function MatRequirement({ user, onDotSeen }) {
             <button className={`mreq-tab-btn${tab === "required" ? " act" : ""}`} onClick={() => setTab("required")}>
               {Ico.plus} Material Required
             </button>
-            <button className={`mreq-tab-btn${tab === "received" ? " act" : ""}`} onClick={() => { setTab("received"); setDotSeen(true); onDotSeen?.(); }}>
+            <button className={`mreq-tab-btn${tab === "received" ? " act" : ""}`} onClick={() => { setTab("received"); onDotSeen?.(); }}>
               {Ico.check} Material Received
-               {receivedCount > 0 && !dotSeen && (
-                  <span className="mreq-dot" style={{ marginLeft: 6, marginBottom: 8 }} />
-                )}
             </button>
           </div>
 
           <div className="mreq-card">
             {tab === "required"
               ? <MaterialRequired user={user} showToast={showToast} onSubmitted={() => {}} />
-              : <MaterialReceived user={user} showToast={showToast} onFilterSeen={() => setDotSeen(true)} />}
+              : <MaterialReceived user={user} showToast={showToast} />}
           </div>
 
           {toast && (

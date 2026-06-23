@@ -51,7 +51,8 @@ const WPR_CSS = `
 .wpr-tbl-row:last-of-type { border-radius:0 0 8px 8px; }
 .wpr-tbl-row input { border:1.5px solid transparent!important; background:transparent!important; padding:6px 8px!important; font-size:13px!important; box-shadow:none!important; }
 .wpr-tbl-row input:focus { border-color:#c96a10!important; background:var(--paper)!important; border-radius:6px!important; }
-.wpr-rc-item { background:var(--surface); border:1.5px solid #c96a10; border-radius:10px; margin-bottom:10px; overflow:hidden; touch-action:none; }
+
+.wpr-rc-item {background: var(--surface);border: 1.5px solid transparent;border: 2px dotted #c96a10;border-radius: 10px;margin-bottom: 10px;overflow: hidden;touch-action: none;}
 .wpr-rc-hdr { display:flex; align-items:center; gap:9px; padding:12px 14px; background:var(--paper); border-bottom:1px solid var(--line); flex-wrap:wrap; }
 .wpr-rc-badge { width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); border:1px solid #c96a10; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; color:#fff; }
 .wpr-rc-title { flex:1; min-width:120px; font-size:13.5px; font-weight:700; color:var(--ink); background:transparent; border:none; outline:none; }
@@ -2473,7 +2474,7 @@ const datePath = buildSiteDatePath(reportDate);
             setHeaderText={setBarchartHeader}
           />
         </Acc>
-
+        <hr style={{ border: 0, borderTop: "3px dotted #f59e0b", margin: "16px 0"}}/>
         {/* ⑮ REPORT SECTIONS */}
         <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>} title="Report Sections" sub="Reorder, hide or add custom sections" open={openSec.rc} onToggle={() => toggle("rc")}>
           <div className="wpr-hint">ℹ Standard sections are always included. Drag the ⠿ handle to reorder, use Hide to exclude from PPT, or 🚫 to omit entirely.</div>
@@ -2603,6 +2604,7 @@ const datePath = buildSiteDatePath(reportDate);
             </div>
           ))}
         </Acc>
+        <hr style={{ border: 0, borderTop: "3px dotted #f59e0b", margin: "16px 0"}}/>
         {/* FAB */}
         <div className="wpr-fab-wrap">
           <button onClick={() => saveDraft(false)} disabled={autoSavePending}
@@ -2635,7 +2637,7 @@ const datePath = buildSiteDatePath(reportDate);
               </div>
             ) : (
               <div className="wpr-overlay-card">
-                <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 64, height: 64,background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
                 </div>
                 <div className="wpr-success-title">Report Generated!</div>

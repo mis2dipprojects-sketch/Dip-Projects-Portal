@@ -851,7 +851,6 @@ async function buildRangeCaptureSlides(pres, fd, items, sectionTitle, hidden = f
     addSlideNum(s, pres);
   }
 }
-
 // ── Thank You Slide ───────────────────────────────────────────────────────────
 async function buildThankYouSlide(pres, fd, hidden = false) {
   const s = makeSlide(pres, hidden);

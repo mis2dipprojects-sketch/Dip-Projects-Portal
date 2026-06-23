@@ -1165,9 +1165,7 @@ export default function SitePortal() {
   const [siteReports,    setSiteReports]    = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [reportTab,      setReportTab]      = useState("dpr");
-  // ADD near other state declarations (after siteReports state):
-const [matReceivedCount, setMatReceivedCount] = useState(0);
-const [matDotSeen, setMatDotSeen] = useState(false);
+
   const [reportFilter,   setReportFilter]   = useState({ type:"", site:"", month:"" });
   const [isDark, setIsDark] = useState(() => {
   const saved = localStorage.getItem("theme");
@@ -1273,7 +1271,6 @@ if (site) {
     .select("id", { count: "exact", head: true })
     .eq("site_name", site)
     .eq("status", "received")
-    .then(({ count }) => setMatReceivedCount(count || 0));
 }
       }
     })();
@@ -1315,7 +1312,7 @@ const nav = (key) => {
       case "wpr-generator":  return <WprGenerator user={user} supabase={supabase}/>;
       case "monthly-report": return <MonthlyReport/>;
       case "site-report":    return <SiteReport user={user} />;
-      case "material-requirement": return <MatRequirement user={user} onDotSeen={() => setMatDotSeen(true)} />;
+      case "material-requirement": return <MatRequirement user={user} />;
       case "my-reports": return <MyReports user={user}/>;
       case "manpower-reports": return <ManpowerReport user={user}/>;
       case "profile":     return <Profile user={user} onLogout={handleLogout} onThemeToggle={toggleTheme} isDark={isDark} />;
@@ -1627,29 +1624,13 @@ return (
                           nav(c.key);
                         }} style={{ overflow: "visible", position: "relative" }}>
                           {c.icon} {c.label}
-                          {c.key === "material-requirement" && matReceivedCount > 0 && !matDotSeen && (
-                            <span style={{
-                              width: 8, height: 8, borderRadius: "50%",
-                              background: "#16a34a", flexShrink: 0, marginLeft: "auto",
-                              animation: "mreq-bulb 1.4s ease-in-out infinite",
-                              display: "inline-block",
-                            }}/>
-                          )}
                         </button>
                       ))}
                     </div>
                   </div>
                 );
               })}
-              {/* {user?.role?.toLowerCase().trim() === "project head" && (
-                <button
-                  className={`sni${activeTab === "report-submissions" ? " act" : ""}`}
-                  onClick={() => nav("report-submissions")}
-                >
-                  {REPORT_SUBMISSIONS_ITEM.icon}
-                  {REPORT_SUBMISSIONS_ITEM.label}
-                </button>
-              )} */}
+             
               {(user?.role?.toLowerCase().trim() === "project head" || user?.role?.toLowerCase().trim() === "site incharge") && (
                 <button
                   className={`sni${activeTab === "report-submissions" ? " act" : ""}`}

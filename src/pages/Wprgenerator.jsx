@@ -844,7 +844,8 @@ const tableRef       = useRef(null);
     });
     const isMergeCont  = (ri,ci) => (mergeSpansByRow[ri]||[]).some(s => ci>s.startCol && ci<s.startCol+s.span);
 
-    const BH=48, TH=30, LH=50, CH=40, PAD=14;
+    const BH=48, TH=30, LH=50, PAD=14;
+    const BASE_CH=40, LINE_H=18, MAX_LINES=6;
     const mc = document.createElement("canvas");
     const mctx = mc.getContext("2d");
 
@@ -867,25 +868,76 @@ const tableRef       = useRef(null);
     colWidths.forEach(w => { colX.push(acc); acc+=w; });
 
     const W = PAD + acc;
-    const H = BH + titleRows.length*TH + (useFallback?LH:labelRows.length*LH) + dataSlice.length*CH + PAD;
-
+    // Initial canvas — height will be recalculated after text measurement
     const SCALE=2;
     const canvas = document.createElement("canvas");
-    canvas.width=W*SCALE; canvas.height=H*SCALE;
+    canvas.width = W * SCALE;
+    canvas.height = 10; // temp, resized below after measurement
     const ctx = canvas.getContext("2d");
-    ctx.scale(SCALE,SCALE);
-    ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H);
+    // don't scale yet — measure first at 1x
 
-    let y=0;
-    // brand header
-    const grad = ctx.createLinearGradient(0,0,W,BH);
-    grad.addColorStop(0,"#3d1200"); grad.addColorStop(0.5,"#7a2e00"); grad.addColorStop(1,"#c96a10");
-    ctx.fillStyle=grad; ctx.fillRect(0,y,W,BH);
+    let y = 0; // will be reset after resize
+
+    // data rows
+// ── pre-calculate each row's wrapped lines and height ──
+    const FONT_DATA = "13px Arial,sans-serif";
+    ctx.font = FONT_DATA;
+
+    const rowWrapped = dataSlice.map(row => {
+      return cols.map((ci, xi) => {
+        const text = String(row[ci] ?? "");
+        const maxW = colWidths[xi] - 14;
+        // wrap into lines
+        const words = text.split(/\s+/).filter(Boolean);
+        if (!words.length) return { lines: [""], lineCount: 1 };
+        const lines = [];
+        let cur = "";
+        for (const word of words) {
+          const test = cur ? cur + " " + word : word;
+          if (ctx.measureText(test).width <= maxW || !cur) {
+            cur = test;
+          } else {
+            lines.push(cur);
+            cur = word;
+          }
+        }
+        if (cur) lines.push(cur);
+        return { lines, lineCount: lines.length };
+      });
+    });
+
+    // row heights based on max lines across all cols
+    const rowHeights = rowWrapped.map(cols => {
+      const maxLines = Math.max(...cols.map(c => c.lineCount), 1);
+      const capped = Math.min(maxLines, MAX_LINES);
+      return Math.max(BASE_CH, capped * LINE_H + 14);
+    });
+
+    // recalculate total H now that we know real row heights
+    const dataH = rowHeights.reduce((a, b) => a + b, 0);
+    const totalH = BH + titleRows.length*TH + (useFallback?LH:labelRows.length*LH) + dataH + PAD;
+
+    // resize canvas to new height
+    canvas.height = totalH * SCALE;
+    ctx.scale(SCALE, SCALE);
+    // re-draw white background on resized canvas
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, W, totalH);
+
+    // re-draw everything from scratch on resized canvas
+    // (re-run brand header, title rows, label rows which were already drawn — 
+    //  we need to redo since canvas resize clears it)
+
+    // ── RE-DRAW brand header ──
+    y = 0;
+    const grad2 = ctx.createLinearGradient(0,0,W,BH);
+    grad2.addColorStop(0,"#3d1200"); grad2.addColorStop(0.5,"#7a2e00"); grad2.addColorStop(1,"#c96a10");
+    ctx.fillStyle=grad2; ctx.fillRect(0,y,W,BH);
     ctx.fillStyle="#fff"; ctx.font="bold 16px Arial,sans-serif"; ctx.textBaseline="middle";
     ctx.fillText(headerText||sectionLabel, PAD, y+BH/2);
     y+=BH;
 
-    // title rows
+    // ── RE-DRAW title rows ──
     titleRows.forEach(ri => {
       const row=sheetData[ri]||[];
       ctx.fillStyle="#fdf3e7"; ctx.fillRect(0,y,W,TH);
@@ -899,7 +951,7 @@ const tableRef       = useRef(null);
       y+=TH;
     });
 
-    // label rows
+    // ── RE-DRAW label rows ──
     if (!useFallback) {
       labelRows.forEach(ri => {
         const row=sheetData[ri]||[];
@@ -908,8 +960,8 @@ const tableRef       = useRef(null);
           const x=colX[xi], cw=colWidths[xi];
           ctx.fillStyle="#3d1200"; ctx.font="bold 12.5px Arial,sans-serif"; ctx.textBaseline="middle";
           const lines=wrapTextToLines(ctx, String(row[ci]??""), cw-14, 2);
-          const lineH=15, startY=y+LH/2-((lines.length-1)*lineH)/2;
-          lines.forEach((line,li) => ctx.fillText(line, x+6, startY+li*lineH));
+          const lh=15, startY=y+LH/2-((lines.length-1)*lh)/2;
+          lines.forEach((line,li) => ctx.fillText(line, x+6, startY+li*lh));
           if (xi>0) { ctx.strokeStyle="rgba(201,106,16,0.3)"; ctx.lineWidth=0.5; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+LH); ctx.stroke(); }
         });
         ctx.strokeStyle="#c96a10"; ctx.lineWidth=1;
@@ -927,23 +979,41 @@ const tableRef       = useRef(null);
       y+=LH;
     }
 
-    // data rows
-    dataSlice.forEach((row,ri) => {
-      const ry=y+ri*CH;
-      ctx.fillStyle=ri%2===0?"#ffffff":"#fdf9f4"; ctx.fillRect(0,ry,W,CH);
-      ctx.strokeStyle="rgba(201,106,16,0.18)"; ctx.lineWidth=0.5;
-      ctx.beginPath(); ctx.moveTo(0,ry+CH); ctx.lineTo(W,ry+CH); ctx.stroke();
-      cols.forEach((ci,xi) => {
-        const x=colX[xi], cw=colWidths[xi];
-        let base=String(row[ci]??""), t=base;
-        ctx.fillStyle="#1c1917"; ctx.font="14px Arial,sans-serif"; ctx.textBaseline="middle";
-        while (ctx.measureText(t).width>cw-14 && base.length>1) { base=base.slice(0,-1); t=base+"…"; }
-        ctx.fillText(t, x+6, ry+CH/2);
-        if (xi>0) { ctx.strokeStyle="rgba(201,106,16,0.15)"; ctx.lineWidth=0.5; ctx.beginPath(); ctx.moveTo(x,ry); ctx.lineTo(x,ry+CH); ctx.stroke(); }
+    // ── data rows with full text wrapping ──
+    dataSlice.forEach((row, ri) => {
+      const rh = rowHeights[ri];
+      const ry = y;
+      ctx.fillStyle = ri%2===0 ? "#ffffff" : "#fdf9f4";
+      ctx.fillRect(0, ry, W, rh);
+      ctx.strokeStyle = "rgba(201,106,16,0.18)"; ctx.lineWidth=0.5;
+      ctx.beginPath(); ctx.moveTo(0, ry+rh); ctx.lineTo(W, ry+rh); ctx.stroke();
+
+      cols.forEach((ci, xi) => {
+        const x = colX[xi];
+        const cw = colWidths[xi];
+        const { lines } = rowWrapped[ri][xi];
+        const shown = lines.slice(0, MAX_LINES);
+        const totalTextH = shown.length * LINE_H;
+        const startY = ry + (rh - totalTextH) / 2 + LINE_H / 2;
+
+        ctx.fillStyle = "#1c1917";
+        ctx.font = FONT_DATA;
+        ctx.textBaseline = "middle";
+
+        shown.forEach((line, li) => {
+          ctx.fillText(line, x+6, startY + li*LINE_H);
+        });
+
+        if (xi>0) {
+          ctx.strokeStyle="rgba(201,106,16,0.15)"; ctx.lineWidth=0.5;
+          ctx.beginPath(); ctx.moveTo(x,ry); ctx.lineTo(x,ry+rh); ctx.stroke();
+        }
       });
+
+      y += rh;
     });
 
-    ctx.strokeStyle="#c96a10"; ctx.lineWidth=1.5; ctx.strokeRect(0,0,W,H);
+    ctx.strokeStyle="#c96a10"; ctx.lineWidth=1.5; ctx.strokeRect(0,0,W,totalH);
 
     return new Promise(resolve => {
       canvas.toBlob(blob => {
@@ -956,17 +1026,6 @@ const tableRef       = useRef(null);
     });
   };
 
-  // const captureSelection = async () => {
-  //   const n = getNorm();
-  //   if (!n) { alert("Select a range first by clicking and dragging on the table."); return; }
-  //   setCapturing(true);
-  //   try {
-  //     await new Promise(r => setTimeout(r,0));
-  //     const dataUrl = await drawRangeImage(n.r1, n.r2, n.c1, n.c2);
-  //     if (dataUrl) setItems(prev => [...prev, { dataUrl, caption:"", kind:"table-image", sheet:activeSheet }]);
-  //   } catch(err) { console.error(err); }
-  //   finally { setCapturing(false); }
-  // };
 const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap');
 
   const autoScroll = (clientX, clientY) => {
@@ -1313,7 +1372,16 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
               <div className="wpr-xl-captured-card-hdr">
                 {item.kind==="table-image"?"📊":"🖼"} {item.caption||`Item ${i+1}`}
               </div>
-              <img src={item.dataUrl} alt=""/>
+              <img
+                src={item.dataUrl} alt=""
+                style={{ cursor:"zoom-in" }}
+                onClick={() => {
+                  const all = items.filter(it => it?.dataUrl);
+                  const idx = all.indexOf(item);
+                  // bubble up via a custom event since ExcelRangeCapture doesn't have lightbox access
+                  window.dispatchEvent(new CustomEvent("wpr:lightbox", { detail: { images: all, idx } }));
+                }}
+              />
               <button className="wpr-xl-captured-del"
                 onClick={()=>setItems(p=>p.filter((_,x)=>x!==i))}>✕</button>
               <div className="wpr-xl-captured-cap">
@@ -1365,14 +1433,13 @@ function BtnAdd({ onClick, label }) {
     </button>
   );
 }
-
-function PhotoGrid({ photos, onRemove, onCaption, onAdd, accept, multiple = true, label = "Upload Photos" }) {
+function PhotoGrid({ photos, onRemove, onCaption, onAdd, accept, multiple = true, label = "Upload Photos", onLightbox }) {
   const fileRef = useRef();
   return (
     <div>
       <button
         className="btn btn-out"
-        style={{ height: 42, fontSize: 13, width: "100%" }}   // ← full width on mobile
+        style={{ height: 42, fontSize: 13, width: "100%" }}
         onClick={() => fileRef.current?.click()}
       >
         📁 {label}
@@ -1380,7 +1447,7 @@ function PhotoGrid({ photos, onRemove, onCaption, onAdd, accept, multiple = true
       <input
         type="file"
         ref={fileRef}
-        accept={accept || "image/*,.heic,.heif"}   // ← HEIC added as default
+        accept={accept || "image/*,.heic,.heif"}
         multiple={multiple}
         style={{ display: "none" }}
         onChange={onAdd}
@@ -1388,7 +1455,7 @@ function PhotoGrid({ photos, onRemove, onCaption, onAdd, accept, multiple = true
       <div className="wpr-photo-grid">
         {photos.map((ph, i) => ph.dataUrl ? (
           <div key={i} className="wpr-photo-card">
-            <img src={ph.dataUrl} alt="" />
+            <img  src={ph.dataUrl} alt=""  style={{ cursor:"zoom-in" }}  onClick={() => onLightbox?.(photos, i)}/>
             <button className="wpr-photo-del" onClick={() => onRemove(i)}>✕</button>
             <div className="wpr-photo-cap">
               <input value={ph.label || ph.caption || ""} placeholder="Caption…" onChange={(e) => onCaption(i, e.target.value)} />
@@ -1443,6 +1510,17 @@ const [draftSite, setDraftSite] = useState("");
   const [genStep, setGenStep] = useState("");
   const [genProgress, setGenProgress] = useState(0);
   const [successUrls, setSuccessUrls] = useState(null);
+  // ── Lightbox ──────────────────────────────────────────────────────────────
+  const [lightbox, setLightbox] = useState(null); // { images:[{dataUrl,label}], idx:0 }
+
+  const openLightbox = (images, idx) => {
+    const filtered = images.filter(i => i?.dataUrl);
+    if (!filtered.length) return;
+    setLightbox({ images: filtered, idx: Math.min(idx, filtered.length - 1) });
+  };
+  const closeLightbox = () => setLightbox(null);
+  const lbPrev = () => setLightbox(p => ({ ...p, idx: (p.idx - 1 + p.images.length) % p.images.length }));
+  const lbNext = () => setLightbox(p => ({ ...p, idx: (p.idx + 1) % p.images.length }));
 const uploadWprRef = useRef();
   const showToast = (msg, type = "info", ms = 3000) => {
     setToast({ msg, type });
@@ -1488,10 +1566,15 @@ const uploadWprRef = useRef();
   }, [site, supabase]);
 const checkDraft = useCallback(async () => {
   if (!engineer || !supabase) return;
-  let query = supabase.from("wpr_drafts").select("site_name, updated_at")
-    .eq("engineer_name", engineer);
-  query = site ? query.eq("site_name", site) : query;
-  const { data } = await query.order("updated_at", { ascending: false }).limit(1).maybeSingle();
+  // Don't filter by site — find ANY draft for this engineer
+  // so it shows even before site is selected
+  const { data } = await supabase
+    .from("wpr_drafts")
+    .select("site_name, updated_at")
+    .eq("engineer_name", engineer)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
   if (data) {
     setDraftExists(true);
     setDraftSite(data.site_name);
@@ -1503,6 +1586,25 @@ const checkDraft = useCallback(async () => {
 
 // Run on mount (as soon as engineer is known) AND whenever site/engineer change
 useEffect(() => { if (engineer) checkDraft(); }, [engineer, site, checkDraft]);
+
+// keyboard nav for lightbox
+  useEffect(() => {
+    const handler = (e) => {
+      if (!lightbox) return;
+      if (e.key === "ArrowRight") lbNext();
+      if (e.key === "ArrowLeft")  lbPrev();
+      if (e.key === "Escape")     closeLightbox();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightbox]);
+
+  // lightbox trigger from ExcelRangeCapture (via custom event)
+  useEffect(() => {
+    const handler = (e) => openLightbox(e.detail.images, e.detail.idx);
+    window.addEventListener("wpr:lightbox", handler);
+    return () => window.removeEventListener("wpr:lightbox", handler);
+  }, []);
 
   const hasAnyData = useCallback(() => {
     if (activities.filter((a) => a.name).length > 0) return true;
@@ -1567,6 +1669,7 @@ useEffect(() => { if (engineer) checkDraft(); }, [engineer, site, checkDraft]);
 
 const loadDraft = async () => {
   const targetSite = site || draftSite;
+  if (!targetSite || !engineer) { showToast("Engineer name required to load draft", "error"); return; }
   const { data, error } = await supabase.from("wpr_drafts").select("*")
     .eq("site_name", targetSite).eq("engineer_name", engineer).maybeSingle();
   if (error || !data) { showToast("No draft found", "error"); return; }
@@ -1638,11 +1741,11 @@ const deleteDraft = async () => {
         barchartItems, cubeItems, momItems,
       });
 
-      const dlUrl = URL.createObjectURL(pptBlob);
-      const dlA = document.createElement("a");
-      dlA.href = dlUrl; dlA.download = `WPR_${zp(reportNum)}_${site.replace(/\s+/g, "_")}.pptx`;
-      dlA.style.display = "none"; document.body.appendChild(dlA); dlA.click();
-      document.body.removeChild(dlA); setTimeout(() => URL.revokeObjectURL(dlUrl), 10000);
+      // const dlUrl = URL.createObjectURL(pptBlob);
+      // const dlA = document.createElement("a");
+      // dlA.href = dlUrl; dlA.download = `WPR_${zp(reportNum)}_${site.replace(/\s+/g, "_")}.pptx`;
+      // dlA.style.display = "none"; document.body.appendChild(dlA); dlA.click();
+      // document.body.removeChild(dlA); setTimeout(() => URL.revokeObjectURL(dlUrl), 10000);
      const bucketName = bucketNameFor(site);
 await ensureBucket(supabase, site);
 
@@ -1713,6 +1816,14 @@ for (let ai = 0; ai < activities.length; ai++) {
 }
 
       setGenProgress(100); setGenStep("Done!");
+
+      // ── Download PPT only after ALL uploads complete ──
+      const dlUrl = URL.createObjectURL(pptBlob);
+      const dlA = document.createElement("a");
+      dlA.href = dlUrl; dlA.download = `WPR_${zp(reportNum)}_${site.replace(/\s+/g, "_")}.pptx`;
+      dlA.style.display = "none"; document.body.appendChild(dlA); dlA.click();
+      document.body.removeChild(dlA); setTimeout(() => URL.revokeObjectURL(dlUrl), 10000);
+
       if (draftExists) await supabase.from("wpr_drafts").delete().eq("site_name", site).eq("engineer_name", engineer);
       setDraftExists(false); setDraftSavedAt("");
       await fetchReportNum(site, reportDate);
@@ -2060,21 +2171,6 @@ const datePath = buildSiteDatePath(reportDate);
                   <input className="finput" value={act.status} placeholder="e.g. 75% completed" onChange={(e) => setActivities((p) => p.map((a, x) => x === i ? { ...a, status: e.target.value } : a))} />
                 </div>
               </div>
-              <div className="wpr-fg">
-                <label className="wpr-lbl">Progress Images</label>
-                <PhotoGrid
-                  photos={act.progressImages || []}
-                  onRemove={(j) => setActivities((p) => p.map((a, x) => x === i ? { ...a, progressImages: a.progressImages.filter((_, jj) => jj !== j) } : a))}
-                  onCaption={(j, v) => setActivities((p) => p.map((a, x) => x === i ? { ...a, progressImages: a.progressImages.map((im, jj) => jj === j ? { ...im, label: v } : im) } : a))}
-                  onAdd={async (e) => {
-                    const files = Array.from(e.target.files || []);
-                    const imgs = await Promise.all(files.map((f) => readFileAsDataUrl(f).then((d) => ({ dataUrl: d, label: "" }))));
-                    setActivities((p) => p.map((a, x) => x === i ? { ...a, progressImages: [...(a.progressImages || []), ...imgs] } : a));
-                    e.target.value = "";
-                  }}
-                  label="Add Progress Images"
-                />
-              </div>
             </div>
           ))}
           <BtnAdd label="Add Activity" onClick={() => setActivities((p) => [...p, { name: "", status: "", progressImages: [] }])} />
@@ -2093,6 +2189,7 @@ const datePath = buildSiteDatePath(reportDate);
               e.target.value = "";
             }}
             label="Upload Graphical Images"
+            onLightbox={(imgs, idx) => openLightbox(imgs, idx)}
           />
         </Acc>
 
@@ -2109,6 +2206,7 @@ const datePath = buildSiteDatePath(reportDate);
               e.target.value = "";
             }}
             label="Upload Site Photos"
+            onLightbox={(imgs, idx) => openLightbox(imgs, idx)}
           />
         </Acc>
 
@@ -2207,17 +2305,7 @@ const datePath = buildSiteDatePath(reportDate);
     ))}
   </div>
 </div>
-          {drawingData.map((row, ri) => (
-            <div key={ri} className="wpr-tbl-row" style={{ gridTemplateColumns: `32px ${drawingHeaders.map(() => "1fr").join(" ")} 28px` }}>
-              <div style={{ width: 28, height: 28, background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)", color: "#fff", borderRadius: 7, fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>{ri + 1}</div>
-              {drawingHeaders.map((h, hi) => (
-                <input key={hi} className="finput" value={row[`col${hi}`] || ""} placeholder={h}
-                  onChange={(e) => setDrawingData((p) => p.map((r, x) => x === ri ? { ...r, [`col${hi}`]: e.target.value } : r))} />
-              ))}
-              <button onClick={() => setDrawingData((p) => p.filter((_, x) => x !== ri))}
-                style={{ background: "none", border: "none", color: "var(--ink3)", fontSize: 18, cursor: "pointer" }}>✕</button>
-            </div>
-          ))}
+
           <BtnAdd label="Add Drawing Row" onClick={() => {
             const newRow = {}; drawingHeaders.forEach((_, hi) => { newRow[`col${hi}`] = ""; });
             setDrawingData((p) => [...p, newRow]);
@@ -2318,6 +2406,7 @@ const datePath = buildSiteDatePath(reportDate);
               e.target.value = "";
             }}
             label="Upload Checklist Photos"
+            onLightbox={(imgs, idx) => openLightbox(imgs, idx)}
           />
         </Acc>
 
@@ -2574,6 +2663,96 @@ const datePath = buildSiteDatePath(reportDate);
             )}
           </div>
         )}
+
+        {/* ── Lightbox ── */}
+        {lightbox && (() => {
+          const img = lightbox.images[lightbox.idx];
+          return (
+            <div
+              onClick={closeLightbox}
+              style={{
+                position:"fixed", inset:0, zIndex:99999,
+                background:"rgba(0,0,0,0.92)", backdropFilter:"blur(10px)",
+                display:"flex", alignItems:"center", justifyContent:"center",
+              }}
+            >
+              {/* Close */}
+              <button
+                onClick={closeLightbox}
+                style={{
+                  position:"absolute", top:16, right:16,
+                  width:36, height:36, borderRadius:"50%",
+                  background:"#dc2626", border:"none", color:"#fff",
+                  fontSize:18, fontWeight:800, cursor:"pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  zIndex:2,
+                }}
+              >✕</button>
+
+              {/* Counter */}
+              <div style={{
+                position:"absolute", top:18, left:"50%", transform:"translateX(-50%)",
+                background:"rgba(255,255,255,0.1)", borderRadius:20,
+                padding:"4px 14px", fontSize:12, fontWeight:700, color:"#fff",
+              }}>
+                {lightbox.idx + 1} / {lightbox.images.length}
+              </div>
+
+              {/* Prev */}
+              <button
+                onClick={e=>{ e.stopPropagation(); lbPrev(); }}
+                style={{
+                  position:"absolute", left:12, top:"50%", transform:"translateY(-50%)",
+                  width:44, height:44, borderRadius:"50%",
+                  background:"rgba(255,255,255,0.15)", border:"1.5px solid rgba(255,255,255,0.3)",
+                  color:"#fff", fontSize:22, cursor:"pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  zIndex:2,
+                }}
+              >‹</button>
+
+              {/* Image */}
+              <div
+                onClick={e=>e.stopPropagation()}
+                style={{ maxWidth:"90vw", maxHeight:"85vh", display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}
+              >
+                <img
+                  src={img.dataUrl}
+                  alt=""
+                  style={{
+                    maxWidth:"90vw", maxHeight:"78vh",
+                    objectFit:"contain", borderRadius:10,
+                    border:"1.5px solid rgba(201,106,16,0.4)",
+                    boxShadow:"0 8px 40px rgba(0,0,0,0.6)",
+                  }}
+                />
+                {(img.label || img.caption) && (
+                  <div style={{
+                    background:"rgba(201,106,16,0.15)", border:"1px solid #c96a10",
+                    borderRadius:8, padding:"6px 16px",
+                    fontSize:13, fontWeight:600, color:"#ffcfa0", maxWidth:"80vw",
+                    textAlign:"center",
+                  }}>
+                    {img.label || img.caption}
+                  </div>
+                )}
+              </div>
+
+              {/* Next */}
+              <button
+                onClick={e=>{ e.stopPropagation(); lbNext(); }}
+                style={{
+                  position:"absolute", right:12, top:"50%", transform:"translateY(-50%)",
+                  width:44, height:44, borderRadius:"50%",
+                  background:"rgba(139, 135, 135, 0.15)", border:"1.5px solid rgba(255,255,255,0.3)",
+                  color:"#fff", fontSize:22, cursor:"pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  zIndex:2,
+                }}
+              >›</button>
+            </div>
+          );
+        })()}
 
         {/* Toast */}
         {toast && <div className={`wpr-toast ${toast.type}`}>{toast.msg}</div>}

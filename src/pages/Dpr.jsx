@@ -1485,10 +1485,10 @@ const tyHtml = `
   );
 
   // Save
-  const safeSite = (payload.site || "site").replace(/[\s/\\:*?"<>|]/g, "_");
+const safeSite = (payload.site || "site").replace(/[\s/\\:*?"<>|]/g, "_");
   const fileName = `DPR_Evening_${safeSite}_${payload.date}.pdf`;
   const pdfBlob = pdf.output("blob");
-  pdf.save(fileName);
+  // ── DO NOT download here — caller will download after all uploads complete ──
   return { blob: pdfBlob, fileName };
 }
 
@@ -2643,7 +2643,7 @@ function CustomFieldsSection({ fields, setFields }) {
 }
 
 // REPLACE the entire PhotosSection component with:
-function PhotosSection({ photos, setPhotos }) {
+function PhotosSection({ photos, setPhotos, onLightbox }) {
   const fileRef = useRef();
   const [converting, setConverting] = useState(false);
 
@@ -2687,7 +2687,11 @@ function PhotosSection({ photos, setPhotos }) {
       <div className="photo-grid">
         {photos.map(ph => (
           <div className="photo-item" key={ph.id}>
-            <img className="photo-thumb" src={ph.data} alt="" />
+            <img
+              className="photo-thumb" src={ph.data} alt=""
+              style={{ cursor:"zoom-in" }}
+              onClick={() => onLightbox?.(photos, photos.indexOf(ph))}
+            />
             <button className="photo-remove" onClick={() => setPhotos(p => p.filter(x => x.id !== ph.id))}>×</button>
             <textarea
               className="photo-caption"
@@ -2794,10 +2798,29 @@ const autoSaveTimerRef = useRef(null);
   const [submitDetail, setSubmitDetail] = useState("");
   const [toast,        setToast]        = useState(null);
   const [submitted,    setSubmitted]    = useState(false);
-  const [pdfUrl,       setPdfUrl]       = useState(null);
+  const [pdfUrl,       setPdfUrl]       = useState(null); 
+  // ── Lightbox ──────────────────────────────────────────────────────────────
+  const [lightbox, setLightbox] = useState(null);
+  const openLightbox = (photos, idx) => {
+    const filtered = photos.filter(p => p.data || p.supabaseUrl);
+    if (!filtered.length) return;
+    setLightbox({ images: filtered, idx: Math.min(idx, filtered.length - 1) });
+  };
+  const closeLightbox = () => setLightbox(null);
+  const lbPrev = () => setLightbox(p => ({ ...p, idx: (p.idx - 1 + p.images.length) % p.images.length }));
+  const lbNext = () => setLightbox(p => ({ ...p, idx: (p.idx + 1) % p.images.length }));
 
   const cementBalance = Math.max(0,(Number(cementAvail)||0)+(Number(cementRcvd)||0)-(Number(cementUsed)||0));
-
+useEffect(() => {
+    const handler = (e) => {
+      if (!lightbox) return;
+      if (e.key === "ArrowRight") lbNext();
+      if (e.key === "ArrowLeft")  lbPrev();
+      if (e.key === "Escape")     closeLightbox();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightbox]);
   const showToast = (type, msg, dur=5000) => { setToast({type,msg}); setTimeout(()=>setToast(null),dur); };
 
   useEffect(()=>{ dbFetch("dpr_sites").then(setSites); },[]);
@@ -3000,7 +3023,16 @@ const handleOpenDraft = () => {
       });
       if (insertErr) throw new Error(`DB insert failed: ${insertErr.message}`);
 
-     // if (draftInfo) { await deleteDraft(site,engineer); setDraftInfo(null); setDraftCheckStatus("none"); }
+      // ── Download PDF only after ALL steps complete ──
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+
       setPdfUrl(pdfPublicUrl);
       setSubmitted(true);
       draftOpenedRef.current = false;
@@ -3356,7 +3388,7 @@ const handleWhatsApp = async () => {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   Photos are required for Evening DPR.
                 </div>
-                <PhotosSection photos={photos} setPhotos={setPhotos}/>
+                <PhotosSection photos={photos} setPhotos={setPhotos} onLightbox={openLightbox}/>
               </SectionBlock>
 
               <SectionBlock title="11. Tomorrow's Planning">
@@ -3401,7 +3433,67 @@ const handleWhatsApp = async () => {
             </div>
 
             {submitting && reportType==="evening" && <SubmitOverlay currentStep={submitStep} detail={submitDetail}/>}
+              {/* ── Lightbox ── */}
+            {lightbox && (() => {
+              const img = lightbox.images[lightbox.idx];
+              const src = img.data || img.supabaseUrl;
+              return (
+                <div onClick={closeLightbox} style={{
+                  position:"fixed", inset:0, zIndex:99999,
+                  background:"rgba(0,0,0,0.92)", backdropFilter:"blur(10px)",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                }}>
+                  <button onClick={closeLightbox} style={{
+                    position:"absolute", top:16, right:16, width:36, height:36,
+                    borderRadius:"50%", background:"#dc2626", border:"none",
+                    color:"#fff", fontSize:18, fontWeight:800, cursor:"pointer",
+                    display:"flex", alignItems:"center", justifyContent:"center", zIndex:2,
+                  }}>✕</button>
+                  <div style={{
+                    position:"absolute", top:18, left:"50%", transform:"translateX(-50%)",
+                    background:"rgba(255,255,255,0.1)", borderRadius:20,
+                    padding:"4px 14px", fontSize:12, fontWeight:700, color:"#fff",
+                  }}>
+                    {lightbox.idx + 1} / {lightbox.images.length}
+                  </div>
+                  <button onClick={e=>{ e.stopPropagation(); lbPrev(); }} style={{
+                    position:"absolute", left:12, top:"50%", transform:"translateY(-50%)",
+                    width:44, height:44, borderRadius:"50%",
+                    background:"rgba(255,255,255,0.15)", border:"1.5px solid rgba(255,255,255,0.3)",
+                    color:"#fff", fontSize:22, cursor:"pointer",
+                    display:"flex", alignItems:"center", justifyContent:"center", zIndex:2,
+                  }}>‹</button>
+                  <div onClick={e=>e.stopPropagation()} style={{
+                    maxWidth:"90vw", maxHeight:"85vh",
+                    display:"flex", flexDirection:"column", alignItems:"center", gap:10,
+                  }}>
+                    <img src={src} alt="" style={{
+                      maxWidth:"90vw", maxHeight:"78vh", objectFit:"contain",
+                      borderRadius:10, border:"1.5px solid rgba(200,100,26,0.4)",
+                      boxShadow:"0 8px 40px rgba(0,0,0,0.6)",
+                    }}/>
+                    {img.caption && (
+                      <div style={{
+                        background:"rgba(107,45,15,0.2)", border:"1px solid #c8641a",
+                        borderRadius:8, padding:"6px 16px", fontSize:13,
+                        fontWeight:600, color:"#fbbf24", maxWidth:"80vw", textAlign:"center",
+                      }}>
+                        {img.caption}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={e=>{ e.stopPropagation(); lbNext(); }} style={{
+                    position:"absolute", right:12, top:"50%", transform:"translateY(-50%)",
+                    width:44, height:44, borderRadius:"50%",
+                    background:"rgba(255,255,255,0.15)", border:"1.5px solid rgba(255,255,255,0.3)",
+                    color:"#fff", fontSize:22, cursor:"pointer",
+                    display:"flex", alignItems:"center", justifyContent:"center", zIndex:2,
+                  }}>›</button>
+                </div>
+              );
+            })()}
 
+            
             {toast && (
               <div className={`dpr-toast ${toast.type==="ok"?"dpr-toast-ok":"dpr-toast-err"}`}>
                 {toast.type==="ok"

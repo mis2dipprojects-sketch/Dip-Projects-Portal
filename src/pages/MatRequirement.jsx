@@ -109,6 +109,8 @@ const CSS = `
 [data-theme="dark"] .mreq-rcard-qty{color:#c4bdb4;}
 [data-theme="dark"] .mreq-rcard-meta{color:#7a7368;}
 [data-theme="dark"] .mreq-rcard-meta strong{color:#c4bdb4;}
+.mreq-rcard.rejected { border-left-color: #dc2626; }
+[data-theme="dark"] .mreq-rcard.rejected { border-left-color: #f87171 !important; }
 `;
 // Inject popup styles into <head> so portal can access them
 const POPUP_CSS = `
@@ -518,7 +520,7 @@ function MaterialReceived({ user, showToast, onFilterSeen }) {
             </select>
           </div>
         )}
-        {[["pending","Pending"],["received","Received"],["all","All"]].map(([key,label]) => (
+        {[["pending","Pending"],["received","Received"],["rejected","Rejected"],["all","All"]].map(([key,label]) => (
           <button key={key} className={`mreq-chip${filter===key?" act":""}`}
             onClick={() => { setFilter(key); if (key === "received") setDotSeen(true); }}>
             {label}
@@ -554,27 +556,33 @@ function MaterialReceived({ user, showToast, onFilterSeen }) {
 
 // ─── Shared card used in both tabs ───────────────────────────────────────────
 function MatReqCard({ r, showReceiveBtn, onReceive }) {
-  const isPending = (r.status || "pending") === "pending";
+  const status = (r.status || "pending").toLowerCase();
+  const isPending  = status === "pending";
+  const isRejected = status === "rejected";
+  const isReceived = status === "received";
+
   return (
-    <div className={`mreq-rcard${isPending ? "" : " received"}`}>
+    <div className={`mreq-rcard${isReceived ? " received" : isRejected ? " rejected" : ""}`}>
       <div className="mreq-rcard-top">
         <div>
           <div className="mreq-rcard-name">{r.material_name}</div>
           <div className="mreq-rcard-qty">{r.quantity} {r.unit_name}</div>
         </div>
-        <span className={`badge ${isPending ? "badge-amber" : "badge-green"}`} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-          {isPending ? Ico.pending : Ico.check} {isPending ? "Pending" : "Received"}
+        <span className={`badge ${isPending ? "badge-amber" : isRejected ? "badge-red" : "badge-green"}`}
+          style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+          {isPending ? Ico.pending : isRejected ? Ico.x : Ico.check}
+          {isPending ? "Pending" : isRejected ? "Rejected" : "Received"}
         </span>
       </div>
       <div className="mreq-rcard-meta">
         <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>{Ico.user} <strong>{r.requested_by}</strong></span>
         {" · "}
         <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>{Ico.clock} {fmtDateTime(r.created_at)}</span>
-        {!isPending && r.received_at && (
+        {isReceived && r.received_at && (
           <><br />Received by <strong>{r.received_by || "—"}</strong> on {fmtDateTime(r.received_at)}</>
         )}
       </div>
-      {showReceiveBtn && (
+      {showReceiveBtn && isPending && (
         <button className="btn btn-green btn-sm mreq-receive-btn" onClick={() => onReceive(r.id)}>
           {Ico.check} Mark as Received
         </button>

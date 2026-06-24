@@ -693,12 +693,12 @@ const DARK_CSS = `
     left:0;
     z-index:200;
     height:calc(100vh - 58px);
+    overflow-y:auto;                    /* ← must be here */
+    -webkit-overflow-scrolling:touch;   /* ← add this for iOS momentum scroll */
     width:min(85vw,270px);
     min-width:0;
     transform:translateX(0);
     box-shadow:12px 0 32px rgba(0,0,0,.18);
-    overflow-y:auto;           /* ← ensure sidebar scrolls independently */
-    -webkit-overflow-scrolling:touch;  /* ← smooth scroll on iOS */
   }
   .sidebar.closed{
     width:min(85vw,270px);
@@ -706,7 +706,7 @@ const DARK_CSS = `
     transform:translateX(-110%);
     opacity:0;
   }
-    .sb-backdrop{display:block;position:fixed;inset:0;top:58px;z-index:190;background:rgba(15,13,10,.4);border:none;padding:0;}
+     .sb-backdrop{display:block;position:fixed;inset:0;top:58px;z-index:190;background:rgba(15,13,10,.4);border:none;padding:0;}
     .main{padding:16px 14px 32px;}
     .stat-row{grid-template-columns:1fr 1fr;}
     .act-row{flex-direction:column-reverse;}
@@ -1246,15 +1246,18 @@ if (!u || (role !== "project head" && role !== "site incharge")) return;
 }, []);
 useEffect(() => {
   if (sidebarOpen && window.innerWidth <= 768) {
-    // Only prevent body scroll, don't fix position (which causes layout reflow)
     document.body.style.overflow = "hidden";
-    // Do NOT set position:fixed or width:100% — these reset scroll position
-    // and prevent the sidebar's own overflow-y:auto from working
+    //document.body.style.position = "fixed";
+    //document.body.style.width = "100%";
   } else {
     document.body.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.width = "";
   }
   return () => {
     document.body.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.width = "";
   };
 }, [sidebarOpen]);
   useEffect(() => {

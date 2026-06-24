@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState,useRef,useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL  = "https://efqfjfthsleymhljswcq.supabase.co";
@@ -173,34 +173,55 @@ export function PerformanceScore({ chartData }) {
 
 // ── ActivityChart ─────────────────────────────────────────────────────────────
 export function ActivityChart({ data, user }) {
-  const [hovered, setHovered]           = useState(null);
-  const [drillMonth, setDrillMonth]     = useState(null);
-  const [drillData, setDrillData]       = useState([]);
+  const [hovered,      setHovered]      = useState(null);
+  const [drillMonth,   setDrillMonth]   = useState(null);
+  const [drillData,    setDrillData]    = useState([]);
   const [drillLoading, setDrillLoading] = useState(false);
   const [drillHovered, setDrillHovered] = useState(null);
+  const [cw,           setCw]           = useState(320);
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setCw(e.contentRect.width));
+    ro.observe(el);
+    setCw(el.getBoundingClientRect().width || 320);
+    return () => ro.disconnect();
+  }, []);
 
   if (!data.length) return null;
 
-  const W = 500, H = 155;
-  const PAD = { top: 18, right: 38, bottom: 30, left: 30 };
-  const innerW = W - PAD.left - PAD.right;
-  const innerH = H - PAD.top - PAD.bottom;
+  // ── All sizes derived from real container width ──────────────────────────
+  const mob  = cw < 400;
+  const W    = 500;                          // viewBox is always 500 wide
+  const SCALE = cw / W;                     // how much SVG is actually scaled
+  // We compensate font/dot sizes by dividing by SCALE so they stay readable
+  const fs   = (px) => Math.round(px / Math.max(SCALE, 0.55));
 
+  const H    = mob ? 210 : 170;
+  const PAD  = { top: 22, right: mob ? 50 : 42, bottom: mob ? 44 : 34, left: mob ? 40 : 32 };
+  const innerW = W - PAD.left - PAD.right;
+  const innerH = H - PAD.top  - PAD.bottom;
+
+  const DOT    = mob ? 5.5 : 3.5;
+  const DOTH   = mob ? 8   : 5.5;
+  const LW     = mob ? 2.8 : 2;
+
+  // ── Drill fetch ──────────────────────────────────────────────────────────
   const openDrill = async (d, idx) => {
-    const n = data.length;
+    const n  = data.length;
     const mo = new Date();
     mo.setDate(1);
     mo.setMonth(mo.getMonth() - (n - 1 - idx));
     const yearMonth = mo.toISOString().slice(0, 7);
-    const [y, m] = yearMonth.split("-").map(Number);
-    const lastDay = new Date(y, m, 0).getDate();
-    const from = `${yearMonth}-01`;
-    const to   = `${yearMonth}-${String(lastDay).padStart(2, "0")}`;
+    const [y, m]    = yearMonth.split("-").map(Number);
+    const lastDay   = new Date(y, m, 0).getDate();
+    const from      = `${yearMonth}-01`;
+    const to        = `${yearMonth}-${String(lastDay).padStart(2, "0")}`;
 
     setDrillMonth({ label: d.label, yearMonth });
-    setDrillData([]);
-    setDrillLoading(true);
-    setHovered(null);
+    setDrillData([]); setDrillLoading(true); setHovered(null);
 
     const [dprRes, wprRes, attRes] = await Promise.all([
       supabase.from("dpr_reports").select("date")
@@ -215,48 +236,87 @@ export function ActivityChart({ data, user }) {
 
     const days = [];
     for (let dd = 1; dd <= lastDay; dd++) {
-      const dateStr = `${yearMonth}-${String(dd).padStart(2, "0")}`;
+      const dateStr   = `${yearMonth}-${String(dd).padStart(2, "0")}`;
       if (new Date(dateStr).getDay() === 0) continue;
-      const dayLabel = new Date(dateStr + "T00:00:00")
+      const dayLabel  = new Date(dateStr + "T00:00:00")
         .toLocaleDateString("en-IN", { day: "numeric", weekday: "short" });
       const hasDpr    = (dprRes.data || []).some(r => r.date === dateStr);
       const hasWpr    = (wprRes.data || []).some(r => (r.created_at || "").startsWith(dateStr));
       const attRow    = (attRes.data || []).find(r => r.date === dateStr);
       const attStatus = attRow?.status?.toLowerCase() || null;
-      const attVal    = attStatus === "present" ? 1 : attStatus === "half day" ? 0.5 : attStatus === "absent" ? 0 : null;
+      const attVal    = attStatus === "present" ? 1
+                      : attStatus === "half day" ? 0.5
+                      : attStatus === "absent"   ? 0 : null;
       days.push({ dateStr, dayLabel, hasDpr, hasWpr, attStatus, attVal });
     }
-    setDrillData(days);
-    setDrillLoading(false);
+    setDrillData(days); setDrillLoading(false);
   };
 
   const closeDrill = () => { setDrillMonth(null); setDrillData([]); setDrillHovered(null); };
 
-  // ── MONTH VIEW ────────────────────────────────────────────────────────────
-  const MonthChart = () => {
-    const n = data.length;
-    const sharedMax = Math.max(...data.map(d => Math.max(d.dpr, d.wpr)), 1);
-    const yTicks = [0, Math.round(sharedMax / 2), sharedMax];
-    const xPos = (i) => PAD.left + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
-    const yPos = (v, max) => PAD.top + innerH - Math.min(v / max, 1) * innerH;
+  // ── Shared SVG wrapper ───────────────────────────────────────────────────
+  const Svg = ({ children, onLeave }) => (
+    <svg viewBox={`0 0 ${W} ${H}`}
+      style={{ width: "100%", display: "block", overflow: "visible" }}
+      onMouseLeave={onLeave} onTouchEnd={() => setTimeout(onLeave, 1200)}>
+      <defs>
+        <linearGradient id="acDprG" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#7a2e00"/>
+          <stop offset="100%" stopColor="#d97706"/>
+        </linearGradient>
+        <linearGradient id="acDprFill" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#d97706" stopOpacity="0.15"/>
+          <stop offset="100%" stopColor="#d97706" stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      {children}
+    </svg>
+  );
 
-const dprPts = data.filter(d => d.dpr !== null).map((d, _, arr) => `${xPos(data.indexOf(d))},${yPos(d.dpr, sharedMax)}`);
-const wprPts = data.filter(d => d.wpr !== null).map((d) => `${xPos(data.indexOf(d))},${yPos(d.wpr, sharedMax)}`);
-const attPts = data.filter(d => d.attendPct !== null).map(d => `${xPos(data.indexOf(d))},${yPos(d.attendPct, 100)}`);
+  // ── Tooltip box shared ───────────────────────────────────────────────────
+  const Tip = ({ cx, by, lines }) => {
+    const TW  = mob ? 150 : 116;
+    const ROW = mob ? 18  : 14;
+    const TH  = ROW * (lines.length + 1) + 8;
+    const bx  = Math.min(Math.max(cx - TW / 2, PAD.left), W - PAD.right - TW);
+    const fss = fs(mob ? 11 : 9);
+    return (
+      <g style={{ pointerEvents: "none" }}>
+        <rect x={bx} y={by} width={TW} height={TH} rx={7}
+          fill="var(--surface,#fff)" stroke="#c96a10" strokeWidth={1.2}
+          style={{ filter: "drop-shadow(0 3px 10px rgba(61,18,0,.18))" }}/>
+        {lines.map((l, i) => (
+          <g key={i}>
+            <circle cx={bx + 10} cy={by + ROW * i + ROW + 2} r={mob ? 5 : 3.5} fill={l.color}/>
+            <text x={bx + 20} y={by + ROW * i + ROW + 6} fontSize={fss}
+              fill="var(--ink2,#475569)" fontFamily="'DM Sans',sans-serif">
+              {l.label} <tspan fontWeight={800} fill={l.color}>{l.value}</tspan>
+            </text>
+          </g>
+        ))}
+      </g>
+    );
+  };
+
+  // ── MONTH VIEW ───────────────────────────────────────────────────────────
+  const MonthChart = () => {
+    const n         = data.length;
+    const sharedMax = Math.max(...data.map(d => Math.max(d.dpr || 0, d.wpr || 0)), 1);
+    const yTicks    = [0, Math.round(sharedMax / 2), sharedMax];
+    const xPos = (i) => PAD.left + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+    const yPos = (v, max) => PAD.top + innerH - Math.min((v || 0) / max, 1) * innerH;
+
+    const dprPts = data.map((d, i) => `${xPos(i)},${yPos(d.dpr, sharedMax)}`).join(" ");
+    const wprPts = data.map((d, i) => `${xPos(i)},${yPos(d.wpr, sharedMax)}`).join(" ");
+    const attPts = data.filter(d => d.attendPct !== null)
+                       .map(d => `${xPos(data.indexOf(d))},${yPos(d.attendPct, 100)}`).join(" ");
+
+    // Area fill path under DPR line
+    const dprArea = `${dprPts} L ${xPos(n - 1)},${PAD.top + innerH} L ${xPos(0)},${PAD.top + innerH} Z`;
 
     return (
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", display: "block" }}
-        onMouseLeave={() => setHovered(null)}>
-        <defs>
-          <linearGradient id="dprGv3" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#7a2e00"/><stop offset="100%" stopColor="#d97706"/>
-          </linearGradient>
-          <linearGradient id="dprFill" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#d97706" stopOpacity="0.18"/>
-            <stop offset="100%" stopColor="#d97706" stopOpacity="0"/>
-          </linearGradient>
-        </defs>
-
+      <Svg onLeave={() => setHovered(null)}>
+        {/* Y grid left */}
         {yTicks.map(t => {
           const y = yPos(t, sharedMax);
           return (
@@ -264,117 +324,88 @@ const attPts = data.filter(d => d.attendPct !== null).map(d => `${xPos(data.inde
               <line x1={PAD.left} y1={y} x2={W - PAD.right} y2={y}
                 stroke="#e2e8f0" strokeWidth={t === 0 ? 1.2 : 0.6}
                 strokeDasharray={t === 0 ? "none" : "3 3"}/>
-              <text x={PAD.left - 4} y={y + 3.5} fontSize={8} fill="#94a3b8"
-                textAnchor="end" fontFamily="monospace">{t}</text>
+              <text x={PAD.left - 5} y={y + fs(3.5)} fontSize={fs(mob ? 11 : 8)}
+                fill="#94a3b8" textAnchor="end" fontFamily="monospace">{t}</text>
             </g>
           );
         })}
-{[0, 50, 100].map(t => (
-          <text key={`a${t}`} x={W - PAD.right + 4} y={yPos(t, 100) + 3.5}
-            fontSize={8} fill="#c96a10" fontFamily="monospace">{t}%</text>
+        {/* Y right (att %) */}
+        {[0, 50, 100].map(t => (
+          <text key={t} x={W - PAD.right + 5} y={yPos(t, 100) + fs(3.5)}
+            fontSize={fs(mob ? 11 : 8)} fill="#c96a10" fontFamily="monospace">{t}%</text>
         ))}
 
-        {(() => {
-          const nullCount = data.filter(d => d.dpr === null && d.wpr === null).length;
-          if (!nullCount || nullCount >= data.length) return null;
-          const x0 = PAD.left;
-          const x1 = xPos(nullCount - 1) + (xPos(1) - xPos(0)) * 0.5;
-          return (
-            <g style={{ pointerEvents: "none" }}>
-              <rect x={x0} y={PAD.top} width={x1 - x0} height={innerH}
-                fill="rgba(148,163,184,0.07)" rx={4}/>
-              <line x1={x1} y1={PAD.top} x2={x1} y2={PAD.top + innerH}
-                stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 3" strokeOpacity={0.4}/>
-              <text x={(x0 + x1) / 2} y={PAD.top + 12} fontSize={8}
-                textAnchor="middle" fill="#94a3b8" fontFamily="monospace">no data</text>
-            </g>
-          );
-        })()}
-{attPts.length > 0 && <path d={spline(attPts)} fill="none" stroke="#c96a10"
-          strokeWidth={1.6} strokeDasharray="4 2" strokeLinecap="round" strokeLinejoin="round"/>}
-        {wprPts.length > 0 && <path d={spline(wprPts)} fill="none" stroke="#a78bfa"
-          strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>}
-        {dprPts.length > 0 && <>
-          <path
-            d={spline(dprPts) + ` L ${xPos(data.findIndex((d,i) => data.slice(i).every(x => x.dpr !== null) || i === data.length-1))} ${PAD.top + innerH} L ${xPos(data.findIndex(d => d.dpr !== null))} ${PAD.top + innerH} Z`}
-            fill="url(#dprFill)" stroke="none"/>
-          <path d={spline(dprPts)} fill="none" stroke="url(#dprGv3)"
-            strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
-        </>}
+        {/* Lines + fill */}
+        {attPts && <polyline points={attPts} fill="none" stroke="#c96a10"
+          strokeWidth={LW - 0.3} strokeDasharray="5 3"
+          strokeLinecap="round" strokeLinejoin="round"/>}
+        <polyline points={wprPts} fill="none" stroke="#a78bfa"
+          strokeWidth={LW} strokeLinecap="round" strokeLinejoin="round"/>
+        <path d={dprArea} fill="url(#acDprFill)" stroke="none"/>
+        <polyline points={dprPts} fill="none" stroke="url(#acDprG)"
+          strokeWidth={LW + 0.2} strokeLinecap="round" strokeLinejoin="round"/>
 
+        {/* Dots + hit areas */}
         {data.map((d, i) => {
-          const cx = xPos(i);
+          const cx  = xPos(i);
           const isH = hovered === i;
+          const hitW = innerW / Math.max(n, 1);
           return (
             <g key={i} style={{ cursor: "pointer" }}
-              onMouseEnter={() => setHovered(i)} onClick={() => openDrill(d, i)}>
-              <rect x={cx - innerW / Math.max(data.length, 1) / 2} y={PAD.top}
-                width={innerW / Math.max(data.length, 1)} height={innerH + 20} fill="transparent"/>
+              onMouseEnter={() => setHovered(i)}
+              onTouchStart={(e) => { e.preventDefault(); setHovered(i); }}
+              onClick={() => openDrill(d, i)}>
+              {/* Wide transparent hit zone */}
+              <rect x={cx - hitW / 2} y={PAD.top - 8}
+                width={hitW} height={innerH + 28} fill="transparent"/>
               {isH && <line x1={cx} y1={PAD.top} x2={cx} y2={PAD.top + innerH}
-                stroke="#c96a10" strokeWidth={1} strokeDasharray="3 2" strokeOpacity={0.5}/>}
+                stroke="#c96a10" strokeWidth={1.2} strokeDasharray="3 2" strokeOpacity={0.5}/>}
 
-              <circle cx={cx} cy={yPos(d.dpr, sharedMax)} r={isH ? 5 : 3.2}
-                fill={isH ? "#d97706" : "#fff"} stroke="#d97706" strokeWidth={2}
+              <circle cx={cx} cy={yPos(d.dpr, sharedMax)} r={isH ? DOTH : DOT}
+                fill={isH ? "#d97706" : "#fff"} stroke="#d97706" strokeWidth={mob ? 2.5 : 2}
                 style={{ transition: "all .15s" }}/>
-              <circle cx={cx} cy={yPos(d.wpr, sharedMax)} r={isH ? 5 : 3.2}
-                fill={isH ? "#a78bfa" : "#fff"} stroke="#a78bfa" strokeWidth={2}
+              <circle cx={cx} cy={yPos(d.wpr, sharedMax)} r={isH ? DOTH : DOT}
+                fill={isH ? "#a78bfa" : "#fff"} stroke="#a78bfa" strokeWidth={mob ? 2.5 : 2}
                 style={{ transition: "all .15s" }}/>
               {d.attendPct !== null && (
-                <circle cx={cx} cy={yPos(d.attendPct, 100)} r={isH ? 4 : 2.5}
-                  fill={isH ? "#c96a10" : "#fff"} stroke="#c96a10" strokeWidth={1.5}
+                <circle cx={cx} cy={yPos(d.attendPct, 100)} r={isH ? DOTH - 1.5 : DOT - 1}
+                  fill={isH ? "#c96a10" : "#fff"} stroke="#c96a10" strokeWidth={mob ? 2 : 1.5}
                   style={{ transition: "all .15s" }}/>
               )}
-              <text x={cx} y={H - 4} fontSize={8.5} textAnchor="middle"
-                fill={isH ? "#c96a10" : "#94a3b8"} fontWeight={isH ? 700 : 500}
-                fontFamily="'DM Sans',sans-serif" style={{ transition: "fill .15s" }}>
+
+              {/* X-axis label */}
+              <text x={cx} y={H - (mob ? 8 : 5)} fontSize={fs(mob ? 12 : 8.5)}
+                textAnchor="middle"
+                fill={isH ? "#c96a10" : "#94a3b8"}
+                fontWeight={isH ? 800 : 500}
+                fontFamily="'DM Sans',sans-serif"
+                style={{ transition: "fill .15s" }}>
                 {d.label}
               </text>
 
-              {isH && (() => {
-                const bx = Math.min(Math.max(cx - 52, PAD.left), W - PAD.right - 110);
-                const by = PAD.top - 2;
-                return (
-                  <g style={{ pointerEvents: "none" }}>
-                    <rect x={bx} y={by} width={110}
-                      height={d.attendPct !== null ? 62 : 46}
-                      rx={6} fill="var(--surface,#fff)" stroke="#c96a10" strokeWidth={1}
-                      style={{ filter: "drop-shadow(0 3px 8px rgba(61,18,0,0.15))" }}/>
-                    <text x={bx + 8} y={by + 13} fontSize={8.5} fontWeight={800}
-                      fill="var(--ink,#1e293b)" fontFamily="'DM Sans',sans-serif">
-                      {d.label} · click to drill
-                    </text>
-                    <circle cx={bx + 10} cy={by + 26} r={3.5} fill="#d97706"/>
-                    <text x={bx + 17} y={by + 30} fontSize={8.5} fill="var(--ink2,#475569)" fontFamily="'DM Sans',sans-serif">
-                      DPR <tspan fontWeight={700} fill="#d97706">{d.dpr}</tspan>{"   "}
-                    </text>
-                    <circle cx={bx + 62} cy={by + 26} r={3.5} fill="#a78bfa"/>
-                    <text x={bx + 69} y={by + 30} fontSize={8.5} fill="var(--ink2,#475569)" fontFamily="'DM Sans',sans-serif">
-                      WPR <tspan fontWeight={700} fill="#7c3aed">{d.wpr}</tspan>
-                    </text>
-                    {d.attendPct !== null && (
-                      <>
-                        <circle cx={bx + 10} cy={by + 42} r={3.5} fill="#c96a10"/>
-                        <text x={bx + 17} y={by + 46} fontSize={8.5} fill="var(--ink2,#475569)" fontFamily="'DM Sans',sans-serif">
-                          Att. <tspan fontWeight={700} fill="#c96a10">{d.attendPct}%</tspan>
-                        </text>
-                      </>
-                    )}
-                  </g>
-                );
-              })()}
+              {/* Tooltip */}
+              {isH && (
+                <Tip cx={cx} by={PAD.top - (mob ? 6 : 2)} lines={[
+                  { color: "#d97706", label: "DPR", value: d.dpr },
+                  { color: "#a78bfa", label: "WPR", value: d.wpr },
+                  ...(d.attendPct !== null
+                    ? [{ color: "#c96a10", label: "Att.", value: `${d.attendPct}%` }]
+                    : []),
+                ]}/>
+              )}
             </g>
           );
         })}
-      </svg>
+      </Svg>
     );
   };
 
-  // ── DAY VIEW ──────────────────────────────────────────────────────────────
+  // ── DAY VIEW ─────────────────────────────────────────────────────────────
   const DayChart = () => {
     if (drillLoading) return (
       <div style={{ height: H, display: "flex", alignItems: "center",
-        justifyContent: "center", gap: 8, fontSize: 12, color: "#94a3b8" }}>
-        <div style={{ width: 14, height: 14, borderRadius: "50%",
+        justifyContent: "center", gap: 8, fontSize: 13, color: "#94a3b8" }}>
+        <div style={{ width: 15, height: 15, borderRadius: "50%",
           border: "2px solid #e2e8f0", borderTopColor: "#c96a10",
           animation: "spin .7s linear infinite" }}/>
         Loading {drillMonth?.label}…
@@ -382,124 +413,128 @@ const attPts = data.filter(d => d.attendPct !== null).map(d => `${xPos(data.inde
     );
     if (!drillData.length) return (
       <div style={{ height: H, display: "flex", alignItems: "center",
-        justifyContent: "center", fontSize: 12, color: "#94a3b8" }}>
+        justifyContent: "center", fontSize: 13, color: "#94a3b8" }}>
         No data for this month.
       </div>
     );
 
-    const nd = drillData.length;
+    const nd   = drillData.length;
     const xPos = (i) => PAD.left + (nd === 1 ? innerW / 2 : (i / (nd - 1)) * innerW);
     const yBin = (v) => PAD.top + innerH - v * innerH;
     const yAtt = (v) => PAD.top + innerH - v * innerH;
+
     const dprPts = drillData.map((d, i) => `${xPos(i)},${yBin(d.hasDpr ? 1 : 0)}`).join(" ");
     const wprPts = drillData.map((d, i) => `${xPos(i)},${yBin(d.hasWpr ? 1 : 0)}`).join(" ");
     const attPts = drillData.filter(d => d.attVal !== null)
       .map(d => `${xPos(drillData.indexOf(d))},${yAtt(d.attVal)}`).join(" ");
-    const labelStep = nd <= 10 ? 1 : nd <= 20 ? 2 : 3;
+
+    const labelStep = nd <= 8 ? 1 : nd <= 16 ? 2 : mob ? 4 : 3;
+    const attColor  = (v) => v === 1 ? "#16a34a" : v === 0.5 ? "#d97706" : "#dc2626";
 
     return (
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", display: "block" }}
-        onMouseLeave={() => setDrillHovered(null)}>
-        {[{ v: 1, label: "✓" }, { v: 0, label: "✗" }].map(({ v, label }) => (
+      <Svg onLeave={() => setDrillHovered(null)}>
+        {/* Y left ✓/✗ */}
+        {[{ v: 1, l: "✓" }, { v: 0, l: "✗" }].map(({ v, l }) => (
           <g key={v}>
             <line x1={PAD.left} y1={yBin(v)} x2={W - PAD.right} y2={yBin(v)}
               stroke="#e2e8f0" strokeWidth={v === 0 ? 1.2 : 0.6}
               strokeDasharray={v === 0 ? "none" : "3 3"}/>
-            <text x={PAD.left - 4} y={yBin(v) + 3.5} fontSize={9} fill="#94a3b8"
-              textAnchor="end" fontFamily="monospace">{label}</text>
+            <text x={PAD.left - 5} y={yBin(v) + fs(3.5)} fontSize={fs(mob ? 13 : 9)}
+              fill="#94a3b8" textAnchor="end" fontFamily="monospace">{l}</text>
           </g>
         ))}
+        {/* Y right P/½/A */}
         {[{ v: 1, l: "P" }, { v: 0.5, l: "½" }, { v: 0, l: "A" }].map(({ v, l }) => (
-          <text key={l} x={W - PAD.right + 4} y={yAtt(v) + 3.5}
-            fontSize={8} fill="#c96a10" fontFamily="monospace">{l}</text>
+          <text key={l} x={W - PAD.right + 5} y={yAtt(v) + fs(3.5)}
+            fontSize={fs(mob ? 12 : 8)} fill="#c96a10" fontFamily="monospace">{l}</text>
         ))}
 
-{attPts && <path d={spline(attPts.split(" "))} fill="none" stroke="#c96a10"
-          strokeWidth={1.6} strokeDasharray="4 2" strokeLinecap="round" strokeLinejoin="round"/>}
-        <path d={spline(wprPts.split(" "))} fill="none" stroke="#a78bfa"
-          strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"/>
-        <path d={spline(dprPts.split(" "))} fill="none" stroke="#d97706"
-          strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>
+        {/* Lines */}
+        {attPts && <polyline points={attPts} fill="none" stroke="#c96a10"
+          strokeWidth={LW - 0.3} strokeDasharray="5 3"
+          strokeLinecap="round" strokeLinejoin="round"/>}
+        <polyline points={wprPts} fill="none" stroke="#a78bfa"
+          strokeWidth={LW} strokeLinecap="round" strokeLinejoin="round"/>
+        <polyline points={dprPts} fill="none" stroke="#d97706"
+          strokeWidth={LW + 0.2} strokeLinecap="round" strokeLinejoin="round"/>
 
+        {/* Dots */}
         {drillData.map((d, i) => {
-          const cx = xPos(i);
-          const isH = drillHovered === i;
+          const cx   = xPos(i);
+          const isH  = drillHovered === i;
           const dprY = yBin(d.hasDpr ? 1 : 0);
           const wprY = yBin(d.hasWpr ? 1 : 0);
           const attY = d.attVal !== null ? yAtt(d.attVal) : null;
+          const hitW = innerW / Math.max(nd, 1);
           return (
-            <g key={i} style={{ cursor: "default" }} onMouseEnter={() => setDrillHovered(i)}>
-              <rect x={cx - innerW / Math.max(nd, 1) / 2} y={PAD.top}
-                width={innerW / Math.max(nd, 1)} height={innerH + 20} fill="transparent"/>
+            <g key={i}
+              onMouseEnter={() => setDrillHovered(i)}
+              onTouchStart={(e) => { e.preventDefault(); setDrillHovered(i); }}
+              style={{ cursor: "default" }}>
+              <rect x={cx - hitW / 2} y={PAD.top - 8}
+                width={hitW} height={innerH + 28} fill="transparent"/>
               {isH && <line x1={cx} y1={PAD.top} x2={cx} y2={PAD.top + innerH}
-                stroke="#c96a10" strokeWidth={1} strokeDasharray="3 2" strokeOpacity={0.4}/>}
-              <circle cx={cx} cy={dprY} r={isH ? 5 : 3.2}
-                fill={d.hasDpr ? "#d97706" : "#fff"} stroke="#d97706" strokeWidth={2}
-                style={{ transition: "all .12s" }}/>
-              <circle cx={cx} cy={wprY} r={isH ? 5 : 3.2}
-                fill={d.hasWpr ? "#a78bfa" : "#fff"} stroke="#a78bfa" strokeWidth={2}
-                style={{ transition: "all .12s" }}/>
+                stroke="#c96a10" strokeWidth={1.2} strokeDasharray="3 2" strokeOpacity={0.4}/>}
+
+              <circle cx={cx} cy={dprY} r={isH ? DOTH : DOT}
+                fill={d.hasDpr ? "#d97706" : "#fff"} stroke="#d97706"
+                strokeWidth={mob ? 2.5 : 2} style={{ transition: "all .12s" }}/>
+              <circle cx={cx} cy={wprY} r={isH ? DOTH : DOT}
+                fill={d.hasWpr ? "#a78bfa" : "#fff"} stroke="#a78bfa"
+                strokeWidth={mob ? 2.5 : 2} style={{ transition: "all .12s" }}/>
               {attY !== null && (
-                <circle cx={cx} cy={attY} r={isH ? 4 : 2.5}
-                  fill={d.attVal === 1 ? "#16a34a" : d.attVal === 0.5 ? "#d97706" : "#dc2626"}
-                  stroke="none" style={{ transition: "all .12s" }}/>
+                <circle cx={cx} cy={attY} r={isH ? DOTH - 1.5 : DOT - 1}
+                  fill={attColor(d.attVal)} stroke="none"
+                  style={{ transition: "all .12s" }}/>
               )}
+
               {i % labelStep === 0 && (
-                <text x={cx} y={H - 4} fontSize={8} textAnchor="middle"
-                  fill={isH ? "#c96a10" : "#94a3b8"} fontWeight={isH ? 700 : 400}
-                  fontFamily="'DM Sans',sans-serif">{d.dayLabel}</text>
+                <text x={cx} y={H - (mob ? 8 : 5)} fontSize={fs(mob ? 11 : 8)}
+                  textAnchor="middle"
+                  fill={isH ? "#c96a10" : "#94a3b8"}
+                  fontWeight={isH ? 700 : 400}
+                  fontFamily="'DM Sans',sans-serif">
+                  {d.dayLabel}
+                </text>
               )}
-              {isH && (() => {
-                const bx = Math.min(Math.max(cx - 50, PAD.left), W - PAD.right - 106);
-                const by = PAD.top - 2;
-                const attLabel = d.attStatus
-                  ? d.attStatus.charAt(0).toUpperCase() + d.attStatus.slice(1) : "—";
-                const attCol = d.attVal === 1 ? "#16a34a"
-                             : d.attVal === 0.5 ? "#d97706"
-                             : d.attVal === 0 ? "#dc2626" : "#94a3b8";
-                return (
-                  <g style={{ pointerEvents: "none" }}>
-                    <rect x={bx} y={by} width={106} height={62}
-                      rx={6} fill="var(--surface,#fff)" stroke="#c96a10" strokeWidth={1}
-                      style={{ filter: "drop-shadow(0 3px 8px rgba(61,18,0,0.15))" }}/>
-                    <text x={bx + 8} y={by + 13} fontSize={9} fontWeight={800}
-                      fill="var(--ink,#1e293b)" fontFamily="'DM Sans',sans-serif">{d.dayLabel}</text>
-                    <circle cx={bx + 10} cy={by + 26} r={3.5} fill="#d97706"/>
-                    <text x={bx + 17} y={by + 30} fontSize={9} fill="var(--ink2,#475569)" fontFamily="'DM Sans',sans-serif">
-                      DPR <tspan fontWeight={700} fill={d.hasDpr ? "#d97706" : "#94a3b8"}>{d.hasDpr ? "✓" : "—"}</tspan>
-                    </text>
-                    <circle cx={bx + 60} cy={by + 26} r={3.5} fill="#a78bfa"/>
-                    <text x={bx + 67} y={by + 30} fontSize={9} fill="var(--ink2,#475569)" fontFamily="'DM Sans',sans-serif">
-                      WPR <tspan fontWeight={700} fill={d.hasWpr ? "#7c3aed" : "#94a3b8"}>{d.hasWpr ? "✓" : "—"}</tspan>
-                    </text>
-                    <circle cx={bx + 10} cy={by + 42} r={3.5} fill={attCol}/>
-                    <text x={bx + 17} y={by + 46} fontSize={9} fill="var(--ink2,#475569)" fontFamily="'DM Sans',sans-serif">
-                      Att. <tspan fontWeight={700} fill={attCol}>{attLabel}</tspan>
-                    </text>
-                  </g>
-                );
-              })()}
+
+              {isH && (
+                <Tip cx={cx} by={PAD.top - (mob ? 6 : 2)} lines={[
+                  { color: "#d97706", label: "DPR", value: d.hasDpr ? "✓" : "—" },
+                  { color: "#a78bfa", label: "WPR", value: d.hasWpr ? "✓" : "—" },
+                  {
+                    color: d.attVal !== null ? attColor(d.attVal) : "#94a3b8",
+                    label: "Att.",
+                    value: d.attStatus
+                      ? d.attStatus.charAt(0).toUpperCase() + d.attStatus.slice(1)
+                      : "—",
+                  },
+                ]}/>
+              )}
             </g>
           );
         })}
-      </svg>
+      </Svg>
     );
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+    <div ref={rootRef} style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+
       {/* Breadcrumb */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 22 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 26 }}>
         {drillMonth ? (
           <>
             <button onClick={closeDrill} style={{
               display: "inline-flex", alignItems: "center", gap: 5,
               background: "none", border: "1px solid var(--line,#e2e8f0)",
-              borderRadius: 6, padding: "3px 10px", cursor: "pointer",
-              fontSize: 11, fontWeight: 700, color: "#7a2e00",
+              borderRadius: 6, padding: mob ? "5px 12px" : "3px 10px",
+              cursor: "pointer", fontSize: mob ? 13 : 11,
+              fontWeight: 700, color: "#7a2e00",
               fontFamily: "'DM Sans',sans-serif",
             }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
                 <polyline points="15 18 9 12 15 6"/>
               </svg>
@@ -509,35 +544,40 @@ const attPts = data.filter(d => d.attendPct !== null).map(d => `${xPos(data.inde
               stroke="#94a3b8" strokeWidth="2" strokeLinecap="round">
               <polyline points="9 18 15 12 9 6"/>
             </svg>
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: "#c96a10" }}>
+            <span style={{ fontSize: mob ? 13 : 11.5, fontWeight: 700, color: "#c96a10" }}>
               {drillMonth.label}
             </span>
           </>
         ) : (
-          <span style={{ fontSize: 10.5, fontWeight: 600, color: "#94a3b8" }}>
-            Click a month to see day-wise breakdown
+          <span style={{ fontSize: mob ? 12 : 10.5, fontWeight: 600, color: "#94a3b8" }}>
+            {mob ? "Tap a month to drill down ↓" : "Click a month · see day-wise breakdown"}
           </span>
         )}
       </div>
 
-      {/* Chart */}
-      <div style={{ background: "var(--paper)", border: "1px solid var(--line,#e2e8f0)",
-        borderRadius: 12, padding: "14px 10px 10px" }}>
+      {/* Chart card */}
+      <div style={{
+        background: "var(--paper)", border: "1px solid var(--line,#e2e8f0)",
+        borderRadius: 12,
+        padding: mob ? "12px 6px 6px" : "14px 10px 10px",
+        overflow: "hidden",
+      }}>
         {drillMonth ? <DayChart /> : <MonthChart />}
       </div>
 
       {/* Legend */}
-      <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: mob ? 12 : 14,
+        justifyContent: "center", flexWrap: "wrap" }}>
         {[
-          { color: "#d97706", label: "DPR", dash: false },
-          { color: "#a78bfa", label: "WPR", dash: false },
-          { color: "#c96a10", label: drillMonth ? "Attendance (P/½/A)" : "Attendance %", dash: true },
+          { color: "#d97706", label: "DPR",   dash: false },
+          { color: "#a78bfa", label: "WPR",   dash: false },
+          { color: "#c96a10", label: drillMonth ? "Att. (P/½/A)" : "Attendance %", dash: true },
         ].map(l => (
           <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 5,
-            fontSize: 11, fontWeight: 600, color: "var(--ink2,#475569)" }}>
-            <svg width={20} height={8}>
-              <line x1={0} y1={4} x2={20} y2={4} stroke={l.color} strokeWidth={2}
-                strokeDasharray={l.dash ? "4 2" : "none"} strokeLinecap="round"/>
+            fontSize: mob ? 12.5 : 11, fontWeight: 600, color: "var(--ink2,#475569)" }}>
+            <svg width={22} height={9}>
+              <line x1={0} y1={4.5} x2={22} y2={4.5} stroke={l.color} strokeWidth={2.2}
+                strokeDasharray={l.dash ? "5 2" : "none"} strokeLinecap="round"/>
             </svg>
             {l.label}
           </div>

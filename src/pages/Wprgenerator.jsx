@@ -1472,8 +1472,8 @@ function PhotoGrid({ photos, onRemove, onCaption, onAdd, accept, multiple = true
 export default function WprGenerator({ user, supabase }) {
   const [openSec, setOpenSec] = useState({ info: true });
   const toggle = (k) => setOpenSec((p) => ({ ...p, [k]: !p[k] }));
-const [logoDataUrl, setLogoDataUrl] = useState(null); 
-const [jobNo, setJobNo] = useState("");
+  const [logoDataUrl, setLogoDataUrl] = useState(null); 
+  const [jobNo, setJobNo] = useState("");
   const [site, setSite] = useState(user?.site_names?.[0] || user?.site_name || "");
   const [engineer, setEngineer] = useState(user?.name || "");
   const [reportDate, setReportDate] = useState(today());
@@ -1491,7 +1491,7 @@ const [jobNo, setJobNo] = useState("");
   const [checklistPhotos, setChecklistPhotos] = useState([]);
   const [delayPoints, setDelayPoints] = useState([]);
   const [plans, setPlans] = useState([]);
-const [sections, setSections] = useState(() =>
+  const [sections, setSections] = useState(() =>
   STANDARD_SECTIONS.map((title) => ({ key: title, title, isStandard: true, hidden: false, slideHidden: false, type: "text", textItems: [], images: [] }))
 );
 
@@ -2570,7 +2570,7 @@ const datePath = buildSiteDatePath(reportDate);
                 <div title="Drag to reorder" style={{cursor: "grab",color: "var(--ink3)",fontSize: 18,lineHeight: 1,padding: "0 4px",userSelect: "none",flexShrink: 0,}}>
                   ⠿
                 </div>
-                <div className="wpr-rc-badge">{sec.isStandard ? "::" : "✨"}</div>
+                
                 <input
                   className="wpr-rc-title"
                   value={sec.title}

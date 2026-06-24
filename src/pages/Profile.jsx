@@ -150,7 +150,7 @@ function workingDaysInMonth(yearMonth) {
   }
   return count;
 }
- 
+
 const chart = months.map(mo => {
   const label = new Date(mo + "-01").toLocaleDateString("en-IN", {
     month: "short", year: "2-digit",

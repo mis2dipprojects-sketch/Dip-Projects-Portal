@@ -857,10 +857,13 @@ const ALL_ITEMS = [
 // ─── Enabled tabs ─────────────────────────────────────────────────────────────
 // REPLACE WITH:
 const ENABLED_TABS = new Set([
+  "clock-in",
+  "calendar",
+  "my-leave",
+  "apply-leave",
   "daily-report",
   "site-report",
   "my-reports",
-  "monthly-report",
   "wpr-generator",
   "report-submissions",
   "profile",

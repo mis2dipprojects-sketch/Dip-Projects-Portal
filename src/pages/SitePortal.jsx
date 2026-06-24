@@ -686,33 +686,54 @@ const DARK_CSS = `
 
   /* ── Mobile ── */
   .sb-backdrop{display:none;}
-@media(max-width:768px){
-  .sidebar{
-    position:fixed;
-    top:58px;
-    left:0;
-    z-index:200;
-    height:calc(100vh - 58px);
-    overflow-y:auto;                    /* ← must be here */
-    -webkit-overflow-scrolling:touch;   /* ← add this for iOS momentum scroll */
-    width:min(85vw,270px);
-    min-width:0;
-    transform:translateX(0);
-    box-shadow:12px 0 32px rgba(0,0,0,.18);
-  }
-  .sidebar.closed{
-    width:min(85vw,270px);
-    min-width:0;
-    transform:translateX(-110%);
-    opacity:0;
-  }
-     .sb-backdrop{display:block;position:fixed;inset:0;top:58px;z-index:190;background:rgba(15,13,10,.4);border:none;padding:0;}
+  @media(max-width:768px){
+    .sidebar{position:fixed;top:58px;left:0;z-index:200;height:calc(100vh - 58px);width:min(85vw,270px);min-width:0;transform:translateX(0);box-shadow:12px 0 32px rgba(0,0,0,.18);}
+    .sidebar.closed{width:min(85vw,270px);min-width:0;transform:translateX(-110%);opacity:0;}
+
+    .sb-backdrop{display:block;position:fixed;inset:0;top:58px;z-index:190;background:rgba(15,13,10,.4);border:none;padding:0;}
     .main{padding:16px 14px 32px;}
     .stat-row{grid-template-columns:1fr 1fr;}
     .act-row{flex-direction:column-reverse;}
     .btn{width:100%;justify-content:center;}
     .tb-uinfo{display:none;}
   }
+    @media(max-width:999px){
+
+  .sidebar{
+    position:fixed;
+    top:58px;
+    left:0;
+    z-index:200;
+
+    width:min(85vw,270px);
+    min-width:0;
+    height:calc(100dvh - 58px);
+
+    overflow-y:auto;
+    overflow-x:hidden;
+
+    -webkit-overflow-scrolling:touch;
+
+    transform:translateX(0);
+    box-shadow:12px 0 32px rgba(0,0,0,.18);
+  }
+
+  .sidebar.closed{
+    transform:translateX(-110%);
+    opacity:0;
+  }
+
+  .snav{
+    padding:14px 10px 90px; /* extra bottom space */
+  }
+
+  .sb-bottom{
+    position:sticky;
+    bottom:0;
+    background:var(--surface);
+    z-index:2;
+  }
+}
   @media(max-width:440px){
     .cal-cell{min-height:42px;padding:4px 2px;}
     .cal-dn{font-size:11px;}
@@ -1247,8 +1268,8 @@ if (!u || (role !== "project head" && role !== "site incharge")) return;
 useEffect(() => {
   if (sidebarOpen && window.innerWidth <= 768) {
     document.body.style.overflow = "hidden";
-    //document.body.style.position = "fixed";
-    //document.body.style.width = "100%";
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
   } else {
     document.body.style.overflow = "";
     document.body.style.position = "";

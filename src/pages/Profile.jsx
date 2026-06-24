@@ -323,25 +323,31 @@ const bgColor  = avatarColor(freshName || user?.name || "");
       Activity — Last 6 Months
     </div>
 
-    {/* Stack vertically on mobile, side-by-side on desktop */}
     <div style={{
       display: "flex",
-      flexDirection: "column",   // always column — mobile first
+      flexDirection: "row",
+      flexWrap: "wrap",      // wraps to column on narrow screens
       gap: 14,
+      alignItems: "stretch",
     }}>
-      {/* Chart — full width on mobile, gets natural height */}
+      {/* Chart — 60% on desktop, 100% on mobile */}
       <div style={{
+        flex: "1 1 55%",
+        minWidth: "min(100%, 260px)",  // below 260px it wraps to full width
         background: "var(--paper)", border: "1px solid var(--line)",
         borderRadius: 14, padding: "16px 12px 12px",
-        width: "100%",
+        boxSizing: "border-box",
       }}>
         <ActivityChart data={chartData} user={user} />
       </div>
 
-      {/* Score card — full width below chart */}
+      {/* Score — 40% on desktop, 100% on mobile */}
       <div style={{
+        flex: "1 1 35%",
+        minWidth: "min(100%, 200px)",  // below 200px it wraps to full width
         background: "var(--paper)", border: "1px solid var(--line)",
         borderRadius: 14, padding: "16px 14px",
+        boxSizing: "border-box",
       }}>
         <PerformanceScore chartData={chartData} />
       </div>

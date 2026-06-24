@@ -109,14 +109,23 @@ function bulletBlock(txt) {
   if (!txt?.trim()) return "";
   const lines = txt.split("\n").filter(l => l.trim());
   if (!lines.length) return "";
-  return `<div class="bullet-list">${lines
-    .map(l => `<div class="bullet-item">
-      <span class="bullet-arrow">&#9658;</span>
-      <span class="bullet-text">${esc(l.replace(/^[•\-*]\s*/, "").trim())}</span>
-    </div>`)
-    .join("")}</div>`;
-}
 
+  return `<div class="bullet-list">${lines.map(l => {
+    const isSub = /^ {2,}/.test(l);
+    const text  = esc(l.replace(/^[\s•◦\-*]+/, "").trim());
+
+    if (isSub) {
+      return `<div class="bullet-item" style="padding-left:32px;border-bottom:1px solid #f8fafc;">
+        <span class="bullet-arrow" style="color:#b45309;font-size:10px;margin-top:5px;">&#9656;</span>
+        <span class="bullet-text" style="font-size:13.5px;color:#475569;">${text}</span>
+      </div>`;
+    }
+    return `<div class="bullet-item">
+      <span class="bullet-arrow">&#9658;</span>
+      <span class="bullet-text">${text}</span>
+    </div>`;
+  }).join("")}</div>`;
+}
 // ── Script loader ──────────────────────────────────────────────────────────────
 async function loadScript(src) {
   return new Promise((resolve, reject) => {
@@ -343,6 +352,11 @@ export async function generateSiteReportPDF(formData, photos, logoSrc) {
           <span class="meta-key">R E P O R T E D &nbsp; B Y</span>
            <span class="meta-val">${esc(formData.reporter_name)}${formData.designation ? ` <span style="font-size:13px;font-weight:600;color:#64748b;">(${esc(formData.designation)})</span>` : ""}</span>
         </div>
+        ${formData.visit_time?.trim() ? `
+        <div class="meta-cell">
+          <span class="meta-key">V I S I T &nbsp; T I M E</span>
+          <span class="meta-val">${esc(dispTime)}</span>
+        </div>` : ""}
         <div class="meta-cell">
           <span class="meta-key">V I S I T &nbsp; D A T E</span>
           <span class="meta-val">${esc(dispDate)}</span>
@@ -354,11 +368,15 @@ export async function generateSiteReportPDF(formData, photos, logoSrc) {
   if (formData.visitType === "group" && formData.visitors?.length) {
     const filteredVisitors = formData.visitors.filter(v => v.name?.trim());
     if (filteredVisitors.length) {
-const rowsHtml = filteredVisitors.map((v, i) => `
-        <div class="info-row" style="background:${i % 2 === 0 ? "#f8fafc" : "#fff"};">
-          <span class="info-key" style="min-width:40px;font-size:13px;color:#64748b;">${i + 1}.</span>
-          <span class="info-val" style="font-weight:700;">${esc(v.name)}</span>
-        </div>`).join("");
+    const rowsHtml = filteredVisitors.map((v, i) => `
+      <div class="info-row" style="background:${i % 2 === 0 ? "#f8fafc" : "#fff"};">
+        <span class="info-key" style="min-width:40px;font-size:13px;color:#64748b;">${i + 1}.</span>
+        <span class="info-val" style="font-weight:700;">
+          ${esc(v.name)}${v.designation?.trim()
+            ? ` <span style="font-size:13px;font-weight:500;color:#64748b;">— ${esc(v.designation.trim())}</span>`
+            : ""}
+        </span>
+      </div>`).join("");
 
       const membersHtml = `
         <div class="section-wrap">
@@ -366,6 +384,7 @@ const rowsHtml = filteredVisitors.map((v, i) => `
             <div class="sec-left">
               <span class="sec-num">—</span>
               <span class="sec-title">PRESENT MEMBERS</span>
+              <span class="sec-num">—</span>
             </div>
           </div>
           <div class="sec-body">
@@ -435,7 +454,7 @@ const rowsHtml = filteredVisitors.map((v, i) => `
   }
 
   // ── 5. THANK YOU PAGE (no watermark) ─────────────────────────────────────
-  addWatermark(); // watermark on the last content page before adding a fresh page
+  addWatermark();
   pdf.addPage();
   pageNum++;
   const tyHtml = `

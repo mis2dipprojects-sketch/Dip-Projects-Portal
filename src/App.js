@@ -15,8 +15,8 @@ import ApplyLeave from "./pages/ApplyLeave";
 import MyLeaves from "./pages/MyLeaves";
 import LeaveApprovals from "./pages/LeaveApprovals";
 import ManpowerReport from "./pages/Manpowerreport";
-import SitePortal from "./pages/SitePortal_disabled.jsx";
-//import SitePortal from "./pages/SitePortal";
+//import SitePortal from "./pages/SitePortal_disabled.jsx";
+import SitePortal from "./pages/SitePortal";
 
 function App() {
   return (

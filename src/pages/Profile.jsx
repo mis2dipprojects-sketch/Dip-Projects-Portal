@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-
+ import { ActivityChart, PerformanceScore } from "./ActivityChart";
 const SUPABASE_URL  = "https://efqfjfthsleymhljswcq.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmcWZqZnRoc2xleW1obGpzd2NxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDY0MjMsImV4cCI6MjA5NTkyMjQyM30.PYMRiKdnhzb6pkvhDB4M4Qdp3nSGhsZpHGuclVqYNMs";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -24,6 +24,7 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
   const [freshRole, setFreshRole] = useState(user?.role || "");
  const [freshName, setFreshName] = useState(user?.name || "");
  const [showLogoutModal, setShowLogoutModal] = useState(false);
+ const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
     if (!user) return;
@@ -52,30 +53,155 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
             // Update the local user object for display in this session
             user = { ...user, ...updated };
         }
-        const { data } = await supabase
-        .from("dpr_reports")
-        .select("report_type, created_at, date")
-        .eq("engineer", user.name)
-        .order("created_at", { ascending: false });
+const thisMonthStr = new Date().toISOString().slice(0, 7);
 
-      const reports = data || [];
-      const thisMonthStr = new Date().toISOString().slice(0, 7);
+// ── DPR: evening + morning from dpr_reports ──
+const { data: dprData } = await supabase
+  .from("dpr_reports")
+  .select("id, report_type, date, created_at")
+  .eq("engineer", user.name)
+  .in("report_type", ["evening", "morning"])
+  .order("date", { ascending: false });
 
-      const dpr = reports.filter(r => r.report_type === "evening" || r.report_type === "morning").length;
-      const svr = reports.filter(r => r.report_type === "site_visit").length;
+const dprRows   = dprData || [];
+const dpr       = dprRows.length;
+const thisMonth = dprRows.filter(r => (r.date || "").startsWith(thisMonthStr)).length;
+const lastDate  = dprRows[0]?.date || null;
 
-      // Weekly from reports table
-      const { data: wprData } = await supabase
-        .from("reports")
-        .select("id, created_at")
-        .eq("user_id", user.id)
-        .eq("report_type", "weekly");
+// ── WPR: from wpr_reports by engineer_name ──
+const { data: wprData } = await supabase
+  .from("wpr_reports")
+  .select("id")
+  .or(`engineer_name.eq.${user.user_name},engineer_name.eq.${user.name}`);
 
-      const wpr = (wprData || []).length;
-      const thisMonth = reports.filter(r => (r.date || "").startsWith(thisMonthStr)).length;
-      const lastDate = reports[0]?.date || null;
+const wpr = (wprData || []).length;
 
-      setStats({ dpr, wpr, svr, thisMonth, lastDate });
+// ── SVR: from site_reports by submitted_by or submitted_by_name ──
+const { data: svrData } = await supabase
+  .from("site_reports")
+  .select("id")
+  .or(`submitted_by.eq.${user.user_name},submitted_by_name.eq.${user.name}`);
+
+const svr = (svrData || []).length;
+
+setStats({ dpr, wpr, svr, thisMonth, lastDate });
+const months = [];
+for (let i = 5; i >= 0; i--) {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - i);
+  months.push(d.toISOString().slice(0, 7));
+}
+ 
+// FIX 1: Use proper start/end dates per month instead of a single range
+// This avoids the "June-31" invalid date bug and ensures each month is queried correctly
+function monthRange(yearMonth) {
+  const [y, m] = yearMonth.split("-").map(Number);
+  const lastDay = new Date(y, m, 0).getDate(); // correct last day per month
+  return {
+    from: `${yearMonth}-01`,
+    to:   `${yearMonth}-${String(lastDay).padStart(2, "0")}`,
+  };
+}
+ 
+const firstMonth = months[0];
+const lastMonth  = months[5];
+const { from: rangeFrom } = monthRange(firstMonth);
+const { to:   rangeTo   } = monthRange(lastMonth);
+const [dprMonthly, wprMonthly, attendMonthly] = await Promise.all([
+  supabase
+    .from("dpr_reports")
+    .select("date, report_type")
+    .eq("engineer", user.name)
+    .eq("report_type", "evening")
+    .gte("date", rangeFrom)
+    .lte("date", rangeTo),
+ 
+  supabase
+    .from("wpr_reports")
+    .select("created_at")
+    .or(`engineer_name.eq.${user.user_name},engineer_name.eq.${user.name}`)
+    .gte("created_at", `${rangeFrom}T00:00:00`)
+    .lte("created_at", `${rangeTo}T23:59:59`),
+ 
+  // FIX 3: Attendance — also fetch with corrected range
+  supabase
+    .from("attendance")
+    .select("date, status")
+    .eq("user_name", user.user_name)
+    .gte("date", rangeFrom)
+    .lte("date", rangeTo),
+]);
+ 
+// Debug log — remove after verifying
+console.log("[Chart fetch] DPR rows:", dprMonthly.data?.length, dprMonthly.error);
+console.log("[Chart fetch] WPR rows:", wprMonthly.data?.length, wprMonthly.error);
+console.log("[Chart fetch] ATT rows:", attendMonthly.data?.length, attendMonthly.error);
+console.log("[Chart fetch] WPR sample:", wprMonthly.data?.slice(0, 3));
+console.log("[Chart fetch] ATT sample:", attendMonthly.data?.slice(0, 3));
+ 
+function workingDaysInMonth(yearMonth) {
+  const [y, m] = yearMonth.split("-").map(Number);
+  const days = new Date(y, m, 0).getDate();
+  let count = 0;
+  for (let d = 1; d <= days; d++) {
+    const day = new Date(y, m - 1, d).getDay();
+    if (day !== 0) count++; // exclude Sunday only
+  }
+  return count;
+}
+ 
+const chart = months.map(mo => {
+  const label = new Date(mo + "-01").toLocaleDateString("en-IN", {
+    month: "short", year: "2-digit",
+  });
+ 
+  // DPR: count evening reports whose date falls in this month
+  const dprCount = (dprMonthly.data || []).filter(r =>
+    (r.date || "").startsWith(mo)
+  ).length;
+ 
+  // FIX 4: WPR — created_at is "2026-01-15T10:30:00+05:30" or "2026-01-15T10:30:00Z"
+  // .startsWith(mo) works for "2026-01" since the timestamp always starts YYYY-MM
+  // BUT if timezone offset shifts the date, we compare the date portion only
+  const wprCount = (wprMonthly.data || []).filter(r => {
+    const ts = r.created_at || "";
+    // created_at could be "2026-01-15T..." — take first 7 chars = "2026-01"
+    return ts.slice(0, 7) === mo;
+  }).length;
+ 
+  // Attendance: filter rows for this month
+  const attendRows  = (attendMonthly.data || []).filter(r =>
+    (r.date || "").startsWith(mo)
+  );
+  const presentDays = attendRows.filter(r =>
+    (r.status || "").toLowerCase() === "present"
+  ).length;
+  const halfDays = attendRows.filter(r =>
+    (r.status || "").toLowerCase() === "half day"
+  ).length;
+ 
+  const totalWorkDays = workingDaysInMonth(mo);
+ 
+  // attendPct: only set if we actually have attendance records for this month
+  const attendPct = attendRows.length > 0
+    ? Math.round(((presentDays + halfDays * 0.5) / totalWorkDays) * 100)
+    : null;
+ 
+  return {
+    label,
+    dpr: dprCount,
+    wpr: wprCount,
+    attendPct,
+    // Raw fields for PerformanceScore (avoids re-deriving from %)
+    _workDays: totalWorkDays,
+    _present:  presentDays,
+    _half:     halfDays,
+  };
+});
+ 
+console.log("[Chart data]", chart); // remove after verifying
+setChartData(chart);
       setLoading(false);
     })();
   }, [user]);
@@ -178,7 +304,52 @@ const bgColor  = avatarColor(freshName || user?.name || "");
           </>
         )}
       </div>
-
+{chartData.length > 0 && (
+  <div>
+    <div style={{
+      fontSize: 11, fontWeight: 800, color: "var(--ink3)",
+      textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 10,
+    }}>
+      Activity — Last 6 Months
+    </div>
+ 
+    {/* Side-by-side container */}
+    <div style={{
+      display: "flex",
+      gap: 14,
+      alignItems: "flex-start",
+      // Stack vertically on narrow screens
+      flexWrap: "wrap",
+    }}>
+      {/* Chart — 60% */}
+      <div style={{
+        flex: "0 0 60%",
+        minWidth: 260,   // on mobile it wraps and goes full width
+      }}>
+        <div style={{
+          background: "var(--paper)", border: "1px solid var(--line)",
+          borderRadius: 14, padding: "16px 12px 12px",
+        }}>
+          <ActivityChart data={chartData} user={user} />
+        </div>
+      </div>
+ 
+      {/* Score — 40% */}
+      <div style={{
+        flex: "1 1 0",
+        minWidth: 200,   // collapses gracefully on mobile
+      }}>
+        <div style={{
+          background: "var(--paper)", border: "1px solid var(--line)",
+          borderRadius: 14, padding: "16px 14px",
+          height: "100%",
+        }}>
+          <PerformanceScore chartData={chartData} />
+        </div>
+      </div>
+    </div>
+  </div>
+)}
       {/* ── Bottom: Account Actions ── */}
       <div>
         <div style={{ fontSize: 11, fontWeight: 800, color: "var(--ink3)", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 10 }}>

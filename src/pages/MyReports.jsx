@@ -251,90 +251,130 @@ export default function MyReports({ user }) {
   const [data,       setData]       = useState([]);
   const [loading,    setLoading]    = useState(false);
   const [err,        setErr]        = useState("");
+  const [counts, setCounts] = useState({ dpr: null, wpr: null, svr: null });
     const [page, setPage] = useState(1);
   const PER_PAGE = 10;
   // ── Fetch ────────────────────────────────────────────────────────────────
   useEffect(() => {
-  setSiteFilter("");
-  setData([]); setErr("");
-  setLoading(true);
+    setSiteFilter("");
+    setData([]); setErr("");
+    setLoading(true);
 
-  (async () => {
-    try {
-      const [y, m] = month.split("-").map(Number);
-      const lastDay    = new Date(y, m, 0).getDate();
-      const monthStart = `${month}-01`;
-      const monthEnd   = `${month}-${String(lastDay).padStart(2,"0")}`;
+    (async () => {
+      try {
+        const [y, m] = month.split("-").map(Number);
+        const lastDay    = new Date(y, m, 0).getDate();
+        const monthStart = `${month}-01`;
+        const monthEnd   = `${month}-${String(lastDay).padStart(2,"0")}`;
 
-      if (tab === "dpr") {
-        const { data: rows, error } = await supabase
-          .from("dpr_reports")
-          .select("id, site, engineer, report_type, date, pdf_url, payload, created_at")
-          .gte("date", monthStart)
-          .lte("date", monthEnd)
-          .order("date", { ascending: false })
-          .limit(200);
+        if (tab === "dpr") {
+          const { data: rows, error } = await supabase
+            .from("dpr_reports")
+            .select("id, site, engineer, report_type, date, pdf_url, payload, created_at")
+            .gte("date", monthStart)
+            .lte("date", monthEnd)
+            .order("date", { ascending: false })
+            .limit(200);
 
-        if (error) { setErr(error.message); setLoading(false); return; }
+          if (error) { setErr(error.message); setLoading(false); return; }
 
-        const mine = (rows || []).filter(r =>
-          (r.engineer === user.user_name || r.engineer === user.name) &&
-          r.report_type !== "morning"
-        ).map(r => ({ ...r, _source:"dpr" }));
+          const mine = (rows || []).filter(r =>
+            (r.engineer === user.user_name || r.engineer === user.name) &&
+            r.report_type !== "morning"
+          ).map(r => ({ ...r, _source:"dpr" }));
 
-        setData(mine);
+          setData(mine);
 
-      } else if (tab === "svr") {
-        const { data: rows, error } = await supabase
-          .from("site_reports")
-          .select("*")
-          .gte("visit_date", monthStart)
-          .lte("visit_date", monthEnd)
-          .order("visit_date", { ascending: false })
-          .limit(200);
+        } else if (tab === "svr") {
+          const { data: rows, error } = await supabase
+            .from("site_reports")
+            .select("*")
+            .gte("visit_date", monthStart)
+            .lte("visit_date", monthEnd)
+            .order("visit_date", { ascending: false })
+            .limit(200);
 
-        if (error) { setErr(error.message); setLoading(false); return; }
+          if (error) { setErr(error.message); setLoading(false); return; }
 
-        const mine = (rows || []).filter(r =>
-          r.submitted_by === user.user_name ||
-          r.submitted_by === user.name      ||
-          r.submitted_by_name === user.name
-        ).map(r => ({ ...r, _source:"svr" }));
+          const mine = (rows || []).filter(r =>
+            r.submitted_by === user.user_name ||
+            r.submitted_by === user.name      ||
+            r.submitted_by_name === user.name
+          ).map(r => ({ ...r, _source:"svr" }));
 
-        setData(mine);
+          setData(mine);
 
-      } else if (tab === "wpr") {
-        const { data: rows, error } = await supabase
-          .from("wpr_reports")
-          .select("id, site_name, engineer_name, report_date, report_number, presentation_url, status, created_at")
-          .gte("created_at", `${monthStart}T00:00:00`)
-          .lte("created_at", `${monthEnd}T23:59:59`)
-          .order("created_at", { ascending: false })
-          .limit(200);
+        } else if (tab === "wpr") {
+          const { data: rows, error } = await supabase
+            .from("wpr_reports")
+            .select("id, site_name, engineer_name, report_date, report_number, presentation_url, status, created_at")
+            .gte("created_at", `${monthStart}T00:00:00`)
+            .lte("created_at", `${monthEnd}T23:59:59`)
+            .order("created_at", { ascending: false })
+            .limit(200);
 
-        if (error) { setErr(error.message); setLoading(false); return; }
+          if (error) { setErr(error.message); setLoading(false); return; }
 
-        const mine = (rows || []).filter(r =>
-          r.engineer_name === user.user_name ||
-          r.engineer_name === user.name
-        ).map(r => ({
-          ...r,
-          _source:  "wpr",
-          site:     r.site_name,
-          engineer: r.engineer_name,
-          date:     r.created_at?.slice(0, 10),
-          pdf_url:  r.presentation_url,
-        }));
+          const mine = (rows || []).filter(r =>
+            r.engineer_name === user.user_name ||
+            r.engineer_name === user.name
+          ).map(r => ({
+            ...r,
+            _source:  "wpr",
+            site:     r.site_name,
+            engineer: r.engineer_name,
+            date:     r.created_at?.slice(0, 10),
+            pdf_url:  r.presentation_url,
+          }));
 
-        setData(mine);
+          setData(mine);
+        }
+
+      } catch(e) {
+        setErr(e.message);
       }
+      setLoading(false);
+    })();
+  }, [tab, month, user.user_name, user.name]);
+  // Fetch total counts for all tabs (for the banner chips)
+useEffect(() => {
+  (async () => {
+    const userName = user.user_name;
+    const name     = user.name;
 
-    } catch(e) {
-      setErr(e.message);
-    }
-    setLoading(false);
+    // DPR count
+    const { data: dprRows } = await supabase
+      .from("dpr_reports")
+      .select("id, engineer, report_type")
+      .limit(1000);
+    const dprCount = (dprRows || []).filter(r =>
+      (r.engineer === userName || r.engineer === name) &&
+      r.report_type !== "morning"
+    ).length;
+
+    // SVR count
+    const { data: svrRows } = await supabase
+      .from("site_reports")
+      .select("id, submitted_by, submitted_by_name")
+      .limit(1000);
+    const svrCount = (svrRows || []).filter(r =>
+      r.submitted_by === userName ||
+      r.submitted_by === name     ||
+      r.submitted_by_name === name
+    ).length;
+
+    // WPR count
+    const { data: wprRows } = await supabase
+      .from("wpr_reports")
+      .select("id, engineer_name")
+      .limit(1000);
+    const wprCount = (wprRows || []).filter(r =>
+      r.engineer_name === userName || r.engineer_name === name
+    ).length;
+
+    setCounts({ dpr: dprCount, wpr: wprCount, svr: svrCount });
   })();
-}, [tab, month, user.user_name, user.name]);
+}, [user.user_name, user.name]);
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const siteKey = (r) => r._source === "svr" ? r.site_name : r._source === "wpr" ? r.site_name : r.site;
@@ -405,7 +445,11 @@ const hasMore = paginated.length < totalReports;
               onClick={() => { setTab(s.label.toLowerCase()); setPage(1); }}
             >
               <div style={{ fontSize:18, fontWeight:800, fontFamily:"monospace", color:s.color }}>
-                {s.active ? filtered.length : "—"}
+                {s.active
+                  ? filtered.length
+                  : counts[s.label.toLowerCase()] !== null
+                    ? counts[s.label.toLowerCase()]
+                    : "…"}
               </div>
               <div style={{ fontSize:10, fontWeight:700, letterSpacing:".08em", color:"#94a3b8", marginTop:2 }}>{s.label}</div>
             </div>
@@ -575,18 +619,34 @@ const hasMore = paginated.length < totalReports;
                 <button
                   onClick={() => setPage(p => p + 1)}
                   style={{
-                    display:"flex", alignItems:"center", gap:8,
-                    padding:"10px 28px", borderRadius:10,
-                    background:"linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
-                    border:"none", color:"#fff",
-                    fontSize:13.5, fontWeight:700,
-                    cursor:"pointer", fontFamily:"inherit",
-                    boxShadow:"0 3px 12px rgba(61,18,0,0.25)",
-                    transition:"all .15s",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    padding: "11px 28px",
+                    borderRadius: 10,
+                    background: "#f5f5f5",
+                    border: "1px solid #d1d5db",
+                    color: "#374151",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                    transition: "all .2s ease",
                   }}
-                  onMouseEnter={e => e.currentTarget.style.opacity = ".88"}
-                  onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-                >
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#e5e7eb";
+                    e.currentTarget.style.borderColor = "#9ca3af";
+                    e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.12)";
+                  }}
+
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#f5f5f5";
+                    e.currentTarget.style.borderColor = "#d1d5db";
+                    e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.08)";
+                  }}
+                > 
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>

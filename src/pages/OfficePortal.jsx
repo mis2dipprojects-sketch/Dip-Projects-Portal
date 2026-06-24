@@ -3,6 +3,7 @@
   import { supabase } from "../supabase";
   import SiteReport from "./Sitereport";
   import Checklists from "./Checklists";
+  import MyReports from "./MyReports"; 
   // ── Nav Items ──────────────────────────────────────────────────────────────
   const TASK_NAV = [
     {
@@ -74,6 +75,13 @@
       ),
     }
   ];
+  const MY_REPORTS_ITEM = {
+  key: "my-reports",
+  label: "My Reports",
+icon: (
+   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+),
+};
   const REPORT_SUBMISSIONS_ITEM = {
   key: "report-submissions",
   label: "Report Submissions",
@@ -835,7 +843,7 @@ const handleStatusChange = async (taskId, newStatus, e) => {
     ].sort((a,b)=>new Date(a.due_date||a.created_at||0)-new Date(b.due_date||b.created_at||0));
 
     // const activeItem = [...TASK_NAV,...LEAVE_NAV,...REPORTS_NAV].find(n=>n.key===activeTab);
-    const activeItem = [...TASK_NAV,...LEAVE_NAV,...REPORTS_NAV,REPORT_SUBMISSIONS_ITEM].find(n=>n.key===activeTab);
+    const activeItem = [...TASK_NAV,...LEAVE_NAV,...REPORTS_NAV,REPORT_SUBMISSIONS_ITEM,MY_REPORTS_ITEM].find(n=>n.key===activeTab);
     const proxyPendingCount = proxyLeaves.filter(l=>l.proxy_approved===null).length;
     const unreadReschedules = myReschedules.filter(r => (r.status==="approved" || r.status==="rejected") && r.employee_read !== true).length;
  
@@ -1138,7 +1146,8 @@ const handleStatusChange = async (taskId, newStatus, e) => {
               })}
             </div>
           );
-
+case "my-reports":
+  return <MyReports user={user} />;
           // ADD before the default case:
 case "report-submissions": {
   if (user?.role?.toLowerCase().trim() !== "project head") return null;
@@ -1697,6 +1706,14 @@ return (
                       {item.label}
                     </button>
                   ))}
+                  <button
+                    className={`op-nav-item${activeTab === "my-reports" ? " active" : ""}`}
+                    onClick={() => handleNavClick("my-reports")}
+                  >
+                    <span className="op-nav-icon">{MY_REPORTS_ITEM.icon}</span>
+                    {MY_REPORTS_ITEM.label}
+                  </button>
+
                   {user?.role?.toLowerCase().trim() === "project head" && (
                     <button
                       className={`op-nav-item${activeTab === "report-submissions" ? " active" : ""}`}

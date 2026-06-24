@@ -220,18 +220,56 @@ function TextArea({ value, onChange, placeholder }) {
       className="svr-textarea"
       placeholder={placeholder}
       value={value}
-      rows={4}
+      rows={6}
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           e.preventDefault();
-          const s = e.target.selectionStart;
-          const t = e.target.value;
-          const newVal = t.slice(0, s) + "\n• " + t.slice(e.target.selectionEnd);
+          const s   = e.target.selectionStart;
+          const t   = e.target.value;
+          // Check if current line is a sub-bullet (starts with spaces)
+          const lineStart = t.lastIndexOf("\n", s - 1) + 1;
+          const currentLine = t.slice(lineStart, s);
+          const isSub = /^ {2,}/.test(currentLine);
+          const bullet = isSub ? "\n  ◦ " : "\n• ";
+          const newVal = t.slice(0, s) + bullet + t.slice(e.target.selectionEnd);
           onChange(newVal);
           setTimeout(() => {
-            e.target.selectionStart = e.target.selectionEnd = s + 3;
+            e.target.selectionStart = e.target.selectionEnd = s + bullet.length;
           }, 0);
+        }
+        if (e.key === "Tab") {
+          e.preventDefault();
+          const s   = e.target.selectionStart;
+          const t   = e.target.value;
+          // Find start of current line
+          const lineStart = t.lastIndexOf("\n", s - 1) + 1;
+          const currentLine = t.slice(lineStart, s);
+          const isSub = /^ {2,}/.test(currentLine);
+
+          if (e.shiftKey) {
+            // Shift+Tab: unindent — remove leading spaces if sub-bullet
+            if (isSub) {
+              const newVal = t.slice(0, lineStart) + currentLine.replace(/^ {2}/, "") + t.slice(s);
+              onChange(newVal);
+              setTimeout(() => {
+                e.target.selectionStart = e.target.selectionEnd = s - 2;
+              }, 0);
+            }
+          } else {
+            // Tab: indent current line into sub-bullet
+            if (!isSub) {
+              // Replace leading "• " with "  ◦ " on the current line
+              const dedotted = currentLine.replace(/^• ?/, "");
+              const newLine  = "  ◦ " + dedotted;
+              const newVal   = t.slice(0, lineStart) + newLine + t.slice(s);
+              const diff     = newLine.length - currentLine.length;
+              onChange(newVal);
+              setTimeout(() => {
+                e.target.selectionStart = e.target.selectionEnd = s + diff;
+              }, 0);
+            }
+          }
         }
       }}
     />
@@ -263,7 +301,7 @@ export default function SiteReport({ user }) {
   const [customSiteName, setCustomSiteName]   = useState("");
 
   const [visitType, setVisitType] = useState("single");
-const [visitors, setVisitors] = useState([{ name: "", designation: "" }]);
+  const [visitors, setVisitors] = useState([{ name: "", designation: "" }]);
 
 const addVisitor = () => setVisitors(p => [...p, { name: "", designation: "" }]);
 const removeVisitor = (i) => setVisitors(p => p.filter((_, idx) => idx !== i));

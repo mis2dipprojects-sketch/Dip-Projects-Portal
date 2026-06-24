@@ -529,7 +529,7 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 .mp-group-header{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:#f8fafc;border-top:1px solid #cbd5e1;border-bottom:1px solid #cbd5e1;}
 .mp-group-name{font-size:14px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#2c3e50;}
 .mp-source-tag{font-size:14px;font-weight:700;color:#1d4ed8;}
-.mp-total{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:#1e293b;}
+.mp-total{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:#374151;}
 .mp-total-label{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;}
 .mp-total-val{font-size:24px;font-weight:900;color:#fff;}
 
@@ -636,7 +636,7 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 .pm-subtitle{background:#fef3c7;border-bottom:2px solid #c8641a;padding:9px 16px;font-size:12.5px;color:#78350f;font-weight:600;}
 .pm-body{background:#fff;}
 .pm-table{width:100%;border-collapse:collapse;font-size:14px;}
-.pm-table thead th{background:#1e293b;color:#fff;border:1px solid #334155;font-size:12.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:10px 14px;text-align:left;}
+.pm-table thead th{background:#5b6470;color:#fff;border:1px solid #334155;font-size:12.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:10px 14px;text-align:left;}
 .pm-table thead th.center{text-align:center;}
 .pm-table td{border:1px solid #fecaca;padding:11px 14px;vertical-align:middle;}
 .pm-table tbody tr:nth-child(even) td{background:#fef2f2;}
@@ -2676,7 +2676,6 @@ function PhotosSection({ photos, setPhotos, onLightbox }) {
 
   return (
     <div>
-      {/* Hidden file input — no accept filter so HEIC isn't blocked on Android */}
       <input
         ref={fileRef}
         type="file"

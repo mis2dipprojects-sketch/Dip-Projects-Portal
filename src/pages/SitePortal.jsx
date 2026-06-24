@@ -472,7 +472,11 @@ const DARK_CSS = `
 [data-theme="dark"] .btn-pri{background:rgb(37, 32, 25);color:white;box-shadow:0 3px 10px rgba(15,13,10,.2); border:1px solid white;}
 [data-theme="dark"] .btn-pri:hover{background:#2a2520;transform:translateY(-1px);color:#fff;}
 [data-theme="dark"] .btn-pri:disabled{opacity:.5;cursor:not-allowed;transform:none;}
-
+[data-theme="dark"] .profile-stat-dpr  { background: #2a1f08 !important; border-color: #4a3210 !important; }
+[data-theme="dark"] .profile-stat-wpr  { background: #1e1a3a !important; border-color: #3d3470 !important; }
+[data-theme="dark"] .profile-stat-svr  { background: #0c1d38 !important; border-color: #1e3a5f !important; }
+[data-theme="dark"] .profile-stat-mon  { background: #052e16 !important; border-color: #166534 !important; }
+[data-theme="dark"] .profile-stat-last { background: #1e1c19 !important; border-color: #2e2b27 !important; }
 
 `;
 // ─── CSS ─────────────────────────────────────────────────────────────────────

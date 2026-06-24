@@ -267,43 +267,53 @@ const bgColor  = avatarColor(freshName || user?.name || "");
       </div>
 
       {/* ── Middle: Report Stats ── */}
-      <div>
-        <div style={{ fontSize: 11, fontWeight: 800, color: "var(--ink3)", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 10 }}>
-          Report Statistics
-        </div>
-        {loading ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink3)", fontSize: 13 }}>
-            <div className="spinner" /> Loading stats…
+      {/* ── Middle: Report Stats ── */}
+<div>
+  <div style={{ fontSize: 11, fontWeight: 800, color: "var(--ink3)", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 10 }}>
+    Report Statistics
+  </div>
+  {loading ? (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink3)", fontSize: 13 }}>
+      <div className="spinner" /> Loading stats…
+    </div>
+  ) : (
+    <>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
+        {[
+          { label: "DPR Reports",    value: stats.dpr, bg: "#fffbeb", border: "#fde68a", valColor: "#b45309", lblColor: "#92400e" },
+          { label: "Weekly Reports", value: stats.wpr, bg: "#f5f3ff", border: "#ddd6fe", valColor: "#6d28d9", lblColor: "#5b21b6" },
+          { label: "Site Visit",     value: stats.svr, bg: "#eff6ff", border: "#bfdbfe", valColor: "#1d4ed8", lblColor: "#1e40af" },
+        ].map(s => (
+          <div key={s.label} style={{
+            background: s.bg, border: `1px solid ${s.border}`,
+            borderRadius: 12, padding: "14px 10px", textAlign: "center"
+          }}>
+            <div style={{ fontSize: 26, fontWeight: 800, fontFamily: "var(--mono)", color: s.valColor, lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: s.lblColor, marginTop: 5, letterSpacing: ".02em" }}>{s.label}</div>
           </div>
-        ) : (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
-              {[
-                { label: "DPR Reports", value: stats.dpr, color: "#d97706" },
-                { label: "Weekly Reports", value: stats.wpr, color: "#7c3aed" },
-                { label: "Site Visit", value: stats.svr, color: "#0284c7" },
-              ].map(s => (
-                <div key={s.label} className="stat-card" style={{ textAlign: "center" }}>
-                  <div className="stat-val" style={{ color: s.color }}>{s.value}</div>
-                  <div className="stat-lbl">{s.label}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div className="stat-card">
-                <div className="stat-val" style={{ color: "var(--green)", fontSize: 18 }}>{stats.thisMonth}</div>
-                <div className="stat-lbl">This Month</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-val" style={{ fontSize: 13, fontWeight: 700, color: "var(--ink2)" }}>
-                  {stats.lastDate ? fmtD(stats.lastDate) : "—"}
-                </div>
-                <div className="stat-lbl">Last Submitted</div>
-              </div>
-            </div>
-          </>
-        )}
+        ))}
       </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div style={{
+          background: "#f0fdf4", border: "1px solid #bbf7d0",
+          borderRadius: 12, padding: "14px 16px"
+        }}>
+          <div style={{ fontSize: 26, fontWeight: 800, fontFamily: "var(--mono)", color: "#15803d", lineHeight: 1 }}>{stats.thisMonth}</div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: "#166534", marginTop: 5 }}>This Month</div>
+        </div>
+        <div style={{
+          background: "#f8fafc", border: "1px solid #e2e8f0",
+          borderRadius: 12, padding: "14px 16px"
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#334155", lineHeight: 1.3 }}>
+            {stats.lastDate ? fmtD(stats.lastDate) : "—"}
+          </div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: "#64748b", marginTop: 5 }}>Last Submitted</div>
+        </div>
+      </div>
+    </>
+  )}
+</div>
 {chartData.length > 0 && (
   <div>
     <div style={{
@@ -312,40 +322,28 @@ const bgColor  = avatarColor(freshName || user?.name || "");
     }}>
       Activity — Last 6 Months
     </div>
- 
-    {/* Side-by-side container */}
+
+    {/* Stack vertically on mobile, side-by-side on desktop */}
     <div style={{
       display: "flex",
+      flexDirection: "column",   // always column — mobile first
       gap: 14,
-      alignItems: "flex-start",
-      // Stack vertically on narrow screens
-      flexWrap: "wrap",
     }}>
-      {/* Chart — 60% */}
+      {/* Chart — full width on mobile, gets natural height */}
       <div style={{
-        flex: "0 0 60%",
-        minWidth: 260,   // on mobile it wraps and goes full width
+        background: "var(--paper)", border: "1px solid var(--line)",
+        borderRadius: 14, padding: "16px 12px 12px",
+        width: "100%",
       }}>
-        <div style={{
-          background: "var(--paper)", border: "1px solid var(--line)",
-          borderRadius: 14, padding: "16px 12px 12px",
-        }}>
-          <ActivityChart data={chartData} user={user} />
-        </div>
+        <ActivityChart data={chartData} user={user} />
       </div>
- 
-      {/* Score — 40% */}
+
+      {/* Score card — full width below chart */}
       <div style={{
-        flex: "1 1 0",
-        minWidth: 200,   // collapses gracefully on mobile
+        background: "var(--paper)", border: "1px solid var(--line)",
+        borderRadius: 14, padding: "16px 14px",
       }}>
-        <div style={{
-          background: "var(--paper)", border: "1px solid var(--line)",
-          borderRadius: 14, padding: "16px 14px",
-          height: "100%",
-        }}>
-          <PerformanceScore chartData={chartData} />
-        </div>
+        <PerformanceScore chartData={chartData} />
       </div>
     </div>
   </div>

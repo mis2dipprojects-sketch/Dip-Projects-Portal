@@ -267,7 +267,6 @@ const bgColor  = avatarColor(freshName || user?.name || "");
       </div>
 
       {/* ── Middle: Report Stats ── */}
-      {/* ── Middle: Report Stats ── */}
 <div>
   <div style={{ fontSize: 11, fontWeight: 800, color: "var(--ink3)", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 10 }}>
     Report Statistics
@@ -334,7 +333,7 @@ const bgColor  = avatarColor(freshName || user?.name || "");
       <div style={{
         flex: "1 1 55%",
         minWidth: "min(100%, 260px)",  // below 260px it wraps to full width
-        background: "var(--paper)", border: "1px solid var(--line)",
+        background: "var(--surface)", border: "1px solid var(--line)",
         borderRadius: 14, padding: "16px 12px 12px",
         boxSizing: "border-box",
       }}>
@@ -345,7 +344,7 @@ const bgColor  = avatarColor(freshName || user?.name || "");
       <div style={{
         flex: "1 1 35%",
         minWidth: "min(100%, 200px)",  // below 200px it wraps to full width
-        background: "var(--paper)", border: "1px solid var(--line)",
+        background: "var(--surface)", border: "1px solid var(--line)",
         borderRadius: 14, padding: "16px 14px",
         boxSizing: "border-box",
       }}>

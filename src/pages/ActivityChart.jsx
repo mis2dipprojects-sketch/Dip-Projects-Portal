@@ -44,7 +44,7 @@ function calcScores(chartData) {
     ? Math.round((totalWpr / totalWeeks) * 100) : 0);
   const att = Math.min(100, totalWorkDays > 0
     ? Math.round(((presentDays + halfDays * 0.5) / totalWorkDays) * 100) : 0);
-  const total = Math.round(dpr * 0.4 + wpr * 0.2 + att * 0.4);
+  const total = Math.round(dpr * 0.3 + wpr * 0.2 + att * 0.5);
 
   return { dpr, wpr, att, total, totalDpr, totalWpr, presentDays, halfDays, totalWorkDays, totalWeeks };
 }
@@ -164,7 +164,7 @@ export function PerformanceScore({ chartData }) {
           borderTop: "1px solid rgba(201,106,16,0.15)",
           fontSize: 9.5, color: "#94a3b8", lineHeight: 1.5,
         }}>
-          DPR×40% + WPR×20% + Att×40%
+          DPR×30% + WPR×20% + Att×50%
         </div>
       </div>
     </div>

@@ -147,34 +147,45 @@ async function fetchAllSiteNames() {
     return [];
   }
 
-  const siteSet = new Set();
+  const siteMap = new Map(); // lowercase → display label
+
+  const toTitleCase = (str) =>
+    str
+      .trim()
+      .toLowerCase()
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const addSite = (raw) => {
+    if (!raw || !raw.trim()) return;
+    const key     = raw.trim().toLowerCase();
+    const display = toTitleCase(raw);
+    if (!siteMap.has(key)) {
+      siteMap.set(key, display);
+    }
+  };
 
   (data || []).forEach((row) => {
-    // single site_name column
-    if (row.site_name && row.site_name.trim()) {
-      siteSet.add(row.site_name.trim());
-    }
-    // site_names array column (stored as text[] in Postgres)
+    if (row.site_name) addSite(row.site_name);
+
     if (Array.isArray(row.site_names)) {
-      row.site_names.forEach((s) => {
-        if (s && s.trim()) siteSet.add(s.trim());
-      });
+      row.site_names.forEach(addSite);
     }
-    // sometimes Supabase returns text[] as a JSON string like '["A","B"]'
+
     if (typeof row.site_names === "string") {
       try {
         const parsed = JSON.parse(row.site_names);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((s) => { if (s && s.trim()) siteSet.add(s.trim()); });
-        }
+        if (Array.isArray(parsed)) parsed.forEach(addSite);
+        else addSite(row.site_names);
       } catch (_) {
-        // not JSON — treat as single value
-        if (row.site_names.trim()) siteSet.add(row.site_names.trim());
+        addSite(row.site_names);
       }
     }
   });
 
-  return Array.from(siteSet).sort((a, b) => a.localeCompare(b));
+  // Sort by display label alphabetically
+  return Array.from(siteMap.values()).sort((a, b) =>
+    a.localeCompare(b)
+  );
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -837,20 +848,52 @@ setVisitors([{ name: "", designation: "" }]);
 
         <Section num={8} title="Site Photos" openSections={openSections} toggleSection={toggleSection}>
           <div>
-            <label
-              className={`svr-photo-btn${photos.length > 0 ? " has-photos" : ""}`}
+            {/* ── Drop Zone ── */}
+            <div
+              onDragOver={e => { e.preventDefault(); e.currentTarget.setAttribute("data-drag", "true"); }}
+              onDragEnter={e => { e.preventDefault(); e.currentTarget.setAttribute("data-drag", "true"); }}
+              onDragLeave={e => { e.currentTarget.removeAttribute("data-drag"); }}
+              onDrop={e => {
+                e.preventDefault();
+                e.currentTarget.removeAttribute("data-drag");
+                const files = e.dataTransfer.files;
+                if (files?.length) handleFiles(files);
+              }}
               onClick={() => fileRef.current?.click()}
-              style={{ cursor: "pointer" }}
+              style={{
+                border: "2px dashed #cbd5e1",
+                borderRadius: 12,
+                padding: "28px 20px",
+                textAlign: "center",
+                cursor: "pointer",
+                background: "#f8fafc",
+                transition: "all .2s",
+                marginBottom: photos.length > 0 ? 14 : 0,
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = "#800000";
+                e.currentTarget.style.background = "#fff5f5";
+              }}
+              onMouseLeave={e => {
+                if (!e.currentTarget.hasAttribute("data-drag")) {
+                  e.currentTarget.style.borderColor = "#cbd5e1";
+                  e.currentTarget.style.background = "#f8fafc";
+                }
+              }}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
-              {photos.length > 0
-                ? `${photos.length} photo${photos.length > 1 ? "s" : ""} selected`
-                : "Choose Photos"}
-            </label>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: "#475569", marginBottom: 4 }}>
+                {photos.length > 0
+                  ? `${photos.length} photo${photos.length > 1 ? "s" : ""} added — Add more`
+                  : "Add Photos"}
+              </div>
+
+            </div>
+
             <input
               ref={fileRef}
               type="file"
@@ -859,6 +902,7 @@ setVisitors([{ name: "", designation: "" }]);
               hidden
               onChange={e => { handleFiles(e.target.files); e.target.value = ""; }}
             />
+
             {photos.length > 0 && (
               <div className="svr-photo-grid">
                 {photos.map((ph, i) => (
@@ -868,7 +912,7 @@ setVisitors([{ name: "", designation: "" }]);
                         src={ph.dataUrl}
                         alt={`photo ${i + 1}`}
                         style={{ cursor: "zoom-in" }}
-                        onClick={() => openLightbox(i)}   // ← add this
+                        onClick={() => openLightbox(i)}
                       />
                       <button className="svr-photo-remove" onClick={() => removePhoto(i)}>×</button>
                     </div>

@@ -251,7 +251,7 @@ export function ActivityChart({ data, user }) {
     }
     setDrillData(days); setDrillLoading(false);
   };
-
+  
   const closeDrill = () => { setDrillMonth(null); setDrillData([]); setDrillHovered(null); };
 
   // ── Shared SVG wrapper ───────────────────────────────────────────────────
@@ -312,7 +312,10 @@ export function ActivityChart({ data, user }) {
                        .map(d => `${xPos(data.indexOf(d))},${yPos(d.attendPct, 100)}`).join(" ");
 
     // Area fill path under DPR line
-    const dprArea = `${dprPts} L ${xPos(n - 1)},${PAD.top + innerH} L ${xPos(0)},${PAD.top + innerH} Z`;
+    const dprAreaPoints = data.map((d, i) => `${xPos(i)},${yPos(d.dpr, sharedMax)}`);
+const dprArea = dprAreaPoints.length
+  ? `M ${dprAreaPoints[0]} L ${dprAreaPoints.slice(1).join(" L ")} L ${xPos(n - 1)},${PAD.top + innerH} L ${xPos(0)},${PAD.top + innerH} Z`
+  : "";
 
     return (
       <Svg onLeave={() => setHovered(null)}>
@@ -351,9 +354,9 @@ export function ActivityChart({ data, user }) {
           const isH = hovered === i;
           const hitW = innerW / Math.max(n, 1);
           return (
+
             <g key={i} style={{ cursor: "pointer" }}
               onMouseEnter={() => setHovered(i)}
-              onTouchStart={(e) => { e.preventDefault(); setHovered(i); }}
               onClick={() => openDrill(d, i)}>
               {/* Wide transparent hit zone */}
               <rect x={cx - hitW / 2} y={PAD.top - 8}
@@ -467,9 +470,9 @@ export function ActivityChart({ data, user }) {
           const attY = d.attVal !== null ? yAtt(d.attVal) : null;
           const hitW = innerW / Math.max(nd, 1);
           return (
+
             <g key={i}
               onMouseEnter={() => setDrillHovered(i)}
-              onTouchStart={(e) => { e.preventDefault(); setDrillHovered(i); }}
               style={{ cursor: "default" }}>
               <rect x={cx - hitW / 2} y={PAD.top - 8}
                 width={hitW} height={innerH + 28} fill="transparent"/>

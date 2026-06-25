@@ -139,3 +139,8 @@
   [data-theme="dark"] .svr-result-error {
     background: #2d0a0a; border-color: #7f1d1d; color: #f87171; }
 .svr-toast{ position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; align-items:center; gap:9px; padding:11px 16px; border-radius:9px; font-size:13px; font-weight:600; box-shadow:0 8px 24px rgba(0,0,0,.14); animation:slideUp .22s ease; max-width:420px; }
+[data-drag="true"] {
+  border-color: #800000 !important;
+  background: #fff5f5 !important;
+  box-shadow: 0 0 0 3px rgba(128, 0, 0, 0.08);
+}

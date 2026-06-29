@@ -451,8 +451,8 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
                 <span style={{ fontSize: 14, fontWeight: 600, color: streakColor, opacity: 0.7 }}> days</span>
               </div>
 
-              <div style={{ fontSize: 11, color: "var(--ink3)", fontWeight: 600, position: "relative", zIndex: 1 }}>
-                Best: <strong style={{ color: "var(--ink2)" }}>{streak.longest} days</strong>
+              <div style={{ fontSize: 11, color: streakColor, fontWeight: 600, position: "relative", zIndex: 1 }}>
+                Best: <strong style={{ color: streakColor }}>{streak.longest} days</strong>
               </div>
             </div>
 

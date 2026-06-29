@@ -159,13 +159,13 @@ export function PerformanceScore({ chartData }) {
           <span style={{ color: "#0284c7", fontWeight: 700 }}>Att.</span>
           <span>{sc.presentDays}P + {sc.halfDays}½ / {sc.totalWorkDays} days</span>
         </div>
-        <div style={{
+        {/* <div style={{
           marginTop: 4, paddingTop: 6,
           borderTop: "1px solid rgba(201,106,16,0.15)",
           fontSize: 9.5, color: "#94a3b8", lineHeight: 1.5,
         }}>
           DPR×30% + WPR×20% + Att×50%
-        </div>
+        </div> */}
       </div>
     </div>
   );

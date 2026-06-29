@@ -415,7 +415,7 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
             {/* Current streak */}
             <div style={{
               background: streakBg,
-              border: `1px solid ${streakColor}5`,
+              border: `2px solid ${streakColor}55`,
               borderRadius: 14, padding: "16px 14px",
               display: "flex", flexDirection: "column", gap: 6,
               position: "relative", overflow: "hidden",
@@ -459,7 +459,7 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
             {/* Best month */}
             <div style={{
               background: "#fdf4ff",
-              border: "1px solid #e9d5ff",
+              border: "2px solid #e9d5ff",
               borderRadius: 14, padding: "16px 14px",
               display: "flex", flexDirection: "column", gap: 6,
               position: "relative", overflow: "hidden",

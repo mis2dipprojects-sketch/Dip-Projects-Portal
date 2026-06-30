@@ -773,6 +773,8 @@ function ExcelRangeCapture({ items, setItems, sectionLabel, headerText, setHeade
   const [selEnd, setSelEnd]     = useState(null);
 const [isDragging, setIsDragging] = useState(false);
   const [rowsPerImage, setRowsPerImage] = useState(8);
+  const [zoom, setZoom] = useState(1);
+  const pinchRef = useRef({ active: false, startDist: 0, startZoom: 1 });
 const photoRef       = useRef();
   const xlRef          = useRef();
 const tableRef       = useRef(null);
@@ -1052,11 +1054,25 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
     return null;
   };
   // ── Native touch listeners (passive:false allows preventDefault) ──
-  useEffect(() => {
+useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
 
+    const dist = (t0, t1) => Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+
     const handleTouchStart = (e) => {
+      if (e.touches.length === 2) {
+        // start pinch — cancel any in-progress cell drag-select
+        setIsDragging(false);
+        stopAutoScroll();
+        pinchRef.current = {
+          active: true,
+          startDist: dist(e.touches[0], e.touches[1]),
+          startZoom: zoom,
+        };
+        e.preventDefault();
+        return;
+      }
       if (e.touches.length !== 1) return;
       const touch = e.touches[0];
       const cell = cellFromPoint(touch.clientX, touch.clientY);
@@ -1066,6 +1082,14 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
     };
 
     const handleTouchMove = (e) => {
+      if (e.touches.length === 2 && pinchRef.current.active) {
+        e.preventDefault();
+        const newDist = dist(e.touches[0], e.touches[1]);
+        const ratio = newDist / Math.max(pinchRef.current.startDist, 1);
+        const next = Math.min(3, Math.max(0.5, pinchRef.current.startZoom * ratio));
+        setZoom(next);
+        return;
+      }
       if (e.touches.length !== 1) return;
       e.preventDefault();
       const touch = e.touches[0];
@@ -1074,9 +1098,12 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
       if (cell) setSelEnd(cell);
     };
 
-    const handleTouchEnd = () => {
-      setIsDragging(false);
-      stopAutoScroll();
+    const handleTouchEnd = (e) => {
+      if (e.touches.length < 2) pinchRef.current.active = false;
+      if (e.touches.length === 0) {
+        setIsDragging(false);
+        stopAutoScroll();
+      }
     };
 
     el.addEventListener("touchstart", handleTouchStart, { passive: false });
@@ -1088,7 +1115,7 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
       el.removeEventListener("touchmove",  handleTouchMove);
       el.removeEventListener("touchend",   handleTouchEnd);
     };
-  }, [isDragging, workbook, activeSheet]);
+  }, [isDragging, workbook, activeSheet, zoom]);
   const captureSelection = async () => {
     const n = getNorm();
     if (!n) { alert("Select a range first by clicking and dragging on the table."); return; }
@@ -1267,19 +1294,47 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
 
               {/* Excel table */}
 
+{/* Zoom controls */}
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                <span className="wpr-range-label">Zoom:</span>
+                <button onClick={()=>setZoom(z=>Math.max(0.5, +(z-0.15).toFixed(2)))}
+                  style={{width:30,height:30,borderRadius:7,border:"1.5px solid #c96a10",background:"var(--surface)",color:"#c96a10",fontSize:16,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  −
+                </button>
+                <span style={{fontSize:12,fontWeight:700,color:"#c96a10",fontFamily:"var(--mono)",minWidth:42,textAlign:"center"}}>
+                  {Math.round(zoom*100)}%
+                </span>
+                <button onClick={()=>setZoom(z=>Math.min(3, +(z+0.15).toFixed(2)))}
+                  style={{width:30,height:30,borderRadius:7,border:"1.5px solid #c96a10",background:"var(--surface)",color:"#c96a10",fontSize:16,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  +
+                </button>
+                <button onClick={()=>setZoom(1)}
+                  style={{height:30,padding:"0 12px",borderRadius:7,border:"1.5px solid #c96a10",background:"var(--surface)",color:"#c96a10",fontSize:11.5,fontWeight:700,cursor:"pointer"}}>
+                  Reset
+                </button>
+                <span style={{fontSize:11,color:"var(--ink3)"}}>📱 Pinch to zoom on touch</span>
+              </div>
+
+              {/* Excel table */}
+
               <div
                 ref={wrapperRef}
                 className="wpr-xl-table-wrap"
                 style={{
-                  maxHeight:360, border:"1.5px solid #c96a10", borderRadius:8,
+                  maxHeight:480, border:"1.5px solid #c96a10", borderRadius:8,
                   overflow:"auto", userSelect:"none", touchAction:"none",
                   WebkitOverflowScrolling:"touch",
                 }}
                 onMouseMove={e=>{ if(!isDragging) return; autoScroll(e.clientX,e.clientY); }}
                 onMouseUp={()=>{ setIsDragging(false); stopAutoScroll(); }}
+                onWheel={e=>{
+                  if (!e.ctrlKey && !e.metaKey) return; // ctrl/cmd+scroll to zoom on desktop
+                  e.preventDefault();
+                  setZoom(z => Math.min(3, Math.max(0.5, +(z + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(2))));
+                }}
                 onMouseLeave={()=>{}}
                 > 
-                <table ref={tableRef} className="wpr-xl-table" style={{minWidth:"100%"}}>
+                <table ref={tableRef} className="wpr-xl-table" style={{minWidth:"100%", transform:`scale(${zoom})`, transformOrigin:"top left"}}>
                   <thead>
                     <tr>
                       <th style={{minWidth:36,width:36,position:"sticky",left:0,zIndex:2}}>#</th>

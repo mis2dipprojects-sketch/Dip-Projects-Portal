@@ -559,10 +559,10 @@ const dprArea = dprAreaPoints.length
       </div>
 
       {/* Chart card */}
- 
-        {drillMonth ? <DayChart /> : <MonthChart />}
-      
+      {drillMonth ? <DayChart /> : <MonthChart />}
 
+      {/* Chart Layout */}
+      
       {/* Legend */}
       <div style={{ display: "flex", gap: mob ? 12 : 14,
         justifyContent: "center", flexWrap: "wrap" }}>

@@ -821,15 +821,13 @@ function MyLeave({ user, onApply }) {
       const { data } = await supabase
         .from("leaves")
         .select("*")
-        .eq("user_name", user.user_name)   // match by user_name column
+        .eq("user_name", user.user_name)
         .order("created_at", { ascending: false });
       setLeaves(data || []);
       setLoading(false);
     })();
   }, [user.user_name]);
 
-  // Your DB uses "Reject", "Approved", "Rejected", "Pending" — normalise display
-  // REPLACE the normStatus function:
   const normStatus = (l) => {
     if (l.proxy_approved === false) return "rejected";
     if (l.proxy_approved === true)  return "approved";
@@ -838,6 +836,7 @@ function MyLeave({ user, onApply }) {
     if (s === "approved") return "approved";
     return "pending";
   };
+
 
   const badgeCls = { approved:"badge-green", pending:"badge-amber", rejected:"badge-red" };
 
@@ -900,7 +899,7 @@ function MyLeave({ user, onApply }) {
                     </span>
                   )}
                 </div>
-              </div>
+              </div>  
 
               {/* Expanded detail */}
               {isOpen && (

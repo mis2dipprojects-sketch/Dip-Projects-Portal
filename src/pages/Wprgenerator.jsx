@@ -10,10 +10,6 @@ const WPR_CSS = `
   --wpr-3: #c96a10;
 }
 .wpr-wrap { max-width: 1500px; margin: 0 auto; }
-.wpr-status-bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px; }
-.wpr-pill { display:inline-flex; align-items:center; gap:5px; padding:4px 11px; border-radius:20px; font-size:11.5px; font-weight:700; border:1.5px solid var(--line2); background:var(--paper); color:var(--ink2); transition:all .15s; }
-.wpr-pill.done { background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); color:#fff; border-color:#c96a10; }
-.wpr-pill.partial { background:rgba(201,106,16,0.15); color:#c96a10; border-color:#c96a10; }
 .wpr-acc { border:1.5px solid #c96a10; border-radius:12px; margin-bottom:12px; overflow:hidden; background:var(--surface); }
 .wpr-acc-hdr { display:flex; align-items:center; gap:12px; padding:0 18px; height:62px; cursor:pointer; user-select:none; background:var(--paper); border-bottom:1px solid transparent; transition:background .15s; }
 .wpr-acc.open .wpr-acc-hdr { border-bottom-color:var(--line); }
@@ -164,10 +160,6 @@ const WPR_CSS = `
 
   /* Budget bar */
   .wpr-budget { flex-wrap:wrap; gap:6px; }
-
-  /* Status pills wrap */
-  .wpr-status-bar { gap:4px; }
-  .wpr-pill { font-size:10.5px; padding:3px 8px; }
 
   /* Acc header */
   .wpr-acc-hdr { padding:0 12px; height:56px; }
@@ -1219,7 +1211,7 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c96a10" strokeWidth="2" strokeLinecap="round">
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
-                <span><strong>Click and drag</strong> on the table to select your data range, then click <strong>⚡ Capture</strong>. You can capture multiple ranges.</span>
+                <span><strong>Click and drag</strong> on the table to select your data range, then click <strong>⚡ Capture</strong>. You can capture multiple ranges.<strong>⚠️ Do not select headers in selection.</strong></span>
               </div>
 
               {/* Rows per image control */}
@@ -1243,7 +1235,12 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
                 {/* Range display */}
                 <span style={{fontSize:12,fontWeight:700,color:norm?"#c96a10":"var(--ink3)",
                   fontFamily:"var(--mono)",flex:1,minWidth:160}}>
-                  {selInfo || "No range selected — click & drag below"}
+                  {selInfo || (
+                    <>
+                      No range selected — click & drag below<br />
+                      ⚠️ Do not select headers in selection.
+                    </>
+                  )}
                 </span>
 
                 {norm && (
@@ -1281,7 +1278,7 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
                 onMouseMove={e=>{ if(!isDragging) return; autoScroll(e.clientX,e.clientY); }}
                 onMouseUp={()=>{ setIsDragging(false); stopAutoScroll(); }}
                 onMouseLeave={()=>{}}
-              > 
+                > 
                 <table ref={tableRef} className="wpr-xl-table" style={{minWidth:"100%"}}>
                   <thead>
                     <tr>
@@ -1397,10 +1394,7 @@ const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap')
   );
 }
 
-// ─── Sub-components ─────────────────────────────────────────────────────────
-function Pill({ label, icon, state }) {
-  return <span className={`wpr-pill ${state || ""}`}>{icon} {label}</span>;
-}
+
 
 function Acc({ id, icon, title, sub, open, onToggle, children }) {
   return (
@@ -1758,15 +1752,17 @@ const pptPath = `${wprBase}/reports/WPR_${zp(reportNum)}_${safeSite}.pptx`;
 const pptUrl = await uploadBlob(supabase, bucketName, pptBlob, pptPath, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
       await supabase.from("wpr_reports").update({ presentation_url: pptUrl }).eq("id", reportId);
 
-      setGenProgress(65); setGenStep("Uploading images…");
+setGenProgress(65); setGenStep("Uploading images…");
       let uploadedCount = 0;
-      // Only graphical + site photos count toward the upload total now —
-      // cube/mom/barchart/checklist/progress are PPT-only and skipped here.
-      const allImgCounts = [
-        graphicalImages.filter((i) => i.dataUrl).length,
-        sitePhotos.filter((i) => i.dataUrl).length,
-      ];
-      const totalUp = allImgCounts.reduce((a, b) => a + b, 0);
+      const totalUp = [
+        graphicalImages,
+        sitePhotos,
+        checklistPhotos,
+        barchartItems,
+        cubeItems,
+        momItems,
+        ...activities.map((a) => a.progressImages || []),
+      ].reduce((sum, arr) => sum + arr.filter((i) => i.dataUrl).length, 0);
 
 const uploadBatch = async (images, imageType, subfolder, namePrefix) => {
   for (let i = 0; i < images.length; i++) {
@@ -1786,7 +1782,7 @@ const uploadBatch = async (images, imageType, subfolder, namePrefix) => {
       sort_order: i,
     });
     uploadedCount++;
-    setGenProgress(65 + Math.round((uploadedCount / Math.max(totalUp, 1)) * 28));
+    setGenProgress(Math.min(100, 65 + Math.round((uploadedCount / Math.max(totalUp, 1)) * 28)));
     setGenStep(`Uploading images… (${uploadedCount}/${totalUp})`);
   }
 };
@@ -1923,61 +1919,45 @@ const datePath = buildSiteDatePath(reportDate);
       <style>{WPR_CSS}</style>
       <div className="wpr-wrap">
         {/* Upload Existing WPR */}
-{/* Upload Existing WPR */}
-<button
-  onClick={() => {
-    if (!site) { showToast("Select a site first", "error"); return; }
-    if (!engineer) { showToast("Enter engineer name first", "error"); return; }
-    if (!reportDate) { showToast("Select report date first", "error"); return; }
-    uploadWprRef.current?.click();
-  }}
-  style={{
-    width: "100%", marginBottom: 14,
-    display: "flex", alignItems: "center", gap: 10,
-    padding: "11px 16px",
-    background: "var(--paper)",
-    border: "1.5px solid #c96a10",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontFamily: "var(--font)",
-    textAlign: "left",
-  }}
->
-  <div style={{
-    width: 36, height: 36, borderRadius: 9, flexShrink: 0,
-    background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
-    display: "flex", alignItems: "center", justifyContent: "center",
-  }}>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-      <polyline points="17 8 12 3 7 8"/>
-      <line x1="12" y1="3" x2="12" y2="15"/>
-    </svg>
-  </div>
-  <div style={{ flex: 1, minWidth: 0 }}>
-    <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)" }}>Upload Existing WPR</div>
-    <div style={{ fontSize: 11.5, color: "var(--ink3)", marginTop: 1 }}>Previously made PPT · stored for selected date</div>
-  </div>
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c96a10" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
-    <polyline points="9 18 15 12 9 6"/>
-  </svg>
-</button>
-<input
-  type="file"
-  ref={uploadWprRef}
- accept="*/*" 
-  style={{ display: "none" }}
-  onChange={uploadExistingWpr}
-/>
-
-        {/* Status pills */}
-        <div className="wpr-status-bar">
-          <Pill icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} label={site ? `✓ ${site}` : "Info"} state={site && engineer && reportDate ? "done" : site ? "partial" : ""} />
-          <Pill icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>} label={actsCount > 0 ? `✓ ${actsCount} acts` : "Activities"} state={actsCount ? "done" : ""} />
-          <Pill icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>} label={imgCount > 0 ? `✓ ${imgCount} imgs` : "Images"} state={imgCount ? "done" : ""} />
-          <Pill icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>} label={photosCount > 0 ? `✓ ${photosCount} photos` : "Photos"} state={photosCount ? "done" : ""} />
-          <Pill icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} label={plans.filter(Boolean).length > 0 ? `✓ ${plans.filter(Boolean).length} plans` : "Plan"} state={plans.filter(Boolean).length ? "done" : ""} />
-        </div>
+        <button
+          onClick={() => {
+            if (!site) { showToast("Select a site first", "error"); return; }
+            if (!engineer) { showToast("Enter engineer name first", "error"); return; }
+            if (!reportDate) { showToast("Select report date first", "error"); return; }
+            uploadWprRef.current?.click();
+          }}
+          style={{
+            width: "100%", marginBottom: 14,
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "11px 16px",
+            background: "var(--paper)",
+            border: "1.5px solid #c96a10",
+            borderRadius: 10,
+            cursor: "pointer",
+            fontFamily: "var(--font)",
+            textAlign: "left",
+          }}
+        >
+          <div style={{
+            width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+            background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)" }}>Upload Existing WPR</div>
+            <div style={{ fontSize: 11.5, color: "var(--ink3)", marginTop: 1 }}>Previously made PPT · stored for selected date</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c96a10" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+        <input type="file" ref={uploadWprRef} accept="*/*"  style={{ display: "none" }} onChange={uploadExistingWpr}/>
 
         {/* Image budget */}
         {imgCount > 0 && (
@@ -2058,96 +2038,92 @@ const datePath = buildSiteDatePath(reportDate);
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--ink3)" strokeWidth="1.5" strokeLinecap="round" style={{ marginBottom: 8 }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 <div style={{ fontSize: 13, color: "var(--ink2)", fontWeight: 600 }}>Upload site overview photo</div>
                 <input type="file" accept="image/*" style={{ display: "none" }}
-                 onChange={async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const dataUrl = await processImage(file, 1920, 800, 0.85);
-  setSiteImage(dataUrl);
+                 onChange={async (e) => { const file = e.target.files[0]; if (!file) return; const dataUrl = await processImage(file, 1920, 800, 0.85); setSiteImage(dataUrl);
 
-  if (site && supabase) {
-    try {
-      await ensureBucket(supabase, site);
-      const bucketName = bucketNameFor(site);
-      const path = `SiteImg/site_title.jpg`;
+                  if (site && supabase) {
+                    try {
+                      await ensureBucket(supabase, site);
+                      const bucketName = bucketNameFor(site);
+                      const path = `SiteImg/site_title.jpg`;
 
-      // Step 1 — upload to bucket
-    const mime = getMime(dataUrl);
-      const base64 = dataUrlToBase64(dataUrl);
-      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-      const blob = new Blob([bytes], { type: mime });
+                      // Step 1 — upload to bucket
+                    const mime = getMime(dataUrl);
+                      const base64 = dataUrlToBase64(dataUrl);
+                      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+                      const blob = new Blob([bytes], { type: mime });
 
-     // ── Direct REST PUT — always overwrites, bypasses SDK policy quirks ──
-      // ── Extract Supabase URL + key from client (works for all client versions) ──
-      const supabaseUrl = (
-        supabase.supabaseUrl ||
-        supabase.storageUrl?.replace("/storage/v1", "") ||
-        supabase.rest?.url?.replace("/rest/v1", "") ||
-        supabase._supabaseUrl
-      )?.replace(/\/$/, "");
+                    // ── Direct REST PUT — always overwrites, bypasses SDK policy quirks ──
+                      // ── Extract Supabase URL + key from client (works for all client versions) ──
+                      const supabaseUrl = (
+                        supabase.supabaseUrl ||
+                        supabase.storageUrl?.replace("/storage/v1", "") ||
+                        supabase.rest?.url?.replace("/rest/v1", "") ||
+                        supabase._supabaseUrl
+                      )?.replace(/\/$/, "");
 
-// Get the active session JWT — required for storage writes
-      const { data: { session } } = await supabase.auth.getSession();
-      const supabaseKey = (
-        supabase.supabaseKey ||
-        supabase._supabaseKey ||
-        supabase.headers?.apikey ||
-        supabase.rest?.headers?.apikey
-      );
-      const authToken = session?.access_token || supabaseKey;
+                // Get the active session JWT — required for storage writes
+                  const { data: { session } } = await supabase.auth.getSession();
+                  const supabaseKey = (
+                    supabase.supabaseKey ||
+                    supabase._supabaseKey ||
+                    supabase.headers?.apikey ||
+                    supabase.rest?.headers?.apikey
+                  );
+                  const authToken = session?.access_token || supabaseKey;
 
-      console.log("🔍 resolved url:", supabaseUrl, "| key prefix:", supabaseKey?.slice(0,12));
+                  console.log("🔍 resolved url:", supabaseUrl, "| key prefix:", supabaseKey?.slice(0,12));
 
-      if (!supabaseUrl || !supabaseKey) {
-        throw new Error("Cannot resolve Supabase URL/key from client — check console");
-      }
+                  if (!supabaseUrl || !supabaseKey) {
+                    throw new Error("Cannot resolve Supabase URL/key from client — check console");
+                  }
 
-      const putRes = await fetch(
-        `${supabaseUrl}/storage/v1/object/${bucketName}/${path}`,
-        {
-          method: "PUT",
-          headers: {
-            "apikey": supabaseKey,
-            "Authorization": `Bearer ${authToken}`,  // ← JWT not anon key
-            "Content-Type": mime,
-            "Cache-Control": "no-cache, no-store",
-            "x-upsert": "true",
-          },
-          body: blob,
-        }
-      );
+                  const putRes = await fetch(
+                    `${supabaseUrl}/storage/v1/object/${bucketName}/${path}`,
+                    {
+                      method: "PUT",
+                      headers: {
+                        "apikey": supabaseKey,
+                        "Authorization": `Bearer ${authToken}`,  // ← JWT not anon key
+                        "Content-Type": mime,
+                        "Cache-Control": "no-cache, no-store",
+                        "x-upsert": "true",
+                      },
+                      body: blob,
+                    }
+                  );
 
-      if (!putRes.ok) {
-        const errText = await putRes.text();
-        throw new Error(`Storage PUT failed ${putRes.status}: ${errText}`);
-      }
-      console.log("✅ Storage PUT success:", putRes.status);
-      // Step 2 — get public URL
-// Step 2 — get public URL with cache-bust timestamp
-      const { data: urlData } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(path);
-      const publicUrl = urlData?.publicUrl 
-        ? `${urlData.publicUrl}?t=${Date.now()}`
-        : null;
-      if (!publicUrl) throw new Error("Could not get public URL");
+                  if (!putRes.ok) {
+                    const errText = await putRes.text();
+                    throw new Error(`Storage PUT failed ${putRes.status}: ${errText}`);
+                  }
+                  console.log("✅ Storage PUT success:", putRes.status);
+                  // Step 2 — get public URL
+            // Step 2 — get public URL with cache-bust timestamp
+                  const { data: urlData } = supabase.storage
+                    .from(bucketName)
+                    .getPublicUrl(path);
+                  const publicUrl = urlData?.publicUrl 
+                    ? `${urlData.publicUrl}?t=${Date.now()}`
+                    : null;
+                  if (!publicUrl) throw new Error("Could not get public URL");
 
-      // Step 3 — update site_details (log result to verify)
-      const { data: updateData, error: updateErr } = await supabase
-        .from("site_details")
-        .update({ site_image_url: publicUrl })
-        .eq("site_name", site)
-        .select();                      // ← .select() forces it to return rows
+                  // Step 3 — update site_details (log result to verify)
+                  const { data: updateData, error: updateErr } = await supabase
+                    .from("site_details")
+                    .update({ site_image_url: publicUrl })
+                    .eq("site_name", site)
+                    .select();                      // ← .select() forces it to return rows
 
-      if (updateErr) throw new Error("DB update failed: " + updateErr.message);
-      console.log("✅ site_image_url updated:", publicUrl, "rows:", updateData);
-      showToast("✅ Site image saved", "success");
+                  if (updateErr) throw new Error("DB update failed: " + updateErr.message);
+                  console.log("✅ site_image_url updated:", publicUrl, "rows:", updateData);
+                  showToast("✅ Site image saved", "success");
 
-    } catch (err) {
-      console.error("❌ Site image sync failed:", err.message);
-      showToast("⚠ Image uploaded locally but DB sync failed: " + err.message, "error", 5000);
-    }
-  }
-}} />
+                } catch (err) {
+                  console.error("❌ Site image sync failed:", err.message);
+                  showToast("⚠ Image uploaded locally but DB sync failed: " + err.message, "error", 5000);
+                }
+              }
+            }} />
               </label>
             )}
           </div>

@@ -404,7 +404,126 @@ const dprArea = dprAreaPoints.length
   };
 
   // ── DAY VIEW ─────────────────────────────────────────────────────────────
+  // const DayChart = () => {
+  //   if (drillLoading) return (
+  //     <div style={{ height: H, display: "flex", alignItems: "center",
+  //       justifyContent: "center", gap: 8, fontSize: 13, color: "#94a3b8" }}>
+  //       <div style={{ width: 15, height: 15, borderRadius: "50%",
+  //         border: "2px solid #e2e8f0", borderTopColor: "#c96a10",
+  //         animation: "spin .7s linear infinite" }}/>
+  //       Loading {drillMonth?.label}…
+  //     </div>
+  //   );
+  //   if (!drillData.length) return (
+  //     <div style={{ height: H, display: "flex", alignItems: "center",
+  //       justifyContent: "center", fontSize: 13, color: "#94a3b8" }}>
+  //       No data for this month.
+  //     </div>
+  //   );
+
+  //   const nd   = drillData.length;
+  //   const xPos = (i) => PAD.left + (nd === 1 ? innerW / 2 : (i / (nd - 1)) * innerW);
+  //   const yBin = (v) => PAD.top + innerH - v * innerH;
+  //   const yAtt = (v) => PAD.top + innerH - v * innerH;
+
+  //   const dprPts = drillData.map((d, i) => `${xPos(i)},${yBin(d.hasDpr ? 1 : 0)}`).join(" ");
+  //   const wprPts = drillData.map((d, i) => `${xPos(i)},${yBin(d.hasWpr ? 1 : 0)}`).join(" ");
+  //   const attPts = drillData.filter(d => d.attVal !== null)
+  //     .map(d => `${xPos(drillData.indexOf(d))},${yAtt(d.attVal)}`).join(" ");
+
+  //   const labelStep = nd <= 8 ? 1 : nd <= 16 ? 2 : mob ? 4 : 3;
+  //   const attColor  = (v) => v === 1 ? "#16a34a" : v === 0.5 ? "#d97706" : "#dc2626";
+
+  //   return (
+  //     <Svg onLeave={() => setDrillHovered(null)}>
+  //       {/* Y left ✓/✗ */}
+  //       {[{ v: 1, l: "✓" }, { v: 0, l: "✗" }].map(({ v, l }) => (
+  //         <g key={v}>
+  //           <line x1={PAD.left} y1={yBin(v)} x2={W - PAD.right} y2={yBin(v)}
+  //             stroke="#e2e8f0" strokeWidth={v === 0 ? 1.2 : 0.6}
+  //             strokeDasharray={v === 0 ? "none" : "3 3"}/>
+  //           <text x={PAD.left - 5} y={yBin(v) + fs(3.5)} fontSize={fs(mob ? 13 : 9)}
+  //             fill="#94a3b8" textAnchor="end" fontFamily="monospace">{l}</text>
+  //         </g>
+  //       ))}
+  //       {/* Y right P/½/A */}
+  //       {[{ v: 1, l: "P" }, { v: 0.5, l: "½" }, { v: 0, l: "A" }].map(({ v, l }) => (
+  //         <text key={l} x={W - PAD.right + 5} y={yAtt(v) + fs(3.5)}
+  //           fontSize={fs(mob ? 12 : 8)} fill="#c96a10" fontFamily="monospace">{l}</text>
+  //       ))}
+
+  //       {/* Lines */}
+  //       {attPts && <polyline points={attPts} fill="none" stroke="#c96a10"
+  //         strokeWidth={LW - 0.3} strokeDasharray="5 3"
+  //         strokeLinecap="round" strokeLinejoin="round"/>}
+  //       <polyline points={wprPts} fill="none" stroke="#a78bfa"
+  //         strokeWidth={LW} strokeLinecap="round" strokeLinejoin="round"/>
+  //       <polyline points={dprPts} fill="none" stroke="#d97706"
+  //         strokeWidth={LW + 0.2} strokeLinecap="round" strokeLinejoin="round"/>
+
+  //       {/* Dots */}
+  //       {drillData.map((d, i) => {
+  //         const cx   = xPos(i);
+  //         const isH  = drillHovered === i;
+  //         const dprY = yBin(d.hasDpr ? 1 : 0);
+  //         const wprY = yBin(d.hasWpr ? 1 : 0);
+  //         const attY = d.attVal !== null ? yAtt(d.attVal) : null;
+  //         const hitW = innerW / Math.max(nd, 1);
+  //         return (
+
+  //           <g key={i}
+  //             onMouseEnter={() => setDrillHovered(i)}
+  //             style={{ cursor: "default" }}>
+  //             <rect x={cx - hitW / 2} y={PAD.top - 8}
+  //               width={hitW} height={innerH + 28} fill="transparent"/>
+  //             {isH && <line x1={cx} y1={PAD.top} x2={cx} y2={PAD.top + innerH}
+  //               stroke="#c96a10" strokeWidth={1.2} strokeDasharray="3 2" strokeOpacity={0.4}/>}
+
+  //             <circle cx={cx} cy={dprY} r={isH ? DOTH : DOT}
+  //               fill={d.hasDpr ? "#d97706" : "#fff"} stroke="#d97706"
+  //               strokeWidth={mob ? 2.5 : 2} style={{ transition: "all .12s" }}/>
+  //             <circle cx={cx} cy={wprY} r={isH ? DOTH : DOT}
+  //               fill={d.hasWpr ? "#a78bfa" : "#fff"} stroke="#a78bfa"
+  //               strokeWidth={mob ? 2.5 : 2} style={{ transition: "all .12s" }}/>
+  //             {attY !== null && (
+  //               <circle cx={cx} cy={attY} r={isH ? DOTH - 1.5 : DOT - 1}
+  //                 fill={attColor(d.attVal)} stroke="none"
+  //                 style={{ transition: "all .12s" }}/>
+  //             )}
+
+  //             {i % labelStep === 0 && (
+  //               <text x={cx} y={H - (mob ? 8 : 5)} fontSize={fs(mob ? 11 : 8)}
+  //                 textAnchor="middle"
+  //                 fill={isH ? "#c96a10" : "#94a3b8"}
+  //                 fontWeight={isH ? 700 : 400}
+  //                 fontFamily="'DM Sans',sans-serif">
+  //                 {d.dayLabel}
+  //               </text>
+  //             )}
+
+  //             {isH && (
+  //               <Tip cx={cx} by={PAD.top - (mob ? 6 : 2)} lines={[
+  //                 { color: "#d97706", label: "DPR", value: d.hasDpr ? "✓" : "—" },
+  //                 { color: "#a78bfa", label: "WPR", value: d.hasWpr ? "✓" : "—" },
+  //                 {
+  //                   color: d.attVal !== null ? attColor(d.attVal) : "#94a3b8",
+  //                   label: "Att.",
+  //                   value: d.attStatus
+  //                     ? d.attStatus.charAt(0).toUpperCase() + d.attStatus.slice(1)
+  //                     : "—",
+  //                 },
+  //               ]}/>
+  //             )}
+  //           </g>
+  //         );
+  //       })}
+  //     </Svg>
+  //   );
+  // };
+// ── DAY VIEW ─────────────────────────────────────────────────────────────
   const DayChart = () => {
+    const scrollRef = useRef(null);
+
     if (drillLoading) return (
       <div style={{ height: H, display: "flex", alignItems: "center",
         justifyContent: "center", gap: 8, fontSize: 13, color: "#94a3b8" }}>
@@ -421,106 +540,212 @@ const dprArea = dprAreaPoints.length
       </div>
     );
 
-    const nd   = drillData.length;
-    const xPos = (i) => PAD.left + (nd === 1 ? innerW / 2 : (i / (nd - 1)) * innerW);
-    const yBin = (v) => PAD.top + innerH - v * innerH;
-    const yAtt = (v) => PAD.top + innerH - v * innerH;
+    const nd = drillData.length;
+    // Each day gets a fixed column — no squishing
+    const COL   = mob ? 36 : 30;
+    const LPAD  = mob ? 38 : 32;
+    const RPAD  = mob ? 28 : 22;
+    const TOTAL_W = LPAD + nd * COL + RPAD;
+
+    const xPos  = (i) => LPAD + i * COL + COL / 2;
+    const yBin  = (v) => PAD.top + innerH - v * innerH;
+    const yAtt  = (v) => PAD.top + innerH - v * innerH;
 
     const dprPts = drillData.map((d, i) => `${xPos(i)},${yBin(d.hasDpr ? 1 : 0)}`).join(" ");
     const wprPts = drillData.map((d, i) => `${xPos(i)},${yBin(d.hasWpr ? 1 : 0)}`).join(" ");
     const attPts = drillData.filter(d => d.attVal !== null)
       .map(d => `${xPos(drillData.indexOf(d))},${yAtt(d.attVal)}`).join(" ");
 
-    const labelStep = nd <= 8 ? 1 : nd <= 16 ? 2 : mob ? 4 : 3;
-    const attColor  = (v) => v === 1 ? "#16a34a" : v === 0.5 ? "#d97706" : "#dc2626";
+    const attColor = (v) => v === 1 ? "#16a34a" : v === 0.5 ? "#d97706" : "#dc2626";
 
     return (
-      <Svg onLeave={() => setDrillHovered(null)}>
-        {/* Y left ✓/✗ */}
-        {[{ v: 1, l: "✓" }, { v: 0, l: "✗" }].map(({ v, l }) => (
-          <g key={v}>
-            <line x1={PAD.left} y1={yBin(v)} x2={W - PAD.right} y2={yBin(v)}
-              stroke="#e2e8f0" strokeWidth={v === 0 ? 1.2 : 0.6}
-              strokeDasharray={v === 0 ? "none" : "3 3"}/>
-            <text x={PAD.left - 5} y={yBin(v) + fs(3.5)} fontSize={fs(mob ? 13 : 9)}
-              fill="#94a3b8" textAnchor="end" fontFamily="monospace">{l}</text>
-          </g>
-        ))}
-        {/* Y right P/½/A */}
-        {[{ v: 1, l: "P" }, { v: 0.5, l: "½" }, { v: 0, l: "A" }].map(({ v, l }) => (
-          <text key={l} x={W - PAD.right + 5} y={yAtt(v) + fs(3.5)}
-            fontSize={fs(mob ? 12 : 8)} fill="#c96a10" fontFamily="monospace">{l}</text>
-        ))}
+      <div style={{ position: "relative" }}>
+        {/* Fixed left Y-axis — sits above the scroll area */}
+        <div style={{ position: "absolute", top: 0, left: 0, zIndex: 2, pointerEvents: "none" }}>
+          <svg width={LPAD + 2} height={H} style={{ display: "block" }}>
+            {[{ v: 1, l: "✓" }, { v: 0, l: "✗" }].map(({ v, l }) => (
+              <text key={v} x={LPAD - 5} y={yBin(v) + 4}
+                fontSize={mob ? 13 : 9} fill="#94a3b8"
+                textAnchor="end" fontFamily="monospace">{l}</text>
+            ))}
+          </svg>
+        </div>
 
-        {/* Lines */}
-        {attPts && <polyline points={attPts} fill="none" stroke="#c96a10"
-          strokeWidth={LW - 0.3} strokeDasharray="5 3"
-          strokeLinecap="round" strokeLinejoin="round"/>}
-        <polyline points={wprPts} fill="none" stroke="#a78bfa"
-          strokeWidth={LW} strokeLinecap="round" strokeLinejoin="round"/>
-        <polyline points={dprPts} fill="none" stroke="#d97706"
-          strokeWidth={LW + 0.2} strokeLinecap="round" strokeLinejoin="round"/>
+        {/* Fixed right Y-axis */}
+        <div style={{ position: "absolute", top: 0, right: 0, zIndex: 2, pointerEvents: "none" }}>
+          <svg width={RPAD + 2} height={H} style={{ display: "block" }}>
+            {[{ v: 1, l: "P" }, { v: 0.5, l: "½" }, { v: 0, l: "A" }].map(({ v, l }) => (
+              <text key={l} x={4} y={yAtt(v) + 4}
+                fontSize={mob ? 12 : 8} fill="#c96a10"
+                fontFamily="monospace">{l}</text>
+            ))}
+          </svg>
+        </div>
 
-        {/* Dots */}
-        {drillData.map((d, i) => {
-          const cx   = xPos(i);
-          const isH  = drillHovered === i;
-          const dprY = yBin(d.hasDpr ? 1 : 0);
-          const wprY = yBin(d.hasWpr ? 1 : 0);
-          const attY = d.attVal !== null ? yAtt(d.attVal) : null;
-          const hitW = innerW / Math.max(nd, 1);
-          return (
+        {/* Scrollable chart body */}
+        <div
+          ref={scrollRef}
+          style={{
+            overflowX: "auto",
+            overflowY: "hidden",
+            marginLeft: LPAD,
+            marginRight: RPAD,
+            // hide scrollbar visually on webkit but keep it functional
+            scrollbarWidth: "thin",
+            scrollbarColor: "#c96a1044 transparent",
+            WebkitOverflowScrolling: "touch",
+            cursor: "grab",
+          }}
+          onMouseDown={e => {
+            const el = scrollRef.current;
+            if (!el) return;
+            const startX = e.pageX - el.offsetLeft;
+            const scrollL = el.scrollLeft;
+            const onMove = (ev) => {
+              el.scrollLeft = scrollL - (ev.pageX - el.offsetLeft - startX);
+            };
+            const onUp = () => {
+              window.removeEventListener("mousemove", onMove);
+              window.removeEventListener("mouseup", onUp);
+              el.style.cursor = "grab";
+            };
+            el.style.cursor = "grabbing";
+            window.addEventListener("mousemove", onMove);
+            window.addEventListener("mouseup", onUp);
+          }}
+        >
+          <svg
+            width={TOTAL_W - LPAD - RPAD}
+            height={H}
+            viewBox={`0 0 ${TOTAL_W - LPAD - RPAD} ${H}`}
+            style={{ display: "block", overflow: "visible", minWidth: TOTAL_W - LPAD - RPAD }}
+            onMouseLeave={() => setDrillHovered(null)}
+          >
+            {/* Grid lines */}
+            {[{ v: 1, label: "" }, { v: 0, label: "" }].map(({ v }) => (
+              <line key={v}
+                x1={0} y1={yBin(v)}
+                x2={TOTAL_W - LPAD - RPAD} y2={yBin(v)}
+                stroke="#e2e8f0"
+                strokeWidth={v === 0 ? 1.2 : 0.6}
+                strokeDasharray={v === 0 ? "none" : "3 3"}/>
+            ))}
+            {/* Half-day grid line */}
+            <line x1={0} y1={yBin(0.5)} x2={TOTAL_W - LPAD - RPAD} y2={yBin(0.5)}
+              stroke="#e2e8f0" strokeWidth={0.4} strokeDasharray="2 4"/>
 
-            <g key={i}
-              onMouseEnter={() => setDrillHovered(i)}
-              style={{ cursor: "default" }}>
-              <rect x={cx - hitW / 2} y={PAD.top - 8}
-                width={hitW} height={innerH + 28} fill="transparent"/>
-              {isH && <line x1={cx} y1={PAD.top} x2={cx} y2={PAD.top + innerH}
-                stroke="#c96a10" strokeWidth={1.2} strokeDasharray="3 2" strokeOpacity={0.4}/>}
+            {/* Lines */}
+            {attPts && <polyline points={attPts} fill="none" stroke="#c96a10"
+              strokeWidth={LW - 0.3} strokeDasharray="5 3"
+              strokeLinecap="round" strokeLinejoin="round"/>}
+            <polyline points={wprPts} fill="none" stroke="#a78bfa"
+              strokeWidth={LW} strokeLinecap="round" strokeLinejoin="round"/>
+            <polyline points={dprPts} fill="none" stroke="#d97706"
+              strokeWidth={LW + 0.2} strokeLinecap="round" strokeLinejoin="round"/>
 
-              <circle cx={cx} cy={dprY} r={isH ? DOTH : DOT}
-                fill={d.hasDpr ? "#d97706" : "#fff"} stroke="#d97706"
-                strokeWidth={mob ? 2.5 : 2} style={{ transition: "all .12s" }}/>
-              <circle cx={cx} cy={wprY} r={isH ? DOTH : DOT}
-                fill={d.hasWpr ? "#a78bfa" : "#fff"} stroke="#a78bfa"
-                strokeWidth={mob ? 2.5 : 2} style={{ transition: "all .12s" }}/>
-              {attY !== null && (
-                <circle cx={cx} cy={attY} r={isH ? DOTH - 1.5 : DOT - 1}
-                  fill={attColor(d.attVal)} stroke="none"
-                  style={{ transition: "all .12s" }}/>
-              )}
+            {/* Dots + labels + tooltips */}
+            {drillData.map((d, i) => {
+              const cx   = xPos(i);
+              const isH  = drillHovered === i;
+              const dprY = yBin(d.hasDpr ? 1 : 0);
+              const wprY = yBin(d.hasWpr ? 1 : 0);
+              const attY = d.attVal !== null ? yAtt(d.attVal) : null;
+              const hitW = COL;
+              const TW   = mob ? 140 : 110;
+              const ROW  = mob ? 17 : 13;
+              const TH   = ROW * 3 + 10;
+              // keep tooltip inside svg bounds
+              const tipX = Math.min(Math.max(cx - TW / 2, 0), TOTAL_W - LPAD - RPAD - TW);
 
-              {i % labelStep === 0 && (
-                <text x={cx} y={H - (mob ? 8 : 5)} fontSize={fs(mob ? 11 : 8)}
-                  textAnchor="middle"
-                  fill={isH ? "#c96a10" : "#94a3b8"}
-                  fontWeight={isH ? 700 : 400}
-                  fontFamily="'DM Sans',sans-serif">
-                  {d.dayLabel}
-                </text>
-              )}
+              return (
+                <g key={i}
+                  onMouseEnter={() => setDrillHovered(i)}
+                  style={{ cursor: "default" }}>
 
-              {isH && (
-                <Tip cx={cx} by={PAD.top - (mob ? 6 : 2)} lines={[
-                  { color: "#d97706", label: "DPR", value: d.hasDpr ? "✓" : "—" },
-                  { color: "#a78bfa", label: "WPR", value: d.hasWpr ? "✓" : "—" },
-                  {
-                    color: d.attVal !== null ? attColor(d.attVal) : "#94a3b8",
-                    label: "Att.",
-                    value: d.attStatus
-                      ? d.attStatus.charAt(0).toUpperCase() + d.attStatus.slice(1)
-                      : "—",
-                  },
-                ]}/>
-              )}
-            </g>
-          );
-        })}
-      </Svg>
+                  {/* Hit zone */}
+                  <rect x={cx - hitW / 2} y={PAD.top - 8}
+                    width={hitW} height={innerH + 28} fill="transparent"/>
+
+                  {/* Crosshair */}
+                  {isH && <line x1={cx} y1={PAD.top} x2={cx} y2={PAD.top + innerH}
+                    stroke="#c96a10" strokeWidth={1.2} strokeDasharray="3 2" strokeOpacity={0.4}/>}
+
+                  {/* DPR dot */}
+                  <circle cx={cx} cy={dprY} r={isH ? DOTH : DOT}
+                    fill={d.hasDpr ? "#d97706" : "#fff"} stroke="#d97706"
+                    strokeWidth={mob ? 2.5 : 2} style={{ transition: "all .12s" }}/>
+
+                  {/* WPR dot */}
+                  <circle cx={cx} cy={wprY} r={isH ? DOTH : DOT}
+                    fill={d.hasWpr ? "#a78bfa" : "#fff"} stroke="#a78bfa"
+                    strokeWidth={mob ? 2.5 : 2} style={{ transition: "all .12s" }}/>
+
+                  {/* Attendance dot */}
+                  {attY !== null && (
+                    <circle cx={cx} cy={attY} r={isH ? DOTH - 1.5 : DOT - 1}
+                      fill={attColor(d.attVal)} stroke="none"
+                      style={{ transition: "all .12s" }}/>
+                  )}
+
+                  {/* Day label — every day, rotated 45° so nothing overlaps */}
+                  <text
+                    x={cx} y={H - (mob ? 4 : 3)}
+                    fontSize={mob ? 10 : 8.5}
+                    textAnchor="end"
+                    fill={isH ? "#c96a10" : "#94a3b8"}
+                    fontWeight={isH ? 700 : 400}
+                    fontFamily="'DM Sans',sans-serif"
+                    transform={`rotate(-40, ${cx}, ${H - (mob ? 4 : 3)})`}
+                    style={{ transition: "fill .15s" }}>
+                    {d.dayLabel}
+                  </text>
+
+                  {/* Tooltip */}
+                  {isH && (
+                    <g style={{ pointerEvents: "none" }}>
+                      <rect x={tipX} y={PAD.top - 4} width={TW} height={TH} rx={7}
+                        fill="var(--surface,#fff)" stroke="#c96a10" strokeWidth={1.2}
+                        style={{ filter: "drop-shadow(0 3px 8px rgba(61,18,0,.15))" }}/>
+                      {[
+                        { color: "#d97706", label: "DPR", value: d.hasDpr ? "✓" : "—" },
+                        { color: "#a78bfa", label: "WPR", value: d.hasWpr ? "✓" : "—" },
+                        {
+                          color: d.attVal !== null ? attColor(d.attVal) : "#94a3b8",
+                          label: "Att.",
+                          value: d.attStatus
+                            ? d.attStatus.charAt(0).toUpperCase() + d.attStatus.slice(1)
+                            : "—",
+                        },
+                      ].map((l, li) => (
+                        <g key={li}>
+                          <circle cx={tipX + 10} cy={PAD.top + ROW * li + ROW - 2} r={mob ? 4 : 3}
+                            fill={l.color}/>
+                          <text x={tipX + 20} y={PAD.top + ROW * li + ROW + 2}
+                            fontSize={mob ? 11 : 9}
+                            fill="var(--ink2,#475569)"
+                            fontFamily="'DM Sans',sans-serif">
+                            {l.label} <tspan fontWeight={800} fill={l.color}>{l.value}</tspan>
+                          </text>
+                        </g>
+                      ))}
+                    </g>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+
+        {/* Scroll hint — fades after first interaction */}
+        <div style={{
+          textAlign: "center", fontSize: mob ? 11 : 10,
+          color: "#c96a1099", marginTop: 2, letterSpacing: ".02em",
+        }}>
+          ← scroll to see all days →
+        </div>
+      </div>
     );
   };
-
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div ref={rootRef} style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>

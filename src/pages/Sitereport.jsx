@@ -332,6 +332,12 @@ export default function SiteReport({ user }) {
 const addVisitor = () => setVisitors(p => [...p, { name: "", designation: "" }]);
 const removeVisitor = (i) => setVisitors(p => p.filter((_, idx) => idx !== i));
 const updateVisitor = (i, k, v) => setVisitors(p => p.map((r, idx) => idx === i ? { ...r, [k]: v } : r));
+const [isMobile, setIsMobile] = useState(window.innerWidth <= 600);
+useEffect(() => {
+  const handler = () => setIsMobile(window.innerWidth <= 600);
+  window.addEventListener("resize", handler);
+  return () => window.removeEventListener("resize", handler);
+}, []);
   // Fetch site names once on mount
   useEffect(() => {
     setSiteOptionsLoading(true);
@@ -749,34 +755,40 @@ setVisitors([{ name: "", designation: "" }]);
             )}
           </div>
           <Field label="Visit Type" col2>
-  <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1.5px solid #e2e8f0", width: "fit-content" }}>
-{[
-  ["single", 
-    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Single Person</>
-  ],
-  ["group",
-    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> With Client / Contractor</>
-  ]
-].map(([val, label]) => (
-  <button
-    key={val}
-    type="button"
-    onClick={() => setVisitType(val)}
-    style={{
-      display: "inline-flex", alignItems: "center", gap: 6,
-      padding: "8px 16px",
-      fontFamily: "'DM Sans', sans-serif",
-      fontSize: 12.5, fontWeight: 700,
-      border: "none", cursor: "pointer",
-      transition: "all .15s",
-      background: visitType === val ? "#800000" : "#f8fafc",
-      color: visitType === val ? "#fff" : "#64748b",
-    }}
-  >
-    {label}
-  </button>
-))}
-  </div>
+  {(() => {
+  const isMobile = window.innerWidth <= 600;
+  const iconSize = isMobile ? 23 : 13;
+  return (
+    <div style={{ display: "flex", gap: 0, borderRadius: 8, overflow: "hidden", border: "1.5px solid #e2e8f0", width: "fit-content" }}>
+      {[
+        ["single",
+          <><svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Single Person</>
+        ],
+        ["group",
+          <><svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> With Client / Contractor</>
+        ]
+      ].map(([val, label]) => (
+        <button
+          key={val}
+          type="button"
+          onClick={() => setVisitType(val)}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: isMobile ? 8 : 6,
+            padding: isMobile ? "10px 18px" : "8px 16px",
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: isMobile ? 14 : 12.5, fontWeight: 700,
+            border: "none", cursor: "pointer",
+            transition: "all .15s",
+            background: visitType === val ? "#800000" : "#f8fafc",
+            color: visitType === val ? "#fff" : "#64748b",
+          }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+})()}
 </Field>
 
 {visitType === "group" && (

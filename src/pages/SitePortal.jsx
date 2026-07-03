@@ -478,6 +478,57 @@ const DARK_CSS = `
 [data-theme="dark"] .profile-stat-mon  { background: #052e16 !important; border-color: #166534 !important; }
 [data-theme="dark"] .profile-stat-last { background: #1e1c19 !important; border-color: #2e2b27 !important; }
 
+/* ── Logout Modal Dark Theme ── */
+[data-theme="dark"] .logout-backdrop {
+  background: rgba(5,3,2,0.75);
+}
+
+[data-theme="dark"] .logout-modal {
+  background: #1e1c19;
+  border-color: #c96a10;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+}
+
+[data-theme="dark"] .logout-modal-title {
+  color: #f0ede8;
+}
+
+[data-theme="dark"] .logout-modal-sub {
+  color: #a8a29e;
+}
+
+[data-theme="dark"] .logout-modal-user {
+  background: linear-gradient(135deg,rgba(61,18,0,0.3),rgba(201,106,16,0.15));
+  border-color: #c96a10;
+}
+
+[data-theme="dark"] .logout-modal-uname {
+  color: #f0ede8;
+}
+
+[data-theme="dark"] .logout-modal-urole {
+  color: #c96a10;
+}
+
+[data-theme="dark"] .logout-btn-cancel {
+  background: #252320;
+  border-color: #c96a10;
+  color: #c96a10;
+}
+
+[data-theme="dark"] .logout-btn-cancel:hover {
+  background: rgba(201,106,16,0.12);
+}
+
+[data-theme="dark"] .logout-btn-confirm {
+  background: linear-gradient(135deg,#3d1200,#7a2e00,#c96a10);
+  box-shadow: 0 3px 12px rgba(61,18,0,0.5);
+}
+  [data-theme="dark"] .profile-stat-dpr  { background: #2a1f08 !important; border-color: #4a3210 !important; }
+[data-theme="dark"] .profile-stat-wpr  { background: #1e1a3a !important; border-color: #3d3470 !important; }
+[data-theme="dark"] .profile-stat-svr  { background: #0c1d38 !important; border-color: #1e3a5f !important; }
+[data-theme="dark"] .profile-stat-mon  { background: #052e16 !important; border-color: #166534 !important; }
+[data-theme="dark"] .profile-stat-last { background: #1e1c19 !important; border-color: #2e2b27 !important; }
 `;
 // ─── CSS ─────────────────────────────────────────────────────────────────────
   const CSS = `

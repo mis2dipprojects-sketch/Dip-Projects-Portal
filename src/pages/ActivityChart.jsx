@@ -238,8 +238,7 @@ export function ActivityChart({ data, user }) {
     const days = [];
     for (let dd = 1; dd <= lastDay; dd++) {
       const dateStr   = `${yearMonth}-${String(dd).padStart(2, "0")}`;
-      const dayLabel  = new Date(dateStr + "T00:00:00")
-        .toLocaleDateString("en-IN", { day: "numeric", weekday: "short" });
+      const dayLabel  = new Date(dateStr + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", weekday: "short" });
       const hasDpr    = (dprRes.data || []).some(r => r.date === dateStr);
       const hasWpr    = (wprRes.data || []).some(r => (r.created_at || "").startsWith(dateStr));
       const attRow    = (attRes.data || []).find(r => r.date === dateStr);

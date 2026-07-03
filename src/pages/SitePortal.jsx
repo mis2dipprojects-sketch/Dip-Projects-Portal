@@ -976,7 +976,7 @@ function ApplyLeave({ user }) {
       return;
     }
     setBusy(true); setErr("");
-    // REPLACE the insert payload in submit():
+    
     const { error } = await supabase.from("leaves").insert({
       user_name:       user.user_name,
       name:            user.name,
@@ -1268,6 +1268,7 @@ if (!u || (role !== "project head" && role !== "site incharge")) return;
   setSiteReports(normalized);
   setLoadingReports(false);
 }, []);
+
 useEffect(() => {
   if (sidebarOpen && window.innerWidth <= 768) {
     document.body.style.overflow = "hidden";
@@ -1306,23 +1307,22 @@ useEffect(() => {
         localStorage.setItem("user", JSON.stringify(updated)); // keep localStorage fresh
         fetchSiteReports(updated); 
         const site = updated.site_names?.[0] || updated.site_name || "";
-if (site) {
-  supabase
-    .from("material_requirements")
-    .select("id", { count: "exact", head: true })
-    .eq("site_name", site)
-    .eq("status", "received")
-}
-      }
-    })();
-  }
-  const onResize = () => { if (window.innerWidth <= 768) setSidebarOpen(false); };
-  onResize();
-  window.addEventListener("resize", onResize);
-  return () => window.removeEventListener("resize", onResize);
-}, [fetchSiteReports]);
-
-
+        if (site) {
+          supabase
+            .from("material_requirements")
+            .select("id", { count: "exact", head: true })
+            .eq("site_name", site)
+            .eq("status", "received")
+        }
+              }
+            })();
+          }
+          const onResize = () => { if (window.innerWidth <= 768) setSidebarOpen(false); };
+          onResize();
+          window.addEventListener("resize", onResize);
+          return () => window.removeEventListener("resize", onResize);
+        }, [fetchSiteReports]);
+        
 const nav = (key) => {
   setActiveTab(key);
   if (window.innerWidth <= 768) setSidebarOpen(false);

@@ -14,8 +14,9 @@ const WPR_CSS = `
 .wpr-acc-hdr { display:flex; align-items:center; gap:12px; padding:0 18px; height:62px; cursor:pointer; user-select:none; background:var(--paper); border-bottom:1px solid transparent; transition:background .15s; }
 .wpr-acc.open .wpr-acc-hdr { border-bottom-color:var(--line); }
 .wpr-acc-hdr:hover { background:rgba(201,106,16,0.08); }
-.wpr-acc-ico { width:36px; height:36px; border-radius:9px; background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); display:flex; align-items:center; justify-content:center; color:#fff; font-size:17px; flex-shrink:0; }
-.wpr-acc.open .wpr-acc-ico { background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); color:#fff; }
+.wpr-acc-ico { width:36px; height:36px; border-radius:9px;  display:flex; align-items:center; justify-content:center; color:#fff; font-size:17px; flex-shrink:0; }
+.wpr-acc.open .wpr-acc-ico { background:#fff; border:2px solid black; color:#fff; }
+.wpr-acc.open .w{ background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); color:#fff; }
 .wpr-acc-titles { flex:1; min-width:0; }
 .wpr-acc-title { font-size:14px; font-weight:700; color:var(--ink); }
 .wpr-acc-sub { font-size:11.5px; color:var(--ink3); margin-top:1px; }
@@ -457,8 +458,37 @@ function loadXlsx() {
   });
   return _xlsxPromise;
 }
-
-// Parse an Excel file → { sheetNames, sheets: { [name]: { raw, merges } } }
+function isExcelFile(file){
+  const excelTypes = ["application", "JSON", "xlsx", "pdf", "doc"];
+    const excelExtensions = [".xlsx", ".xls", ".xlsm", ".xlsb", ".csv"];
+    const fileType = file.type;
+    const fileName = file.name.toLowerCase();
+    const hasExcelType = excelTypes.includes(fileType);
+    const hasExcelExtension = excelExtensions.some(ext => fileName.endsWith(ext));
+    return hasExcelType || hasExcelExtension;
+    for(let i=0;i<excelExtensions.length;i++){
+      if(fileName.endsWith(excelExtensions[i])){
+        return true;
+      }
+      else if(fileType===excelTypes[i]){
+        return fileType[i]+" "+fileName[i]+"is an excel file";
+      }
+      else{
+        console.log("Error occured in file checking.")  
+        return false;
+      }
+    }  
+}
+function rederExcel(excelFile){
+  for(let i=0;i<excelFile.length;i++){
+    if(isExcelFile(excelFile[i])){
+      console.log(excelFile[i].name+" is an excel file");
+    }
+    else{console.log("Erro occured while checking file type.");}
+  }
+}
+ 
+// Parse an Excel file
 async function parseExcel(file) {
   const XLSX = await loadXlsx();
   const ab = await file.arrayBuffer();
@@ -1292,9 +1322,7 @@ useEffect(() => {
                 </button>
               </div>
 
-              {/* Excel table */}
-
-{/* Zoom controls */}
+              {/* Zoom controls */}
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
                 <span className="wpr-range-label">Zoom:</span>
                 <button onClick={()=>setZoom(z=>Math.max(0.5, +(z-0.15).toFixed(2)))}
@@ -1317,23 +1345,17 @@ useEffect(() => {
 
               {/* Excel table */}
 
-              <div
-                ref={wrapperRef}
-                className="wpr-xl-table-wrap"
+              <div ref={wrapperRef} className="wpr-xl-table-wrap"
                 style={{
                   maxHeight:480, border:"1.5px solid #c96a10", borderRadius:8,
                   overflow:"auto", userSelect:"none", touchAction:"none",
                   WebkitOverflowScrolling:"touch",
-                }}
-                onMouseMove={e=>{ if(!isDragging) return; autoScroll(e.clientX,e.clientY); }}
-                onMouseUp={()=>{ setIsDragging(false); stopAutoScroll(); }}
-                onWheel={e=>{
+                }} onMouseMove={e=>{ if(!isDragging) return; autoScroll(e.clientX,e.clientY); }} onMouseUp={()=>{ setIsDragging(false); stopAutoScroll(); }} onWheel={e=>{
                   if (!e.ctrlKey && !e.metaKey) return; // ctrl/cmd+scroll to zoom on desktop
                   e.preventDefault();
                   setZoom(z => Math.min(3, Math.max(0.5, +(z + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(2))));
                 }}
-                onMouseLeave={()=>{}}
-                > 
+                onMouseLeave={()=>{}}> 
                 <table ref={tableRef} className="wpr-xl-table" style={{minWidth:"100%", transform:`scale(${zoom})`, transformOrigin:"top left"}}>
                   <thead>
                     <tr>
@@ -1389,6 +1411,7 @@ useEffect(() => {
                   </tbody>
                 </table>
               </div>
+
               {/* Overflow notices */}
               <div style={{display:"flex",gap:12,marginTop:5,flexWrap:"wrap"}}>
                 {sheetData.length>200 && (
@@ -1450,11 +1473,25 @@ useEffect(() => {
 }
 
 
-
 function Acc({ id, icon, title, sub, open, onToggle, children }) {
+  const ref = useRef(null);
+
+  const handleToggle = () => {
+    const opening = !open;
+    onToggle();
+    if (opening) {
+      setTimeout(() => {
+        const el = ref.current;
+        if (!el) return;
+        const top = el.getBoundingClientRect().top + window.scrollY - 80;
+        window.scrollTo({ top, behavior: "smooth" });
+      }, 70);
+    }
+  };
+
   return (
-    <div className={`wpr-acc${open ? " open" : ""}`}>
-      <div className="wpr-acc-hdr" onClick={onToggle}>
+    <div className={`wpr-acc${open ? " open" : ""}`} ref={ref}>
+      <div className="wpr-acc-hdr" onClick={handleToggle}>
         <div className="wpr-acc-ico">{icon}</div>
         <div className="wpr-acc-titles">
           <div className="wpr-acc-title">{title}</div>
@@ -1762,6 +1799,14 @@ const deleteDraft = async () => {
       const folder = `${dateStr}_${safeEng}`;
       const safeSite = site.replace(/\s+/g, "_");
 
+// Delete any existing report with same site+engineer+date+number (override old entry)
+      await supabase.from("wpr_reports")
+        .delete()
+        .eq("site_name", site)
+        .eq("engineer_name", engineer)
+        .eq("report_date", dateFormatted)
+        .eq("report_number", reportNum);
+
       const { data: reportData, error: reportError } = await supabase.from("wpr_reports").insert({
         site_name: site, engineer_name: engineer, report_date: dateFormatted,
         report_number: reportNum, location, status: "submitted",
@@ -1913,6 +1958,14 @@ const datePath = buildSiteDatePath(reportDate);
 
     setGenProgress(35); setGenStep("Saving report record…");
 
+// Delete any existing report with same site+engineer+date+number (override old entry)
+    await supabase.from("wpr_reports")
+      .delete()
+      .eq("site_name", site)
+      .eq("engineer_name", engineer)
+      .eq("report_date", dateFormatted)
+      .eq("report_number", reportNum);
+
     const { data: reportData, error: reportError } = await supabase.from("wpr_reports").insert({
       site_name: site,
       engineer_name: engineer,
@@ -1933,7 +1986,7 @@ const datePath = buildSiteDatePath(reportDate);
     }).select("id").single();
 
     if (reportError) throw reportError;
-    const reportId = reportData.id;
+    const reportId = reportData.id; 
 
     setGenProgress(60); setGenStep("Uploading file…");
 
@@ -1973,6 +2026,7 @@ const datePath = buildSiteDatePath(reportDate);
     <>
       <style>{WPR_CSS}</style>
       <div className="wpr-wrap">
+
         {/* Upload Existing WPR */}
         <button
           onClick={() => {
@@ -2049,7 +2103,7 @@ const datePath = buildSiteDatePath(reportDate);
         )}
 
         {/* ① PROJECT INFO */}
-        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} title="Project Information" sub={site || "Site, engineer, date"} open={openSec.info} onToggle={() => toggle("info")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} title="Project Information" sub={site || "Site, engineer, date"} open={openSec.info} onToggle={() => toggle("info")}>
           <div className="wpr-g2">
             <div className="wpr-fg">
               <label className="wpr-lbl">Site Name *</label>
@@ -2185,7 +2239,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ② ACTIVITIES */}
-        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>} title="Activities" sub={actsCount ? `${actsCount} activities` : "Add construction activities"} open={openSec.acts} onToggle={() => toggle("acts")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>} title="Activities" sub={actsCount ? `${actsCount} activities` : "Add construction activities"} open={openSec.acts} onToggle={() => toggle("acts")}>
           {activities.map((act, i) => (
             <div key={i} className="wpr-act-card">
               <button className="wpr-act-del" onClick={() => setActivities((p) => p.filter((_, x) => x !== i))}>✕</button>
@@ -2209,7 +2263,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ③ GRAPHICAL REPORT */}
-        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>} title="Graphical Report of Work" sub={graphicalImages.filter((i) => i.dataUrl).length ? `${graphicalImages.filter((i) => i.dataUrl).length} images` : "Upload progress images"} open={openSec.graph} onToggle={() => toggle("graph")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>} title="Graphical Report of Work" sub={graphicalImages.filter((i) => i.dataUrl).length ? `${graphicalImages.filter((i) => i.dataUrl).length} images` : "Upload progress images"} open={openSec.graph} onToggle={() => toggle("graph")}>
           <PhotoGrid
             photos={graphicalImages}
             onRemove={(i) => setGraphicalImages((p) => p.filter((_, x) => x !== i))}
@@ -2224,9 +2278,9 @@ const datePath = buildSiteDatePath(reportDate);
             onLightbox={(imgs, idx) => openLightbox(imgs, idx)}
           />
         </Acc>
-
+        
         {/* ④ SITE PHOTOGRAPHS */}
-        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>} title="Site Photographs" sub={photosCount ? `${photosCount} photos` : "General site photos"} open={openSec.photos} onToggle={() => toggle("photos")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>} title="Site Photographs" sub={photosCount ? `${photosCount} photos` : "General site photos"} open={openSec.photos} onToggle={() => toggle("photos")}>
           <PhotoGrid
             photos={sitePhotos}
             onRemove={(i) => setSitePhotos((p) => p.filter((_, x) => x !== i))}
@@ -2244,7 +2298,7 @@ const datePath = buildSiteDatePath(reportDate);
 
         {/* ⑤ CUBE TESTING REGISTER */}
         <Acc
-          icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>}
+          icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>}
           title="Cube Testing Register"
           sub={cubeCount ? `${cubeCount} items` : "Upload photos or capture from Excel"}
           open={openSec.cube} onToggle={() => toggle("cube")}
@@ -2263,80 +2317,80 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑥ DRAWING REGISTER */}
-        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>} title="Drawing Register" sub={drawingData.length ? `${drawingData.length} rows` : "GFC Drawing entries"} open={openSec.drawing} onToggle={() => toggle("drawing")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>} title="Drawing Register" sub={drawingData.length ? `${drawingData.length} rows` : "GFC Drawing entries"} open={openSec.drawing} onToggle={() => toggle("drawing")}>
           <div className="wpr-hint">ℹ Column headers become table headers in the report. Add/remove columns as needed.</div>
-          {/* ⑥ DRAWING REGISTER header */}
-<div style={{ marginBottom: 8 }}>
-  {/* Column header editors — scrollable on mobile */}
-  <div style={{
-    display: "flex", alignItems: "center", gap: 6,
-    padding: "8px 10px",
-    background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
-    border: "1.5px solid #c96a10", borderRadius: "8px 8px 0 0",
-    overflowX: "auto", WebkitOverflowScrolling: "touch",
-  }}>
-    <div style={{ width: 28, flexShrink: 0, fontSize: 11, fontWeight: 800, color: "#ffcfa0", textAlign: "center" }}>#</div>
-    {drawingHeaders.map((h, hi) => (
-      <div key={hi} style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 100, flex: 1 }}>
-        <input
-          value={h}
-          onChange={(e) => setDrawingHeaders((p) => p.map((v, x) => x === hi ? e.target.value : v))}
-          style={{
-            flex: 1, background: "rgba(255,255,255,0.15)", border: "1.5px dashed rgba(255,207,160,0.5)",
-            borderRadius: 6, padding: "4px 8px", fontSize: 11.5, fontWeight: 800,
-            color: "#ffcfa0", fontFamily: "var(--font)", outline: "none",
-            textTransform: "uppercase", letterSpacing: ".05em", minWidth: 80,
-          }}
-        />
-        {drawingHeaders.length > 1 && (
-          <button
-            onClick={() => setDrawingHeaders((p) => p.filter((_, x) => x !== hi))}
-            style={{ width: 18, height: 18, background: "rgba(220,38,38,.7)", border: "none", borderRadius: 4, color: "#fff", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-          >✕</button>
-        )}
-      </div>
-    ))}
-    <button
-      onClick={() => setDrawingHeaders((p) => [...p, "New Column"])}
-      style={{ width: 26, height: 26, background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,207,160,0.5)", borderRadius: 6, color: "#ffcfa0", fontSize: 16, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-    >+</button>
-  </div>
+          <div style={{ marginBottom: 8 }}>
 
-  {/* Rows — horizontally scrollable on mobile */}
-  <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-    {drawingData.map((row, ri) => (
-      <div
-        key={ri}
-        style={{
-          display: "grid",
-          gridTemplateColumns: `28px ${drawingHeaders.map(() => "minmax(100px,1fr)").join(" ")} 28px`,
-          gap: 6, alignItems: "center",
-          padding: "7px 10px",
-          background: "var(--surface)",
-          border: "1.5px solid #c96a10", borderTop: "none",
-          minWidth: drawingHeaders.length > 3 ? `${drawingHeaders.length * 110 + 60}px` : "auto",
-        }}
-        className={ri === drawingData.length - 1 ? "wpr-tbl-row-last" : ""}
-      >
-        <div style={{ width: 24, height: 24, background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)", color: "#fff", borderRadius: 6, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{ri + 1}</div>
-        {drawingHeaders.map((h, hi) => (
-          <input
-            key={hi}
-            className="finput"
-            value={row[`col${hi}`] || ""}
-            placeholder={h}
-            onChange={(e) => setDrawingData((p) => p.map((r, x) => x === ri ? { ...r, [`col${hi}`]: e.target.value } : r))}
-            style={{ minWidth: 90 }}
-          />
-        ))}
-        <button
-          onClick={() => setDrawingData((p) => p.filter((_, x) => x !== ri))}
-          style={{ background: "none", border: "none", color: "var(--ink3)", fontSize: 18, cursor: "pointer", flexShrink: 0 }}
-        >✕</button>
-      </div>
-    ))}
-  </div>
-</div>
+        {/* Column header editors — scrollable on mobile */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6,
+          padding: "8px 10px",
+          background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
+          border: "1.5px solid #c96a10", borderRadius: "8px 8px 0 0",
+          overflowX: "auto", WebkitOverflowScrolling: "touch",
+          }}>
+          <div style={{ width: 28, flexShrink: 0, fontSize: 11, fontWeight: 800, color: "#ffcfa0", textAlign: "center" }}>#</div>
+          {drawingHeaders.map((h, hi) => (
+            <div key={hi} style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 100, flex: 1 }}>
+              <input
+                value={h}
+                onChange={(e) => setDrawingHeaders((p) => p.map((v, x) => x === hi ? e.target.value : v))}
+                style={{
+                  flex: 1, background: "rgba(255,255,255,0.15)", border: "1.5px dashed rgba(255,207,160,0.5)",
+                  borderRadius: 6, padding: "4px 8px", fontSize: 11.5, fontWeight: 800,
+                  color: "#ffcfa0", fontFamily: "var(--font)", outline: "none",
+                  textTransform: "uppercase", letterSpacing: ".05em", minWidth: 80,
+                }}
+              />
+              {drawingHeaders.length > 1 && (
+                <button
+                  onClick={() => setDrawingHeaders((p) => p.filter((_, x) => x !== hi))}
+                  style={{ width: 18, height: 18, background: "rgba(220,38,38,.7)", border: "none", borderRadius: 4, color: "#fff", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                >✕</button>
+              )}
+            </div>
+          ))}
+          <button
+            onClick={() => setDrawingHeaders((p) => [...p, "New Column"])}
+            style={{ width: 26, height: 26, background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,207,160,0.5)", borderRadius: 6, color: "#ffcfa0", fontSize: 16, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+          >+</button>
+          </div>
+
+          {/* Rows — horizontally scrollable on mobile */}
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+            {drawingData.map((row, ri) => (
+              <div
+                key={ri}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: `28px ${drawingHeaders.map(() => "minmax(100px,1fr)").join(" ")} 28px`,
+                  gap: 6, alignItems: "center",
+                  padding: "7px 10px",
+                  background: "var(--surface)",
+                  border: "1.5px solid #c96a10", borderTop: "none",
+                  minWidth: drawingHeaders.length > 3 ? `${drawingHeaders.length * 110 + 60}px` : "auto",
+                }}
+                className={ri === drawingData.length - 1 ? "wpr-tbl-row-last" : ""}
+              >
+                <div style={{ width: 24, height: 24, background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)", color: "#fff", borderRadius: 6, fontSize: 11, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{ri + 1}</div>
+                {drawingHeaders.map((h, hi) => (
+                  <input
+                    key={hi}
+                    className="finput"
+                    value={row[`col${hi}`] || ""}
+                    placeholder={h}
+                    onChange={(e) => setDrawingData((p) => p.map((r, x) => x === ri ? { ...r, [`col${hi}`]: e.target.value } : r))}
+                    style={{ minWidth: 90 }}
+                  />
+                ))}
+                <button
+                  onClick={() => setDrawingData((p) => p.filter((_, x) => x !== ri))}
+                  style={{ background: "none", border: "none", color: "var(--ink3)", fontSize: 18, cursor: "pointer", flexShrink: 0 }}
+                >✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
 
           <BtnAdd label="Add Drawing Row" onClick={() => {
             const newRow = {}; drawingHeaders.forEach((_, hi) => { newRow[`col${hi}`] = ""; });
@@ -2345,7 +2399,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑦ OFFICE ACTIVITY */}
-        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>} title="Office Activity" sub={officeItems.filter(Boolean).length ? `${officeItems.filter(Boolean).length} items` : "Back office work"} open={openSec.office} onToggle={() => toggle("office")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>} title="Office Activity" sub={officeItems.filter(Boolean).length ? `${officeItems.filter(Boolean).length} items` : "Back office work"} open={openSec.office} onToggle={() => toggle("office")}>
           {officeItems.map((item, i) => (
             <div key={i} className="wpr-plan-item">
               <div className="wpr-plan-num">{i + 1}</div>
@@ -2357,7 +2411,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑧ VISITOR REGISTER */}
-        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>} title="Visitor Register" sub={visitors.filter((v) => v.name).length ? `${visitors.filter((v) => v.name).length} visitors` : "Record site visitors"} open={openSec.visitor} onToggle={() => toggle("visitor")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>} title="Visitor Register" sub={visitors.filter((v) => v.name).length ? `${visitors.filter((v) => v.name).length} visitors` : "Record site visitors"} open={openSec.visitor} onToggle={() => toggle("visitor")}>
           {visitors.map((row, i) => (
             <div key={i} className="wpr-vis-card">
               <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
@@ -2384,22 +2438,22 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑨ DRAWING & DECISION PENDING */}
-        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} title="Drawing & Decision Pending" sub={drawDecision.filter((r) => r.drawingName).length ? `${drawDecision.filter((r) => r.drawingName).length} items` : "Pending drawings"} open={openSec.drawdec} onToggle={() => toggle("drawdec")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} title="Drawing & Decision Pending" sub={drawDecision.filter((r) => r.drawingName).length ? `${drawDecision.filter((r) => r.drawingName).length} items` : "Pending drawings"} open={openSec.drawdec} onToggle={() => toggle("drawdec")}>
           {drawDecision.length > 0 && (
-  <div style={{
-    display: "grid",
-    gridTemplateColumns: "28px 1fr 1fr 28px",
-    gap: 8, padding: "8px 12px",
-    background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
-    border: "1.5px solid #c96a10", borderRadius: "8px 8px 0 0",
-    fontSize: 11, fontWeight: 800, color: "#ffcfa0",
-    textTransform: "uppercase", letterSpacing: ".05em",
-  }}>
-    <div/>
-    <div>Drawing / Decision Name</div>
-    <div>Required Date</div>
-    <div/>
-  </div>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "28px 1fr 1fr 28px",
+            gap: 8, padding: "8px 12px",
+            background: "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
+            border: "1.5px solid #c96a10", borderRadius: "8px 8px 0 0",
+            fontSize: 11, fontWeight: 800, color: "#ffcfa0",
+            textTransform: "uppercase", letterSpacing: ".05em",
+            }}>
+            <div/>
+            <div>Drawing / Decision Name</div>
+            <div>Required Date</div>
+          <div/>
+      </div>
 )}
 {drawDecision.map((row, i) => (
   <div key={i} className="wpr-drawdec-row" style={{
@@ -2426,7 +2480,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑩ WEEKLY CHECKLIST */}
-        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>} title="Weekly Site Checklist" sub={checklistPhotos.filter((p) => p.dataUrl).length ? `${checklistPhotos.filter((p) => p.dataUrl).length} photos` : "Checklist photos"} open={openSec.checklist} onToggle={() => toggle("checklist")}>
+        <Acc icon={<svg  width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>} title="Weekly Site Checklist" sub={checklistPhotos.filter((p) => p.dataUrl).length ? `${checklistPhotos.filter((p) => p.dataUrl).length} photos` : "Checklist photos"} open={openSec.checklist} onToggle={() => toggle("checklist")}>
           <PhotoGrid
             photos={checklistPhotos}
             onRemove={(i) => setChecklistPhotos((p) => p.filter((_, x) => x !== i))}
@@ -2443,7 +2497,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑪ DELAY POINTS */}
-        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>} title="Delay Points / Highlights / Red Flag" sub={delayPoints.filter(Boolean).length ? `${delayPoints.filter(Boolean).length} points` : "Issues and flags"} open={openSec.delay} onToggle={() => toggle("delay")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>} title="Delay Points / Highlights / Red Flag" sub={delayPoints.filter(Boolean).length ? `${delayPoints.filter(Boolean).length} points` : "Issues and flags"} open={openSec.delay} onToggle={() => toggle("delay")}>
           {delayPoints.map((pt, i) => (
             <div key={i} className="wpr-plan-item" style={{ borderColor: "rgba(220,38,38,.25)" }}>
               <div className="wpr-plan-num" style={{ background: "rgba(220,38,38,.1)", color: "#dc2626" }}>{i + 1}</div>
@@ -2455,7 +2509,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑫ NEXT WEEK PLANNING */}
-        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} title="Next Week Planning" sub={plans.filter(Boolean).length ? `${plans.filter(Boolean).length} plans` : "Planned activities"} open={openSec.plan} onToggle={() => toggle("plan")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} title="Next Week Planning" sub={plans.filter(Boolean).length ? `${plans.filter(Boolean).length} plans` : "Planned activities"} open={openSec.plan} onToggle={() => toggle("plan")}>
           {plans.map((pl, i) => (
             <div key={i} className="wpr-plan-item">
               <div className="wpr-plan-num">{i + 1}</div>
@@ -2468,7 +2522,7 @@ const datePath = buildSiteDatePath(reportDate);
 
         {/* ⑬ MOM REVIEW */}
         <Acc
-          icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}
+          icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}
           title="MOM Review"
           sub={momCount ? `${momCount} items` : "Minutes of Meeting — photos or Excel capture"}
           open={openSec.mom} onToggle={() => toggle("mom")}
@@ -2488,7 +2542,7 @@ const datePath = buildSiteDatePath(reportDate);
 
         {/* ⑭ BARCHART & WORKSHEET */}
         <Acc
-          icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>}
+          icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>}
           title="Barchart & Worksheet"
           sub={barchartCount ? `${barchartCount} items` : "Programme / schedule — photos or Excel capture"}
           open={openSec.barchart} onToggle={() => toggle("barchart")}
@@ -2506,8 +2560,9 @@ const datePath = buildSiteDatePath(reportDate);
           />
         </Acc>
         <hr style={{ border: 0, borderTop: "3px dotted #f59e0b", margin: "16px 0"}}/>
+
         {/* ⑮ REPORT SECTIONS */}
-        <Acc icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>} title="Report Sections" sub="Reorder, hide or add custom sections" open={openSec.rc} onToggle={() => toggle("rc")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>} title="Report Sections" sub="Reorder, hide or add custom sections" open={openSec.rc} onToggle={() => toggle("rc")}>
           <div className="wpr-hint">ℹ Standard sections are always included. Drag the ⠿ handle to reorder, use Hide to exclude from PPT, or 🚫 to omit entirely.</div>
           {sections.map((sec, si) => (
             <div
@@ -2701,79 +2756,61 @@ const datePath = buildSiteDatePath(reportDate);
         {lightbox && (() => {
           const img = lightbox.images[lightbox.idx];
           return (
-            <div
-              onClick={closeLightbox}
+            <div onClick={closeLightbox}
               style={{
                 position:"fixed", inset:0, zIndex:99999,
                 background:"rgba(0,0,0,0.92)", backdropFilter:"blur(10px)",
-                display:"flex", alignItems:"center", justifyContent:"center",
-              }}
-            >
+                display:"flex", alignItems:"center", justifyContent:"center" }}>
               {/* Close */}
-              <button
-                onClick={closeLightbox}
+              <button onClick={closeLightbox}
                 style={{
                   position:"absolute", top:16, right:16,
                   width:36, height:36, borderRadius:"50%",
                   background:"#dc2626", border:"none", color:"#fff",
                   fontSize:18, fontWeight:800, cursor:"pointer",
                   display:"flex", alignItems:"center", justifyContent:"center",
-                  zIndex:2,
-                }}
-              >✕</button>
+                  zIndex:2}}>✕</button>
 
               {/* Counter */}
               <div style={{
                 position:"absolute", top:18, left:"50%", transform:"translateX(-50%)",
                 background:"rgba(255,255,255,0.1)", borderRadius:20,
-                padding:"4px 14px", fontSize:12, fontWeight:700, color:"#fff",
-              }}>
+                padding:"4px 14px", fontSize:12, fontWeight:700, color:"#fff"}}>
                 {lightbox.idx + 1} / {lightbox.images.length}
               </div>
 
               {/* Prev */}
-              <button
-                onClick={e=>{ e.stopPropagation(); lbPrev(); }}
+              <button onClick={e=>{ e.stopPropagation(); lbPrev(); }}
                 style={{
                   position:"absolute", left:12, top:"50%", transform:"translateY(-50%)",
                   width:44, height:44, borderRadius:"50%",
                   background:"rgba(255,255,255,0.15)", border:"1.5px solid rgba(255,255,255,0.3)",
                   color:"#fff", fontSize:22, cursor:"pointer",
                   display:"flex", alignItems:"center", justifyContent:"center",
-                  zIndex:2,
-                }}
-              >‹</button>
+                  zIndex:2}}>‹</button>
 
               {/* Image */}
-              <div
-                onClick={e=>e.stopPropagation()}
-                style={{ maxWidth:"90vw", maxHeight:"85vh", display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}
-              >
-                <img
-                  src={img.dataUrl}
-                  alt=""
+              <div onClick={e=>e.stopPropagation()} style={{ maxWidth:"90vw", maxHeight:"85vh", display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
+                <img src={img.dataUrl} alt=""
                   style={{
                     maxWidth:"90vw", maxHeight:"78vh",
                     objectFit:"contain", borderRadius:10,
                     border:"1.5px solid rgba(201,106,16,0.4)",
                     boxShadow:"0 8px 40px rgba(0,0,0,0.6)",
-                  }}
-                />
+                  }} />
                 {(img.label || img.caption) && (
                   <div style={{
                     background:"rgba(201,106,16,0.15)", border:"1px solid #c96a10",
                     borderRadius:8, padding:"6px 16px",
                     fontSize:13, fontWeight:600, color:"#ffcfa0", maxWidth:"80vw",
-                    textAlign:"center",
-                  }}>
+                    textAlign:"center" }}>
                     {img.label || img.caption}
                   </div>
                 )}
               </div>
 
               {/* Next */}
-              <button
-                onClick={e=>{ e.stopPropagation(); lbNext(); }}
+              <button onClick={e=>{ e.stopPropagation(); lbNext(); }}
                 style={{
                   position:"absolute", right:12, top:"50%", transform:"translateY(-50%)",
                   width:44, height:44, borderRadius:"50%",
@@ -2781,8 +2818,7 @@ const datePath = buildSiteDatePath(reportDate);
                   color:"#fff", fontSize:22, cursor:"pointer",
                   display:"flex", alignItems:"center", justifyContent:"center",
                   zIndex:2,
-                }}
-              >›</button>
+                }}>›</button>
             </div>
           );
         })()}
@@ -2790,29 +2826,20 @@ const datePath = buildSiteDatePath(reportDate);
         {/* Toast */}
         {toast && <div className={`wpr-toast ${toast.type}`}>{toast.msg}</div>}
       </div>
-     {/* Image processing toast */}
-{/* Image processing toast — driven by DOM directly for zero-lag display */}
-<div
-  id="wpr-proc-toast"
-  className="wpr-heic-toast"
-  style={{ display: "none" }}
->
-  <div style={{
-    width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
-    border: "2.5px solid rgba(255,207,160,0.3)",
-    borderTopColor: "#ffcfa0",
-    animation: "wprSpin .7s linear infinite",
-  }} />
-  <div>
-    <div id="wpr-proc-count" style={{ fontSize: 12.5, fontWeight: 800, color: "#ffcfa0", marginBottom: 3 }}>
-      Processing…
-    </div>
-    <div style={{ fontSize: 11.5, color: "rgba(255,207,160,0.75)", display: "flex", alignItems: "center", gap: 5 }}>
-      Converting &amp; compressing
-      <span className="wpr-heic-dots"><span/><span/><span/></span>
-    </div>
-  </div>
-</div>
+  
+      {/* Image processing toast — driven by DOM directly for zero-lag display */}
+      <div id="wpr-proc-toast" className="wpr-heic-toast" style={{ display: "none" }}>
+        <div style={{ width: 18, height: 18, borderRadius: "50%", flexShrink: 0, border: "2.5px solid rgba(255,207,160,0.3)", borderTopColor: "#ffcfa0", animation: "wprSpin .7s linear infinite"}} />
+        <div>
+          <div id="wpr-proc-count" style={{ fontSize: 12.5, fontWeight: 800, color: "#ffcfa0", marginBottom: 3 }}>
+            Processing…
+          </div>
+          <div style={{ fontSize: 11.5, color: "rgba(255,207,160,0.75)", display: "flex", alignItems: "center", gap: 5 }}>
+            Converting &amp; compressing
+            <span className="wpr-heic-dots"><span/><span/><span/></span>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

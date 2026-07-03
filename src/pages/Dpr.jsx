@@ -626,14 +626,14 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 .info-val{font-size:15px;color:#0f172a;}
 
 /* ── PENDING MATERIALS — HIGH-URGENCY SECTION ───────────────────────────── */
-.pm-section-wrap{margin-bottom:18px;border:2.5px solid #c8641a;page-break-inside:avoid;break-inside:avoid;box-shadow:0 0 0 4px rgba(128,0,0,.08);}
+.pm-section-wrap{margin-bottom:18px;border:2.5px solid #dc2626;page-break-inside:avoid;break-inside:avoid;box-shadow:0 0 0 4px rgba(220,38,38,.1);}
 .pm-header{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#6b2d0f,#c8641a);padding:13px 16px;position:relative;overflow:hidden;}
-.pm-header::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:repeating-linear-gradient(45deg,#fbbf24,#fbbf24 10px,#800000 10px,#800000 20px);}
+.pm-header::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:repeating-linear-gradient(45deg,#fca5a5,#fca5a5 10px,#7f1d1d 10px,#7f1d1d 20px);}
 .pm-header-left{display:flex;align-items:center;gap:10px;}
 .pm-icon{width:26px;height:26px;flex-shrink:0;}
 .pm-title{font-size:18px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#fff;}
 .pm-badge{background:#fbbf24;color:#7c2d12;font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;padding:5px 12px;border-radius:20px;white-space:nowrap;}
-.pm-subtitle{background:#fef3c7;border-bottom:2px solid #c8641a;padding:9px 16px;font-size:12.5px;color:#78350f;font-weight:600;}
+.pm-subtitle{background:#fef2f2;border-bottom:2px solid #dc2626;padding:9px 16px;font-size:12.5px;color:#991b1b;font-weight:600;}
 .pm-body{background:#fff;}
 .pm-table{width:100%;border-collapse:collapse;font-size:14px;}
 .pm-table thead th{background:#5b6470;color:#fff;border:1px solid #334155;font-size:12.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:10px 14px;text-align:left;}
@@ -938,8 +938,6 @@ function buildPhotosHtml(photos) {
 }
 
 // ─── Pending materials (live, from Supabase material_requirements) ──────────
-// Fetches all status='pending' rows for the given site. Independent of the
-// in-form payload — always reflects current outstanding requests for the site.
 async function fetchPendingMaterials(site) {
   if (!site) return [];
   const { data, error } = await supabase
@@ -970,8 +968,8 @@ function buildPendingMaterialsHtml(rows) {
       </tr>`).join("")
     : `<tr><td colspan="5" class="pm-empty">No pending material requests for this site at the time of report generation.</td></tr>`;
 
-  return `<div class="pm-section-wrap">
-    <div class="pm-header">
+return `<div class="pm-section-wrap">
+    <div class="pm-header" style="background:linear-gradient(135deg,#7f1d1d,#b91c1c,#dc2626);">
       <div class="pm-header-left">
         <svg class="pm-icon" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -2968,12 +2966,19 @@ const handleOpenDraft = () => {
     draftOpenedRef.current = false;
     const payload = collectPayload();
     try {
+      // Delete any existing report with same site+engineer+date+type (override old entry)
+      await supabase.from("dpr_reports")
+        .delete()
+        .eq("site", site)
+        .eq("engineer", engineer)
+        .eq("report_type", "morning")
+        .eq("date", date);
+
       const { error } = await supabase.from("dpr_reports").insert({
         site, engineer, report_type:"morning", date, payload,
         pdf_url: null, photo_folder: null, created_at: new Date().toISOString(),
       });
       if (error) throw new Error(`DB insert failed: ${error.message}`);
-     // if (draftInfo) { await deleteDraft(site,engineer); setDraftInfo(null); setDraftCheckStatus("none"); }
       setSubmitted(true);
       draftOpenedRef.current = false;
     } catch(err) {
@@ -3013,6 +3018,14 @@ const handleOpenDraft = () => {
       setSubmitStep("db");
       setSubmitDetail("Writing to dpr_reports…");
       const photosForDb = uploadedPhotos.map(p=>({ supabaseUrl:p.supabaseUrl, storagePath:p.storagePath, caption:p.caption||"" }));
+// Delete any existing report with same site+engineer+date+type (override old entry)
+      await supabase.from("dpr_reports")
+        .delete()
+        .eq("site", site)
+        .eq("engineer", engineer)
+        .eq("report_type", "evening")
+        .eq("date", date);
+
       const { error: insertErr } = await supabase.from("dpr_reports").insert({
         site, engineer, report_type:"evening", date,
         payload: {...payload, photos:photosForDb},
@@ -3195,12 +3208,21 @@ const handleWhatsApp = async () => {
   const payload = collectPayload();
   try {
     // Save to DB first
+    // Delete any existing report with same site+engineer+date+type (override old entry)
+    await supabase.from("dpr_reports")
+      .delete()
+      .eq("site", site)
+      .eq("engineer", engineer)
+      .eq("report_type", "morning")
+      .eq("date", date);
+
     const { error } = await supabase.from("dpr_reports").insert({
       site, engineer, report_type: "morning", date, payload,
       pdf_url: null, photo_folder: null, created_at: new Date().toISOString(),
     });
     if (error) throw new Error(`DB insert failed: ${error.message}`);
-   // if (draftInfo) { await deleteDraft(site, engineer); setDraftInfo(null); setDraftCheckStatus("none"); }
+
+    // Build WhatsApp text and open
 
     // Build WhatsApp text and open
     const text = buildWhatsAppText(payload);

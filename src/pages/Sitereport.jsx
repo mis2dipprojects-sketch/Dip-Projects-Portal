@@ -191,11 +191,26 @@ async function fetchAllSiteNames() {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function Section({ num, title, children, openSections, toggleSection }) {
   const open = !!openSections[num];
+  const ref  = useRef(null);
+
+  const handleToggle = () => {
+    const opening = !open;
+    toggleSection(num);
+    if (opening) {
+      setTimeout(() => {
+        const el = ref.current;
+        if (!el) return;
+        const top = el.getBoundingClientRect().top + window.scrollY - 80;
+        window.scrollTo({ top, behavior: "smooth" });
+      }, 70);
+    }
+  };
+
   return (
-    <div className="svr-section">
+    <div className="svr-section" ref={ref}>
       <button
         className={`svr-sec-header${open ? " open" : ""}`}
-        onClick={() => toggleSection(num)}
+        onClick={handleToggle}
       >
         <span className="svr-sec-num">{num}</span>
         <span className="svr-sec-title">{title}</span>
@@ -503,6 +518,14 @@ const handleSubmit = async () => {
   try {
     const designationValue =
       form.designation === "other" ? form.designation_other.trim() : form.designation;
+
+    // Delete any existing report with same site+reporter+date (override old entry)
+    await supabase
+      .from("site_reports")
+      .delete()
+      .eq("site_name", form.site_name)
+      .eq("reporter_name", form.reporter_name.trim())
+      .eq("visit_date", form.visit_date);
 
     const { data: inserted, error: insertErr } = await supabase
       .from("site_reports")

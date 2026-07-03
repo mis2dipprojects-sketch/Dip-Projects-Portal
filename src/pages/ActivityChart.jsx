@@ -199,14 +199,15 @@ export function ActivityChart({ data, user }) {
   // We compensate font/dot sizes by dividing by SCALE so they stay readable
   const fs   = (px) => Math.round(px / Math.max(SCALE, 0.55));
 
-  const H    = mob ? 210 : 170;
-  const PAD  = { top: 22, right: mob ? 50 : 42, bottom: mob ? 44 : 34, left: mob ? 40 : 32 };
+  const H    = mob ? 150 : 130;
+  const PAD  = { top: 14, right: mob ? 50 : 42, bottom: mob ? 32 : 26, left: mob ? 40 : 32 };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top  - PAD.bottom;
+  
 
-  const DOT    = mob ? 5.5 : 3.5;
-  const DOTH   = mob ? 8   : 5.5;
-  const LW     = mob ? 2.8 : 2;
+  const DOT    = mob ? 3.5 : 3;
+  const DOTH   = mob ? 5   : 4.5;
+  const LW     = mob ? 2.2 : 1.8;
 
   // ── Drill fetch ──────────────────────────────────────────────────────────
   const openDrill = async (d, idx) => {
@@ -237,7 +238,6 @@ export function ActivityChart({ data, user }) {
     const days = [];
     for (let dd = 1; dd <= lastDay; dd++) {
       const dateStr   = `${yearMonth}-${String(dd).padStart(2, "0")}`;
-      if (new Date(dateStr).getDay() === 0) continue;
       const dayLabel  = new Date(dateStr + "T00:00:00")
         .toLocaleDateString("en-IN", { day: "numeric", weekday: "short" });
       const hasDpr    = (dprRes.data || []).some(r => r.date === dateStr);
@@ -542,9 +542,9 @@ const dprArea = dprAreaPoints.length
 
     const nd = drillData.length;
     // Each day gets a fixed column — no squishing
-    const COL   = mob ? 36 : 30;
-    const LPAD  = mob ? 38 : 32;
-    const RPAD  = mob ? 28 : 22;
+    const COL   = mob ? 28 : 22;   // was 36 / 30
+    const LPAD  = mob ? 34 : 28;   // was 38 / 32
+    const RPAD  = mob ? 24 : 18;   // was 28 / 22
     const TOTAL_W = LPAD + nd * COL + RPAD;
 
     const xPos  = (i) => LPAD + i * COL + COL / 2;
@@ -689,13 +689,13 @@ const dprArea = dprAreaPoints.length
 
                   {/* Day label — every day, rotated 45° so nothing overlaps */}
                   <text
-                    x={cx} y={H - (mob ? 4 : 3)}
-                    fontSize={mob ? 10 : 8.5}
+                    x={cx} y={PAD.top + innerH + (mob ? 16 : 13)}   // was H - (mob ? 4 : 3)
+                    fontSize={mob ? 9 : 7.5}                         // slightly smaller too
                     textAnchor="end"
                     fill={isH ? "#c96a10" : "#94a3b8"}
                     fontWeight={isH ? 700 : 400}
                     fontFamily="'DM Sans',sans-serif"
-                    transform={`rotate(-40, ${cx}, ${H - (mob ? 4 : 3)})`}
+                    transform={`rotate(-40, ${cx}, ${PAD.top + innerH + (mob ? 16 : 13)})`}
                     style={{ transition: "fill .15s" }}>
                     {d.dayLabel}
                   </text>

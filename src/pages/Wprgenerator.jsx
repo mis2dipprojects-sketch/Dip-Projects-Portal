@@ -129,26 +129,51 @@ const WPR_CSS = `
   background: #f5f0e8;
 }
 .wpr-xl-scroll-outer { position: relative; }
-.wpr-mob-hbar, .wpr-mob-vbar { display: none; }
 
 @media (max-width: 999px) {
-  .wpr-mob-hbar {
-    display: block; position: absolute; left: 0; right: 34px; bottom: 3px; height: 30px;
-    background: #f5f0e8; border: 1.5px solid #c96a10; border-radius: 15px; z-index: 6;
+  .wpr-xl-scroll-outer {
+    display: grid;
+    grid-template-columns: 1fr 14px;   /* table | vertical bar lane */
+    grid-template-rows: 1fr 14px;      /* table | horizontal bar lane */
+    gap: 6px;
   }
-  .wpr-mob-hbar-thumb {
-    position: absolute; top: 3px; left: 0; height: 22px; border-radius: 11px;
-    background: linear-gradient(135deg,#3d1200,#7a2e00,#c96a10);
+  .wpr-xl-scroll-outer > .wpr-xl-table-wrap {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .wpr-mob-hbar {
+    display: block;
+    position: relative;               /* no longer absolute/overlapping */
+    grid-column: 1;
+    grid-row: 2;
+    height: 20px;
+    background: #f5f0e8;
+    border: 1.5px solid #c96a10;
+    border-radius: 15px;
   }
   .wpr-mob-vbar {
-    display: block; position: absolute; top: 0; bottom: 34px; right: 3px; width: 30px;
-    background: #f5f0e8; border: 1.5px solid #c96a10; border-radius: 15px; z-index: 6;
+    display: block;
+    position: relative;               /* no longer absolute/overlapping */
+    grid-column: 2;
+    grid-row: 1;
+    width: 20px;
+    background: #f5f0e8;
+    border: 1.5px solid #c96a10;
+    border-radius: 15px;
+  }
+  .wpr-mob-hbar-thumb {
+    position: absolute; top: 1.5px; left: 0; height: 16px; border-radius: 11px;
+    background: linear-gradient(135deg,#3d1200,#7a2e00,#c96a10);
   }
   .wpr-mob-vbar-thumb {
-    position: absolute; left: 3px; top: 0; width: 22px; border-radius: 11px;
+    position: absolute; left: 1.4px; top: 0; width: 16px; border-radius: 11px;
     background: linear-gradient(135deg,#3d1200,#7a2e00,#c96a10);
   }
 }
+
+/* Desktop / non-mobile: hide the custom bars, keep native scrollbar */
+.wpr-mob-hbar, .wpr-mob-vbar { display: none; }
+
 .wpr-xl-table { border-collapse:collapse; font-size:11.5px; font-family:var(--mono); min-width:100%; }
 .wpr-xl-table th { background:linear-gradient(135deg,#3d1200,#7a2e00); color:#ffcfa0; padding:5px 10px; border:1px solid rgba(201,106,16,0.3); font-weight:800; text-align:center; white-space:nowrap; position:sticky; top:0; z-index:1; }
 .wpr-xl-table td { padding:4px 10px; border:1px solid var(--line); color:var(--ink); white-space:nowrap; cursor:pointer; transition:background .1s; user-select:none; }

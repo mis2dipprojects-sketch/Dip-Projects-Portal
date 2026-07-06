@@ -101,7 +101,34 @@ const WPR_CSS = `
 .wpr-xl-sheet-tabs { display:flex; gap:4px; padding:8px 10px 0; border-bottom:1.5px solid #c96a10; overflow-x:auto; }
 .wpr-xl-sheet-tab { padding:5px 14px 6px; border:1.5px solid #c96a10; border-bottom:none; border-radius:7px 7px 0 0; font-size:12px; font-weight:700; color:#c96a10; cursor:pointer; background:transparent; white-space:nowrap; }
 .wpr-xl-sheet-tab.active { background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); color:#fff; }
+
 .wpr-xl-table-wrap { overflow:auto; max-height:320px; touch-action:none; }
+
+/* ── Broader, more visible scrollbars for Excel range preview ── */
+.wpr-xl-table-wrap {
+  scrollbar-width: auto;              /* Firefox: use 'thin' for a slimmer bar */
+  scrollbar-color: #c96a10 #f5f0e8;   /* thumb color, track color (Firefox) */
+}
+.wpr-xl-table-wrap::-webkit-scrollbar {
+  width: 26px;   /* ← vertical scrollbar THICKNESS — increase/decrease this */
+  height: 26px;  /* ← horizontal scrollbar THICKNESS — increase/decrease this */
+}
+.wpr-xl-table-wrap::-webkit-scrollbar-track {
+  background: #f5f0e8;
+  border-radius: 8px;
+}
+.wpr-xl-table-wrap::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #3d1200, #7a2e00, #c96a10);
+  border-radius: 8px;
+  border: 3px solid #f5f0e8; /* creates the "padding" look around the thumb */
+}
+.wpr-xl-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #c96a10;
+}
+.wpr-xl-table-wrap::-webkit-scrollbar-corner {
+  background: #f5f0e8;
+}
+
 .wpr-xl-table { border-collapse:collapse; font-size:11.5px; font-family:var(--mono); min-width:100%; }
 .wpr-xl-table th { background:linear-gradient(135deg,#3d1200,#7a2e00); color:#ffcfa0; padding:5px 10px; border:1px solid rgba(201,106,16,0.3); font-weight:800; text-align:center; white-space:nowrap; position:sticky; top:0; z-index:1; }
 .wpr-xl-table td { padding:4px 10px; border:1px solid var(--line); color:var(--ink); white-space:nowrap; cursor:pointer; transition:background .1s; user-select:none; }
@@ -1164,7 +1191,7 @@ useEffect(() => {
     } catch(err) { console.error(err); }
     finally { setCapturing(false); }
   };
-
+ 
   const VISIBLE_ROWS = Math.min(sheetData.length, 1000);
   const VISIBLE_COLS = Math.min(maxCols, 30);
   const norm = getNorm();
@@ -1179,7 +1206,7 @@ useEffect(() => {
           backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14 }}>
           <div style={{ width:44,height:44,border:"4px solid rgba(201,106,16,0.2)",
             borderTop:"4px solid #c96a10",borderRadius:"50%",animation:"wprSpin .7s linear infinite" }}/>
-          <div style={{ color:"#ffcfa0",fontWeight:700,fontSize:15 }}>Generating image…</div>
+          <div style={{ color:"#ffcfa0",fontWeight:700,fontSize:15 }}>Generating images…</div>
         </div>
       )}
 

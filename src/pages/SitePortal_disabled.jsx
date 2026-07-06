@@ -859,6 +859,8 @@ const ALL_ITEMS = [
 const ENABLED_TABS = new Set([
   "clock-in",
   "calendar",
+  "my-leave",
+  "apply-leave",
   "daily-report",
   "site-report",
   "my-reports",

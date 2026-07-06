@@ -14,8 +14,8 @@ const WPR_CSS = `
 .wpr-acc-hdr { display:flex; align-items:center; gap:12px; padding:0 18px; height:62px; cursor:pointer; user-select:none; background:var(--paper); border-bottom:1px solid transparent; transition:background .15s; }
 .wpr-acc.open .wpr-acc-hdr { border-bottom-color:var(--line); }
 .wpr-acc-hdr:hover { background:rgba(201,106,16,0.08); }
-.wpr-acc-ico { width:36px; height:36px; border-radius:9px;  display:flex; align-items:center; justify-content:center; color:#fff; font-size:17px; flex-shrink:0; }
-.wpr-acc.open .wpr-acc-ico { background:#fff; border:2px solid black; color:#fff; }
+.wpr-acc-ico { width:36px; height:36px; border-radius:9px; display:flex; align-items:center; justify-content:center; color:var(--ink); font-size:17px; flex-shrink:0; }
+.wpr-acc.open .wpr-acc-ico { background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); border:none; color:#fff; }
 .wpr-acc.open .w{ background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); color:#fff; }
 .wpr-acc-titles { flex:1; min-width:0; }
 .wpr-acc-title { font-size:14px; font-weight:700; color:var(--ink); }
@@ -104,14 +104,13 @@ const WPR_CSS = `
 
 .wpr-xl-table-wrap { overflow:auto; max-height:320px; touch-action:none; }
 
-/* ── Broader, more visible scrollbars for Excel range preview ── */
 .wpr-xl-table-wrap {
-  scrollbar-width: auto;              /* Firefox: use 'thin' for a slimmer bar */
-  scrollbar-color: #c96a10 #f5f0e8;   /* thumb color, track color (Firefox) */
+  scrollbar-width: auto;              
+  scrollbar-color: #c96a10 #f5f0e8;
 }
 .wpr-xl-table-wrap::-webkit-scrollbar {
-  width: 26px;   /* ← vertical scrollbar THICKNESS — increase/decrease this */
-  height: 26px;  /* ← horizontal scrollbar THICKNESS — increase/decrease this */
+  width: 26px; 
+  height: 26px;  
 }
 .wpr-xl-table-wrap::-webkit-scrollbar-track {
   background: #f5f0e8;
@@ -120,7 +119,7 @@ const WPR_CSS = `
 .wpr-xl-table-wrap::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, #3d1200, #7a2e00, #c96a10);
   border-radius: 8px;
-  border: 3px solid #f5f0e8; /* creates the "padding" look around the thumb */
+  border: 3px solid #f5f0e8;
 }
 .wpr-xl-table-wrap::-webkit-scrollbar-thumb:hover {
   background: #c96a10;
@@ -920,6 +919,7 @@ const dragStateRef = useRef({ axis: null, startPos: 0, startScroll: 0 });
   };
   const isSel      = (r, c) => { const n = getNorm(); if (!n) return false; return r>=n.r1&&r<=n.r2&&c>=n.c1&&c<=n.c2; };
   const isSelStart = (r, c) => selStart?.r===r && selStart?.c===c;
+  const isHeaderRow = (r) => r <= (headerInfo?.headerEnd ?? -1);
 
   // ── Draw image from selected range ──────────────────────────────────────────
   const drawRangeImage = async (r1, r2, c1, c2) => {
@@ -1550,11 +1550,16 @@ useEffect(() => {
                                 }}
                                 onMouseDown={e=>{
                                   e.preventDefault();
+                                  if (isHeaderRow(ri)) return; 
                                   setSelStart({r:ri,c:ci});
                                   setSelEnd({r:ri,c:ci});
                                   setIsDragging(true);
                                 }}
-                                onMouseEnter={()=>{ if(isDragging) setSelEnd({r:ri,c:ci}); }}
+                                onMouseEnter={()=>{
+                                  if(!isDragging) return;
+                                  if (isHeaderRow(ri)) return;   // ← block extending selection into header rows
+                                  setSelEnd({r:ri,c:ci});
+                                }}
                               >
                                 {String(row[ci]??"")}
                               </td>
@@ -2266,7 +2271,7 @@ const datePath = buildSiteDatePath(reportDate);
         )}
 
         {/* ① PROJECT INFO */}
-        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} title="Project Information" sub={site || "Site, engineer, date"} open={openSec.info} onToggle={() => toggle("info")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} title="Project Information" sub={site || "Site, engineer, date"} open={openSec.info} onToggle={() => toggle("info")}>
           <div className="wpr-g2">
             <div className="wpr-fg">
               <label className="wpr-lbl">Site Name *</label>
@@ -2402,7 +2407,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ② ACTIVITIES */}
-        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>} title="Activities" sub={actsCount ? `${actsCount} activities` : "Add construction activities"} open={openSec.acts} onToggle={() => toggle("acts")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>} title="Activities" sub={actsCount ? `${actsCount} activities` : "Add construction activities"} open={openSec.acts} onToggle={() => toggle("acts")}>
           {activities.map((act, i) => (
             <div key={i} className="wpr-act-card">
               <button className="wpr-act-del" onClick={() => setActivities((p) => p.filter((_, x) => x !== i))}>✕</button>
@@ -2426,7 +2431,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ③ GRAPHICAL REPORT */}
-        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>} title="Graphical Report of Work" sub={graphicalImages.filter((i) => i.dataUrl).length ? `${graphicalImages.filter((i) => i.dataUrl).length} images` : "Upload progress images"} open={openSec.graph} onToggle={() => toggle("graph")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>} title="Graphical Report of Work" sub={graphicalImages.filter((i) => i.dataUrl).length ? `${graphicalImages.filter((i) => i.dataUrl).length} images` : "Upload progress images"} open={openSec.graph} onToggle={() => toggle("graph")}>
           <PhotoGrid
             photos={graphicalImages}
             onRemove={(i) => setGraphicalImages((p) => p.filter((_, x) => x !== i))}
@@ -2443,7 +2448,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
         
         {/* ④ SITE PHOTOGRAPHS */}
-        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>} title="Site Photographs" sub={photosCount ? `${photosCount} photos` : "General site photos"} open={openSec.photos} onToggle={() => toggle("photos")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>} title="Site Photographs" sub={photosCount ? `${photosCount} photos` : "General site photos"} open={openSec.photos} onToggle={() => toggle("photos")}>
           <PhotoGrid
             photos={sitePhotos}
             onRemove={(i) => setSitePhotos((p) => p.filter((_, x) => x !== i))}
@@ -2461,7 +2466,7 @@ const datePath = buildSiteDatePath(reportDate);
 
         {/* ⑤ CUBE TESTING REGISTER */}
         <Acc
-          icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>}
+          icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>}
           title="Cube Testing Register"
           sub={cubeCount ? `${cubeCount} items` : "Upload photos or capture from Excel"}
           open={openSec.cube} onToggle={() => toggle("cube")}
@@ -2480,7 +2485,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑥ DRAWING REGISTER */}
-        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>} title="Drawing Register" sub={drawingData.length ? `${drawingData.length} rows` : "GFC Drawing entries"} open={openSec.drawing} onToggle={() => toggle("drawing")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>} title="Drawing Register" sub={drawingData.length ? `${drawingData.length} rows` : "GFC Drawing entries"} open={openSec.drawing} onToggle={() => toggle("drawing")}>
           <div className="wpr-hint">ℹ Column headers become table headers in the report. Add/remove columns as needed.</div>
           <div style={{ marginBottom: 8 }}>
 
@@ -2562,7 +2567,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑦ OFFICE ACTIVITY */}
-        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>} title="Office Activity" sub={officeItems.filter(Boolean).length ? `${officeItems.filter(Boolean).length} items` : "Back office work"} open={openSec.office} onToggle={() => toggle("office")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>} title="Office Activity" sub={officeItems.filter(Boolean).length ? `${officeItems.filter(Boolean).length} items` : "Back office work"} open={openSec.office} onToggle={() => toggle("office")}>
           {officeItems.map((item, i) => (
             <div key={i} className="wpr-plan-item">
               <div className="wpr-plan-num">{i + 1}</div>
@@ -2574,7 +2579,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑧ VISITOR REGISTER */}
-        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>} title="Visitor Register" sub={visitors.filter((v) => v.name).length ? `${visitors.filter((v) => v.name).length} visitors` : "Record site visitors"} open={openSec.visitor} onToggle={() => toggle("visitor")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>} title="Visitor Register" sub={visitors.filter((v) => v.name).length ? `${visitors.filter((v) => v.name).length} visitors` : "Record site visitors"} open={openSec.visitor} onToggle={() => toggle("visitor")}>
           {visitors.map((row, i) => (
             <div key={i} className="wpr-vis-card">
               <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
@@ -2601,7 +2606,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑨ DRAWING & DECISION PENDING */}
-        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} title="Drawing & Decision Pending" sub={drawDecision.filter((r) => r.drawingName).length ? `${drawDecision.filter((r) => r.drawingName).length} items` : "Pending drawings"} open={openSec.drawdec} onToggle={() => toggle("drawdec")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} title="Drawing & Decision Pending" sub={drawDecision.filter((r) => r.drawingName).length ? `${drawDecision.filter((r) => r.drawingName).length} items` : "Pending drawings"} open={openSec.drawdec} onToggle={() => toggle("drawdec")}>
           {drawDecision.length > 0 && (
           <div style={{
             display: "grid",
@@ -2643,7 +2648,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑩ WEEKLY CHECKLIST */}
-        <Acc icon={<svg  width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>} title="Weekly Site Checklist" sub={checklistPhotos.filter((p) => p.dataUrl).length ? `${checklistPhotos.filter((p) => p.dataUrl).length} photos` : "Checklist photos"} open={openSec.checklist} onToggle={() => toggle("checklist")}>
+        <Acc icon={<svg  width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>} title="Weekly Site Checklist" sub={checklistPhotos.filter((p) => p.dataUrl).length ? `${checklistPhotos.filter((p) => p.dataUrl).length} photos` : "Checklist photos"} open={openSec.checklist} onToggle={() => toggle("checklist")}>
           <PhotoGrid
             photos={checklistPhotos}
             onRemove={(i) => setChecklistPhotos((p) => p.filter((_, x) => x !== i))}
@@ -2660,7 +2665,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑪ DELAY POINTS */}
-        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>} title="Delay Points / Highlights / Red Flag" sub={delayPoints.filter(Boolean).length ? `${delayPoints.filter(Boolean).length} points` : "Issues and flags"} open={openSec.delay} onToggle={() => toggle("delay")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>} title="Delay Points / Highlights / Red Flag" sub={delayPoints.filter(Boolean).length ? `${delayPoints.filter(Boolean).length} points` : "Issues and flags"} open={openSec.delay} onToggle={() => toggle("delay")}>
           {delayPoints.map((pt, i) => (
             <div key={i} className="wpr-plan-item" style={{ borderColor: "rgba(220,38,38,.25)" }}>
               <div className="wpr-plan-num" style={{ background: "rgba(220,38,38,.1)", color: "#dc2626" }}>{i + 1}</div>
@@ -2672,7 +2677,7 @@ const datePath = buildSiteDatePath(reportDate);
         </Acc>
 
         {/* ⑫ NEXT WEEK PLANNING */}
-        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} title="Next Week Planning" sub={plans.filter(Boolean).length ? `${plans.filter(Boolean).length} plans` : "Planned activities"} open={openSec.plan} onToggle={() => toggle("plan")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} title="Next Week Planning" sub={plans.filter(Boolean).length ? `${plans.filter(Boolean).length} plans` : "Planned activities"} open={openSec.plan} onToggle={() => toggle("plan")}>
           {plans.map((pl, i) => (
             <div key={i} className="wpr-plan-item">
               <div className="wpr-plan-num">{i + 1}</div>
@@ -2685,7 +2690,7 @@ const datePath = buildSiteDatePath(reportDate);
 
         {/* ⑬ MOM REVIEW */}
         <Acc
-          icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}
+          icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}
           title="MOM Review"
           sub={momCount ? `${momCount} items` : "Minutes of Meeting — photos or Excel capture"}
           open={openSec.mom} onToggle={() => toggle("mom")}
@@ -2705,7 +2710,7 @@ const datePath = buildSiteDatePath(reportDate);
 
         {/* ⑭ BARCHART & WORKSHEET */}
         <Acc
-          icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>}
+          icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>}
           title="Barchart & Worksheet"
           sub={barchartCount ? `${barchartCount} items` : "Programme / schedule — photos or Excel capture"}
           open={openSec.barchart} onToggle={() => toggle("barchart")}
@@ -2725,7 +2730,7 @@ const datePath = buildSiteDatePath(reportDate);
         <hr style={{ border: 0, borderTop: "3px dotted #f59e0b", margin: "16px 0"}}/>
 
         {/* ⑮ REPORT SECTIONS */}
-        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>} title="Report Sections" sub="Reorder, hide or add custom sections" open={openSec.rc} onToggle={() => toggle("rc")}>
+        <Acc icon={<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>} title="Report Sections" sub="Reorder, hide or add custom sections" open={openSec.rc} onToggle={() => toggle("rc")}>
           <div className="wpr-hint">ℹ Standard sections are always included. Drag the ⠿ handle to reorder, use Hide to exclude from PPT, or 🚫 to omit entirely.</div>
           {sections.map((sec, si) => (
             <div

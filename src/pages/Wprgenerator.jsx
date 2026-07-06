@@ -329,6 +329,12 @@ const WPR_CSS = `
   from { transform: translateX(0);    opacity: 1; }
   to   { transform: translateX(110%); opacity: 0; }
 }
+
+.wpr-xl-table td.hdr-locked {
+  background: rgba(201,106,16,0.08) !important;
+  opacity: 0.6;
+}
+.wpr-xl-table tr.wpr-hdr-row td.hdr-locked { opacity: 0.75; } /* keep label-row text legible */
 `;
 
 const STANDARD_SECTIONS = [
@@ -1261,7 +1267,7 @@ useEffect(() => {
       if (e.touches.length !== 1) return;
       const touch = e.touches[0];
       const cell = cellFromPoint(touch.clientX, touch.clientY);
-      if (!cell) return;
+       if (!cell || isHeaderRow(cell.r)) return;
       e.preventDefault();
       setSelStart(cell); setSelEnd(cell); setIsDragging(true);
     };
@@ -1280,7 +1286,7 @@ useEffect(() => {
       const touch = e.touches[0];
       autoScroll(touch.clientX, touch.clientY);
       const cell = cellFromPoint(touch.clientX, touch.clientY);
-      if (cell) setSelEnd(cell);
+      if (cell && !isHeaderRow(cell.r)) setSelEnd(cell);
     };
 
     const handleTouchEnd = (e) => {
@@ -1304,6 +1310,10 @@ useEffect(() => {
   const captureSelection = async () => {
     const n = getNorm();
     if (!n) { alert("Select a range first by clicking and dragging on the table."); return; }
+    if (n.r1 <= (headerInfo?.headerEnd ?? -1)) {
+      alert("Your selection includes header rows — please select only data rows.");
+      return;
+    }
     setCapturing(true);
     const chunk = Math.max(1, parseInt(rowsPerImage, 10) || 8);
     const newItems = [];
@@ -1538,12 +1548,12 @@ useEffect(() => {
                             const selected=isSel(ri,ci);
                             const isStart=isSelStart(ri,ci);
                             return (
-                              <td key={ci}
-                                data-r={ri}
-                                data-c={ci}
-                                className={selected?(isStart?"sel-start":"sel"):""}
-                                style={{
-                                  cursor:"crosshair",
+                          <td key={ci}
+                            data-r={ri}
+                            data-c={ci}
+                            className={`${selected?(isStart?"sel-start":"sel"):""}${isHeaderRow(ri)?" hdr-locked":""}`}
+                            style={{
+                              cursor: isHeaderRow(ri) ? "not-allowed" : "crosshair",
                                   minWidth:80,maxWidth:180,
                                   overflow:"hidden",textOverflow:"ellipsis",
                                   whiteSpace:"nowrap",padding:"5px 8px",fontSize:11.5,

@@ -103,7 +103,23 @@ const WPR_CSS = `
 .wpr-xl-sheet-tab.active { background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); color:#fff; }
 
 .wpr-xl-table-wrap { overflow:auto; max-height:320px; touch-action:none; }
-
+.wpr-xl-scroll-outer { position:relative; }
+.wpr-fake-scroll-h {
+  position:absolute; left:0; right:16px; bottom:2px; height:14px; /* ← thickness here */
+  background:#f5f0e8; border-radius:7px; display:none; pointer-events:none;
+}
+.wpr-fake-scroll-h-thumb {
+  position:absolute; top:0; left:0; height:14px; border-radius:7px;
+  background:#c96a10;
+}
+.wpr-fake-scroll-v {
+  position:absolute; top:0; bottom:16px; right:2px; width:14px; /* ← thickness here */
+  background:#f5f0e8; border-radius:7px; display:none; pointer-events:none;
+}
+.wpr-fake-scroll-v-thumb {
+  position:absolute; left:0; top:0; width:14px; border-radius:7px;
+  background:#c96a10;
+}
 /* ── Broader, more visible scrollbars for Excel range preview ── */
 .wpr-xl-table-wrap {
   scrollbar-width: auto;              /* Firefox: use 'thin' for a slimmer bar */
@@ -837,7 +853,38 @@ const photoRef       = useRef();
 const tableRef       = useRef(null);
   const scrollTimerRef = useRef(null);
   const wrapperRef     = useRef(null);
+const fakeHRef = useRef(null), fakeHThumbRef = useRef(null);
+const fakeVRef = useRef(null), fakeVThumbRef = useRef(null);
 
+const updateFakeScrollbars = () => {
+  const el = wrapperRef.current;
+  if (!el || !fakeHThumbRef.current || !fakeVThumbRef.current) return;
+  const { scrollWidth, clientWidth, scrollLeft, scrollHeight, clientHeight, scrollTop } = el;
+
+  if (scrollWidth > clientWidth + 2) {
+    const trackW = fakeHRef.current.clientWidth;
+    const thumbW = Math.max(30, (clientWidth / scrollWidth) * trackW);
+    const thumbX = (scrollLeft / (scrollWidth - clientWidth)) * (trackW - thumbW);
+    fakeHThumbRef.current.style.width = `${thumbW}px`;
+    fakeHThumbRef.current.style.transform = `translateX(${thumbX}px)`;
+    fakeHRef.current.style.display = "block";
+  } else {
+    fakeHRef.current.style.display = "none";
+  }
+
+  if (scrollHeight > clientHeight + 2) {
+    const trackH = fakeVRef.current.clientHeight;
+    const thumbH = Math.max(30, (clientHeight / scrollHeight) * trackH);
+    const thumbY = (scrollTop / (scrollHeight - clientHeight)) * (trackH - thumbH);
+    fakeVThumbRef.current.style.height = `${thumbH}px`;
+    fakeVThumbRef.current.style.transform = `translateY(${thumbY}px)`;
+    fakeVRef.current.style.display = "block";
+  } else {
+    fakeVRef.current.style.display = "none";
+  }
+};
+
+useEffect(() => { updateFakeScrollbars(); }, [workbook, activeSheet, zoom]);
   const sheetData   = workbook?.sheets?.[activeSheet]?.raw    || [];
   const sheetMerges = workbook?.sheets?.[activeSheet]?.merges || [];
   const maxCols = sheetData.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
@@ -1371,19 +1418,20 @@ useEffect(() => {
               </div>
 
               {/* Excel table */}
-
-              <div ref={wrapperRef} className="wpr-xl-table-wrap"
-                style={{
-                  maxHeight:480, border:"1.5px solid #c96a10", borderRadius:8,
-                  overflow:"auto", userSelect:"none", touchAction:"none",
-                  WebkitOverflowScrolling:"touch",
-                }} onMouseMove={e=>{ if(!isDragging) return; autoScroll(e.clientX,e.clientY); }} onMouseUp={()=>{ setIsDragging(false); stopAutoScroll(); }} onWheel={e=>{
-                  if (!e.ctrlKey && !e.metaKey) return; // ctrl/cmd+scroll to zoom on desktop
-                  e.preventDefault();
-                  setZoom(z => Math.min(3, Math.max(0.5, +(z + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(2))));
-                }}
-                onMouseLeave={()=>{}}> 
-                <table ref={tableRef} className="wpr-xl-table" style={{minWidth:"100%", transform:`scale(${zoom})`, transformOrigin:"top left"}}>
+              <div className="wpr-xl-scroll-outer">
+                <div
+                  ref={wrapperRef}
+                  className="wpr-xl-table-wrap"
+                  onScroll={updateFakeScrollbars}
+                  style={{ maxHeight:480, border:"1.5px solid #c96a10", borderRadius:8,
+                    overflow:"auto", userSelect:"none", touchAction:"none",
+                    WebkitOverflowScrolling:"touch" }}
+                  onMouseMove={e=>{ if(!isDragging) return; autoScroll(e.clientX,e.clientY); }}
+                  onMouseUp={()=>{ setIsDragging(false); stopAutoScroll(); }}
+                  onWheel={e=>{ if (!e.ctrlKey && !e.metaKey) return; e.preventDefault();
+                    setZoom(z => Math.min(3, Math.max(0.5, +(z + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(2)))); }}
+                >
+                  <table ref={tableRef} className="wpr-xl-table" style={{minWidth:"100%", transform:`scale(${zoom})`, transformOrigin:"top left"}}>
                   <thead>
                     <tr>
                       <th style={{minWidth:36,width:36,position:"sticky",left:0,zIndex:2}}>#</th>
@@ -1437,6 +1485,10 @@ useEffect(() => {
                     })}
                   </tbody>
                 </table>
+                </div>
+
+                <div className="wpr-fake-scroll-h" ref={fakeHRef}><div className="wpr-fake-scroll-h-thumb" ref={fakeHThumbRef}/></div>
+                <div className="wpr-fake-scroll-v" ref={fakeVRef}><div className="wpr-fake-scroll-v-thumb" ref={fakeVThumbRef}/></div>
               </div>
 
               {/* Overflow notices */}

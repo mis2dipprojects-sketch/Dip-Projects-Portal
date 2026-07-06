@@ -1238,7 +1238,7 @@ function MonthlyReport() {
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function SitePortal() {
   const [user,           setUser]           = useState(null);
-  const [activeTab,      setActiveTab]      = useState("my-leave");
+  const [activeTab,      setActiveTab]      = useState("clock-in");
   const [sidebarOpen,    setSidebarOpen]    = useState(true);
   const [expanded,       setExpanded]       = useState({ leave:true, reports:true });
   const [siteReports,    setSiteReports]    = useState([]);

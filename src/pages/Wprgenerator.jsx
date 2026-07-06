@@ -1511,10 +1511,10 @@ useEffect(() => {
                   setZoom(z => Math.min(3, Math.max(0.5, +(z + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(2))));
                 }}
                 onMouseLeave={()=>{}}> 
-                <table ref={tableRef} className="wpr-xl-table" style={{minWidth:"100%", transform:`scale(${zoom})`, transformOrigin:"top left"}}>
+                <table ref={tableRef} className="wpr-xl-table" style={{ minWidth:"100%", zoom }}>
                   <thead>
                     <tr>
-                      <th style={{minWidth:36,width:36,position:"sticky",left:0,zIndex:2}}>#</th>
+                      <th style={{minWidth:36,width:36,position:"sticky",left:0,zIndex:3,background:"linear-gradient(135deg,#3d1200,#7a2e00)"}}>#</th>
                       {Array.from({length:VISIBLE_COLS},(_,ci)=>(
                         <th key={ci} style={{minWidth:80}}>{colLetter(ci)}</th>
                       ))}

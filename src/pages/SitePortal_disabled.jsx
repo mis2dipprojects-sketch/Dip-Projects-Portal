@@ -857,6 +857,8 @@ const ALL_ITEMS = [
 // ─── Enabled tabs ─────────────────────────────────────────────────────────────
 // REPLACE WITH:
 const ENABLED_TABS = new Set([
+  "clock-in",
+  "calendar",
   "daily-report",
   "site-report",
   "my-reports",
@@ -874,6 +876,7 @@ function Loading() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // MY LEAVE
 // ═══════════════════════════════════════════════════════════════════════════════
+
 function MyLeave({ user, onApply }) {
   const [leaves,  setLeaves]  = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1235,7 +1238,7 @@ function MonthlyReport() {
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function SitePortal() {
   const [user,           setUser]           = useState(null);
-  const [activeTab,      setActiveTab]      = useState("daily-report");
+  const [activeTab,      setActiveTab]      = useState("my-leave");
   const [sidebarOpen,    setSidebarOpen]    = useState(true);
   const [expanded,       setExpanded]       = useState({ leave:true, reports:true });
   const [siteReports,    setSiteReports]    = useState([]);

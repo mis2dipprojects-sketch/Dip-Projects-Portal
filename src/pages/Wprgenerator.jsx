@@ -103,23 +103,7 @@ const WPR_CSS = `
 .wpr-xl-sheet-tab.active { background:linear-gradient(135deg,#3d1200,#7a2e00,#c96a10); color:#fff; }
 
 .wpr-xl-table-wrap { overflow:auto; max-height:320px; touch-action:none; }
-.wpr-xl-scroll-outer { position:relative; }
-.wpr-fake-scroll-h {
-  position:absolute; left:0; right:16px; bottom:2px; height:14px; /* ← thickness here */
-  background:#f5f0e8; border-radius:7px; display:none; pointer-events:none;
-}
-.wpr-fake-scroll-h-thumb {
-  position:absolute; top:0; left:0; height:14px; border-radius:7px;
-  background:#c96a10;
-}
-.wpr-fake-scroll-v {
-  position:absolute; top:0; bottom:16px; right:2px; width:14px; /* ← thickness here */
-  background:#f5f0e8; border-radius:7px; display:none; pointer-events:none;
-}
-.wpr-fake-scroll-v-thumb {
-  position:absolute; left:0; top:0; width:14px; border-radius:7px;
-  background:#c96a10;
-}
+
 /* ── Broader, more visible scrollbars for Excel range preview ── */
 .wpr-xl-table-wrap {
   scrollbar-width: auto;              /* Firefox: use 'thin' for a slimmer bar */
@@ -144,7 +128,27 @@ const WPR_CSS = `
 .wpr-xl-table-wrap::-webkit-scrollbar-corner {
   background: #f5f0e8;
 }
+.wpr-xl-scroll-outer { position: relative; }
+.wpr-mob-hbar, .wpr-mob-vbar { display: none; }
 
+@media (max-width: 999px) {
+  .wpr-mob-hbar {
+    display: block; position: absolute; left: 0; right: 34px; bottom: 3px; height: 30px;
+    background: #f5f0e8; border: 1.5px solid #c96a10; border-radius: 15px; z-index: 6;
+  }
+  .wpr-mob-hbar-thumb {
+    position: absolute; top: 3px; left: 0; height: 22px; border-radius: 11px;
+    background: linear-gradient(135deg,#3d1200,#7a2e00,#c96a10);
+  }
+  .wpr-mob-vbar {
+    display: block; position: absolute; top: 0; bottom: 34px; right: 3px; width: 30px;
+    background: #f5f0e8; border: 1.5px solid #c96a10; border-radius: 15px; z-index: 6;
+  }
+  .wpr-mob-vbar-thumb {
+    position: absolute; left: 3px; top: 0; width: 22px; border-radius: 11px;
+    background: linear-gradient(135deg,#3d1200,#7a2e00,#c96a10);
+  }
+}
 .wpr-xl-table { border-collapse:collapse; font-size:11.5px; font-family:var(--mono); min-width:100%; }
 .wpr-xl-table th { background:linear-gradient(135deg,#3d1200,#7a2e00); color:#ffcfa0; padding:5px 10px; border:1px solid rgba(201,106,16,0.3); font-weight:800; text-align:center; white-space:nowrap; position:sticky; top:0; z-index:1; }
 .wpr-xl-table td { padding:4px 10px; border:1px solid var(--line); color:var(--ink); white-space:nowrap; cursor:pointer; transition:background .1s; user-select:none; }
@@ -853,38 +857,9 @@ const photoRef       = useRef();
 const tableRef       = useRef(null);
   const scrollTimerRef = useRef(null);
   const wrapperRef     = useRef(null);
-const fakeHRef = useRef(null), fakeHThumbRef = useRef(null);
-const fakeVRef = useRef(null), fakeVThumbRef = useRef(null);
-
-const updateFakeScrollbars = () => {
-  const el = wrapperRef.current;
-  if (!el || !fakeHThumbRef.current || !fakeVThumbRef.current) return;
-  const { scrollWidth, clientWidth, scrollLeft, scrollHeight, clientHeight, scrollTop } = el;
-
-  if (scrollWidth > clientWidth + 2) {
-    const trackW = fakeHRef.current.clientWidth;
-    const thumbW = Math.max(30, (clientWidth / scrollWidth) * trackW);
-    const thumbX = (scrollLeft / (scrollWidth - clientWidth)) * (trackW - thumbW);
-    fakeHThumbRef.current.style.width = `${thumbW}px`;
-    fakeHThumbRef.current.style.transform = `translateX(${thumbX}px)`;
-    fakeHRef.current.style.display = "block";
-  } else {
-    fakeHRef.current.style.display = "none";
-  }
-
-  if (scrollHeight > clientHeight + 2) {
-    const trackH = fakeVRef.current.clientHeight;
-    const thumbH = Math.max(30, (clientHeight / scrollHeight) * trackH);
-    const thumbY = (scrollTop / (scrollHeight - clientHeight)) * (trackH - thumbH);
-    fakeVThumbRef.current.style.height = `${thumbH}px`;
-    fakeVThumbRef.current.style.transform = `translateY(${thumbY}px)`;
-    fakeVRef.current.style.display = "block";
-  } else {
-    fakeVRef.current.style.display = "none";
-  }
-};
-
-useEffect(() => { updateFakeScrollbars(); }, [workbook, activeSheet, zoom]);
+const hTrackRef = useRef(null), hThumbRef = useRef(null);
+const vTrackRef = useRef(null), vThumbRef = useRef(null);
+const dragStateRef = useRef({ axis: null, startPos: 0, startScroll: 0 });
   const sheetData   = workbook?.sheets?.[activeSheet]?.raw    || [];
   const sheetMerges = workbook?.sheets?.[activeSheet]?.merges || [];
   const maxCols = sheetData.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
@@ -1126,7 +1101,88 @@ useEffect(() => { updateFakeScrollbars(); }, [workbook, activeSheet, zoom]);
   };
 
 const getScrollContainer = () => tableRef.current?.closest('.wpr-xl-table-wrap');
+const updateScrollbars = useCallback(() => {
+  const el = wrapperRef.current;
+  if (!el) return;
+  const hTrack = hTrackRef.current, hThumb = hThumbRef.current;
+  const vTrack = vTrackRef.current, vThumb = vThumbRef.current;
 
+  if (hTrack && hThumb) {
+    const trackW = hTrack.clientWidth;
+    const ratio = el.clientWidth / el.scrollWidth;
+    const thumbW = Math.max(40, ratio * trackW);
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    const left = maxScroll > 0 ? (el.scrollLeft / maxScroll) * (trackW - thumbW) : 0;
+    hThumb.style.width = thumbW + "px";
+    hThumb.style.transform = `translateX(${left}px)`;
+    hTrack.style.display = ratio >= 0.999 ? "none" : "block";
+  }
+  if (vTrack && vThumb) {
+    const trackH = vTrack.clientHeight;
+    const ratio = el.clientHeight / el.scrollHeight;
+    const thumbH = Math.max(40, ratio * trackH);
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    const top = maxScroll > 0 ? (el.scrollTop / maxScroll) * (trackH - thumbH) : 0;
+    vThumb.style.height = thumbH + "px";
+    vThumb.style.transform = `translateY(${top}px)`;
+    vTrack.style.display = ratio >= 0.999 ? "none" : "block";
+  }
+}, []);
+
+useEffect(() => {
+  const el = wrapperRef.current;
+  if (!el) return;
+  updateScrollbars();
+  el.addEventListener("scroll", updateScrollbars, { passive: true });
+  window.addEventListener("resize", updateScrollbars);
+  return () => {
+    el.removeEventListener("scroll", updateScrollbars);
+    window.removeEventListener("resize", updateScrollbars);
+  };
+}, [workbook, activeSheet, zoom, updateScrollbars]);
+
+const startDrag = (axis) => (e) => {
+  e.stopPropagation();
+  const t = e.touches ? e.touches[0] : e;
+  const el = wrapperRef.current;
+  dragStateRef.current = {
+    axis,
+    startPos: axis === "h" ? t.clientX : t.clientY,
+    startScroll: axis === "h" ? el.scrollLeft : el.scrollTop,
+  };
+};
+
+useEffect(() => {
+  const move = (e) => {
+    const { axis, startPos, startScroll } = dragStateRef.current;
+    if (!axis) return;
+    e.preventDefault();
+    const el = wrapperRef.current;
+    const t = e.touches ? e.touches[0] : e;
+    if (axis === "h") {
+      const trackW = hTrackRef.current.clientWidth, thumbW = hThumbRef.current.clientWidth;
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      const delta = ((t.clientX - startPos) / (trackW - thumbW)) * maxScroll;
+      el.scrollLeft = Math.min(maxScroll, Math.max(0, startScroll + delta));
+    } else {
+      const trackH = vTrackRef.current.clientHeight, thumbH = vThumbRef.current.clientHeight;
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      const delta = ((t.clientY - startPos) / (trackH - thumbH)) * maxScroll;
+      el.scrollTop = Math.min(maxScroll, Math.max(0, startScroll + delta));
+    }
+  };
+  const end = () => { dragStateRef.current = { axis: null }; };
+  window.addEventListener("touchmove", move, { passive: false });
+  window.addEventListener("touchend", end);
+  window.addEventListener("mousemove", move);
+  window.addEventListener("mouseup", end);
+  return () => {
+    window.removeEventListener("touchmove", move);
+    window.removeEventListener("touchend", end);
+    window.removeEventListener("mousemove", move);
+    window.removeEventListener("mouseup", end);
+  };
+}, []);
   const autoScroll = (clientX, clientY) => {
     const container = getScrollContainer();
     if (!container) return;
@@ -1418,20 +1474,19 @@ useEffect(() => {
               </div>
 
               {/* Excel table */}
-              <div className="wpr-xl-scroll-outer">
-                <div
-                  ref={wrapperRef}
-                  className="wpr-xl-table-wrap"
-                  onScroll={updateFakeScrollbars}
-                  style={{ maxHeight:480, border:"1.5px solid #c96a10", borderRadius:8,
-                    overflow:"auto", userSelect:"none", touchAction:"none",
-                    WebkitOverflowScrolling:"touch" }}
-                  onMouseMove={e=>{ if(!isDragging) return; autoScroll(e.clientX,e.clientY); }}
-                  onMouseUp={()=>{ setIsDragging(false); stopAutoScroll(); }}
-                  onWheel={e=>{ if (!e.ctrlKey && !e.metaKey) return; e.preventDefault();
-                    setZoom(z => Math.min(3, Math.max(0.5, +(z + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(2)))); }}
-                >
-                  <table ref={tableRef} className="wpr-xl-table" style={{minWidth:"100%", transform:`scale(${zoom})`, transformOrigin:"top left"}}>
+              <div className="wpr-xl-scroll-outer">       
+              <div ref={wrapperRef} className="wpr-xl-table-wrap"
+                style={{
+                  maxHeight:480, border:"1.5px solid #c96a10", borderRadius:8,
+                  overflow:"auto", userSelect:"none", touchAction:"none",
+                  WebkitOverflowScrolling:"touch",
+                }} onMouseMove={e=>{ if(!isDragging) return; autoScroll(e.clientX,e.clientY); }} onMouseUp={()=>{ setIsDragging(false); stopAutoScroll(); }} onWheel={e=>{
+                  if (!e.ctrlKey && !e.metaKey) return; // ctrl/cmd+scroll to zoom on desktop
+                  e.preventDefault();
+                  setZoom(z => Math.min(3, Math.max(0.5, +(z + (e.deltaY < 0 ? 0.1 : -0.1)).toFixed(2))));
+                }}
+                onMouseLeave={()=>{}}> 
+                <table ref={tableRef} className="wpr-xl-table" style={{minWidth:"100%", transform:`scale(${zoom})`, transformOrigin:"top left"}}>
                   <thead>
                     <tr>
                       <th style={{minWidth:36,width:36,position:"sticky",left:0,zIndex:2}}>#</th>
@@ -1485,12 +1540,17 @@ useEffect(() => {
                     })}
                   </tbody>
                 </table>
-                </div>
-
-                <div className="wpr-fake-scroll-h" ref={fakeHRef}><div className="wpr-fake-scroll-h-thumb" ref={fakeHThumbRef}/></div>
-                <div className="wpr-fake-scroll-v" ref={fakeVRef}><div className="wpr-fake-scroll-v-thumb" ref={fakeVThumbRef}/></div>
               </div>
-
+               {/* Custom fat mobile scrollbars — real webkit ones can't be resized on touch */}
+  <div ref={hTrackRef} className="wpr-mob-hbar">
+    <div ref={hThumbRef} className="wpr-mob-hbar-thumb"
+      onTouchStart={startDrag("h")} onMouseDown={startDrag("h")} />
+  </div>
+  <div ref={vTrackRef} className="wpr-mob-vbar">
+    <div ref={vThumbRef} className="wpr-mob-vbar-thumb"
+      onTouchStart={startDrag("v")} onMouseDown={startDrag("v")} />
+  </div>
+</div>     
               {/* Overflow notices */}
               <div style={{display:"flex",gap:12,marginTop:5,flexWrap:"wrap"}}>
                 {sheetData.length>200 && (

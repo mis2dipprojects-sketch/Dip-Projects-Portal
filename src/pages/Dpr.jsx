@@ -3086,8 +3086,8 @@ function buildWhatsAppText(payload) {
     msg += '\n📋 *WORK SUMMARY*\n';
     msg += `${LINE}\n`;
     payload.summary.split('\n').filter(l => l.trim())
-      .forEach((l, i) => {
-        msg += `${i + 1}.  ${l.replace(/^[•\-]\s*/, '').trim()}\n`;
+      .forEach(l => {
+        msg += `${l.replace(/^[•\-]\s*/, '').trim()}\n`;
       });
   }
 

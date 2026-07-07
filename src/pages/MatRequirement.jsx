@@ -28,15 +28,16 @@ async function dbInsert(table, payload) {
   return !error;
 }
 // ─── Seen-tracking for the Material Received badge ───────────────────────────
-function lastSeenKey(user, site) {
-  return `mreq_lastseen_${user?.id || user?.name || "anon"}__${site}`;
+// ─── Seen-tracking for the Material Received badge ───────────────────────────
+function lastSeenKey(user, site, status) {
+  return `mreq_lastseen_${user?.id || user?.name || "anon"}__${site}__${status}`;
 }
-function getLastSeen(user, site) {
-  try { return localStorage.getItem(lastSeenKey(user, site)) || "1970-01-01T00:00:00.000Z"; }
+function getLastSeen(user, site, status) {
+  try { return localStorage.getItem(lastSeenKey(user, site, status)) || "1970-01-01T00:00:00.000Z"; }
   catch { return "1970-01-01T00:00:00.000Z"; }
 }
-function markSeen(user, site, iso) {
-  try { localStorage.setItem(lastSeenKey(user, site), iso); } catch {}
+function markSeen(user, site, status, iso) {
+  try { localStorage.setItem(lastSeenKey(user, site, status), iso); } catch {}
 }
 // ─── Shared unseen-count logic (importable from the sidebar too) ────────────
 function getUserSites(user) {
@@ -45,10 +46,16 @@ function getUserSites(user) {
     : user?.site_name ? [titleCase(user.site_name)] : [];
 }
 
-export function markMaterialSeen(user) {
+export function markMaterialSeen(user, statuses = ["received", "rejected"]) {
   const sites = getUserSites(user);
   const nowIso = new Date().toISOString();
-  sites.forEach(s => markSeen(user, s, nowIso));
+  sites.forEach(s => statuses.forEach(st => markSeen(user, s, st, nowIso)));
+}
+
+// NEW — mark seen for just one site (used when a specific chip is viewed)
+function markMaterialSeenForSite(user, site, statuses) {
+  const nowIso = new Date().toISOString();
+  statuses.forEach(st => markSeen(user, site, st, nowIso));
 }
 
 export function useMaterialUnseenCount(user) {
@@ -60,7 +67,8 @@ export function useMaterialUnseenCount(user) {
     if (!user || !sites.length) { setBreakdown({ received: 0, rejected: 0 }); return; }
     let received = 0, rejected = 0;
     for (const s of sites) {
-      const lastSeen = getLastSeen(user, s);
+      const lastSeenReceived = getLastSeen(user, s, "received");
+      const lastSeenRejected = getLastSeen(user, s, "rejected");
       const { data } = await supabase
         .from("material_requirements")
         .select("status, created_at, received_at")
@@ -69,10 +77,9 @@ export function useMaterialUnseenCount(user) {
         .in("status", ["received", "rejected"]);
       (data || []).forEach(r => {
         const changedAt = r.received_at || r.created_at;
-        if (changedAt && new Date(changedAt) > new Date(lastSeen)) {
-          if (r.status === "received") received++;
-          else if (r.status === "rejected") rejected++;
-        }
+        if (!changedAt) return;
+        if (r.status === "received" && new Date(changedAt) > new Date(lastSeenReceived)) received++;
+        else if (r.status === "rejected" && new Date(changedAt) > new Date(lastSeenRejected)) rejected++;
       });
     }
     setBreakdown({ received, rejected });
@@ -516,7 +523,7 @@ const handleSiteChange = (newSite) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // MATERIAL RECEIVED — filterable status list with receive action
 // ═══════════════════════════════════════════════════════════════════════════
-function MaterialReceived({ user, showToast, unseen }) {
+function MaterialReceived({ user, showToast, unseen, onDotSeen }) {
   const [filter, setFilter] = useState("pending");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -526,8 +533,6 @@ function MaterialReceived({ user, showToast, unseen }) {
     : user?.site_name ? [titleCase(user.site_name)] : [];
   const [site, setSite] = useState(userSites[0] || "");
 
-
-  
   const load = useCallback(async () => {
     if (!site) { setLoading(false); return; }
     setLoading(true);
@@ -536,6 +541,16 @@ function MaterialReceived({ user, showToast, unseen }) {
     const { data } = await q.order("created_at", { ascending: false });
     setRows(data || []);
     setLoading(false);
+
+    // Mark only the status(es) actually being viewed as seen — not the whole tab.
+    if (site) {
+      if (filter === "received") markMaterialSeenForSite(user, site, ["received"]);
+      else if (filter === "rejected") markMaterialSeenForSite(user, site, ["rejected"]);
+      else if (filter === "all") markMaterialSeenForSite(user, site, ["received", "rejected"]);
+      // "pending" carries no badge, so nothing to mark there.
+      unseen?.refresh?.();
+      onDotSeen?.();
+    }
   }, [site, filter]);
 
   useEffect(() => { load(); }, [load]);
@@ -702,10 +717,7 @@ export default function MatRequirement({ user, onDotSeen, onUnseenCount }) {
   };
 
   const openReceivedTab = () => {
-    setTab("received");
-    markMaterialSeen(user);
-    unseen.refresh();
-    onDotSeen?.();
+    setTab("received"); // no marking-as-seen here anymore — that happens per chip
   };
 
   return (
@@ -726,7 +738,7 @@ export default function MatRequirement({ user, onDotSeen, onUnseenCount }) {
           <div className="mreq-card">
             {tab === "required"
               ? <MaterialRequired user={user} showToast={showToast} onSubmitted={unseen.refresh} />
-              : <MaterialReceived user={user} showToast={showToast} unseen={unseen} />}
+              : <MaterialReceived user={user} showToast={showToast} unseen={unseen} onDotSeen={onDotSeen} />}
           </div>
 
           {toast && (

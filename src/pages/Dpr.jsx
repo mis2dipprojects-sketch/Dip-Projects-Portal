@@ -513,7 +513,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;font-size:14px;line-height:1.7;colo
 .sec-num{font-size:18px;font-weight:900;color:#fff;}
 .sec-title{font-size:17px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#fff;}
 .sec-tag{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.7);}
-.sec-body{background:#fff;}
+.pdf-sec-body{background:#fff !important;color:#0f172a;} 
 
 /* UNIVERSAL TABLE */
 table{width:100%;border-collapse:collapse;font-size:14px;}
@@ -584,11 +584,11 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 .summary-cat-body{border:1.5px solid #cbd5e1;border-top:none;border-radius:0 0 4px 4px;padding:12px 16px;background:#fff;margin-bottom:14px;}
 
 /* PHOTOS */
-.photo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding:14px;background:#f8fafc;}
+.pdf-photo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding:14px;background:#f8fafc;}
 .photo-card{background:#fff;border:1px solid #cbd5e1;overflow:hidden;}
 .photo-card img{width:100%;height:340px;object-fit:cover;display:block;}
 .photo-card img{width:100%;height:280px;object-fit:cover;display:block;}
-.photo-caption{padding:7px 10px;font-size:13px;font-weight:600;text-align:center;color:#64748b;background:#f8fafc;border-top:1px solid #cbd5e1;}
+.pdf-photo-caption{padding:7px 10px;font-size:13px;font-weight:600;text-align:center;color:#64748b;background:#f8fafc;border-top:1px solid #cbd5e1;}
 
 /* CUSTOM FIELDS */
 .cf-row{display:flex;gap:20px;padding:10px 16px;border-bottom:1px solid #cbd5e1;}
@@ -664,7 +664,7 @@ function pdfSection(title, bodyHtml) {
         <span class="sec-title">${title}</span>
       </div>
     </div>
-    <div class="sec-body">${bodyHtml}</div>
+    <div class="pdf-sec-body">${bodyHtml}</div>
   </div>`;
 }
 
@@ -1124,6 +1124,7 @@ async function getLogoBase64() {
     img.src = LOGO_URL; // ← uses the imported local asset
   });
 }
+
 async function generateEveningPdf(payload, onProgress) {
   
   await ensurePdfDeps();
@@ -1161,7 +1162,9 @@ async function renderChunk(html) {
     zIndex:     "-1",
     fontFamily: "'Segoe UI',Arial,sans-serif",
     overflow:   "hidden",
+    colorScheme: "light", 
   });
+  wrap.setAttribute("data-theme", "light");
   wrap.style.position = "fixed"; // keep off-screen
 
   // CSS
@@ -1427,8 +1430,8 @@ if (isPhotos) {
             <span class="sec-title">${title}</span>
           </div>
         </div>
-        <div class="sec-body">${body}</div>
-      </div>`;
+        <div class="pdf-sec-body">${body}</div>
+    </div>`;
     onProgress(`Rendering: ${title}…`);
     const canvas = await renderChunk(secHtml);
     await addCanvasToPdf(canvas, title);
@@ -2641,23 +2644,27 @@ function CustomFieldsSection({ fields, setFields }) {
 }
 
 // REPLACE the entire PhotosSection component with:
-function PhotosSection({ photos, setPhotos, onLightbox }) {
-  const fileRef = useRef();
-  const [converting, setConverting] = useState(false);
+function PhotosSection({ photos, setPhotos, onLightbox, showToast }) {
+    const fileRef = useRef();
+    const [converting, setConverting] = useState(false);
 
-  const addFiles = async files => {
-    const validFiles = files.filter(f => {
-      const type = f.type.toLowerCase();
-      const name = f.name.toLowerCase();
-      // Accept: standard images, HEIC/HEIF (type may be empty on Android)
-      return (
-        type.startsWith("image/") ||
-        type === "" && /\.(heic|heif|jpg|jpeg|png|gif|webp|bmp)$/i.test(name)
-      );
-    });
+    const addFiles = async files => {
+      const validFiles = files.filter(f => {
+        const type = f.type.toLowerCase();
+        const name = f.name.toLowerCase();
+        return (
+          type.startsWith("image/") ||
+          (type === "" && /\.(heic|heif|jpg|jpeg|png|gif|webp|bmp)$/i.test(name))
+        );
+      });
 
-    if (!validFiles.length) return;
-    setConverting(true);
+      const rejectedCount = files.length - validFiles.length;
+      if (rejectedCount > 0 && showToast) {
+        showToast("err", `${rejectedCount} file${rejectedCount > 1 ? "s were" : " was"} skipped — only image files are allowed.`);
+      }
+
+      if (!validFiles.length) return;
+      setConverting(true);
 
     for (const f of validFiles) {
       try {
@@ -2670,13 +2677,14 @@ function PhotosSection({ photos, setPhotos, onLightbox }) {
       }
     }
     setConverting(false);
-  };
+    };
 
   return (
     <div>
       <input
         ref={fileRef}
         type="file"
+        accept="image/*,.heic,.heif"
         multiple
         hidden
         onChange={e => { addFiles(Array.from(e.target.files)); e.target.value = ""; }}
@@ -2841,6 +2849,7 @@ useEffect(() => {
     return () => { cancelled = true; };
   }, [site, engineer]);
 
+  
   // Pre-fill from this morning's report — independent of draft lookup above,
   // only relevant once the user is on the evening tab.
   useEffect(() => {
@@ -3409,7 +3418,7 @@ const handleWhatsApp = async () => {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   Photos are required for Evening DPR.
                 </div>
-                <PhotosSection photos={photos} setPhotos={setPhotos} onLightbox={openLightbox}/>
+                <PhotosSection photos={photos} setPhotos={setPhotos} onLightbox={openLightbox} showToast={showToast}/>
               </SectionBlock>
 
               <SectionBlock title="11. Tomorrow's Planning">

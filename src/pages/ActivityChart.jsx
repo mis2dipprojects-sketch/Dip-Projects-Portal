@@ -252,7 +252,7 @@ export function ActivityChart({ data, user }) {
   };
   
   const closeDrill = () => { setDrillMonth(null); setDrillData([]); setDrillHovered(null); };
-
+ 
   // ── Shared SVG wrapper ───────────────────────────────────────────────────
   const Svg = ({ children, onLeave }) => (
     <svg viewBox={`0 0 ${W} ${H}`}
@@ -301,7 +301,7 @@ export function ActivityChart({ data, user }) {
   const MonthChart = () => {
     const n         = data.length;
     const sharedMax = Math.max(...data.map(d => Math.max(d.dpr || 0, d.wpr || 0)), 1);
-    const yTicks    = [0, Math.round(sharedMax / 2), sharedMax];
+    const yTicks = [...new Set([0, Math.round(sharedMax / 2), sharedMax])];
     const xPos = (i) => PAD.left + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW);
     const yPos = (v, max) => PAD.top + innerH - Math.min((v || 0) / max, 1) * innerH;
 
@@ -319,10 +319,10 @@ const dprArea = dprAreaPoints.length
     return (
       <Svg onLeave={() => setHovered(null)}>
         {/* Y grid left */}
-        {yTicks.map(t => {
+        {yTicks.map((t, ti) => {
           const y = yPos(t, sharedMax);
           return (
-            <g key={t}>
+            <g key={`ytick-${ti}`}>
               <line x1={PAD.left} y1={y} x2={W - PAD.right} y2={y}
                 stroke="#e2e8f0" strokeWidth={t === 0 ? 1.2 : 0.6}
                 strokeDasharray={t === 0 ? "none" : "3 3"}/>

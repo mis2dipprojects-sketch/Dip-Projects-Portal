@@ -9,7 +9,7 @@ import ManpowerReport from "./Manpowerreport.jsx";
 import Profile from "./Profile";
 import WprGenerator from "./Wprgenerator.jsx";
 import MatRequirement from "./MatRequirement.jsx";
-
+import { useMaterialUnseenCount } from "./MatRequirement"; // adjust path
 // ─── Supabase ────────────────────────────────────────────────────────────────
 const SUPABASE_URL  = "https://efqfjfthsleymhljswcq.supabase.co";
 const SUPABASE_ANON =   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmcWZqZnRoc2xleW1obGpzd2NxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDY0MjMsImV4cCI6MjA5NTkyMjQyM30.PYMRiKdnhzb6pkvhDB4M4Qdp3nSGhsZpHGuclVqYNMs";
@@ -603,7 +603,8 @@ const DARK_CSS = `
   .sni:hover{background:var(--paper);color:var(--ink);}
   .sni.act{background:var(--amber-bg);color:var(--amber2);font-weight:700;}
   .sni.act svg{stroke:var(--amber2);}
-  
+  .sni { position: relative; }
+.sni-badge {margin-left: auto;min-width: 18px;height: 18px;padding: 0 5px;border-radius: 9px;background: var(--red);color: #fff;font-size: 10.5px;font-weight: 800;display: flex;align-items: center;justify-content: center;flex-shrink: 0;line-height: 1;}
   /* ── Card ── */
   .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);}
   .card-hdr{display:flex;align-items:center;gap:10px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--line);}
@@ -623,7 +624,7 @@ const DARK_CSS = `
   .btn-red:hover{background:#fee2e2;}
   .btn-green{background:#f0fdf4;color:var(--green);border:1.5px solid #bbf7d0;}
   .btn-green:hover{background:#dcfce7;}
-
+  
   /* ── Form ── */
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:15px;}
   .col2{grid-column:span 2;}
@@ -796,6 +797,7 @@ const DARK_CSS = `
   .loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--ink2);font-size:14px;gap:10px;}
   .spinner{width:20px;height:20px;border:2.5px solid var(--line2);border-top-color:var(--amber);border-radius:50%;animation:spin .7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
   ${CLOCK_CSS}
   `;
 
@@ -992,59 +994,104 @@ function MyLeave({ user, onApply }) {
 // APPLY LEAVE
 // ═══════════════════════════════════════════════════════════════════════════════
 function ApplyLeave({ user }) {
-  const empty = { leave_type:"", from_date:"", to_date:"", reason:"", proxy_user_name:"" };
+  const empty = { leave_type:"", from_date:"", to_date:"", reason:"", proxy_user_name:"", site_name:"" };
   const [form, setForm] = useState(empty);
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [headLoading, setHeadLoading] = useState(false);
+  const [siteHeads, setSiteHeads] = useState([]);
+  const [toast, setToast] = useState(null);          // ← add
+  const [invalidFields, setInvalidFields] = useState([]); // ← add, for red-outline highlight
   const set = (k,v) => setForm(p=>({...p,[k]:v}));
 
+  const showToast = (msg, ms = 4500) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), ms);
+  };
   // Auto-fetch head on mount
-  useEffect(() => {
-    if (!user?.site_name) return;
-    setHeadLoading(true);
-    supabase
-      .from("user_details")
-      .select("username")
-      .eq("site_name", user.site_name)
-      .eq("role", "Project Head")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.username) {
-          setForm(p => ({ ...p, proxy_user_name: data.username }));
-        }
-        setHeadLoading(false);
-      });
-  }, [user?.site_name]);
+useEffect(() => {
+  const sites = user?.site_names?.length
+    ? user.site_names
+    : user?.site_name ? [user.site_name] : [];
+  if (!sites.length) { setSiteHeads([]); return; }
+
+  setHeadLoading(true);
+  (async () => {
+    const findHeadForSite = async (site) => {
+      // 1. Try Project Head first — this role always takes priority
+      const { data: ph } = await supabase
+        .from("user_details")
+        .select("username, name")
+        .eq("role", "Project Head")
+        .or(`site_name.eq.${site},site_names.cs.{${site}}`)
+        .limit(1)
+        .maybeSingle();
+      if (ph) return { site, username: ph.username, name: ph.name };
+
+      // 2. Fall back to Site Incharge only if no Project Head is found
+      const { data: si } = await supabase
+        .from("user_details")
+        .select("username, name")
+        .eq("role", "Site Incharge")
+        .or(`site_name.eq.${site},site_names.cs.{${site}}`)
+        .limit(1)
+        .maybeSingle();
+      if (si) return { site, username: si.username, name: si.name };
+
+      return { site, username: "", name: "" };
+    };
+
+    const results = await Promise.all(sites.map(findHeadForSite));
+    setSiteHeads(results);
+
+    if (sites.length === 1) {
+      setForm(p => ({ ...p, site_name: sites[0], proxy_user_name: results[0]?.username || "" }));
+    }
+    setHeadLoading(false);
+  })();
+}, [user?.site_names, user?.site_name]);
+
 
   const days = form.from_date && form.to_date && new Date(form.to_date)>=new Date(form.from_date)
     ? Math.ceil((new Date(form.to_date)-new Date(form.from_date))/86400000)+1 : null;
 
-  const submit = async () => {
-    if (!form.leave_type || !form.from_date || !form.to_date) {
-      setErr("Please fill all required fields.");
-      return;
-    }
-    setBusy(true); setErr("");
-    
-    const { error } = await supabase.from("leaves").insert({
-      user_name:       user.user_name,
-      name:            user.name,
-      leave_type:      form.leave_type,
-      from_date:       form.from_date,
-      to_date:         form.to_date,
-      reason:          form.reason || null,
-      site_name:      user.site_names?.[0] || user.site_name || null,
-      proxy_user_name: form.proxy_user_name || null,  // head's username goes here
-      status:          "Pending",
-      admin_approved:  null,
-      proxy_approved:  null,
-    });
-    setBusy(false);
-    if (error) { setErr(error.message); return; }
-    setSubmitted(true);
-  };
+const submit = async () => {
+  const missing = [];
+  if (!form.leave_type)  missing.push("Leave Type");
+  if (!form.from_date)   missing.push("From Date");
+  if (!form.to_date)     missing.push("To Date");
+  if (!form.reason.trim()) missing.push("Reason");
+  if (siteHeads.length > 1 && !form.site_name) missing.push("Site");
+  if (!form.proxy_user_name.trim()) missing.push("Site Head");
+
+  if (missing.length) {
+    setInvalidFields(missing);
+    showToast(`Please fill: ${missing.join(", ")}`);
+    setErr(""); // clear old inline banner in favor of the toast
+    return;
+  }
+
+  setInvalidFields([]);
+  setBusy(true); setErr("");
+
+  const { error } = await supabase.from("leaves").insert({
+    user_name:       user.user_name,
+    name:            user.name,
+    leave_type:      form.leave_type,
+    from_date:       form.from_date,
+    to_date:         form.to_date,
+    reason:          form.reason || null,
+    site_name:       form.site_name || user.site_names?.[0] || user.site_name || null,
+    proxy_user_name: form.proxy_user_name || null,
+    status:          "Pending",
+    admin_approved:  null,
+    proxy_approved:  null,
+  });
+  setBusy(false);
+  if (error) { setErr(error.message); return; }
+  setSubmitted(true);
+};
 
   if (submitted) return (
     <div className="success-state">
@@ -1083,18 +1130,26 @@ function ApplyLeave({ user }) {
         </div>
         <div className="fgroup col2">
           <label className="flabel">Leave Type <span className="req">*</span></label>
-          <select className="finput" value={form.leave_type} onChange={e=>set("leave_type",e.target.value)}>
+          <select className="finput" value={form.leave_type}
+            onChange={e=>{ set("leave_type",e.target.value); setInvalidFields(f=>f.filter(x=>x!=="Leave Type")); }}
+            style={invalidFields.includes("Leave Type") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}>
             <option value="">Select leave type…</option>
             {LEAVE_TYPES.map(t=><option key={t}>{t}</option>)}
           </select>
         </div>
         <div className="fgroup">
           <label className="flabel">From Date <span className="req">*</span></label>
-          <input className="finput" type="date" value={form.from_date} onChange={e=>set("from_date",e.target.value)} min={today()}/>
+          <input className="finput" type="date" value={form.from_date}
+          onChange={e=>{ set("from_date",e.target.value); setInvalidFields(f=>f.filter(x=>x!=="From Date")); }}
+          min={today()}
+          style={invalidFields.includes("From Date") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}/>
         </div>
         <div className="fgroup">
           <label className="flabel">To Date <span className="req">*</span></label>
-          <input className="finput" type="date" value={form.to_date} onChange={e=>set("to_date",e.target.value)} min={form.from_date||today()}/>
+          <input className="finput" type="date" value={form.to_date}
+          onChange={e=>{ set("to_date",e.target.value); setInvalidFields(f=>f.filter(x=>x!=="To Date")); }}
+          min={form.from_date||today()}
+          style={invalidFields.includes("To Date") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}/>
         </div>
         {days && (
           <div className="col2" style={{display:"flex",alignItems:"center",gap:8,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:9,padding:"10px 14px",fontSize:13,fontWeight:700,color:"var(--green)"}}>
@@ -1102,42 +1157,86 @@ function ApplyLeave({ user }) {
           </div>
         )}
         <div className="fgroup col2">
-          <label className="flabel">Reason</label>
-          <textarea className="finput" rows={3} placeholder="Briefly describe the reason…" value={form.reason} onChange={e=>set("reason",e.target.value)}/>
+          <label className="flabel">Reason <span className="req">*</span></label>
+          <textarea
+            className="finput"
+            rows={3}
+            placeholder="Briefly describe the reason…"
+            value={form.reason}
+            onChange={e=>{ set("reason",e.target.value); setInvalidFields(f=>f.filter(x=>x!=="Reason")); }}
+            style={invalidFields.includes("Reason") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}
+          />
         </div>
-        <div className="fgroup col2">
-          <label className="flabel">
-            Site Head Username
-            <span className="opt">auto-filled · editable</span>
-          </label>
-          <div style={{ position:"relative" }}>
-            <input
-              className="finput"
-              placeholder={headLoading ? "Fetching head…" : "e.g. nisarg.p"}
-              value={form.proxy_user_name}
-              onChange={e => set("proxy_user_name", e.target.value)}
-              disabled={headLoading}
-            />
-            {headLoading && (
-              <div style={{
-                position:"absolute", right:10, top:"50%",
-                transform:"translateY(-50%)"
-              }}>
-                <div className="spinner" style={{ width:14, height:14, borderWidth:2 }}/>
-              </div>
-            )}
-          </div>
-          {form.proxy_user_name && !headLoading && (
-            <div style={{ fontSize:11.5, color:"var(--amber2)", marginTop:4 }}>
-              ⚠ Your site head will need to approve this leave.
-            </div>
-          )}
-          {!form.proxy_user_name && !headLoading && (
-            <div style={{ fontSize:11.5, color:"var(--ink3)", marginTop:4 }}>
-              No head found for your site. You can enter one manually.
-            </div>
-          )}
+<div className="fgroup col2">
+  <label className="flabel">
+    Site Head{siteHeads.length <= 1 ? " Username" : ""} <span className="req">*</span>
+    <span className="opt">{siteHeads.length > 1 ? "select site" : "auto-filled · editable"}</span>
+  </label>
+
+  {siteHeads.length > 1 ? (
+    <div style={{ position:"relative" }}>
+      <select
+        className="finput"
+        disabled={headLoading}
+        value={form.site_name || ""}
+        onChange={e => {
+          const chosen = siteHeads.find(h => h.site === e.target.value);
+          setForm(p => ({
+            ...p,
+            site_name: e.target.value,
+            proxy_user_name: chosen?.username || "",
+          }));
+          setInvalidFields(f => f.filter(x => x !== "Site" && x !== "Site Head"));
+        }}
+        style={invalidFields.includes("Site") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}
+      >
+        <option value="">{headLoading ? "Loading heads…" : "-- Select site --"}</option>
+        {siteHeads.map(h => (
+          <option key={h.site} value={h.site}>
+            {h.name ? `${h.name}` : "No head assigned"} - {h.site}
+          </option>
+        ))}
+      </select>
+      {headLoading && (
+        <div style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)" }}>
+          <div className="spinner" style={{ width:14, height:14, borderWidth:2 }}/>
         </div>
+      )}
+    </div>
+  ) : (
+    <div style={{ position:"relative" }}>
+      <input
+        className="finput"
+        placeholder={headLoading ? "Fetching head…" : "e.g. nisarg.p"}
+        value={form.proxy_user_name}
+        onChange={e => { set("proxy_user_name", e.target.value); setInvalidFields(f=>f.filter(x=>x!=="Site Head")); }}
+        disabled={headLoading}
+        style={invalidFields.includes("Site Head") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}
+      />
+      {headLoading && (
+        <div style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)" }}>
+          <div className="spinner" style={{ width:14, height:14, borderWidth:2 }}/>
+        </div>
+      )}
+    </div>
+  )}
+
+  {form.proxy_user_name && !headLoading && (
+    <div style={{ fontSize:11.5, color:"var(--amber2)", marginTop:4 }}>
+      ⚠ Your site head will need to approve this leave.
+    </div>
+  )}
+  {!form.proxy_user_name && !headLoading && siteHeads.length <= 1 && (
+    <div style={{ fontSize:11.5, color:"var(--ink3)", marginTop:4 }}>
+      No head found for your site. Please enter one manually.
+    </div>
+  )}
+  {siteHeads.length > 1 && !form.site_name && !headLoading && (
+    <div style={{ fontSize:11.5, color:"var(--ink3)", marginTop:4 }}>
+      Choose which site this leave applies to.
+    </div>
+  )}
+</div>
       </div>
       <div className="act-row">
         <button className="btn btn-out" onClick={()=>setForm(empty)}>Reset</button>
@@ -1145,6 +1244,21 @@ function ApplyLeave({ user }) {
           {Ico.send} {busy?"Submitting…":"Submit Application"}
         </button>
       </div>
+      {toast && (
+  <div style={{
+    position:"fixed", bottom:24, right:24, zIndex:9999,
+    display:"flex", alignItems:"center", gap:9,
+    padding:"12px 18px", borderRadius:10, fontSize:13, fontWeight:700,
+    background:"#fef2f2", color:"var(--red)", border:"1.5px solid #fecaca",
+    boxShadow:"0 8px 24px rgba(0,0,0,.14)", maxWidth:340,
+    animation:"slideUp .22s ease",
+  }}>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    {toast}
+  </div>
+)}
     </div>
   );
 }
@@ -1257,7 +1371,65 @@ export default function SitePortal() {
   const [siteReports,    setSiteReports]    = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [reportTab,      setReportTab]      = useState("dpr");
+const [leaveBadgeCount, setLeaveBadgeCount] = useState(0);
+const matUnseen = useMaterialUnseenCount(user);
+// Same status-normalization logic used inside MyLeave, kept in sync
+const leaveStatusKey = (l) => {
+  if (l.proxy_approved === false) return "rejected";
+  if (l.proxy_approved === true)  return "approved";
+  const s = (l.status || "").toLowerCase();
+  if (s === "reject" || s === "rejected") return "rejected";
+  if (s === "approved") return "approved";
+  return "pending";
+};
 
+const seenKey = (u) => `leaveSeen_${u?.user_name || "anon"}`;
+
+const getSeenLeaveStatuses = (u) => {
+  try { return JSON.parse(localStorage.getItem(seenKey(u)) || "{}"); }
+  catch { return {}; }
+};
+const setSeenLeaveStatuses = (u, map) => {
+  localStorage.setItem(seenKey(u), JSON.stringify(map));
+};
+
+// Compares live leave rows against the last-seen snapshot and counts changes
+const checkLeaveUpdates = useCallback(async (u) => {
+  if (!u?.user_name) return;
+  const { data } = await supabase
+    .from("leaves")
+    .select("id, status, proxy_approved")
+    .eq("user_name", u.user_name);
+  if (!data) return;
+
+  const seen = getSeenLeaveStatuses(u);
+  let count = 0;
+  data.forEach(l => {
+    const key = leaveStatusKey(l);
+    // A pending leave the user already submitted isn't "new info" to surface —
+    // only count entries that are unseen AND have moved past pending,
+    // or whose seen status differs from their current status (a decision changed).
+    if (seen[l.id] === undefined) {
+      if (key !== "pending") count++;
+    } else if (seen[l.id] !== key) {
+      count++;
+    }
+  });
+  setLeaveBadgeCount(count);
+}, []);
+
+// Call this when the user actually opens My Leave — marks everything as seen
+const markLeavesSeen = useCallback(async (u) => {
+  if (!u?.user_name) return;
+  const { data } = await supabase
+    .from("leaves")
+    .select("id, status, proxy_approved")
+    .eq("user_name", u.user_name);
+  const snapshot = {};
+  (data || []).forEach(l => { snapshot[l.id] = leaveStatusKey(l); });
+  setSeenLeaveStatuses(u, snapshot);
+  setLeaveBadgeCount(0);
+}, []);
   const [reportFilter,   setReportFilter]   = useState({ type:"", site:"", month:"" });
   const [isDark, setIsDark] = useState(() => {
   const saved = localStorage.getItem("theme");
@@ -1357,6 +1529,8 @@ useEffect(() => {
         setUser(updated);
         localStorage.setItem("user", JSON.stringify(updated)); // keep localStorage fresh
         fetchSiteReports(updated); 
+        checkLeaveUpdates(updated); 
+        
         const site = updated.site_names?.[0] || updated.site_name || "";
         if (site) {
           supabase
@@ -1373,9 +1547,17 @@ useEffect(() => {
           window.addEventListener("resize", onResize);
           return () => window.removeEventListener("resize", onResize);
         }, [fetchSiteReports]);
-        
+
+        useEffect(() => {
+          if (!user?.user_name) return;
+          const t = setInterval(() => checkLeaveUpdates(user), 60000); // every 60s
+          return () => clearInterval(t);
+        }, [user, checkLeaveUpdates]);
+
+
 const nav = (key) => {
   setActiveTab(key);
+  if (key === "my-leave") markLeavesSeen(user);
   if (window.innerWidth <= 768) setSidebarOpen(false);
   
   setTimeout(() => {
@@ -1404,7 +1586,7 @@ const nav = (key) => {
       case "wpr-generator":  return <WprGenerator user={user} supabase={supabase}/>;
       case "monthly-report": return <MonthlyReport/>;
       case "site-report":    return <SiteReport user={user} />;
-      case "material-requirement": return <MatRequirement user={user} />;
+      case "material-requirement": return <MatRequirement user={user} onDotSeen={() => matUnseen.refresh()} />;
       case "my-reports": return <MyReports user={user}/>;
       case "manpower-reports": return <ManpowerReport user={user}/>;
       case "profile":     return <Profile user={user} onLogout={handleLogout} onThemeToggle={toggleTheme} isDark={isDark} />;
@@ -1710,14 +1892,19 @@ return (
                       <span className={`sgroup-chev${expanded[n.section] ? " open" : ""}`}>{Ico.chev}</span>
                     </div>
                     <div className={`sgroup-kids${expanded[n.section] ? "" : " shut"}`}>
-                      {n.children.map(c => (
-                       // REPLACE WITH:
-                        <button key={c.key} className={`sni${activeTab === c.key ? " act" : ""}`} onClick={() => {
-                          nav(c.key);
-                        }} style={{ overflow: "visible", position: "relative" }}>
-                          {c.icon} {c.label}
-                        </button>
-                      ))}
+                    {n.children.map(c => (
+                      <button key={c.key} className={`sni${activeTab === c.key ? " act" : ""}`} onClick={() => {
+                        nav(c.key);
+                      }} style={{ overflow: "visible", position: "relative" }}>
+                        {c.icon} {c.label}
+                        {c.key === "my-leave" && leaveBadgeCount > 0 && (
+                          <span className="sni-badge">{leaveBadgeCount > 9 ? "9+" : leaveBadgeCount}</span>
+                        )}
+                        {c.key === "material-requirement" && matUnseen.total > 0 && (
+                          <span className="sni-badge">{matUnseen.total > 9 ? "9+" : matUnseen.total}</span>
+                        )}
+                      </button>
+                    ))}
                     </div>
                   </div>
                 );

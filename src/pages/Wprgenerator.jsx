@@ -1271,7 +1271,7 @@ useEffect(() => {
       e.preventDefault();
       setSelStart(cell); setSelEnd(cell); setIsDragging(true);
     };
-
+    
     const handleTouchMove = (e) => {
       if (e.touches.length === 2 && pinchRef.current.active) {
         e.preventDefault();
@@ -1307,6 +1307,8 @@ useEffect(() => {
       el.removeEventListener("touchend",   handleTouchEnd);
     };
   }, [isDragging, workbook, activeSheet, zoom]);
+  
+
   const captureSelection = async () => {
     const n = getNorm();
     if (!n) { alert("Select a range first by clicking and dragging on the table."); return; }

@@ -27,7 +27,62 @@ async function dbInsert(table, payload) {
   const { error } = await supabase.from(table).insert(payload);
   return !error;
 }
+// ─── Seen-tracking for the Material Received badge ───────────────────────────
+function lastSeenKey(user, site) {
+  return `mreq_lastseen_${user?.id || user?.name || "anon"}__${site}`;
+}
+function getLastSeen(user, site) {
+  try { return localStorage.getItem(lastSeenKey(user, site)) || "1970-01-01T00:00:00.000Z"; }
+  catch { return "1970-01-01T00:00:00.000Z"; }
+}
+function markSeen(user, site, iso) {
+  try { localStorage.setItem(lastSeenKey(user, site), iso); } catch {}
+}
+// ─── Shared unseen-count logic (importable from the sidebar too) ────────────
+function getUserSites(user) {
+  return Array.isArray(user?.site_names) && user.site_names.length
+    ? user.site_names.map(s => titleCase(s))
+    : user?.site_name ? [titleCase(user.site_name)] : [];
+}
 
+export function markMaterialSeen(user) {
+  const sites = getUserSites(user);
+  const nowIso = new Date().toISOString();
+  sites.forEach(s => markSeen(user, s, nowIso));
+}
+
+export function useMaterialUnseenCount(user) {
+  const [breakdown, setBreakdown] = useState({ received: 0, rejected: 0 });
+  const sites = getUserSites(user);
+  const sitesKey = sites.join("|");
+
+  const refresh = useCallback(async () => {
+    if (!user || !sites.length) { setBreakdown({ received: 0, rejected: 0 }); return; }
+    let received = 0, rejected = 0;
+    for (const s of sites) {
+      const lastSeen = getLastSeen(user, s);
+      const { data } = await supabase
+        .from("material_requirements")
+        .select("status, created_at, received_at")
+        .eq("site_name", s)
+        .eq("requested_by", user.name)
+        .in("status", ["received", "rejected"]);
+      (data || []).forEach(r => {
+        const changedAt = r.received_at || r.created_at;
+        if (changedAt && new Date(changedAt) > new Date(lastSeen)) {
+          if (r.status === "received") received++;
+          else if (r.status === "rejected") rejected++;
+        }
+      });
+    }
+    setBreakdown({ received, rejected });
+  }, [user, sitesKey]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { const t = setInterval(refresh, 30000); return () => clearInterval(t); }, [refresh]);
+
+  return { received: breakdown.received, rejected: breakdown.rejected, total: breakdown.received + breakdown.rejected, refresh };
+}
 function canMarkReceived(user) {
   const role = (user?.role || "").toLowerCase().trim();
   return role === "project head" || role === "site incharge";
@@ -49,7 +104,21 @@ const CSS = `
 .mreq-tab-btn.act{background:#fff;  border: 2px solid; color:#3d1200 !important; border-image: linear-gradient(135deg, #3d1200, #7a2e00, #c96a10) 1;color:black;}
 .flabel{margin-top:20px}
 .mreq-card{background:var(--card);}
-
+.mreq-tab-btn{position:relative;}
+.mreq-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:18px;height:18px;padding:0 5px;border-radius:9px;
+  background:#dc2626;color:#fff;font-size:10.5px;font-weight:800;
+  line-height:1;margin-left:3px;
+}
+  .mreq-chip{position:relative;display:inline-flex;align-items:center;gap:6px;}
+.mreq-badge-sm{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:16px;height:16px;padding:0 4px;border-radius:8px;
+  background:#dc2626;color:#fff;font-size:9.5px;font-weight:800;line-height:1;
+}
+[data-theme="dark"] .mreq-badge-sm{background:#f87171;color:#1e1c19;}
+[data-theme="dark"] .mreq-badge{background:#f87171;color:#1e1c19;}
 .mreq-filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
 .mreq-chip{padding:7px 16px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);font-family:var(--font);font-size:12px;font-weight:700;color:var(--ink3);cursor:pointer;transition:all .15s;}
 .mreq-chip.act{background:#e8e2d8;border-color:var(--orange-line);color:var(--orange);}
@@ -447,7 +516,7 @@ const handleSiteChange = (newSite) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // MATERIAL RECEIVED — filterable status list with receive action
 // ═══════════════════════════════════════════════════════════════════════════
-function MaterialReceived({ user, showToast, onFilterSeen }) {
+function MaterialReceived({ user, showToast, unseen }) {
   const [filter, setFilter] = useState("pending");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -482,7 +551,7 @@ function MaterialReceived({ user, showToast, onFilterSeen }) {
     load();
   };
   
-  return (
+   return (
     <div>
       <div className="mreq-filter-row">
         {userSites.length > 1 && (
@@ -498,10 +567,16 @@ function MaterialReceived({ user, showToast, onFilterSeen }) {
             </select>
           </div>
         )}
-        {[["pending","Pending"],["received","Received"],["rejected","Rejected"],["all","All"]].map(([key,label]) => (
+               {[
+          ["pending","Pending", 0],
+          ["received","Received", unseen?.received || 0],
+          ["rejected","Rejected", unseen?.rejected || 0],
+          ["all","All", (unseen?.received || 0) + (unseen?.rejected || 0)],
+        ].map(([key,label,count]) => (
           <button key={key} className={`mreq-chip${filter===key?" act":""}`}
            onClick={() => setFilter(key)}>
             {label}
+            {count > 0 && <span className="mreq-badge-sm">{count > 99 ? "99+" : count}</span>}
           </button>
         ))}
       </div>
@@ -569,14 +644,68 @@ function MatReqCard({ r, showReceiveBtn, onReceive }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
-// REPLACE WITH:
-export default function MatRequirement({ user, onDotSeen }) {
+
+// export default function MatRequirement({ user, onDotSeen }) {
+//   const [tab, setTab] = useState("required");
+//   const [toast, setToast] = useState(null);
+
+//   const showToast = (type, msg, dur = 4500) => {
+//     setToast({ type, msg });
+//     setTimeout(() => setToast(null), dur);
+//   };
+
+//   return (
+//     <>
+//       <style>{CSS}</style>
+//       <div className="mreq-root">
+//         <div className="mreq-inner">
+
+//           <div className="mreq-tabs">
+//             <button className={`mreq-tab-btn${tab === "required" ? " act" : ""}`} onClick={() => setTab("required")}>
+//               {Ico.plus} Material Required
+//             </button>
+//             <button className={`mreq-tab-btn${tab === "received" ? " act" : ""}`} onClick={() => { setTab("received"); onDotSeen?.(); }}>
+//               {Ico.check} Material Received
+//             </button>
+//           </div>
+
+//           <div className="mreq-card">
+//             {tab === "required"
+//               ? <MaterialRequired user={user} showToast={showToast} onSubmitted={() => {}} />
+//               : <MaterialReceived user={user} showToast={showToast} />}
+//           </div>
+
+//           {toast && (
+//             <div className={`dpr-toast ${toast.type === "ok" ? "dpr-toast-ok" : "dpr-toast-err"}`}>
+//               {toast.type === "ok" ? Ico.check : (
+//                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+//               )}
+//               {toast.msg}
+//             </div>
+//           )}
+  
+//         </div>
+//       </div>
+//     </>
+//   );
+// }
+export default function MatRequirement({ user, onDotSeen, onUnseenCount }) {
   const [tab, setTab] = useState("required");
   const [toast, setToast] = useState(null);
+  const unseen = useMaterialUnseenCount(user);
+
+  useEffect(() => { onUnseenCount?.(unseen.total); }, [unseen.total, onUnseenCount]);
 
   const showToast = (type, msg, dur = 4500) => {
     setToast({ type, msg });
     setTimeout(() => setToast(null), dur);
+  };
+
+  const openReceivedTab = () => {
+    setTab("received");
+    markMaterialSeen(user);
+    unseen.refresh();
+    onDotSeen?.();
   };
 
   return (
@@ -584,20 +713,20 @@ export default function MatRequirement({ user, onDotSeen }) {
       <style>{CSS}</style>
       <div className="mreq-root">
         <div className="mreq-inner">
-
           <div className="mreq-tabs">
             <button className={`mreq-tab-btn${tab === "required" ? " act" : ""}`} onClick={() => setTab("required")}>
               {Ico.plus} Material Required
             </button>
-            <button className={`mreq-tab-btn${tab === "received" ? " act" : ""}`} onClick={() => { setTab("received"); onDotSeen?.(); }}>
+            <button className={`mreq-tab-btn${tab === "received" ? " act" : ""}`} onClick={openReceivedTab}>
               {Ico.check} Material Received
+              {unseen.total > 0 && <span className="mreq-badge">{unseen.total > 99 ? "99+" : unseen.total}</span>}
             </button>
           </div>
 
           <div className="mreq-card">
             {tab === "required"
-              ? <MaterialRequired user={user} showToast={showToast} onSubmitted={() => {}} />
-              : <MaterialReceived user={user} showToast={showToast} />}
+              ? <MaterialRequired user={user} showToast={showToast} onSubmitted={unseen.refresh} />
+              : <MaterialReceived user={user} showToast={showToast} unseen={unseen} />}
           </div>
 
           {toast && (
@@ -608,7 +737,6 @@ export default function MatRequirement({ user, onDotSeen }) {
               {toast.msg}
             </div>
           )}
-  
         </div>
       </div>
     </>

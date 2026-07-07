@@ -703,7 +703,7 @@ const DARK_CSS = `
   /* ── Leave list ── */
   .lv-list{display:flex;flex-direction:column;gap:10px;}
   .lv-item{display:flex;align-items:center;gap:14px;
-  background:#cfcece94  ;
+  background:#e1e0e094  ;
   border:1px solid var(--line);border-radius:11px;padding:14px 16px;}
   .lv-left{flex:1;display:flex;flex-direction:column;gap:3px;}
   .lv-type{font-size:13.5px;font-weight:700;}

@@ -659,7 +659,7 @@ const DARK_CSS = `
 
   /* ── Stat cards ── */
   .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
-  .stat-card{background:#e0e5e7;border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:4px;}
+  .stat-card{background:#e9edef;border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:4px;}
   .stat-val{font-size:22px;font-weight:800;font-family:var(--mono);}
   .stat-lbl{font-size:11px;color:var(--ink2);font-weight:600;}
 

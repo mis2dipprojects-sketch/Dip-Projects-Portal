@@ -1354,11 +1354,18 @@ function WeeklyReport({ user }) {
       <div className="grid2" style={{marginBottom:20}}>
         <div className="fgroup">
           <label className="flabel">Week From <span className="req">*</span></label>
-          <input className="finput" type="date" value={weekFrom} onChange={e=>setWeekFrom(e.target.value)}/>
+          <DateField
+            value={weekFrom}
+            onChange={e => setWeekFrom(e.target.value)}
+          />
         </div>
         <div className="fgroup">
           <label className="flabel">Week To</label>
-          <input className="finput" type="date" value={weekTo} onChange={e=>setWeekTo(e.target.value)}/>
+          <DateField
+            value={weekTo}
+            min={weekFrom || undefined}
+            onChange={e => setWeekTo(e.target.value)}
+          />
         </div>
         <div className="fgroup col2">
           <label className="flabel">Site / Project <span className="req">*</span></label>

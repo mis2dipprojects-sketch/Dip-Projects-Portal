@@ -859,6 +859,47 @@ const ALL_ITEMS = [
   { key: "profile", label: "Profile & Settings", icon: Ico.profile },
 ];
 
+function DateField({ value, onChange, min, invalid, placeholder = "dd-mm-yyyy" }) {
+  const display = value
+    ? new Date(value + "T00:00:00").toLocaleDateString("en-GB") // -> dd/mm/yyyy
+    : "";
+
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        type="date"
+        className="finput"
+        value={value}
+        onChange={onChange}
+        min={min}
+        style={{
+          color: "transparent",          // hide native text rendering
+          caretColor: "transparent",
+          position: "relative",
+          zIndex: 1,
+          background: "transparent",
+          ...(invalid ? { borderColor: "var(--red)", boxShadow: "0 0 0 3px rgba(220,38,38,.12)" } : {}),
+        }}
+      />
+      <span
+        style={{
+          position: "absolute",
+          left: 13,
+          top: "50%",
+          transform: "translateY(-50%)",
+          fontSize: 13.5,
+          fontFamily: "var(--font)",
+          color: value ? "var(--ink)" : "var(--ink3)",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      >
+        {value ? display : placeholder}
+      </span>
+    </div>
+  );
+}
+
 // ─── Loading ──────────────────────────────────────────────────────────────────
 function Loading() {
   return <div className="loading"><div className="spinner"/><span>Loading…</span></div>;
@@ -1139,17 +1180,21 @@ const submit = async () => {
         </div>
         <div className="fgroup">
           <label className="flabel">From Date <span className="req">*</span></label>
-          <input className="finput" type="date" value={form.from_date}
-          onChange={e=>{ set("from_date",e.target.value); setInvalidFields(f=>f.filter(x=>x!=="From Date")); }}
-          min={today()}
-          style={invalidFields.includes("From Date") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}/>
+          <DateField
+            value={form.from_date}
+            min={today()}
+            invalid={invalidFields.includes("From Date")}
+            onChange={e => { set("from_date", e.target.value); setInvalidFields(f => f.filter(x => x !== "From Date")); }}
+          />
         </div>
         <div className="fgroup">
           <label className="flabel">To Date <span className="req">*</span></label>
-          <input className="finput" type="date" value={form.to_date}
-          onChange={e=>{ set("to_date",e.target.value); setInvalidFields(f=>f.filter(x=>x!=="To Date")); }}
-          min={form.from_date||today()}
-          style={invalidFields.includes("To Date") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}/>
+          <DateField
+            value={form.to_date}
+            min={form.from_date || today()}
+            invalid={invalidFields.includes("To Date")}
+            onChange={e => { set("to_date", e.target.value); setInvalidFields(f => f.filter(x => x !== "To Date")); }}
+          />
         </div>
         {days && (
           <div className="col2" style={{display:"flex",alignItems:"center",gap:8,background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:9,padding:"10px 14px",fontSize:13,fontWeight:700,color:"var(--green)"}}>

@@ -309,7 +309,7 @@ export default function Navbar({ onMenuToggle, menuOpen }) {
           .navbar-left { flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; gap: 8px; }
           .navbar-right { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
           .navbar-right { position: absolute; right: 20px; top: 10px; }
-          .navbar-left { position: absolute; left: 20px; top: 10px; }
+          .navbar-left { position: absolute; left: 8px; top: 10px; }
           .navbar-avatar { width: 30px; height: 30px; font-size: 12px; }
           .navbar-logout {
             width: 34px; height: 34px;

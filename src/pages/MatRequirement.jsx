@@ -701,7 +701,7 @@ function MatReqCard({ r, showReceiveBtn, onReceive }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// MAIN COMPONENT
+// MAIN COMPONENT 
 // ═══════════════════════════════════════════════════════════════════════════
 export default function MatRequirement({ user, onDotSeen, onUnseenCount }) {
   const [tab, setTab] = useState("required");

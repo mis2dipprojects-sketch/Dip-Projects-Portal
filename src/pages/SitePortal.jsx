@@ -1235,14 +1235,9 @@ function ApplyLeave({ user }) {
   const uniqueHeadUsernames = [...new Set(siteHeads.map(h => h.username).filter(Boolean))];
   const needsSiteChoice = siteHeads.length > 1 && uniqueHeadUsernames.length > 1;
 
-  // What to actually show in the single-head input: the head's name if we have
-  // one and the field still matches the auto-filled username; otherwise fall
-  // back to showing whatever raw value is in proxy_user_name (manual entry case).
   const headInputDisplayValue = headName || form.proxy_user_name;
 
   const handleHeadInputChange = (val) => {
-    // Once the person edits this field directly, treat it as raw username entry
-    // and stop showing a resolved name for it.
     setHeadName("");
     set("proxy_user_name", val);
     setInvalidFields(f => f.filter(x => x !== "Site Head"));
@@ -1367,7 +1362,7 @@ function ApplyLeave({ user }) {
         <div className="fgroup col2">
           <label className="flabel">
             Site Head{!needsSiteChoice ? "" : ""} <span className="req">*</span>
-            <span className="opt">{needsSiteChoice ? "select site" : "auto-filled · editable"}</span>
+            <span className="opt">{needsSiteChoice ? "select head" : "auto-filled · editable"}</span>
           </label>
 
           {needsSiteChoice ? (
@@ -1388,7 +1383,7 @@ function ApplyLeave({ user }) {
                 }}
                 style={invalidFields.includes("Site") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}
               >
-                <option value="">{headLoading ? "Loading heads…" : "-- Select site --"}</option>
+                <option value="">{headLoading ? "Loading heads…" : "-- Select head --"}</option>
                 {siteHeads.map(h => (
                   <option key={h.site} value={h.site}>
                     {h.name ? `${h.name}` : "No head assigned"} - {h.site}
@@ -1431,7 +1426,7 @@ function ApplyLeave({ user }) {
           )}
           {needsSiteChoice && !form.site_name && !headLoading && (
             <div style={{ fontSize:11.5, color:"var(--ink3)", marginTop:4 }}>
-              Choose which site this leave applies to.
+              Choose which head this leave applies to.
             </div>
           )}
         </div>
@@ -1618,9 +1613,7 @@ const checkLeaveUpdates = useCallback(async (u) => {
   let count = 0;
   data.forEach(l => {
     const key = leaveStatusKey(l);
-    // A pending leave the user already submitted isn't "new info" to surface —
-    // only count entries that are unseen AND have moved past pending,
-    // or whose seen status differs from their current status (a decision changed).
+    
     if (seen[l.id] === undefined) {
       if (key !== "pending") count++;
     } else if (seen[l.id] !== key) {
@@ -1630,7 +1623,6 @@ const checkLeaveUpdates = useCallback(async (u) => {
   setLeaveBadgeCount(count);
 }, []);
 
-// Call this when the user actually opens My Leave — marks everything as seen
 const markLeavesSeen = useCallback(async (u) => {
   if (!u?.user_name) return;
   const { data } = await supabase

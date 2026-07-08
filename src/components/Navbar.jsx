@@ -323,8 +323,8 @@ export default function Navbar({ onMenuToggle, menuOpen }) {
           width: 38px;
           height: 38px;
           border-radius: 9px;
-          border: 1.5px solid rgba(255,255,255,.25);
-          background: rgba(255,255,255,.1);
+          border: none;
+          background: rgba(255, 255, 255, 0);
           color: #fff;
           cursor: pointer;
           display: flex;
@@ -338,6 +338,8 @@ export default function Navbar({ onMenuToggle, menuOpen }) {
         .navbar-ham:active { background: rgba(255,255,255,.28); }
         @media (max-width: 600px) {
           .navbar-ham { width: 34px; height: 34px; }
+          .navbar-ham:hover { background: rgba(255, 255, 255, 0); }
+          .navbar-ham:active { background: rgba(255, 255, 255, 0); }
         }
       `}</style>
 

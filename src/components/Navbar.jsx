@@ -310,12 +310,13 @@ export default function Navbar({ onMenuToggle, menuOpen }) {
           .navbar-right { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
           .navbar-right { position: absolute; right: 20px; top: 10px; }
           .navbar-left { position: absolute; left: 8px; top: 10px; }
-          .navbar-avatar { width: 30px; height: 30px; font-size: 12px; }
+          .navbar-avatar { width: 30px; height: 30px; font-size: 12px;margin-top: 4px; }
           .navbar-logout {
             width: 30px; height: 30px;
             padding: 0;
             border-radius: 8px;
             display: flex; align-items: center; justify-content: center;
+          margin-top: 4px;
           }
           .navbar-logout span { display: none; }
         }

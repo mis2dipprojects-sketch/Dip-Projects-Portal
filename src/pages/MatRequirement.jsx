@@ -27,7 +27,7 @@ async function dbInsert(table, payload) {
   const { error } = await supabase.from(table).insert(payload);
   return !error;
 }
-// ─── Seen-tracking for the Material Received badge ───────────────────────────
+
 // ─── Seen-tracking for the Material Received badge ───────────────────────────
 function lastSeenKey(user, site, status) {
   return `mreq_lastseen_${user?.id || user?.name || "anon"}__${site}__${status}`;
@@ -221,6 +221,20 @@ const POPUP_CSS = `
   0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(22,163,74,0.7); }
   50% { transform: scale(1.3); opacity: 0.85; box-shadow: 0 0 0 5px rgba(22,163,74,0); }
 }
+  @keyframes mreq-shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+.mreq-skel {
+  background: linear-gradient(90deg, var(--border) 25%, var(--card) 37%, var(--border) 63%);
+  background-size: 400px 100%;
+  animation: mreq-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+.mreq-skel-card { background:var(--card);border:1.5px solid var(--border);border-left:4px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:10px; }
+.mreq-skel-row { display:flex;align-items:center;gap:12px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:11px 14px;margin-bottom:8px; }
+.mreq-skel-select { height:38px;border-radius:9px; }
+[data-theme="dark"] .mreq-skel {
+  background: linear-gradient(90deg, #2e2b27 25%, #3a3733 37%, #2e2b27 63%);
+  background-size: 400px 100%;
+}
 `;
 
 // Inject once into <head>
@@ -246,6 +260,24 @@ const Ico = {
 // ─── Spinner ──────────────────────────────────────────────────────────────────
 function Spinner() { return <div className="spinner" />; }
 
+// Matches MatReqCard's layout — used for both history and received-list loading
+function SkeletonReqCard() {
+  return (
+    <div className="mreq-skel-card">
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10, gap:10 }}>
+        <div className="mreq-skel" style={{ width:"50%", height:15 }}/>
+        <div className="mreq-skel" style={{ width:76, height:22, borderRadius:20, flexShrink:0 }}/>
+      </div>
+      <div className="mreq-skel" style={{ width:"30%", height:12, marginBottom:10 }}/>
+      <div className="mreq-skel" style={{ width:"65%", height:11 }}/>
+    </div>
+  );
+}
+
+// Matches the material/unit SelectWithAdd dropdown while its lookup list loads
+function SkeletonSelect() {
+  return <div className="mreq-skel mreq-skel-select" />;
+}
 
 function SelectWithAdd({ value, onChange, options, placeholder, onAdd }) {
   const isDark = document.documentElement.getAttribute("data-theme") === "dark";
@@ -290,8 +322,8 @@ function SelectWithAdd({ value, onChange, options, placeholder, onAdd }) {
           style={{ 
             fontFamily: "DM Sans, sans-serif", 
             fontSize: 13.5, 
-            color: isDark ? "#f0ede8" : "#1a1a1a",           // ← white text in dark
-            background: isDark ? "#2e2b27" : "#f0ede8",       // ← dark field bg
+            color: isDark ? "#f0ede8" : "#1a1a1a",           
+            background: isDark ? "#2e2b27" : "#f0ede8",  
             border: `1.5px solid ${isDark ? "#3a3733" : "rgba(0,0,0,.12)"}`,
             borderRadius: 8, 
             padding: "9px 12px", 
@@ -317,8 +349,8 @@ function SelectWithAdd({ value, onChange, options, placeholder, onAdd }) {
         <button
           style={{ 
             flex: 1, 
-            background: isDark ? "#2e2b27" : "#fff",          // ← dark bg
-            color: isDark ? "#f0ede8" : "#3d3d3d",            // ← white text in dark
+            background: isDark ? "#2e2b27" : "#fff",
+            color: isDark ? "#f0ede8" : "#3d3d3d",            
             border: `1.5px solid ${isDark ? "#3a3733" : "rgba(0,0,0,.12)"}`,
             borderRadius: 8, 
             padding: "10px 18px", 
@@ -341,7 +373,7 @@ function SelectWithAdd({ value, onChange, options, placeholder, onAdd }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MATERIAL REQUIRED — staging form + submit + recent history
 // ═══════════════════════════════════════════════════════════════════════════
-function MaterialRequired({ user, showToast, onSubmitted }) {
+function MaterialRequired({ user, showToast, onSubmitted, userSites, site, setSite }) {
   const [materials, setMaterials] = useState([]);
   const [units,     setUnits]     = useState([]);
   const [name, setName] = useState("");
@@ -351,11 +383,16 @@ function MaterialRequired({ user, showToast, onSubmitted }) {
   const [submitting, setSubmitting] = useState(false);
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
-const userSites = Array.isArray(user?.site_names) && user.site_names.length
-  ? user.site_names.map(s => titleCase(s))
-  : user?.site_name ? [titleCase(user.site_name)] : [];
+const [lookupsLoading, setLookupsLoading] = useState(true); // ← add
 
-const [site, setSite] = useState(userSites[0] || "");
+useEffect(() => {
+  setLookupsLoading(true);
+  Promise.all([dbFetch("dpr_materials"), dbFetch("dpr_units")]).then(([m, u]) => {
+    setMaterials(m);
+    setUnits(u);
+    setLookupsLoading(false);
+  });
+}, []);
   useEffect(() => {
     dbFetch("dpr_materials").then(setMaterials);
     dbFetch("dpr_units").then(setUnits);
@@ -391,8 +428,8 @@ const [site, setSite] = useState(userSites[0] || "");
   const removeStagedRow = id => setStaged(p => p.filter(r => r.id !== id));
 const handleSiteChange = (newSite) => {
   setSite(newSite);
-  setStaged([]);   // clear staged list when switching sites
-  setHistory([]);  // clear history — loadHistory will refetch
+  setStaged([]); 
+  setHistory([]);  
 };
   const submit = async () => {
     if (!user) { showToast("err", "Login required."); return; }
@@ -438,17 +475,19 @@ const handleSiteChange = (newSite) => {
 )}
         <div className="fg">
           <label className="flabel">Material <span className="req">*</span></label>
-          <SelectWithAdd
-            value={name}
-            onChange={setName}
-            options={materials}
-            placeholder="Material"
-            onAdd={async nm => {
-              await dbInsert("dpr_materials", { name: nm });
-              setMaterials(await dbFetch("dpr_materials"));
-              setName(titleCase(nm));
-            }}
-          />
+          {lookupsLoading ? <SkeletonSelect /> : (
+            <SelectWithAdd
+              value={name}
+              onChange={setName}
+              options={materials}
+              placeholder="Material"
+              onAdd={async nm => {
+                await dbInsert("dpr_materials", { name: nm });
+                setMaterials(await dbFetch("dpr_materials"));
+                setName(titleCase(nm));
+              }}
+            />
+          )}
         </div>
         <div className="fg">
           <label className="flabel" >Quantity <span className="req">*</span></label>
@@ -505,16 +544,20 @@ const handleSiteChange = (newSite) => {
         </div>
 
         {loadingHistory ? (
-          <div className="mreq-loading"><Spinner /> Loading…</div>
-        ) : !history.length ? (
-          <div className="mreq-empty" style={{ padding: "24px 12px" }}>
-            {Ico.box}
-            <div className="mreq-empty-title">No requests yet</div>
-            <div className="mreq-empty-sub">Submitted requirements for this site will appear here.</div>
-          </div>
-        ) : (
-          history.map(r => <MatReqCard key={r.id} r={r} />)
-        )}
+            <div className="mreq-item-list">
+              <SkeletonReqCard />
+              <SkeletonReqCard />
+              <SkeletonReqCard />
+            </div>
+          ) : !history.length ? (
+            <div className="mreq-empty" style={{ padding: "24px 12px" }}>
+              {Ico.box}
+              <div className="mreq-empty-title">No requests yet</div>
+              <div className="mreq-empty-sub">Submitted requirements for this site will appear here.</div>
+            </div>
+          ) : (
+            history.map(r => <MatReqCard key={r.id} r={r} />)
+          )}
       </div>
     </div>
   );
@@ -523,15 +566,11 @@ const handleSiteChange = (newSite) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // MATERIAL RECEIVED — filterable status list with receive action
 // ═══════════════════════════════════════════════════════════════════════════
-function MaterialReceived({ user, showToast, unseen, onDotSeen }) {
+function MaterialReceived({ user, showToast, unseen, onDotSeen, userSites, site, setSite }) {
   const [filter, setFilter] = useState("pending");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const allowReceive = canMarkReceived(user);
-  const userSites = Array.isArray(user?.site_names) && user.site_names.length
-    ? user.site_names.map(s => titleCase(s))
-    : user?.site_name ? [titleCase(user.site_name)] : [];
-  const [site, setSite] = useState(userSites[0] || "");
 
   const load = useCallback(async () => {
     if (!site) { setLoading(false); return; }
@@ -597,7 +636,12 @@ function MaterialReceived({ user, showToast, unseen, onDotSeen }) {
       </div>
 
       {loading ? (
-        <div className="mreq-loading"><Spinner /> Loading…</div>
+        <div>
+          <SkeletonReqCard />
+          <SkeletonReqCard />
+          <SkeletonReqCard />
+          <SkeletonReqCard />
+        </div>
       ) : !site ? (
         <div className="mreq-empty">
           {Ico.box}
@@ -659,55 +703,15 @@ function MatReqCard({ r, showReceiveBtn, onReceive }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════
-
-// export default function MatRequirement({ user, onDotSeen }) {
-//   const [tab, setTab] = useState("required");
-//   const [toast, setToast] = useState(null);
-
-//   const showToast = (type, msg, dur = 4500) => {
-//     setToast({ type, msg });
-//     setTimeout(() => setToast(null), dur);
-//   };
-
-//   return (
-//     <>
-//       <style>{CSS}</style>
-//       <div className="mreq-root">
-//         <div className="mreq-inner">
-
-//           <div className="mreq-tabs">
-//             <button className={`mreq-tab-btn${tab === "required" ? " act" : ""}`} onClick={() => setTab("required")}>
-//               {Ico.plus} Material Required
-//             </button>
-//             <button className={`mreq-tab-btn${tab === "received" ? " act" : ""}`} onClick={() => { setTab("received"); onDotSeen?.(); }}>
-//               {Ico.check} Material Received
-//             </button>
-//           </div>
-
-//           <div className="mreq-card">
-//             {tab === "required"
-//               ? <MaterialRequired user={user} showToast={showToast} onSubmitted={() => {}} />
-//               : <MaterialReceived user={user} showToast={showToast} />}
-//           </div>
-
-//           {toast && (
-//             <div className={`dpr-toast ${toast.type === "ok" ? "dpr-toast-ok" : "dpr-toast-err"}`}>
-//               {toast.type === "ok" ? Ico.check : (
-//                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
-//               )}
-//               {toast.msg}
-//             </div>
-//           )}
-  
-//         </div>
-//       </div>
-//     </>
-//   );
-// }
 export default function MatRequirement({ user, onDotSeen, onUnseenCount }) {
   const [tab, setTab] = useState("required");
   const [toast, setToast] = useState(null);
   const unseen = useMaterialUnseenCount(user);
+
+  const userSites = Array.isArray(user?.site_names) && user.site_names.length
+    ? user.site_names.map(s => titleCase(s))
+    : user?.site_name ? [titleCase(user.site_name)] : [];
+  const [site, setSite] = useState(userSites[0] || "");
 
   useEffect(() => { onUnseenCount?.(unseen.total); }, [unseen.total, onUnseenCount]);
 
@@ -717,7 +721,7 @@ export default function MatRequirement({ user, onDotSeen, onUnseenCount }) {
   };
 
   const openReceivedTab = () => {
-    setTab("received"); // no marking-as-seen here anymore — that happens per chip
+    setTab("received");
   };
 
   return (
@@ -737,8 +741,23 @@ export default function MatRequirement({ user, onDotSeen, onUnseenCount }) {
 
           <div className="mreq-card">
             {tab === "required"
-              ? <MaterialRequired user={user} showToast={showToast} onSubmitted={unseen.refresh} />
-              : <MaterialReceived user={user} showToast={showToast} unseen={unseen} onDotSeen={onDotSeen} />}
+              ? <MaterialRequired
+                  user={user}
+                  showToast={showToast}
+                  onSubmitted={unseen.refresh}
+                  userSites={userSites}
+                  site={site}
+                  setSite={setSite}
+                />
+              : <MaterialReceived
+                  user={user}
+                  showToast={showToast}
+                  unseen={unseen}
+                  onDotSeen={onDotSeen}
+                  userSites={userSites}
+                  site={site}
+                  setSite={setSite}
+                />}
           </div>
 
           {toast && (

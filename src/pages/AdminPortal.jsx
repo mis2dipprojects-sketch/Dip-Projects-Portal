@@ -110,13 +110,6 @@ import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM } from "./Taskformwithc
     const WEEKDAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
     const MONTHS   = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-    // const EMPTY_FORM = {
-    //   title: "", description: "", assigned_to: "", site_name: "", priority: "medium",
-    //   due_date: "", status: "pending", is_recurring: false, recurrence: "",
-    //   anchor_weekday: "1", anchor_day: "1", anchor_month: "1", anchor_month_day: "1",
-    //   reschedule_allowed: false,  enable_checkpoints: false,
-    // };
-
     const EMPTY_TASK_FILTERS = { dateFrom: "", dateTo: "", assignedTo: "", site: "", priority: "", status: "" };
     // ── helpers ────────────────────────────────────────────────────────────────
     function daysInMonth(month) {

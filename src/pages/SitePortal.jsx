@@ -739,7 +739,22 @@ const DARK_CSS = `
 
   /* ── Actions row ── */
   .act-row{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:20px;border-top:1px solid var(--line);}
-
+@media(max-width:768px){
+  .cal-cell.sel{
+    background:var(--ink) !important;
+    border-color:var(--ink) !important;
+  }
+  .cal-cell.sel .cal-dn{
+    color:#fff !important;
+  }
+}
+[data-theme="dark"] .cal-cell.sel{
+  background:#3a3733 !important;
+  border-color:#3a3733 !important;
+}
+[data-theme="dark"] .cal-cell.sel .cal-dn{
+  color:#f0ede8 !important;
+}
   /* ── Mobile ── */
   .sb-backdrop{display:none;}
   @media(max-width:768px){
@@ -809,7 +824,7 @@ const Ico = {
   apply:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="12" y1="14" x2="12" y2="18"/><line x1="10" y1="16" x2="14" y2="16"/></svg>,
   report:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>,
   weeklyPlan:  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 12h2l2-4 2 8 2-4h2"/></svg>,
-  weekly:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/><line x1="2" y1="21" x2="22" y2="21"/></svg>,
+  weekly: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/><line x1="2" y1="21" x2="22" y2="21"/></svg>,
   monthly: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>,
   site:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
   materialRequirement: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.3 7 12 12 20.7 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>,
@@ -833,12 +848,12 @@ const Ico = {
 const NAV = [
   { key:"clock-in",   label:"Clock In / Out",    icon:Ico.clock  },
   { key:"calendar",   label:"Attendance",         icon:Ico.cal    },
-  { section:"leave",  label:"Leave", children:[{ key:"my-leave", label:"My Leave", icon:Ico.leave  },{ key:"apply-leave", label:"Apply Leave", icon:Ico.apply  },]},
+  { section:"leave",  label:"Leave", children:[{ key:"apply-leave", label:"Apply Leave", icon:Ico.apply  },{ key:"my-leave", label:"My Leave", icon:Ico.leave  },]},
   { section:"reports", label:"Reports",
     children:[
       { key:"daily-report",   label:"Daily Report",   icon:Ico.report  },
-      { key:"weekly-planning",  label:"Weekly Planning",  icon:Ico.weeklyPlan  },
       { key:"wpr-generator", label:"Weekly Report", icon: Ico.weekly },
+      { key:"weekly-planning",  label:"Weekly Planning",  icon:Ico.weeklyPlan  },
       { key:"monthly-report", label:"Monthly Report", icon:Ico.monthly },
       { key:"site-report", label:"Site Visit Report", icon:Ico.site },
       { key:"material-requirement", label:"Material Requirement", icon:Ico.materialRequirement },
@@ -861,7 +876,7 @@ const ALL_ITEMS = [
 
 function DateField({ value, onChange, min, invalid, placeholder = "dd-mm-yyyy" }) {
   const display = value
-    ? new Date(value + "T00:00:00").toLocaleDateString("en-GB") // -> dd/mm/yyyy
+    ? new Date(value + "T00:00:00").toLocaleDateString("en-GB")
     : "";
 
   return (
@@ -873,7 +888,7 @@ function DateField({ value, onChange, min, invalid, placeholder = "dd-mm-yyyy" }
         onChange={onChange}
         min={min}
         style={{
-          color: "transparent",          // hide native text rendering
+          color: "transparent",
           caretColor: "transparent",
           position: "relative",
           zIndex: 1,
@@ -908,7 +923,9 @@ function Loading() {
 function MyLeave({ user, onApply }) {
   const [leaves,  setLeaves]  = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(null); // id of expanded card
+  const [expanded, setExpanded] = useState(null); 
+  const [cancellingId, setCancellingId] = useState(null);
+  const [confirmLeave, setConfirmLeave] = useState(null); 
 
   useEffect(() => {
     (async () => {
@@ -922,15 +939,39 @@ function MyLeave({ user, onApply }) {
     })();
   }, [user.user_name]);
 
-  const normStatus = (l) => {
-    if (l.proxy_approved === false) return "rejected";
-    if (l.proxy_approved === true)  return "approved";
-    const s = (l.status || "").toLowerCase();
-    if (s === "reject" || s === "rejected") return "rejected";
-    if (s === "approved") return "approved";
-    return "pending";
+const normStatus = (l) => {
+  if (l.proxy_approved === false) return "rejected";
+  if (l.proxy_approved === true)  return "approved";
+  const s = (l.status || "").toLowerCase();
+  if (s === "reject" || s === "rejected") return "rejected";
+  if (s === "approved") return "approved";
+  return "pending";
+};
+
+  const canCancel = (l) => {
+    if (normStatus(l) !== "pending") return false;
+    if (l.proxy_approved === true || l.proxy_approved === false) return false;
+    return true;
   };
 
+  const requestCancel = (l, e) => {
+    e.stopPropagation();
+    setConfirmLeave(l);
+  };
+
+  const confirmCancel = async () => {
+    if (!confirmLeave) return;
+    setCancellingId(confirmLeave.id);
+    const { error } = await supabase.from("leaves").delete().eq("id", confirmLeave.id);
+    setCancellingId(null);
+    if (error) {
+      alert("Failed to cancel leave: " + error.message);
+      setConfirmLeave(null);
+      return;
+    }
+    setLeaves(prev => prev.filter(x => x.id !== confirmLeave.id));
+    setConfirmLeave(null);
+  };
 
   const badgeCls = { approved:"badge-green", pending:"badge-amber", rejected:"badge-red" };
 
@@ -972,6 +1013,8 @@ function MyLeave({ user, onApply }) {
           const status = normStatus(l);
           const days   = dayCount(l.from_date, l.to_date);
           const isOpen = expanded === l.id;
+          const showCancel = canCancel(l);
+          const isCancelling = cancellingId === l.id;
           return (
             <div key={l.id} className="lv-item" style={{flexDirection:"column",alignItems:"stretch",cursor:"pointer",gap:0}}
               onClick={()=>setExpanded(isOpen ? null : l.id)}>
@@ -992,6 +1035,18 @@ function MyLeave({ user, onApply }) {
                       Head: {l.proxy_approved===true?"✓ Approved":l.proxy_approved===false?"✗ Rejected":"Pending"}
                     </span>
                   )}
+                  {showCancel && (
+                    <button
+                      className="btn btn-red btn-sm"
+                      onClick={(e) => requestCancel(l, e)}
+                      disabled={isCancelling}
+                      style={{ alignSelf: "flex-start", marginTop: 8, padding: "5px 10px", fontSize: 10.5, gap: 5,}}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                      </svg>
+                      {isCancelling ? "Cancelling…" : "Cancel Leave"}
+                    </button>
+                  )}
                 </div>
               </div>  
 
@@ -1005,9 +1060,24 @@ function MyLeave({ user, onApply }) {
                     {l.proxy_user_name && (
                       <span>Site Head: <strong>{l.proxy_user_name}</strong></span>
                     )}
-                    {l.proxy_approved === true  && <span style={{color:"var(--green)"}}>✓ Head Approved</span>}
-                    {l.proxy_approved === false && <span style={{color:"var(--red)"}}>✗ Head Rejected</span>}
-                    {l.proxy_approved === null && l.proxy_user_name && <span style={{color:"var(--amber2)"}}>⏳ Head Approval Pending</span>}
+                    {l.proxy_approved === true && (
+                      <span style={{display:"flex",alignItems:"center",gap:5,color:"var(--green)"}}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                        Head Approved
+                      </span>
+                    )}
+                    {l.proxy_approved === false && (
+                      <span style={{display:"flex",alignItems:"center",gap:5,color:"var(--red)"}}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        Head Rejected
+                      </span>
+                    )}
+                    {l.proxy_approved === null && l.proxy_user_name && (
+                      <span style={{display:"flex",alignItems:"center",gap:5,color:"var(--amber2)"}}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                        Head Approval Pending
+                      </span>
+                    )}
                     {l.rejection_reason && (
                       <span style={{gridColumn:"span 2",color:"var(--red)"}}>Reason: {l.rejection_reason}</span>
                     )}
@@ -1027,13 +1097,73 @@ function MyLeave({ user, onApply }) {
       <div style={{marginTop:16,display:"flex"}}>
         <button className="btn btn-pri" onClick={onApply}>{Ico.plus} Apply New Leave</button>
       </div>
+
+      {/* Cancel confirmation modal */}
+      {confirmLeave && (
+        <div
+          onClick={() => !cancellingId && setConfirmLeave(null)}
+          style={{
+            position:"fixed", inset:0, zIndex:9999,
+            background:"rgba(15,13,10,.45)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            padding:20,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background:"var(--surface)", borderRadius:14, width:"100%", maxWidth:380,
+              padding:24, boxShadow:"0 16px 48px rgba(0,0,0,.25)",
+              border:"1px solid var(--line)",
+            }}
+          >
+            <div style={{
+              width:48 , borderRadius:"50%", background:"#fef2f2",
+              display:"flex", alignItems:"center", justifyContent:"center", marginBottom:16,
+            }}>
+            </div>
+
+            <div style={{ fontSize:16, fontWeight:800, color:"var(--ink)", marginBottom:6 }}>
+              Cancel this leave application?
+            </div>
+            <div style={{ fontSize:13, color:"var(--ink2)", lineHeight:1.6, marginBottom:20 }}>
+              <strong>{confirmLeave.leave_type}</strong> · {fmtD(confirmLeave.from_date)} → {fmtD(confirmLeave.to_date)}
+              <br/>
+              This action cannot be undone.
+            </div>
+
+            <div style={{ display:"flex", gap:10 }}>
+              <button
+                className="btn btn-out"
+                style={{ flex:1, justifyContent:"center" }}
+                onClick={() => setConfirmLeave(null)}
+                disabled={!!cancellingId}
+              >
+                Keep It
+              </button>
+              <button
+                className="btn"
+                style={{
+                  flex:1, justifyContent:"center",
+                  background:"var(--red)", color:"#fff",
+                  opacity: cancellingId ? 0.6 : 1,
+                }}
+                onClick={confirmCancel}
+                disabled={!!cancellingId}
+              >
+                {cancellingId ? "Cancelling…" : "Yes, Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // APPLY LEAVE
 // ═══════════════════════════════════════════════════════════════════════════════
+
 function ApplyLeave({ user }) {
   const empty = { leave_type:"", from_date:"", to_date:"", reason:"", proxy_user_name:"", site_name:"" };
   const [form, setForm] = useState(empty);
@@ -1042,104 +1172,128 @@ function ApplyLeave({ user }) {
   const [err, setErr] = useState("");
   const [headLoading, setHeadLoading] = useState(false);
   const [siteHeads, setSiteHeads] = useState([]);
-  const [toast, setToast] = useState(null);          // ← add
-  const [invalidFields, setInvalidFields] = useState([]); // ← add, for red-outline highlight
+  const [headName, setHeadName] = useState(""); // display name for the auto-filled head
+  const [toast, setToast] = useState(null);
+  const [invalidFields, setInvalidFields] = useState([]);
   const set = (k,v) => setForm(p=>({...p,[k]:v}));
 
   const showToast = (msg, ms = 4500) => {
     setToast(msg);
     setTimeout(() => setToast(null), ms);
   };
-  // Auto-fetch head on mount
-useEffect(() => {
-  const sites = user?.site_names?.length
-    ? user.site_names
-    : user?.site_name ? [user.site_name] : [];
-  if (!sites.length) { setSiteHeads([]); return; }
 
-  setHeadLoading(true);
-  (async () => {
-    const findHeadForSite = async (site) => {
-      // 1. Try Project Head first — this role always takes priority
-      const { data: ph } = await supabase
-        .from("user_details")
-        .select("username, name")
-        .eq("role", "Project Head")
-        .or(`site_name.eq.${site},site_names.cs.{${site}}`)
-        .limit(1)
-        .maybeSingle();
-      if (ph) return { site, username: ph.username, name: ph.name };
+  // Auto-fetch head(s) on mount
+  useEffect(() => {
+    const sites = user?.site_names?.length
+      ? user.site_names
+      : user?.site_name ? [user.site_name] : [];
+    if (!sites.length) { setSiteHeads([]); return; }
 
-      // 2. Fall back to Site Incharge only if no Project Head is found
-      const { data: si } = await supabase
-        .from("user_details")
-        .select("username, name")
-        .eq("role", "Site Incharge")
-        .or(`site_name.eq.${site},site_names.cs.{${site}}`)
-        .limit(1)
-        .maybeSingle();
-      if (si) return { site, username: si.username, name: si.name };
+    setHeadLoading(true);
+    (async () => {
+      const findHeadForSite = async (site) => {
+        const { data: ph } = await supabase
+          .from("user_details")
+          .select("username, name")
+          .eq("role", "Project Head")
+          .or(`site_name.eq.${site},site_names.cs.{${site}}`)
+          .limit(1)
+          .maybeSingle();
+        if (ph) return { site, username: ph.username, name: ph.name };
 
-      return { site, username: "", name: "" };
-    };
+        const { data: si } = await supabase
+          .from("user_details")
+          .select("username, name")
+          .eq("role", "Site Incharge")
+          .or(`site_name.eq.${site},site_names.cs.{${site}}`)
+          .limit(1)
+          .maybeSingle();
+        if (si) return { site, username: si.username, name: si.name };
 
-    const results = await Promise.all(sites.map(findHeadForSite));
-    setSiteHeads(results);
+        return { site, username: "", name: "" };
+      };
 
-    if (sites.length === 1) {
-      setForm(p => ({ ...p, site_name: sites[0], proxy_user_name: results[0]?.username || "" }));
-    }
-    setHeadLoading(false);
-  })();
-}, [user?.site_names, user?.site_name]);
+      const results = await Promise.all(sites.map(findHeadForSite));
+      setSiteHeads(results);
 
+      const uniqueHeadUsernames = [...new Set(results.map(r => r.username).filter(Boolean))];
+      const sameHeadForAll = sites.length > 1 && uniqueHeadUsernames.length === 1;
+
+      if (sites.length === 1) {
+        setForm(p => ({ ...p, site_name: sites[0], proxy_user_name: results[0]?.username || "" }));
+        setHeadName(results[0]?.name || "");
+      } else if (sameHeadForAll) {
+        const match = results.find(r => r.username === uniqueHeadUsernames[0]);
+        setForm(p => ({ ...p, site_name: sites[0], proxy_user_name: uniqueHeadUsernames[0] }));
+        setHeadName(match?.name || "");
+      }
+
+      setHeadLoading(false);
+    })();
+  }, [user?.site_names, user?.site_name]);
+
+  const uniqueHeadUsernames = [...new Set(siteHeads.map(h => h.username).filter(Boolean))];
+  const needsSiteChoice = siteHeads.length > 1 && uniqueHeadUsernames.length > 1;
+
+  // What to actually show in the single-head input: the head's name if we have
+  // one and the field still matches the auto-filled username; otherwise fall
+  // back to showing whatever raw value is in proxy_user_name (manual entry case).
+  const headInputDisplayValue = headName || form.proxy_user_name;
+
+  const handleHeadInputChange = (val) => {
+    // Once the person edits this field directly, treat it as raw username entry
+    // and stop showing a resolved name for it.
+    setHeadName("");
+    set("proxy_user_name", val);
+    setInvalidFields(f => f.filter(x => x !== "Site Head"));
+  };
 
   const days = form.from_date && form.to_date && new Date(form.to_date)>=new Date(form.from_date)
     ? Math.ceil((new Date(form.to_date)-new Date(form.from_date))/86400000)+1 : null;
 
-const submit = async () => {
-  const missing = [];
-  if (!form.leave_type)  missing.push("Leave Type");
-  if (!form.from_date)   missing.push("From Date");
-  if (!form.to_date)     missing.push("To Date");
-  if (!form.reason.trim()) missing.push("Reason");
-  if (siteHeads.length > 1 && !form.site_name) missing.push("Site");
-  if (!form.proxy_user_name.trim()) missing.push("Site Head");
+  const submit = async () => {
+    const missing = [];
+    if (!form.leave_type)  missing.push("Leave Type");
+    if (!form.from_date)   missing.push("From Date");
+    if (!form.to_date)     missing.push("To Date");
+    if (!form.reason.trim()) missing.push("Reason");
+    if (needsSiteChoice && !form.site_name) missing.push("Site");
+    if (!form.proxy_user_name.trim()) missing.push("Site Head");
 
-  if (missing.length) {
-    setInvalidFields(missing);
-    showToast(`Please fill: ${missing.join(", ")}`);
-    setErr(""); // clear old inline banner in favor of the toast
-    return;
-  }
+    if (missing.length) {
+      setInvalidFields(missing);
+      showToast(`Please fill: ${missing.join(", ")}`);
+      setErr("");
+      return;
+    }
 
-  setInvalidFields([]);
-  setBusy(true); setErr("");
+    setInvalidFields([]);
+    setBusy(true); setErr("");
 
-  const { error } = await supabase.from("leaves").insert({
-    user_name:       user.user_name,
-    name:            user.name,
-    leave_type:      form.leave_type,
-    from_date:       form.from_date,
-    to_date:         form.to_date,
-    reason:          form.reason || null,
-    site_name:       form.site_name || user.site_names?.[0] || user.site_name || null,
-    proxy_user_name: form.proxy_user_name || null,
-    status:          "Pending",
-    admin_approved:  null,
-    proxy_approved:  null,
-  });
-  setBusy(false);
-  if (error) { setErr(error.message); return; }
-  setSubmitted(true);
-};
+    const { error } = await supabase.from("leaves").insert({
+      user_name:       user.user_name,
+      name:            user.name,
+      leave_type:      form.leave_type,
+      from_date:       form.from_date,
+      to_date:         form.to_date,
+      reason:          form.reason || null,
+      site_name:       form.site_name || user.site_names?.[0] || user.site_name || null,
+      proxy_user_name: form.proxy_user_name || null,
+      status:          "Pending",
+      admin_approved:  null,
+      proxy_approved:  null,
+    });
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    setSubmitted(true);
+  };
 
   if (submitted) return (
     <div className="success-state">
       <div className="success-ico">{Ico.check}</div>
       <div className="success-title">Leave Application Submitted!</div>
       <div className="success-sub">Your request is pending approval. You'll be notified once reviewed.</div>
-      <button className="btn btn-pri" onClick={()=>{setSubmitted(false);setForm(empty);}}>Apply Another</button>
+      <button className="btn btn-pri" onClick={()=>{setSubmitted(false);setForm(empty);setHeadName("");}}>Apply Another</button>
     </div>
   );
 
@@ -1147,11 +1301,10 @@ const submit = async () => {
     <div>
       <div className="info-banner" style={{marginBottom:20}}>
         {Ico.info} Your leave application will be reviewed and approved or rejected by your site head.
-        {form.proxy_user_name && ` Head assigned: ${form.proxy_user_name}`}
+        {form.proxy_user_name && ` Head assigned: ${headName || form.proxy_user_name}`}
       </div>
       {err && <div className="info-banner warn-banner" style={{marginBottom:16}}>{Ico.info} {err}</div>}
 
-      {/* Read-only user info row */}
       <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap"}}>
         <div style={{background:"var(--paper)",border:"1px solid var(--line2)",borderRadius:9,padding:"8px 14px",fontSize:12.5}}>
           <span style={{color:"var(--ink3)",fontWeight:600}}>Employee: </span><strong>{user.name}</strong>
@@ -1167,8 +1320,7 @@ const submit = async () => {
       </div>
 
       <div className="grid2">
-        <div className="fgroup col1">
-        </div>
+        <div className="fgroup col1"></div>
         <div className="fgroup col2">
           <label className="flabel">Leave Type <span className="req">*</span></label>
           <select className="finput" value={form.leave_type}
@@ -1212,193 +1364,201 @@ const submit = async () => {
             style={invalidFields.includes("Reason") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}
           />
         </div>
-<div className="fgroup col2">
-  <label className="flabel">
-    Site Head{siteHeads.length <= 1 ? " Username" : ""} <span className="req">*</span>
-    <span className="opt">{siteHeads.length > 1 ? "select site" : "auto-filled · editable"}</span>
-  </label>
+        <div className="fgroup col2">
+          <label className="flabel">
+            Site Head{!needsSiteChoice ? "" : ""} <span className="req">*</span>
+            <span className="opt">{needsSiteChoice ? "select site" : "auto-filled · editable"}</span>
+          </label>
 
-  {siteHeads.length > 1 ? (
-    <div style={{ position:"relative" }}>
-      <select
-        className="finput"
-        disabled={headLoading}
-        value={form.site_name || ""}
-        onChange={e => {
-          const chosen = siteHeads.find(h => h.site === e.target.value);
-          setForm(p => ({
-            ...p,
-            site_name: e.target.value,
-            proxy_user_name: chosen?.username || "",
-          }));
-          setInvalidFields(f => f.filter(x => x !== "Site" && x !== "Site Head"));
-        }}
-        style={invalidFields.includes("Site") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}
-      >
-        <option value="">{headLoading ? "Loading heads…" : "-- Select site --"}</option>
-        {siteHeads.map(h => (
-          <option key={h.site} value={h.site}>
-            {h.name ? `${h.name}` : "No head assigned"} - {h.site}
-          </option>
-        ))}
-      </select>
-      {headLoading && (
-        <div style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)" }}>
-          <div className="spinner" style={{ width:14, height:14, borderWidth:2 }}/>
-        </div>
-      )}
-    </div>
-  ) : (
-    <div style={{ position:"relative" }}>
-      <input
-        className="finput"
-        placeholder={headLoading ? "Fetching head…" : "e.g. nisarg.p"}
-        value={form.proxy_user_name}
-        onChange={e => { set("proxy_user_name", e.target.value); setInvalidFields(f=>f.filter(x=>x!=="Site Head")); }}
-        disabled={headLoading}
-        style={invalidFields.includes("Site Head") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}
-      />
-      {headLoading && (
-        <div style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)" }}>
-          <div className="spinner" style={{ width:14, height:14, borderWidth:2 }}/>
-        </div>
-      )}
-    </div>
-  )}
+          {needsSiteChoice ? (
+            <div style={{ position:"relative" }}>
+              <select
+                className="finput"
+                disabled={headLoading}
+                value={form.site_name || ""}
+                onChange={e => {
+                  const chosen = siteHeads.find(h => h.site === e.target.value);
+                  setForm(p => ({
+                    ...p,
+                    site_name: e.target.value,
+                    proxy_user_name: chosen?.username || "",
+                  }));
+                  setHeadName(chosen?.name || "");
+                  setInvalidFields(f => f.filter(x => x !== "Site" && x !== "Site Head"));
+                }}
+                style={invalidFields.includes("Site") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}
+              >
+                <option value="">{headLoading ? "Loading heads…" : "-- Select site --"}</option>
+                {siteHeads.map(h => (
+                  <option key={h.site} value={h.site}>
+                    {h.name ? `${h.name}` : "No head assigned"} - {h.site}
+                  </option>
+                ))}
+              </select>
+              {headLoading && (
+                <div style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)" }}>
+                  <div className="spinner" style={{ width:14, height:14, borderWidth:2 }}/>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ position:"relative" }}>
+              <input
+                className="finput"
+                placeholder={headLoading ? "Fetching head…" : "e.g. nisarg.p"}
+                value={headInputDisplayValue}
+                onChange={e => handleHeadInputChange(e.target.value)}
+                disabled={headLoading}
+                style={invalidFields.includes("Site Head") ? { borderColor:"var(--red)", boxShadow:"0 0 0 3px rgba(220,38,38,.12)" } : undefined}
+              />
+              {headLoading && (
+                <div style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)" }}>
+                  <div className="spinner" style={{ width:14, height:14, borderWidth:2 }}/>
+                </div>
+              )}
+            </div>
+          )}
 
-  {form.proxy_user_name && !headLoading && (
-    <div style={{ fontSize:11.5, color:"var(--amber2)", marginTop:4 }}>
-      ⚠ Your site head will need to approve this leave.
-    </div>
-  )}
-  {!form.proxy_user_name && !headLoading && siteHeads.length <= 1 && (
-    <div style={{ fontSize:11.5, color:"var(--ink3)", marginTop:4 }}>
-      No head found for your site. Please enter one manually.
-    </div>
-  )}
-  {siteHeads.length > 1 && !form.site_name && !headLoading && (
-    <div style={{ fontSize:11.5, color:"var(--ink3)", marginTop:4 }}>
-      Choose which site this leave applies to.
-    </div>
-  )}
-</div>
+          {form.proxy_user_name && !headLoading && (
+            <div style={{ fontSize:11.5, color:"var(--amber2)", marginTop:4 }}>
+              ⚠ Your site head will need to approve this leave.
+            </div>
+          )}
+          {!form.proxy_user_name && !headLoading && !needsSiteChoice && (
+            <div style={{ fontSize:11.5, color:"var(--ink3)", marginTop:4 }}>
+              No head found for your site. Please enter one manually.
+            </div>
+          )}
+          {needsSiteChoice && !form.site_name && !headLoading && (
+            <div style={{ fontSize:11.5, color:"var(--ink3)", marginTop:4 }}>
+              Choose which site this leave applies to.
+            </div>
+          )}
+        </div>
       </div>
       <div className="act-row">
-        <button className="btn btn-out" onClick={()=>setForm(empty)}>Reset</button>
+        <button className="btn btn-out" onClick={()=>{setForm(empty);setHeadName("");}}>Reset</button>
         <button className="btn btn-pri" onClick={submit} disabled={busy}>
           {Ico.send} {busy?"Submitting…":"Submit Application"}
         </button>
       </div>
       {toast && (
-  <div style={{
-    position:"fixed", bottom:24, right:24, zIndex:9999,
-    display:"flex", alignItems:"center", gap:9,
-    padding:"12px 18px", borderRadius:10, fontSize:13, fontWeight:700,
-    background:"#fef2f2", color:"var(--red)", border:"1.5px solid #fecaca",
-    boxShadow:"0 8px 24px rgba(0,0,0,.14)", maxWidth:340,
-    animation:"slideUp .22s ease",
-  }}>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-    </svg>
-    {toast}
-  </div>
-)}
+        <div style={{
+          position:"fixed", bottom:24, right:24, zIndex:9999,
+          display:"flex", alignItems:"center", gap:9,
+          padding:"12px 18px", borderRadius:10, fontSize:13, fontWeight:700,
+          background:"#fef2f2", color:"var(--red)", border:"1.5px solid #fecaca",
+          boxShadow:"0 8px 24px rgba(0,0,0,.14)", maxWidth:340,
+          animation:"slideUp .22s ease",
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // WEEKLY REPORT
 // ═══════════════════════════════════════════════════════════════════════════════
-function WeeklyReport({ user }) {
-  const DAYS_FULL = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-  const [weekFrom, setWeekFrom] = useState("");
-  const [weekTo,   setWeekTo]   = useState("");
-  const [site, setSite] = useState(user.site_names?.[0] || user.site_name || "");
-  const [rows,     setRows]     = useState(DAYS_FULL.map(d=>({day:d,activity:"",target:"",manpower:""})));
-  const [submitted, setSubmitted] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr]   = useState("");
+// function WeeklyReport({ user }) {
+//   const DAYS_FULL = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+//   const [weekFrom, setWeekFrom] = useState("");
+//   const [weekTo,   setWeekTo]   = useState("");
+//   const [site, setSite] = useState(user.site_names?.[0] || user.site_name || "");
+//   const [rows,     setRows]     = useState(DAYS_FULL.map(d=>({day:d,activity:"",target:"",manpower:""})));
+//   const [submitted, setSubmitted] = useState(false);
+//   const [busy, setBusy] = useState(false);
+//   const [err, setErr]   = useState("");
 
-  const upd = (i,k,v) => setRows(p=>p.map((r,idx)=>idx===i?{...r,[k]:v}:r));
+//   const upd = (i,k,v) => setRows(p=>p.map((r,idx)=>idx===i?{...r,[k]:v}:r));
 
-  const submit = async () => {
-    if (!weekFrom || !site) { setErr("Week starting date and site are required."); return; }
-    setBusy(true); setErr("");
-    const { error } = await supabase.from("reports").insert({
-      user_id: user.id,
-      report_type: "weekly",
-      date: weekFrom,
-      site,
-      status: "submitted",
-      data: { week_from:weekFrom, week_to:weekTo, site, rows },
-    });
-    setBusy(false);
-    if (error) { setErr(error.message); return; }
-    setSubmitted(true);
-  };
+//   const submit = async () => {
+//     if (!weekFrom || !site) { setErr("Week starting date and site are required."); return; }
+//     setBusy(true); setErr("");
+//     const { error } = await supabase.from("reports").insert({
+//       user_id: user.id,
+//       report_type: "weekly",
+//       date: weekFrom,
+//       site,
+//       status: "submitted",
+//       data: { week_from:weekFrom, week_to:weekTo, site, rows },
+//     });
+//     setBusy(false);
+//     if (error) { setErr(error.message); return; }
+//     setSubmitted(true);
+//   };
 
-  if (submitted) return (
-    <div className="success-state">
-      <div className="success-ico">{Ico.check}</div>
-      <div className="success-title">Weekly Report Submitted!</div>
-      <div className="success-sub">Report saved for the selected week.</div>
-      <button className="btn btn-pri" onClick={()=>setSubmitted(false)}>New Report</button>
-    </div>
-  );
+//   if (submitted) return (
+//     <div className="success-state">
+//       <div className="success-ico">{Ico.check}</div>
+//       <div className="success-title">Weekly Report Submitted!</div>
+//       <div className="success-sub">Report saved for the selected week.</div>
+//       <button className="btn btn-pri" onClick={()=>setSubmitted(false)}>New Report</button>
+//     </div>
+//   );
 
+//   return (
+//     <div>
+//       {err && <div className="info-banner warn-banner" style={{marginBottom:16}}>{Ico.info} {err}</div>}
+//       <div className="grid2" style={{marginBottom:20}}>
+//         <div className="fgroup">
+//           <label className="flabel">Week From <span className="req">*</span></label>
+//           <DateField
+//             value={weekFrom}
+//             onChange={e => setWeekFrom(e.target.value)}
+//           />
+//         </div>
+//         <div className="fgroup">
+//           <label className="flabel">Week To</label>
+//           <DateField
+//             value={weekTo}
+//             min={weekFrom || undefined}
+//             onChange={e => setWeekTo(e.target.value)}
+//           />
+//         </div>
+//         <div className="fgroup col2">
+//           <label className="flabel">Site / Project <span className="req">*</span></label>
+//           <input className="finput" placeholder="Site name…" value={site} onChange={e=>setSite(e.target.value)}/>
+//         </div>
+//       </div>
+//       <div className="tbl-wrap">
+//         <table className="tbl">
+//           <thead>
+//             <tr>
+//               <th>Day</th><th>Planned Activity</th><th>Target / Qty</th><th>Manpower</th>
+//             </tr>
+//           </thead>
+//           <tbody>
+//             {rows.map((r,i)=>(
+//               <tr key={r.day}>
+//                 <td className="day-lbl">{r.day}</td>
+//                 <td><input className="finput" style={{background:"transparent",border:"1.5px solid transparent",padding:"7px 10px"}} placeholder="Activity…" value={r.activity} onChange={e=>upd(i,"activity",e.target.value)}/></td>
+//                 <td><input className="finput" style={{background:"transparent",border:"1.5px solid transparent",padding:"7px 10px"}} placeholder="Target…" value={r.target} onChange={e=>upd(i,"target",e.target.value)}/></td>
+//                 <td><input className="finput" type="number" style={{background:"transparent",border:"1.5px solid transparent",padding:"7px 10px"}} placeholder="0" value={r.manpower} onChange={e=>upd(i,"manpower",e.target.value)}/></td>
+//               </tr>
+//             ))}
+//           </tbody>
+//         </table>
+//       </div>
+//       <div className="act-row">
+//         <button className="btn btn-out">Save Draft</button>
+//         <button className="btn btn-pri" onClick={submit} disabled={busy}>{Ico.send} {busy?"Submitting…":"Submit Report"}</button>
+//       </div>
+//     </div>
+//   );
+// }
+function WeeklyReport() {
   return (
-    <div>
-      {err && <div className="info-banner warn-banner" style={{marginBottom:16}}>{Ico.info} {err}</div>}
-      <div className="grid2" style={{marginBottom:20}}>
-        <div className="fgroup">
-          <label className="flabel">Week From <span className="req">*</span></label>
-          <DateField
-            value={weekFrom}
-            onChange={e => setWeekFrom(e.target.value)}
-          />
-        </div>
-        <div className="fgroup">
-          <label className="flabel">Week To</label>
-          <DateField
-            value={weekTo}
-            min={weekFrom || undefined}
-            onChange={e => setWeekTo(e.target.value)}
-          />
-        </div>
-        <div className="fgroup col2">
-          <label className="flabel">Site / Project <span className="req">*</span></label>
-          <input className="finput" placeholder="Site name…" value={site} onChange={e=>setSite(e.target.value)}/>
-        </div>
-      </div>
-      <div className="tbl-wrap">
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Day</th><th>Planned Activity</th><th>Target / Qty</th><th>Manpower</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r,i)=>(
-              <tr key={r.day}>
-                <td className="day-lbl">{r.day}</td>
-                <td><input className="finput" style={{background:"transparent",border:"1.5px solid transparent",padding:"7px 10px"}} placeholder="Activity…" value={r.activity} onChange={e=>upd(i,"activity",e.target.value)}/></td>
-                <td><input className="finput" style={{background:"transparent",border:"1.5px solid transparent",padding:"7px 10px"}} placeholder="Target…" value={r.target} onChange={e=>upd(i,"target",e.target.value)}/></td>
-                <td><input className="finput" type="number" style={{background:"transparent",border:"1.5px solid transparent",padding:"7px 10px"}} placeholder="0" value={r.manpower} onChange={e=>upd(i,"manpower",e.target.value)}/></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="act-row">
-        <button className="btn btn-out">Save Draft</button>
-        <button className="btn btn-pri" onClick={submit} disabled={busy}>{Ico.send} {busy?"Submitting…":"Submit Report"}</button>
-      </div>
+    <div className="empty-state" style={{padding:"80px 24px"}}>
+      <div className="empty-ico" style={{width:64,height:64}}>{Ico.weeklyPlan}</div>
+      <div className="empty-title" style={{fontSize:16}}>Weekly Report</div>
+      <div className="empty-sub">This feature is coming soon. Weekly consolidated reports will appear here.</div>
     </div>
   );
 }
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // MONTHLY REPORT (placeholder)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1634,6 +1794,7 @@ const nav = (key) => {
       case "my-leave":       return <MyLeave user={user} onApply={()=>nav("apply-leave")}/>;
       case "apply-leave":    return <ApplyLeave user={user}/>;
       case "daily-report":   return <DPR user={user}/>;
+      // case "weekly-planning":  return <WeeklyReport user={user}/>;
       case "weekly-planning":  return <WeeklyReport user={user}/>;
       case "wpr-generator":  return <WprGenerator user={user} supabase={supabase}/>;
       case "monthly-report": return <MonthlyReport/>;

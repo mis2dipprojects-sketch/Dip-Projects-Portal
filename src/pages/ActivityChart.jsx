@@ -330,7 +330,7 @@ const dprArea = dprAreaPoints.length
                 fill="#94a3b8" textAnchor="end" fontFamily="monospace">{t}</text>
             </g>
           );
-        })}
+        })} 
         {/* Y right (att %) */}
         {[0, 50, 100].map(t => (
           <text key={t} x={W - PAD.right + 5} y={yPos(t, 100) + fs(3.5)}

@@ -342,8 +342,12 @@ export default function Navbar({ onMenuToggle, menuOpen }) {
           .navbar-ham:hover { background: rgba(255, 255, 255, 0); }
           .navbar-ham:active { background: rgba(255, 255, 255, 0); }
         }
+          
+        @media (min-width: 901px) {
+          .navbar-ham { display: none; }
+        }
       `}</style>
-
+  
       {/* ── Logout Confirmation Modal ── */}
       {showLogoutModal && (
         <div className="logout-backdrop" onClick={() => setShowLogoutModal(false)}>

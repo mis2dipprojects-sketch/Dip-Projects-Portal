@@ -855,7 +855,7 @@ const fetchData = useCallback(async () => {
   const { data: todayData } = await supabase
     .from("attendance")
     .select("*")
-    .eq("user_name", user.user_name)   // ← use user_name, not user.id
+    .eq("user_name", user.user_name)
     .eq("date", dateStr)
     .maybeSingle();
   setTodayRecord(todayData);
@@ -863,9 +863,9 @@ const fetchData = useCallback(async () => {
   const { data: logs } = await supabase
     .from("attendance")
     .select("*")
-    .eq("user_name", user.user_name)   // ← use user_name
+    .eq("user_name", user.user_name)  
     .order("date", { ascending: false })
-    .limit(6);
+    .limit(7);
   setRecentLogs(logs || []);
   setLoading(false);
 }, [user.user_name, supabase]);

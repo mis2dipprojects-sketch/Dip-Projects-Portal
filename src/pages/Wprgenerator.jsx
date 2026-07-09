@@ -1308,7 +1308,6 @@ useEffect(() => {
     };
   }, [isDragging, workbook, activeSheet, zoom]);
   
-
   const captureSelection = async () => {
     const n = getNorm();
     if (!n) { alert("Select a range first by clicking and dragging on the table."); return; }
@@ -2082,7 +2081,7 @@ if (siteImage) {
 }
 
 await uploadBatch(graphicalImages, "graphical", "graphical", "graphical");
-await uploadBatch(sitePhotos, "site_photo", "site_photos", "site");
+await uploadBatch(sitePhotos, "site_photos", "site_photos", "site");
 await uploadBatch(checklistPhotos, "checklist", "checklist", "checklist");
 await uploadBatch(barchartItems, "barchart", "barchart", "barchart");
 await uploadBatch(cubeItems, "cube_testing", "cube_testing", "cube");

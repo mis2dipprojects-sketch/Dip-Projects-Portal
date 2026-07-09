@@ -711,6 +711,7 @@ export default function MatRequirement({ user, onDotSeen, onUnseenCount }) {
   const userSites = Array.isArray(user?.site_names) && user.site_names.length
     ? user.site_names.map(s => titleCase(s))
     : user?.site_name ? [titleCase(user.site_name)] : [];
+
   const [site, setSite] = useState(userSites[0] || "");
 
   useEffect(() => { onUnseenCount?.(unseen.total); }, [unseen.total, onUnseenCount]);

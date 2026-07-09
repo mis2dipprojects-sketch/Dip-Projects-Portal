@@ -437,3 +437,18 @@
   position: relative;
   z-index: 2;
 }
+.lp-remember-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 0 16px;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+.lp-remember-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #2563eb; /* match your brand color */
+}

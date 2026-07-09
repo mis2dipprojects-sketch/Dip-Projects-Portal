@@ -91,6 +91,7 @@ const userData = {
     localStorage.setItem("user", JSON.stringify(userData));
     redirectUser(userData.department);
   };
+  
 
   return (
     <div className="lp-page">

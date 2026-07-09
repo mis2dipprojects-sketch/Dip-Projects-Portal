@@ -742,23 +742,8 @@ export default function MatRequirement({ user, onDotSeen, onUnseenCount }) {
 
           <div className="mreq-card">
             {tab === "required"
-              ? <MaterialRequired
-                  user={user}
-                  showToast={showToast}
-                  onSubmitted={unseen.refresh}
-                  userSites={userSites}
-                  site={site}
-                  setSite={setSite}
-                />
-              : <MaterialReceived
-                  user={user}
-                  showToast={showToast}
-                  unseen={unseen}
-                  onDotSeen={onDotSeen}
-                  userSites={userSites}
-                  site={site}
-                  setSite={setSite}
-                />}
+              ? <MaterialRequired user={user} showToast={showToast} onSubmitted={unseen.refresh} userSites={userSites} site={site} setSite={setSite}/>
+              : <MaterialReceived user={user} showToast={showToast} unseen={unseen} onDotSeen={onDotSeen} userSites={userSites} site={site} setSite={setSite}/>}
           </div>
 
           {toast && (

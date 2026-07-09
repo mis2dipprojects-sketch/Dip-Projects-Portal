@@ -132,6 +132,11 @@ const IcoArrow = () => (
     <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
   </svg>
 );
+const IcoFilter = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+  </svg>
+);
 // ─── Status config ────────────────────────────────────────────────────────────
 
 const STATUS_CFG = {
@@ -491,7 +496,7 @@ function MaterialRequests({ siteName, userName, onStatsChange }) {
   const [loading, setLoading] = useState(true);
   const [filter,  setFilter]  = useState("pending");
   const [toast,   setToast]   = useState(null);
-
+  const [filterOpen, setFilterOpen] = useState(false);
   const showToast = (type, msg) => {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 4000);
@@ -501,7 +506,7 @@ function MaterialRequests({ siteName, userName, onStatsChange }) {
     if (f === "accepted") return "received";
     if (f === "rejected") return "rejected";
     if (f === "pending")  return "pending";
-    return null; // "all"
+    return null;
   };
 
   const load = useCallback(async () => {
@@ -510,7 +515,7 @@ function MaterialRequests({ siteName, userName, onStatsChange }) {
     let q = supabase
       .from("material_requirements")
       .select("*")
-      .ilike("site_name", siteName);
+      .ilike("site_name", siteName);  
     const dbStatus = dbStatusForFilter(filter);
     if (dbStatus) q = q.eq("status", dbStatus);
     const { data, error } = await q.order("created_at", { ascending: false });
@@ -583,6 +588,34 @@ const FILTERS = [
         </div>
       </div>
 
+      <div className="cp-filter-bar">
+        <button
+          type="button"
+          className={`cp-filter-toggle${filterOpen ? " open" : ""}`}
+          onClick={() => setFilterOpen(o => !o)}
+        >
+          <IcoFilter />
+          <span className="cp-filter-toggle-text">
+            {FILTERS.find(f => f.key === filter)?.label || "Filter"}
+          </span>
+          <span className="cp-filter-toggle-chevron"><IcoChevron open={filterOpen} /></span>
+        </button>
+
+        <div className={`cp-filter-panel${filterOpen ? " open" : ""}`}>
+          <div className="cp-filters">
+            {FILTERS.map(f => (
+              <button
+                key={f.key}
+                className={`cp-chip${filter === f.key ? " " + f.cls : ""}`}
+                onClick={() => { setFilter(f.key); setFilterOpen(false); }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="cp-section-head">
         <button
           className="cp-refresh-btn"
@@ -590,18 +623,6 @@ const FILTERS = [
         >
           <IcoRefresh /> Refresh
         </button>
-      </div>
-
-      <div className="cp-filters">
-        {FILTERS.map(f => (
-          <button
-            key={f.key}
-            className={`cp-chip${filter === f.key ? " " + f.cls : ""}`}
-            onClick={() => setFilter(f.key)}
-          >
-            {f.label}
-          </button>
-        ))}
       </div>
 
       {loading ? (
@@ -628,6 +649,19 @@ const FILTERS = [
       )}
     </div>
   );
+}
+const isMobileDevice = () =>
+  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+function officeViewerUrl(url) {
+  if (!url) return url;
+  return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+}
+
+function resolveViewUrl(url, isOffice) {
+  if (!isOffice) return url;
+  if (isMobileDevice()) return url;
+  return officeViewerUrl(url);
 }
 
 // ─── Reports & Photos panel ────────────────────────────────────────────────
@@ -721,7 +755,7 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump  }) {
   })),
   ...wprs.map(r => ({
     type: "wpr", date: r.report_date || r.created_at, title: `Weekly Report #${r.report_number || ""}`,
-    meta: r.engineer_name, url: r.presentation_url, kind: "doc",
+    meta: r.engineer_name, url: r.presentation_url, kind: "doc", isOffice: true,
   })),
   ...photos.map(p => ({
     type: p.image_type === "graphical" ? "graphical" : "photo",
@@ -898,8 +932,15 @@ const TYPE_FILTERS = [
                     {it.kind === "doc" && (
                       it.url ? (
                         <div className="cp-media-actions">
-                          <a className="cp-media-link" href={it.url} target="_blank" rel="noopener noreferrer"><IcoEye /> View</a>
-                          <a className="cp-media-link dl" href={it.url} download><IcoDl /> Download</a>
+                          
+                          <a className="cp-media-link"
+                              href={resolveViewUrl(it.url, it.isOffice)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <IcoEye /> View
+                            </a>
+                            <a className="cp-media-link dl" href={it.url} download><IcoDl /> Download</a>
                         </div>
                       ) : (
                         <span style={{ fontSize: 11, color: "#bbb", fontStyle: "italic" }}>No file attached</span>

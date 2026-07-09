@@ -7,7 +7,19 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 const fmtD  = (d)  => d  ? new Date(d+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}) : "—";
 const fmtDT = (dt) => dt ? new Date(dt).toLocaleString("en-IN",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:true}) : "—";
+const isMobileDevice = () =>
+  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
+function officeViewerUrl(url) {
+  if (!url) return url;
+  return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+}
+
+function resolveViewUrl(url, isOffice) {
+  if (!isOffice) return url;
+  if (isMobileDevice()) return url;
+  return officeViewerUrl(url);
+}
 async function downloadPdf(url) {
   try {
     const res = await fetch(url);
@@ -193,32 +205,30 @@ const isOfficeDoc = (url) => /\.(pptx|ppt|docx|doc|xlsx|xls)(\?|$)/i.test(url ||
 
         {/* PDF buttons */}
         {r.pdf_url ? (
-  <div style={{ display:"flex", gap:8 }} onClick={e => e.stopPropagation()}>
+        <div style={{ display:"flex", gap:8 }} onClick={e => e.stopPropagation()}>
       
-    <a    href={r._source === "wpr" && isOfficeDoc(r.pdf_url)
-      ? `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(r.pdf_url)}`
-      : r.pdf_url}
-  target="_blank"
-  rel="noopener noreferrer"
-  className="rs-btn-view" 
-      style={{
-        display:"inline-flex", alignItems:"center", gap:6,
-        fontSize:12, fontWeight:600, color:"#475569",
-        background:"#f8fafc", border:"1px solid #e2e8f0",
-        borderRadius:7, padding:"6px 12px", textDecoration:"none",
-      }}
-    >
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-      </svg>
-      View
-    </a>
-    <button onClick={() => downloadPdf(r.pdf_url)} className="rs-btn-download" style={{
-        display:"inline-flex", alignItems:"center", gap:6,
-        fontSize:12, fontWeight:600, color:"#7a2e00",
-        background:"#eff6ff", border:"1px solid #bfdbfe",
-        borderRadius:7, padding:"6px 12px", cursor:"pointer", fontFamily:"inherit",
-      }}>
+        <a href={resolveViewUrl(r.pdf_url, r._source === "wpr" && isOfficeDoc(r.pdf_url))}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rs-btn-view"
+          style={{
+            display:"inline-flex", alignItems:"center", gap:6,
+            fontSize:12, fontWeight:600, color:"#475569",
+            background:"#f8fafc", border:"1px solid #e2e8f0",
+            borderRadius:7, padding:"6px 12px", textDecoration:"none",
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+          View
+        </a>
+        <button onClick={() => downloadPdf(r.pdf_url)} className="rs-btn-download" style={{
+            display:"inline-flex", alignItems:"center", gap:6,
+            fontSize:12, fontWeight:600, color:"#7a2e00",
+            background:"#eff6ff", border:"1px solid #bfdbfe",
+            borderRadius:7, padding:"6px 12px", cursor:"pointer", fontFamily:"inherit",
+          }}>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>

@@ -599,7 +599,7 @@ const DARK_CSS = `
   .sgroup-chev.open{transform:rotate(180deg);}
   .sgroup-kids{overflow:hidden;max-height:600px;transition:max-height .25s ease,opacity .18s;display:flex;flex-direction:column;gap:1px;padding-left:4px;}
   .sgroup-kids.shut{max-height:0;opacity:0;pointer-events:none;}
-  .sni{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;cursor:pointer;color:var(--ink2);font-size:13px;font-weight:500;border:none;background:transparent;width:100%;text-align:left;transition:background .15s,color .15s;}
+  .sni{display:flex;align-items:center;gap:9px;padding:12px;border-radius:9px;cursor:pointer;color:var(--ink2);font-size:13px;font-weight:500;border:none;background:transparent;width:100%;text-align:left;transition:background .15s,color .15s;}
   .sni:hover{background:var(--paper);color:var(--ink);}
   .sni.act{background:var(--amber-bg);color:var(--amber2);font-weight:700;}
   .sni.act svg{stroke:var(--amber2);}

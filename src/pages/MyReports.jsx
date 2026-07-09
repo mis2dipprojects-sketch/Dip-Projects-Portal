@@ -17,8 +17,7 @@ function officeViewerUrl(url) {
 
 function resolveViewUrl(url, isOffice) {
   if (!isOffice) return url;
-  if (isMobileDevice()) return url;
-  return officeViewerUrl(url);
+  return officeViewerUrl(url);   // always wrap office docs — mobile browsers can't render pptx directly either
 }
 async function downloadPdf(url) {
   try {

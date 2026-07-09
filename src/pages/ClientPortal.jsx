@@ -660,8 +660,7 @@ function officeViewerUrl(url) {
 
 function resolveViewUrl(url, isOffice) {
   if (!isOffice) return url;
-  if (isMobileDevice()) return url;
-  return officeViewerUrl(url);
+  return officeViewerUrl(url);   // always wrap office docs — mobile browsers can't render pptx directly either
 }
 
 // ─── Reports & Photos panel ────────────────────────────────────────────────
@@ -748,11 +747,15 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump  }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const unified = [
-  ...dprs.map(r => ({
-    type: "dpr", date: r.date || r.created_at, title: `${r.report_type || "Daily"} Report`,
-    meta: r.engineer, url: r.pdf_url, kind: "doc",
-  })),
+const capitalize = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
+const unified = [
+  ...dprs
+    .filter(r => r.report_type !== "morning")
+    .map(r => ({
+      type: "dpr", date: r.date || r.created_at, title: `${capitalize(r.report_type) || "Daily"} Report`,
+      meta: r.engineer, url: r.pdf_url, kind: "doc",
+    })),
   ...wprs.map(r => ({
     type: "wpr", date: r.report_date || r.created_at, title: `Weekly Report #${r.report_number || ""}`,
     meta: r.engineer_name, url: r.presentation_url, kind: "doc", isOffice: true,

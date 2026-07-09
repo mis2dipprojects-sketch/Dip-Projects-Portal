@@ -1549,7 +1549,7 @@ function WeeklyReport() {
   return (
     <div className="empty-state" style={{padding:"80px 24px"}}>
       <div className="empty-ico" style={{width:64,height:64}}>{Ico.weeklyPlan}</div>
-      <div className="empty-title" style={{fontSize:16}}>Weekly Plannin</div>
+      <div className="empty-title" style={{fontSize:16}}>Weekly Planning</div>
       <div className="empty-sub">This feature is coming soon. Weekly consolidated reports will appear here.</div>
     </div>
   );

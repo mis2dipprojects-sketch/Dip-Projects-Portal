@@ -623,26 +623,8 @@
 .cp-chip.act.type-photo { background: var(--success); border-color: var(--success); color: #fff; }
 /* ─── Sticky filter bar ──────────────────────────────────────────────────── */
 .cp-viewmodes { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
-.cp-filter-bar {
-  position: sticky;
-  top: 25px;
-  z-index: 999;
-  background: #ffffff9d;
-  padding: 10px 0 14px;
-  margin-bottom: 4px;
-}
-
-.cp-typefilters {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-
-  /* remove sticky from here */
-  position: static;
-  background: transparent;
-  padding: 0;
-}
+.cp-filter-bar {border-radius:10px; position: sticky; top: 25px; z-index: 999; background: #ffffff9d; padding: 10px 10px; margin-bottom: 4px;}
+.cp-typefilters {display: flex;gap: 6px;flex-wrap: wrap;margin-bottom: 16px; position: static;background: transparent;padding: 0;}
 
 /* Fifth pill category: graphical/progress charts */
 .cp-chip.act.type-all       { background: var(--brand);   border-color: var(--brand);   color: #fff; }
@@ -654,48 +636,27 @@
 /* Media card + badge styling for the new graphical type */
 .cp-media-card.type-graphical { border-top: 3px solid #6d4aa8; }
 .cp-media-badge.graphical { background: #f1ecf9; color: #6d4aa8; }
-.cp-range-picker {
-  display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
-  background: var(--surface); border: 1.5px solid var(--border);
-  border-radius: 12px; padding: 10px 14px; margin: 4px 0 8px;
-}
-.cp-range-field {
-  display: flex; flex-direction: column; gap: 4px;
-}
-.cp-range-field label {
-  font-size: 10.5px; font-weight: 800; text-transform: uppercase;
-  letter-spacing: .06em; color: var(--ink-faint); font-family: var(--font-mono);
-}
-.cp-range-field input[type="date"] {
-  border: 1.5px solid var(--border); border-radius: 8px;
-  padding: 7px 10px; font-family: var(--font-body); font-size: 12.5px;
-  color: var(--ink); background: var(--bg); min-height: 36px;
-}
-.cp-range-field input[type="date"]:focus {
-  outline: none; border-color: var(--accent);
-}
-.cp-range-sep {
-  color: var(--ink-faint); font-weight: 700; padding-bottom: 8px;
-}
-.cp-range-clear {
-  display: inline-flex; align-items: center; gap: 5px;
-  border: 1.5px solid var(--border); background: var(--surface-2);
-  color: var(--ink-soft); font-size: 12px; font-weight: 700;
-  border-radius: 8px; padding: 7px 12px; cursor: pointer;
-  margin-bottom: 1px; transition: border-color .15s, color .15s;
-}
+.cp-range-picker {display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;background: var(--surface); border: 1.5px solid var(--border);border-radius: 12px; padding: 10px 14px; margin: 4px 0 8px;}
+.cp-range-field {display: flex; flex-direction: column; gap: 4px;}
+
+.cp-range-field label {font-size: 10.5px; font-weight: 800; text-transform: uppercase;letter-spacing: .06em; color: var(--ink-faint); font-family: var(--font-mono);}
+.cp-range-field input[type="date"] {border: 1.5px solid var(--border); border-radius: 8px;padding: 7px 10px; font-family: var(--font-body); font-size: 12.5px;color: var(--ink); background: var(--bg); min-height: 36px;}
+.cp-range-field input[type="date"]:focus {outline: none; border-color: var(--accent);}
+.cp-range-sep {color: var(--ink-faint); font-weight: 700; padding-bottom: 8px;}
+.cp-range-clear {display: inline-flex; align-items: center; gap: 5px;border: 1.5px solid var(--border); background: var(--surface-2);color: var(--ink-soft); font-size: 12px; 
+    font-weight: 700;border-radius: 8px; padding: 7px 12px; cursor: pointer;margin-bottom: 1px; transition: border-color .15s, color .15s;}
 .cp-range-clear:hover { border-color: var(--danger); color: var(--danger); }
 
 @media (max-width: 640px) {
   .cp-range-picker { flex-direction: column; align-items: stretch; }
   .cp-range-sep { display: none; }
 }
-/* Filter toggle button — hidden on desktop, shown on mobile */
+
+
 .cp-filter-toggle {
   display: none;
 }
 
-/* Desktop / default: panel always visible, toggle hidden, original layout */
 .cp-filter-panel {
   display: flex;
   flex-direction: column;

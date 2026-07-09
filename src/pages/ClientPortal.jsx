@@ -893,9 +893,7 @@ const TYPE_FILTERS = [
                   </span>
                     <div className="cp-media-title">{it.title}</div>
                     <div className="cp-media-meta">
-                      {it.meta && <span>{it.meta}</span>}
-                      {it.meta && <span>·</span>}
-                      <IcoClock /> {fmtDateTime(it.date)}
+                        <IcoClock /> {fmtDateTime(it.date)}
                     </div>
                     {it.kind === "doc" && (
                       it.url ? (

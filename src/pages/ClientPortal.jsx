@@ -641,6 +641,12 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump  }) {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [rangeStart, setRangeStart] = useState(""); 
   const [rangeEnd, setRangeEnd]     = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);  
+  const IcoFilter = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+  </svg>
+);
  useEffect(() => {
     if (jumpDate) setViewMode("day");
   }, [jumpDate]); 
@@ -767,6 +773,8 @@ const TYPE_FILTERS = [
   { key: "graphical", label: `Graphical (${counts.graphical})`, cls: "type-graphical" },
 ];
 
+  const activeViewLabel = VIEW_MODES.find(v => v.key === viewMode)?.label || "Recent";
+  const activeTypeLabel = TYPE_FILTERS.find(f => f.key === typeFilter)?.label || "All";
   return (
   <div>
     {jumpDate && (
@@ -781,60 +789,72 @@ const TYPE_FILTERS = [
     </div>
 
 <div className="cp-filter-bar">
-  <div className="cp-viewmodes">
-    {VIEW_MODES.map(v => (
-      <button
-        key={v.key}
-        className={`cp-chip${viewMode === v.key ? " act" : ""}`}
-        onClick={() => {
-          setViewMode(v.key);
-          if (jumpDate && onClearJump) onClearJump();
-        }}
-      >
-        {v.label}
-      </button>
-    ))}
-  </div>
+  <button
+    type="button"
+    className={`cp-filter-toggle${filterOpen ? " open" : ""}`}
+    onClick={() => setFilterOpen(o => !o)}
+  >
+    <IcoFilter />
+    <span className="cp-filter-toggle-text">{activeViewLabel} · {activeTypeLabel}</span>
+    <span className="cp-filter-toggle-chevron"><IcoChevron open={filterOpen} /></span>
+  </button>
 
-  {viewMode === "range" && (
-    <div className="cp-range-picker">
-      <div className="cp-range-field">
-        <label>From</label>
-        <input
-          type="date"
-          value={rangeStart}
-          max={rangeEnd || undefined}
-          onChange={e => setRangeStart(e.target.value)}
-        />
-      </div>
-      <span className="cp-range-sep">→</span>
-      <div className="cp-range-field">
-        <label>To</label>
-        <input
-          type="date"
-          value={rangeEnd}
-          min={rangeStart || undefined}
-          onChange={e => setRangeEnd(e.target.value)}
-        />
-      </div>
-      {(rangeStart || rangeEnd) && (
-        <button className="cp-range-clear" onClick={() => { setRangeStart(""); setRangeEnd(""); }}>
-          <IcoX /> Clear
+  <div className={`cp-filter-panel${filterOpen ? " open" : ""}`}>
+    <div className="cp-viewmodes">
+      {VIEW_MODES.map(v => (
+        <button
+          key={v.key}
+          className={`cp-chip${viewMode === v.key ? " act" : ""}`}
+          onClick={() => {
+            setViewMode(v.key);
+            if (jumpDate && onClearJump) onClearJump();
+          }}
+        >
+          {v.label}
         </button>
-      )}
+      ))}
     </div>
-  )}
 
-  <div className="cp-typefilters">
-    {TYPE_FILTERS.map(f => (
-      <button
-        key={f.key}
-        className={`cp-chip${typeFilter === f.key ? " act " + f.cls : ""}`}
-        onClick={() => setTypeFilter(f.key)}
-      >
-        {f.label}
-      </button>
-    ))}
+    {viewMode === "range" && (
+      <div className="cp-range-picker">
+        <div className="cp-range-field">
+          <label>From</label>
+          <input
+            type="date"
+            value={rangeStart}
+            max={rangeEnd || undefined}
+            onChange={e => setRangeStart(e.target.value)}
+          />
+        </div>
+        <span className="cp-range-sep">→</span>
+        <div className="cp-range-field">
+          <label>To</label>
+          <input
+            type="date"
+            value={rangeEnd}
+            min={rangeStart || undefined}
+            onChange={e => setRangeEnd(e.target.value)}
+          />
+        </div>
+        {(rangeStart || rangeEnd) && (
+          <button className="cp-range-clear" onClick={() => { setRangeStart(""); setRangeEnd(""); }}>
+            <IcoX /> Clear
+          </button>
+        )}
+      </div>
+    )}
+
+    <div className="cp-typefilters">
+      {TYPE_FILTERS.map(f => (
+        <button
+          key={f.key}
+          className={`cp-chip${typeFilter === f.key ? " act " + f.cls : ""}`}
+          onClick={() => setTypeFilter(f.key)}
+        >
+          {f.label}
+        </button>
+      ))}
+    </div>
   </div>
 </div>
 

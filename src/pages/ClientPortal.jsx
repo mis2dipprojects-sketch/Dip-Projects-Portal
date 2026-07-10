@@ -64,7 +64,12 @@ function groupItems(items, mode) {
   return groups;
 }
 
-
+// ─── Scroll helper ────────────────────────────────────────────────────────────
+const scrollToTop = () => {
+  if (typeof window !== "undefined") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+};
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 const IcoCheck = () => (
@@ -607,7 +612,7 @@ const FILTERS = [
               <button
                 key={f.key}
                 className={`cp-chip${filter === f.key ? " " + f.cls : ""}`}
-                onClick={() => { setFilter(f.key); setFilterOpen(false); }}
+                onClick={() => { setFilter(f.key); setFilterOpen(false); scrollToTop(); }}
               >
                 {f.label}
               </button>
@@ -845,6 +850,7 @@ const TYPE_FILTERS = [
           onClick={() => {
             setViewMode(v.key);
             if (jumpDate && onClearJump) onClearJump();
+            scrollToTop();
           }}
         >
           {v.label}
@@ -886,7 +892,7 @@ const TYPE_FILTERS = [
         <button
           key={f.key}
           className={`cp-chip${typeFilter === f.key ? " act " + f.cls : ""}`}
-          onClick={() => setTypeFilter(f.key)}
+          onClick={() => { setTypeFilter(f.key); scrollToTop(); }}
         >
           {f.label}
         </button>
@@ -985,9 +991,15 @@ export default function ClientPortal() {
   // state additions in ClientPortal
 const [jumpDate, setJumpDate] = useState(null);
 
+const goToSection = (key) => {
+  setSection(key);
+  scrollToTop();
+};
+
 const handleSelectDate = (dayKey) => {
   setJumpDate(dayKey);
   setSection("media");
+  scrollToTop();
 };
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -1072,7 +1084,7 @@ const handleSelectDate = (dayKey) => {
       <button
         key={item.key}
         className={`cp-nav-item${section === item.key ? " act" : ""}`}
-        onClick={() => { setSection(item.key); setMobileNavOpen(false); }}
+        onClick={() => { goToSection(item.key); setMobileNavOpen(false); }}
       >
         <Icon />
         {item.label}
@@ -1129,7 +1141,7 @@ const handleSelectDate = (dayKey) => {
       <button
         key={item.key}
         className={`cp-nav-item${section === item.key ? " act" : ""}`}
-        onClick={() => setSection(item.key)}
+        onClick={() => goToSection(item.key)}
       >
         <Icon />
         {item.label}
@@ -1172,7 +1184,7 @@ const handleSelectDate = (dayKey) => {
                     <div className="cp-page-pill">{activeSite}</div>
                   </div>
 
-                  {section === "overview"  && <Overview siteName={activeSite} onNavigate={setSection} />}
+                  {section === "overview"  && <Overview siteName={activeSite} onNavigate={goToSection} />}
                   {section === "materials" && <MaterialRequests siteName={activeSite} userName={displayName} onStatsChange={setPendingCount} />}
                   {section === "media"     && (<ReportsAndPhotos siteName={activeSite} jumpDate={jumpDate} onClearJump={() => setJumpDate(null)} />)}
 

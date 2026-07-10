@@ -604,7 +604,7 @@ const DARK_CSS = `
   .sni.act{background:var(--amber-bg);color:var(--amber2);font-weight:700;}
   .sni.act svg{stroke:var(--amber2);}
   .sni { position: relative; }
-.sni-badge {margin-left: auto;min-width: 18px;height: 18px;padding: 0 5px;border-radius: 9px;background: var(--red);color: #fff;font-size: 10.5px;font-weight: 800;display: flex;align-items: center;justify-content: center;flex-shrink: 0;line-height: 1;}
+  .sni-badge {margin-left: auto;min-width: 18px;height: 18px;padding: 0 5px;border-radius: 9px;background: var(--red);color: #fff;font-size: 10.5px;font-weight: 800;display: flex;align-items: center;justify-content: center;flex-shrink: 0;line-height: 1;}
   /* ── Card ── */
   .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);}
   .card-hdr{display:flex;align-items:center;gap:10px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--line);}

@@ -954,7 +954,9 @@ function LeaveCard({ leave, showActions, onApprove, onOpenReject, currentUser })
   const days = leave.from_date && leave.to_date
     ? Math.ceil((new Date(leave.to_date)-new Date(leave.from_date))/(1000*60*60*24))+1
     : null;
-  const reasons = Array.isArray(leave.rejection_reason) ? leave.rejection_reason : [];
+  const reasons = Array.isArray(leave.rejection_reason)
+  ? leave.rejection_reason.filter(r => r && typeof r === "object")
+  : [];
   return (
     <div className="lv-card" style={{ borderLeftColor: status==="approved" ? "#16a34a" : status==="rejected" ? "#dc2626" : "#f59e0b" }}>
       <div className="lv-card-top">

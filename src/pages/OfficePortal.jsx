@@ -611,18 +611,12 @@ function LeaveBadge({ leave }) {
 
 function ApprovalPips({ leave }) {
   return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+    <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:4 }}>
       {leave.level_approver_user_name && (
-        <ApprovalPip
-          label={`${leave.level_approver_role || "Level"} (${leave.level_approver_user_name})`}
-          state={leave.level_approved}
-        />
+        <ApprovalPip label={`${leave.level_approver_role || "Level"} (${leave.level_approver_name || leave.level_approver_user_name})`} state={leave.level_approved} />
       )}
       {leave.head_approver_user_name && (
-        <ApprovalPip
-          label={`${leave.head_approver_role || "Head"} (${leave.head_approver_user_name})`}
-          state={leave.head_approved}
-        />
+        <ApprovalPip label={`${leave.head_approver_role || "Head"} (${leave.head_approver_name || leave.head_approver_user_name})`} state={leave.head_approved} />
       )}
     </div>
   );
@@ -985,7 +979,7 @@ function LeaveCard({ leave, showActions, onApprove, onOpenReject, currentUser })
       {reasons.length > 0 && reasons.map(r => (
         <div key={r.slot} className="lv-rejection">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <span><strong>{r.slot === "head" ? "Head" : "Level"} rejection</strong> ({r.by}): {r.reason}</span>
+          <strong>{r.slot === "head" ? "Head" : "Level"} rejection</strong> ({r.by}): {r.reason}
         </div>
       ))}
       {showActions && (() => {

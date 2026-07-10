@@ -1549,31 +1549,31 @@ function MyLeave({ user, onApply }) {
                       </span>
                       {l.level_approver_user_name && (
                         <span>
-                          Level Approver: <strong>{l.level_approver_role || "Level"} — {l.level_approver_user_name}</strong>
+                          Level Approver: <strong>{l.level_approver_role || "Level"} — {l.level_approver_name || l.level_approver_user_name}</strong>
                         </span>
                       )}
                       {l.head_approver_user_name && (
                         <span>
-                          Head Approver: <strong>{l.head_approver_role || "Head"} — {l.head_approver_user_name}</strong>
+                          Head Approver: <strong>{l.head_approver_role || "Head"} — {l.head_approver_name || l.head_approver_user_name}</strong>
                         </span>
                       )}
 
                       {l.level_approved === true && (
                         <span style={{ display: "flex", alignItems: "center", gap: 5, color: "var(--green)" }}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5" /></svg>
-                          Level Approved
+                          {l.level_approver_role || "Level"} Approved
                         </span>
                       )}
                       {l.level_approved === false && (
                         <span style={{ display: "flex", alignItems: "center", gap: 5, color: "var(--red)" }}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                          Level Rejected
+                          {l.level_approver_role || "Level"} Rejected
                         </span>
                       )}
                       {l.level_approved === null && l.level_approver_user_name && (
                         <span style={{ display: "flex", alignItems: "center", gap: 5, color: "var(--amber2)" }}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                          Level Approval Pending
+                          {l.level_approver_role || "Level"} Approval Pending
                         </span>
                       )}
 
@@ -1611,7 +1611,7 @@ function MyLeave({ user, onApply }) {
                               color: "var(--red)",
                             }}
                           >
-                            <strong>{r.slot === "head" ? "Head" : "Level"} rejection</strong> ({r.by}): {r.reason}
+                            <strong>{`${r.slot === "head" ? "Head" : (l.level_approver_role || "Level")} rejection`}</strong>{" "}({r.by}): {r.reason}
                           </div>
                         ))}
                       </div>
@@ -1788,7 +1788,7 @@ function LeaveApprovals({ user }) {
     const newLevel = isHead ? leave.level_approved : false;
     const newHead  = isHead ? false : leave.head_approved;
     const slot = isHead ? "head" : "level";
-    const merged = mergeRejectionReason(leave.rejection_reason, slot, user.user_name, rejectReason.trim());
+    const merged = mergeRejectionReason(leave.rejection_reason, slot, user.name, rejectReason.trim());
 
     const { error } = await supabase.from("leaves")
       .update({ [field]: false, status: deriveLeaveStatus(newLevel, newHead), rejection_reason: merged })
@@ -1847,12 +1847,12 @@ function LeaveApprovals({ user }) {
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   {l.level_approver_user_name && (
                     <span className={`badge ${l.level_approved===true?"badge-green":l.level_approved===false?"badge-red":"badge-amber"}`} style={{fontSize:10}}>
-                      {l.level_approver_role || "Level"} ({l.level_approver_user_name}): {l.level_approved===true?"✓ Approved":l.level_approved===false?"✗ Rejected":"Pending"}
+                      {l.level_approver_role || "Level"} ({l.level_approver_name || l.level_approver_user_name}): {l.level_approved===true?"✓ Approved":l.level_approved===false?"✗ Rejected":"Pending"}
                     </span>
                   )}
                   {l.head_approver_user_name && (
                     <span className={`badge ${l.head_approved===true?"badge-green":l.head_approved===false?"badge-red":"badge-amber"}`} style={{fontSize:10}}>
-                      {l.head_approver_role || "Head"} ({l.head_approver_user_name}): {l.head_approved===true?"✓ Approved":l.head_approved===false?"✗ Rejected":"Pending"}
+                      {l.head_approver_role || "Head"} ({l.head_approver_name || l.head_approver_user_name}): {l.head_approved===true?"✓ Approved":l.head_approved===false?"✗ Rejected":"Pending"}
                     </span>
                   )}
                 </div>
@@ -1861,7 +1861,7 @@ function LeaveApprovals({ user }) {
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
                     {reasons.map(r => (
                       <div key={r.slot} style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"8px 12px",fontSize:12,color:"var(--red)"}}>
-                        <strong>{r.slot === "head" ? "Head" : "Level"} rejection</strong> ({r.by}): {r.reason}
+                        <strong>{`${r.slot === "head" ? "Head" : (l.level_approver_role || "Level")} rejection`}</strong>{" "}({r.by}): {r.reason}
                       </div>
                     ))}
                   </div>
@@ -1989,22 +1989,24 @@ function ApplyLeave({ user }) {
     const initialLevel = c.levelApprover ? null : true;
     const initialHead = c.autoApproved ? true : c.headApprover ? null : true;
 
-    const { error } = await supabase.from("leaves").insert({
-      user_name: user.user_name,
-      name: user.name,
-      leave_type: form.leave_type,
-      from_date: form.from_date,
-      to_date: form.to_date,
-      reason: form.reason || null,
-      site_name: site,
-      level_approver_user_name: c.levelApprover?.username || null,
-      level_approver_role: c.levelApprover?.role || null,
-      level_approved: initialLevel,
-      head_approver_user_name: c.headApprover?.username || null,
-      head_approver_role: c.headApprover?.role || null,
-      head_approved: initialHead,
-      status: deriveLeaveStatus(initialLevel, initialHead),
-    });
+  const { error } = await supabase.from("leaves").insert({
+    user_name: user.user_name,
+    name: user.name,
+    leave_type: form.leave_type,
+    from_date: form.from_date,
+    to_date: form.to_date,
+    reason: form.reason || null,
+    site_name: site,
+    level_approver_user_name: c.levelApprover?.username || null,
+    level_approver_role: c.levelApprover?.role || null,
+    level_approver_name: c.levelApprover?.name || null,   // ← add
+    level_approved: initialLevel,
+    head_approver_user_name: c.headApprover?.username || null,
+    head_approver_role: c.headApprover?.role || null,
+    head_approver_name: c.headApprover?.name || null,     // ← add
+    head_approved: initialHead,
+    status: deriveLeaveStatus(initialLevel, initialHead),
+  });
     setBusy(false);
     if (error) {
       setErr(error.message);

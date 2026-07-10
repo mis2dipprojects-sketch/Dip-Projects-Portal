@@ -963,7 +963,7 @@ function LeaveCard({ leave, showActions, onApprove, onOpenReject, currentUser })
         <div>
           <div className="lv-card-title">{leave.leave_type}</div>
           {leave.user_name && leave.user_name !== leave.name && (
-            <div className="lv-card-sub">by {leave.name} ({leave.user_name})</div>
+            <div className="lv-card-sub">by <strong>{leave.name}</strong></div>
           )}
         </div>
         <LeaveBadge leave={leave}/>

@@ -1058,7 +1058,6 @@ const handleSelectDate = (dayKey) => {
             <div className="cp-drawer-head">
               <button className="cp-drawer-close" onClick={() => setMobileNavOpen(false)} aria-label="Close menu">✕</button>
             </div>
-
             <div className="cp-drawer-scroll">
               {allSites.length > 1 && (
                 <div className="cp-sidebar-section" style={{ padding: "0 4px 8px" }}>

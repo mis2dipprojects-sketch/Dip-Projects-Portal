@@ -183,7 +183,7 @@
   .cp-menu-backdrop.open { opacity: 1; pointer-events: auto; }
   .cp-mobile-drawer {
     position: fixed; top: 0; left: 0; width: min(84vw, 300px); height: 100vh; height: 100dvh; z-index: 9999;
-    background: var(--surface);
+    background: #ffffff00;
     transform: translateX(-105%); transition: transform .24s ease;
     display: flex; flex-direction: column; overflow: hidden;
     box-shadow: 16px 0 40px rgba(20, 6, 0, 0.25);
@@ -192,12 +192,12 @@
 
   .cp-drawer-head {
     flex-shrink: 0; display: flex; align-items: center; gap: 10px;
-    padding: 14px 14px; background: #fff;
+    padding: 14px 14px; background: #00000000;
     box-shadow: 0 4px 14px rgba(20, 6, 0, 0.18);
   }
 .cp-drawer-close {
-  width: 34px; height: 34px; min-width: 34px; border-radius: var(--r-xs); border: 1px solid var(--border);
-  background: var(--surface-2); color: var(--ink); display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; min-width: 34px; border-radius: var(--r-xs); border: none;
+  background: #ffffff00; color: var(--ink); display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer; flex-shrink: 0; font-size: 18px;
 }
     

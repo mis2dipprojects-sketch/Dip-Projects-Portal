@@ -1846,15 +1846,15 @@ function LeaveApprovals({ user }) {
 
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   {l.level_approver_user_name && (
-                    <span className={`badge ${l.level_approved===true?"badge-green":l.level_approved===false?"badge-red":"badge-amber"}`} style={{fontSize:10}}>
-                      {l.level_approver_role || "Level"} ({l.level_approver_name || l.level_approver_user_name}): {l.level_approved===true?"✓ Approved":l.level_approved===false?"✗ Rejected":"Pending"}
-                    </span>
-                  )}
-                  {l.head_approver_user_name && (
-                    <span className={`badge ${l.head_approved===true?"badge-green":l.head_approved===false?"badge-red":"badge-amber"}`} style={{fontSize:10}}>
-                      {l.head_approver_role || "Head"} ({l.head_approver_name || l.head_approver_user_name}): {l.head_approved===true?"✓ Approved":l.head_approved===false?"✗ Rejected":"Pending"}
-                    </span>
-                  )}
+                      <span className={`badge ${l.level_approved===true?"badge-green":l.level_approved===false?"badge-red":"badge-amber"}`} style={{fontSize:10}}>
+                        {l.level_approver_role || "Level"} ({l.level_approver_name || l.level_approver_user_name}): {l.level_approved===true?"✓ Approved":l.level_approved===false?"✗ Rejected":"Pending"}
+                      </span>
+                    )}
+                    {l.head_approver_user_name && (
+                      <span className={`badge ${l.head_approved===true?"badge-green":l.head_approved===false?"badge-red":"badge-amber"}`} style={{fontSize:10}}>
+                        {l.head_approver_role || "Head"} ({l.head_approver_name || l.head_approver_user_name}): {l.head_approved===true?"✓ Approved":l.head_approved===false?"✗ Rejected":"Pending"}
+                      </span>
+                    )}
                 </div>
 
                 {reasons.length > 0 && (

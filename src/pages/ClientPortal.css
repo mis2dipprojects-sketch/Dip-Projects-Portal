@@ -781,7 +781,26 @@
 .cp-user-card-btn { width: 100%; border: none; background: transparent; cursor: pointer; text-align: left; transition: background .15s; border-radius: 10px; }
 .cp-user-card-btn:hover { background: rgba(0,0,0,.04); }
 
-.cp-profile { display: flex; flex-direction: column; align-items: center; gap: 20px; max-width: 760px; margin: 0 auto; padding: 12px 0 32px; }
+.cp-profile { display: flex; flex-direction: column; align-items: center; gap: 20px; max-width: 480px; margin: 0 auto; padding: 12px 0 8px; }
+.cp-profile-outer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+.cp-profile-wide {
+  width: 100%;
+  max-width: 900px;
+  margin: 12px auto 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cp-profile-logout-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
 .cp-profile-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; }
 .cp-profile-avatar {
   width: 96px; height: 96px; border-radius: 50%; overflow: hidden;
@@ -834,5 +853,18 @@
   .cp-chart-svg { height: 420px; }
   .cp-chart-svg { height: 420px; }
   .cp-chart-legend { gap: 12px; }
+  .cp-chart-legend-item { font-size: 11.5px; }
+}.cp-chart-wrap { background: #fff; border: 1px solid #e8edf3; border-radius: 14px; padding: 24px 0 16px; margin-bottom: 16px; }
+.cp-chart-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 26px; box-sizing: border-box; }
+.cp-chart-svg { width: 100%; min-width: 900px; height: auto; aspect-ratio: 2 / 1; display: block; }
+.cp-chart-legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 12px; padding: 14px 26px 0; border-top: 1px solid #f1f5f9; }
+.cp-chart-legend-item { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: #64748b; font-weight: 600; }
+.cp-chart-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+@media (max-width: 760px) {
+  .cp-chart-wrap { padding: 16px 0 12px; }
+  .cp-chart-scroll { padding: 0 14px; }
+  .cp-chart-svg { min-width: 640px; }
+  .cp-chart-legend { padding: 12px 14px 0; gap: 12px; }
   .cp-chart-legend-item { font-size: 11.5px; }
 }

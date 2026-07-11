@@ -678,42 +678,8 @@ function resolveViewUrl(url, isOffice) {
   if (!isOffice) return url;
   return officeViewerUrl(url);   // always wrap office docs — mobile browsers can't render pptx directly either
 }
-
-function monthKeyOf(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
-  if (isNaN(d)) return null;
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-function monthLabelOf(key) {
-  const [y, m] = key.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
-}
-function buildMonthlySeries(items, monthsBack = 12) {
-  const now = new Date();
-  const keys = [];
-  for (let i = monthsBack - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-  }
-  const buckets = {};
-  keys.forEach(k => { buckets[k] = { dpr: 0, wpr: 0, photo: 0, graphical: 0 }; });
-  items.forEach(it => {
-    const k = monthKeyOf(it.date);
-    if (k && buckets[k]) buckets[k][it.type] = (buckets[k][it.type] || 0) + 1;
-  });
-  return keys.map(k => ({ key: k, label: monthLabelOf(k), ...buckets[k] }));
-}
-
-const SERIES_CFG = [
-  { key: "dpr",       label: "Daily Reports",  color: "#2563eb" },
-  { key: "wpr",       label: "Weekly Reports", color: "#7c3aed" },
-  { key: "photo",     label: "Site Photos",    color: "#16a34a" },
-  { key: "graphical", label: "Graphical",      color: "#d97706" },
-];
-
 function ActivityTrendChart({ series, onSelectMonth, selectedMonth }) {
-  const W = 960, H = 520, padL = 48, padR = 24, padT = 28, padB = 44;
+  const W = 960, H = 480, padL = 48, padR = 24, padT = 28, padB = 44;
   const innerW = W - padL - padR, innerH = H - padT - padB;
   const maxVal = Math.max(1, ...series.flatMap(s => SERIES_CFG.map(c => s[c.key])));
   const stepX = series.length > 1 ? innerW / (series.length - 1) : 0;
@@ -721,9 +687,10 @@ function ActivityTrendChart({ series, onSelectMonth, selectedMonth }) {
   const xFor = i => padL + i * stepX;
   const yTicks = 4;
 
-  return (
+   return (
     <div className="cp-chart-wrap">
-      <svg viewBox={`0 0 ${W} ${H}`} className="cp-chart-svg" preserveAspectRatio="xMidYMid meet">
+      <div className="cp-chart-scroll">
+        <svg viewBox={`0 0 ${W} ${H}`} className="cp-chart-svg" preserveAspectRatio="xMidYMid meet">
         {Array.from({ length: yTicks + 1 }).map((_, i) => {
           const v = Math.round((maxVal / yTicks) * i);
           const y = yFor(v);
@@ -758,7 +725,8 @@ function ActivityTrendChart({ series, onSelectMonth, selectedMonth }) {
             </text>
           </g>
         ))}
-      </svg>
+     </svg>
+      </div>
       <div className="cp-chart-legend">
         {SERIES_CFG.map(cfg => (
           <span key={cfg.key} className="cp-chart-legend-item">
@@ -769,6 +737,40 @@ function ActivityTrendChart({ series, onSelectMonth, selectedMonth }) {
     </div>
   );
 }
+function monthKeyOf(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function monthLabelOf(key) {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+}
+function buildMonthlySeries(items, monthsBack = 12) {
+  const now = new Date();
+  const keys = [];
+  for (let i = monthsBack - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  const buckets = {};
+  keys.forEach(k => { buckets[k] = { dpr: 0, wpr: 0, photo: 0, graphical: 0 }; });
+  items.forEach(it => {
+    const k = monthKeyOf(it.date);
+    if (k && buckets[k]) buckets[k][it.type] = (buckets[k][it.type] || 0) + 1;
+  });
+  return keys.map(k => ({ key: k, label: monthLabelOf(k), ...buckets[k] }));
+}
+
+const SERIES_CFG = [
+  { key: "dpr",       label: "Daily Reports",  color: "#2563eb" },
+  { key: "wpr",       label: "Weekly Reports", color: "#7c3aed" },
+  { key: "photo",     label: "Site Photos",    color: "#16a34a" },
+  { key: "graphical", label: "Graphical",      color: "#d97706" },
+];
+
+
 function MonthDrilldown({ monthKey, items, onClose }) {
   const label = monthLabelOf(monthKey);
   const byType = SERIES_CFG.map(cfg => ({ ...cfg, count: items.filter(it => it.type === cfg.key).length }));
@@ -1213,70 +1215,77 @@ function ProfilePage({ siteName, onLogout }) {
     { role: "Process Controller", name: site.pc_name,  phone: site.pc_contact_no },
   ].filter(c => c.name || c.phone);
 
-  return (
-    <div className="cp-profile">
-      <div className="cp-profile-hero">
-        <div className="cp-profile-avatar">
-          {site.site_image_url ? (
-            <img src={site.site_image_url} alt={site.site_name} />
-          ) : (
-            <span>{initials(site.site_name)}</span>
+return (
+    <div className="cp-profile-outer">
+      <div className="cp-profile">
+        <div className="cp-profile-hero">
+          <div className="cp-profile-avatar">
+            {site.site_image_url ? (
+              <img src={site.site_image_url} alt={site.site_name} />
+            ) : (
+              <span>{initials(site.site_name)}</span>
+            )}
+          </div>
+          <span className={`cp-chip act ${sCfg.cls}`} style={{ marginTop: 12 }}>{sCfg.label}</span>
+          <div className="cp-profile-site">{site.site_name}</div>
+          {site.job_no && <div className="cp-profile-jobno">{site.job_no}</div>}
+          {site.client_name && (
+            <div className="cp-profile-client">
+              <IcoUser /> {site.client_name}
+            </div>
           )}
         </div>
-        <span className={`cp-chip act ${sCfg.cls}`} style={{ marginTop: 12 }}>{sCfg.label}</span>
-        <div className="cp-profile-site">{site.site_name}</div>
-        {site.job_no && <div className="cp-profile-jobno">{site.job_no}</div>}
-        {site.client_name && (
-          <div className="cp-profile-client">
-            <IcoUser /> {site.client_name}
+
+        <div className="cp-profile-section-title">Site Contacts</div>
+        {contacts.length === 0 ? (
+          <div className="cp-empty-sub" style={{ textAlign: "center" }}>No contacts added for this site yet.</div>
+        ) : (
+          <div className="cp-profile-contacts">
+            {contacts.map((c, i) => (
+              <div className="cp-profile-contact-row" key={i}>
+                <div className="cp-profile-contact-avatar">{initials(c.name || c.role)}</div>
+                <div className="cp-profile-contact-meta">
+                  <div className="cp-profile-contact-name">{c.name || "—"}</div>
+                  <div className="cp-profile-contact-role">{c.role}</div>
+                </div>
+                {c.phone && (
+                  <a className="cp-profile-contact-phone" href={`tel:${c.phone}`}>
+                    <IcoPhone /> {c.phone}
+                  </a>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      <div className="cp-profile-section-title">Site Contacts</div>
-      {contacts.length === 0 ? (
-        <div className="cp-empty-sub" style={{ textAlign: "center" }}>No contacts added for this site yet.</div>
-      ) : (
-        <div className="cp-profile-contacts">
-          {contacts.map((c, i) => (
-            <div className="cp-profile-contact-row" key={i}>
-              <div className="cp-profile-contact-avatar">{initials(c.name || c.role)}</div>
-              <div className="cp-profile-contact-meta">
-                <div className="cp-profile-contact-name">{c.name || "—"}</div>
-                <div className="cp-profile-contact-role">{c.role}</div>
-              </div>
-              {c.phone && (
-                <a className="cp-profile-contact-phone" href={`tel:${c.phone}`}>
-                  <IcoPhone /> {c.phone}
-                </a>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-   <div className="cp-profile-section-title">Activity Trend</div>
-      {activityLoading ? (
-        <div className="cp-loading"><div className="cp-spinner" /> Loading activity…</div>
-      ) : (
-        <>
-          <ActivityTrendChart
-            series={monthlySeries}
-            selectedMonth={selectedMonth}
-            onSelectMonth={(k) => setSelectedMonth(prev => prev === k ? null : k)}
-          />
-          {selectedMonth && (
-            <MonthDrilldown
-              monthKey={selectedMonth}
-              items={monthItems}
-              onClose={() => setSelectedMonth(null)}
+      <div className="cp-profile-wide">
+        <div className="cp-profile-section-title">Activity Trend</div>
+        {activityLoading ? (
+          <div className="cp-loading"><div className="cp-spinner" /> Loading activity…</div>
+        ) : (
+          <>
+            <ActivityTrendChart
+              series={monthlySeries}
+              selectedMonth={selectedMonth}
+              onSelectMonth={(k) => setSelectedMonth(prev => prev === k ? null : k)}
             />
-          )}
-        </>
-      )}
-      
-      <button className="cp-profile-logout" onClick={onLogout}>
-        <IcoLogout /> Log out
-      </button>
+            {selectedMonth && (
+              <MonthDrilldown
+                monthKey={selectedMonth}
+                items={monthItems}
+                onClose={() => setSelectedMonth(null)}
+              />
+            )}
+          </>
+        )}
+
+        <div className="cp-profile-logout-wrap">
+          <button className="cp-profile-logout" onClick={onLogout}>
+            <IcoLogout /> Log out
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

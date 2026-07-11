@@ -1108,10 +1108,10 @@ const TYPE_FILTERS = [
 
 // ─── Nav config ───────────────────────────────────────────────────────────────
 const SECTIONS = {
-  overview:  { title: "Overview",             sub: "A snapshot of activity across your site." },
+  overview:  { title: "Overview",             sub: "" },
   materials: { title: "Material Requests",    sub: "Review and action procurement requests from site." },
   media:     { title: "Reports & Photos",     sub: "Daily reports, weekly reports and site photos." },
-  profile:   { title: "My Profile",           sub: "Site status and key contacts." },
+  profile:   { title: "My Profile",           sub: "" },
 };
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -1493,9 +1493,7 @@ const handleSelectDate = (dayKey) => {
                   <div className="cp-page-header">
                     <div>
                       <div className="cp-page-title">{SECTIONS[section].title}</div>
-                      <div className="cp-page-sub">{SECTIONS[section].sub}{allSites.length === 1 ? ` · ${activeSite}` : ""}</div>
                     </div>
-                    <div className="cp-page-pill">{activeSite}</div>
                   </div>
 
                   {section === "overview"  && <Overview siteName={activeSite} onNavigate={goToSection} />}

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import Navbar from "../components/Navbar";
 import { createClient } from "@supabase/supabase-js";
 import "./ClientPortal.css";
+import { Navigate } from "react-router-dom";
 const SUPABASE_URL  = "https://efqfjfthsleymhljswcq.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmcWZqZnRoc2xleW1obGpzd2NxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDY0MjMsImV4cCI6MjA5NTkyMjQyM30.PYMRiKdnhzb6pkvhDB4M4Qdp3nSGhsZpHGuclVqYNMs";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -140,6 +141,16 @@ const IcoArrow = () => (
 const IcoFilter = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+  </svg>
+);
+const IcoPhone = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+  </svg>
+);
+const IcoLogout = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
   </svg>
 );
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -668,6 +679,121 @@ function resolveViewUrl(url, isOffice) {
   return officeViewerUrl(url);   // always wrap office docs — mobile browsers can't render pptx directly either
 }
 
+function monthKeyOf(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function monthLabelOf(key) {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+}
+function buildMonthlySeries(items, monthsBack = 12) {
+  const now = new Date();
+  const keys = [];
+  for (let i = monthsBack - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  const buckets = {};
+  keys.forEach(k => { buckets[k] = { dpr: 0, wpr: 0, photo: 0, graphical: 0 }; });
+  items.forEach(it => {
+    const k = monthKeyOf(it.date);
+    if (k && buckets[k]) buckets[k][it.type] = (buckets[k][it.type] || 0) + 1;
+  });
+  return keys.map(k => ({ key: k, label: monthLabelOf(k), ...buckets[k] }));
+}
+
+const SERIES_CFG = [
+  { key: "dpr",       label: "Daily Reports",  color: "#2563eb" },
+  { key: "wpr",       label: "Weekly Reports", color: "#7c3aed" },
+  { key: "photo",     label: "Site Photos",    color: "#16a34a" },
+  { key: "graphical", label: "Graphical",      color: "#d97706" },
+];
+
+function ActivityTrendChart({ series, onSelectMonth, selectedMonth }) {
+  const W = 960, H = 520, padL = 48, padR = 24, padT = 28, padB = 44;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const maxVal = Math.max(1, ...series.flatMap(s => SERIES_CFG.map(c => s[c.key])));
+  const stepX = series.length > 1 ? innerW / (series.length - 1) : 0;
+  const yFor = v => padT + innerH - (v / maxVal) * innerH;
+  const xFor = i => padL + i * stepX;
+  const yTicks = 4;
+
+  return (
+    <div className="cp-chart-wrap">
+      <svg viewBox={`0 0 ${W} ${H}`} className="cp-chart-svg" preserveAspectRatio="xMidYMid meet">
+        {Array.from({ length: yTicks + 1 }).map((_, i) => {
+          const v = Math.round((maxVal / yTicks) * i);
+          const y = yFor(v);
+          return (
+            <g key={i}>
+              <line x1={padL} x2={W - padR} y1={y} y2={y} stroke="#eef1f5" strokeWidth="1" />
+              <text x={padL - 10} y={y + 4} fontSize="12" textAnchor="end" fill="#94a3b8">{v}</text>
+            </g>
+          );
+        })}
+        {SERIES_CFG.map(cfg => {
+          const points = series.map((s, i) => `${xFor(i)},${yFor(s[cfg.key])}`).join(" ");
+          return (
+            <polyline key={cfg.key} points={points} fill="none" stroke={cfg.color}
+              strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+          );
+        })}
+        {series.map((s, i) => (
+          <g key={s.key} onClick={() => onSelectMonth(s.key)} style={{ cursor: "pointer" }}>
+            <rect x={xFor(i) - (stepX || innerW) / 2} y={padT} width={stepX || innerW} height={innerH} fill="transparent" />
+            {SERIES_CFG.map(cfg => (
+              <circle key={cfg.key} cx={xFor(i)} cy={yFor(s[cfg.key])} r={selectedMonth === s.key ? 6 : 4}
+                fill={cfg.color} stroke="#fff" strokeWidth="1.5" />
+            ))}
+            {selectedMonth === s.key && (
+              <line x1={xFor(i)} x2={xFor(i)} y1={padT} y2={padT + innerH} stroke="#cbd5e1" strokeDasharray="3,3" />
+            )}
+            <text x={xFor(i)} y={H - 12} fontSize="12" textAnchor="middle"
+              fill={selectedMonth === s.key ? "#1e293b" : "#94a3b8"}
+              fontWeight={selectedMonth === s.key ? 700 : 400}>
+              {s.label}
+            </text>
+          </g>
+        ))}
+      </svg>
+      <div className="cp-chart-legend">
+        {SERIES_CFG.map(cfg => (
+          <span key={cfg.key} className="cp-chart-legend-item">
+            <span className="cp-chart-dot" style={{ background: cfg.color }} /> {cfg.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+function MonthDrilldown({ monthKey, items, onClose }) {
+  const label = monthLabelOf(monthKey);
+  const byType = SERIES_CFG.map(cfg => ({ ...cfg, count: items.filter(it => it.type === cfg.key).length }));
+  const maxCount = Math.max(1, ...byType.map(t => t.count));
+
+  return (
+    <div className="cp-drilldown">
+      <div className="cp-drilldown-head">
+        <div className="cp-drilldown-title">Breakdown — {label} ({items.length} total)</div>
+        <button className="cp-drilldown-close" onClick={onClose}><IcoX /></button>
+      </div>
+      <div className="cp-drilldown-bars">
+        {byType.map(t => (
+          <div className="cp-drilldown-bar-row" key={t.key}>
+            <span className="cp-drilldown-bar-label">{t.label}</span>
+            <div className="cp-drilldown-bar-track">
+              <div className="cp-drilldown-bar-fill" style={{ width: `${(t.count / maxCount) * 100}%`, background: t.color }} />
+            </div>
+            <span className="cp-drilldown-bar-count">{t.count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 // ─── Reports & Photos panel ────────────────────────────────────────────────
 function ReportsAndPhotos({ siteName, jumpDate, onClearJump  }) {
   const [dprs, setDprs]     = useState([]);
@@ -680,6 +806,7 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump  }) {
   const [rangeStart, setRangeStart] = useState(""); 
   const [rangeEnd, setRangeEnd]     = useState("");
   const [filterOpen, setFilterOpen] = useState(false);  
+  const [selectedMonth, setSelectedMonth] = useState(null);
   const IcoFilter = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
@@ -797,6 +924,8 @@ const scoped = dateScoped
     return true;
   });
 const grouped = groupItems(scoped, viewMode);
+const monthlySeries = buildMonthlySeries(unified);
+const monthItems = selectedMonth ? unified.filter(it => monthKeyOf(it.date) === selectedMonth) : [];
 const groupLabels = Object.keys(grouped);
 
 const VIEW_MODES = [
@@ -818,7 +947,9 @@ const TYPE_FILTERS = [
   const activeViewLabel = VIEW_MODES.find(v => v.key === viewMode)?.label || "Recent";
   const activeTypeLabel = TYPE_FILTERS.find(f => f.key === typeFilter)?.label || "All";
   return (
+    
   <div>
+
     {jumpDate && (
       <div className="cp-tree-jump-chip">
         Showing {new Date(jumpDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
@@ -978,8 +1109,177 @@ const SECTIONS = {
   overview:  { title: "Overview",             sub: "A snapshot of activity across your site." },
   materials: { title: "Material Requests",    sub: "Review and action procurement requests from site." },
   media:     { title: "Reports & Photos",     sub: "Daily reports, weekly reports and site photos." },
+  profile:   { title: "My Profile",           sub: "Site status and key contacts." },
 };
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("portalName");
+    Navigate("/");
+  };
+// ─── Profile panel ─────────────────────────────────────────────────────────
+function ProfilePage({ siteName, onLogout }) {
+  const [site, setSite] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activity, setActivity] = useState([]); // unified dpr/wpr/photo items for the chart
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState(null);
 
+  useEffect(() => {
+    if (!siteName) { setLoading(false); return; }
+    (async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("site_details")
+        .select("site_name, client_name, head_name, head_contact_no, incharge_name, incharge_contact_no, pc_name, pc_contact_no, status, site_image_url, job_no")
+        .eq("site_name", siteName)
+        .maybeSingle();
+      if (error) console.error("site_details error:", error);
+      setSite(data || null);
+      setLoading(false);
+    })();
+  }, [siteName]);
+
+  useEffect(() => {
+    if (!siteName) { setActivityLoading(false); return; }
+    (async () => {
+      setActivityLoading(true);
+
+      const { data: dprData } = await supabase
+        .from("dpr_reports")
+        .select("id, date, created_at, report_type, payload")
+        .ilike("site", siteName);
+
+      const { data: wprData } = await supabase
+        .from("wpr_reports")
+        .select("id, report_date, created_at")
+        .ilike("site_name", siteName);
+
+      const wprIds = (wprData || []).map(w => w.id);
+      let wprPhotoRows = [];
+      if (wprIds.length) {
+        const { data: imgData } = await supabase
+          .from("wpr_images")
+          .select("id, image_type, created_at")
+          .in("wpr_report_id", wprIds)
+          .in("image_type", ["site_photo", "site_photos", "graphical"]);
+        wprPhotoRows = imgData || [];
+      }
+
+      const dprPhotoRows = (dprData || []).flatMap(r => {
+        const photos = Array.isArray(r?.payload?.photos) ? r.payload.photos : [];
+        return photos.map(() => ({ created_at: r.date || r.created_at }));
+      });
+
+      const unified = [
+        ...(dprData || [])
+          .filter(r => r.report_type !== "morning")
+          .map(r => ({ type: "dpr", date: r.date || r.created_at })),
+        ...(wprData || []).map(r => ({ type: "wpr", date: r.report_date || r.created_at })),
+        ...wprPhotoRows.map(p => ({ type: p.image_type === "graphical" ? "graphical" : "photo", date: p.created_at })),
+        ...dprPhotoRows.map(p => ({ type: "photo", date: p.created_at })),
+      ];
+
+      setActivity(unified);
+      setActivityLoading(false);
+    })();
+  }, [siteName]);
+
+  const monthlySeries = buildMonthlySeries(activity);
+  const monthItems = selectedMonth ? activity.filter(it => monthKeyOf(it.date) === selectedMonth) : [];
+
+  if (loading) {
+    return <div className="cp-loading"><div className="cp-spinner" /> Loading profile…</div>;
+  }
+  if (!site) {
+    return (
+      <div className="cp-empty">
+        <IcoBox />
+        <div className="cp-empty-title">No profile data found</div>
+        <div className="cp-empty-sub">Site details haven't been set up for {siteName} yet.</div>
+      </div>
+    );
+  }
+
+  const statusCfg = {
+    active:    { label: "Active",    cls: "act-green" },
+    completed: { label: "Completed", cls: "act-blue"  },
+    on_hold:   { label: "On Hold",   cls: "act-amber" },
+  };
+  const sCfg = statusCfg[(site.status || "active").toLowerCase()] || { label: site.status || "—", cls: "act" };
+
+  const contacts = [
+    { role: "Project Head",   name: site.head_name,     phone: site.head_contact_no },
+    { role: "Site Incharge",  name: site.incharge_name, phone: site.incharge_contact_no },
+    { role: "Process Controller", name: site.pc_name,  phone: site.pc_contact_no },
+  ].filter(c => c.name || c.phone);
+
+  return (
+    <div className="cp-profile">
+      <div className="cp-profile-hero">
+        <div className="cp-profile-avatar">
+          {site.site_image_url ? (
+            <img src={site.site_image_url} alt={site.site_name} />
+          ) : (
+            <span>{initials(site.site_name)}</span>
+          )}
+        </div>
+        <span className={`cp-chip act ${sCfg.cls}`} style={{ marginTop: 12 }}>{sCfg.label}</span>
+        <div className="cp-profile-site">{site.site_name}</div>
+        {site.job_no && <div className="cp-profile-jobno">{site.job_no}</div>}
+        {site.client_name && (
+          <div className="cp-profile-client">
+            <IcoUser /> {site.client_name}
+          </div>
+        )}
+      </div>
+
+      <div className="cp-profile-section-title">Site Contacts</div>
+      {contacts.length === 0 ? (
+        <div className="cp-empty-sub" style={{ textAlign: "center" }}>No contacts added for this site yet.</div>
+      ) : (
+        <div className="cp-profile-contacts">
+          {contacts.map((c, i) => (
+            <div className="cp-profile-contact-row" key={i}>
+              <div className="cp-profile-contact-avatar">{initials(c.name || c.role)}</div>
+              <div className="cp-profile-contact-meta">
+                <div className="cp-profile-contact-name">{c.name || "—"}</div>
+                <div className="cp-profile-contact-role">{c.role}</div>
+              </div>
+              {c.phone && (
+                <a className="cp-profile-contact-phone" href={`tel:${c.phone}`}>
+                  <IcoPhone /> {c.phone}
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+   <div className="cp-profile-section-title">Activity Trend</div>
+      {activityLoading ? (
+        <div className="cp-loading"><div className="cp-spinner" /> Loading activity…</div>
+      ) : (
+        <>
+          <ActivityTrendChart
+            series={monthlySeries}
+            selectedMonth={selectedMonth}
+            onSelectMonth={(k) => setSelectedMonth(prev => prev === k ? null : k)}
+          />
+          {selectedMonth && (
+            <MonthDrilldown
+              monthKey={selectedMonth}
+              items={monthItems}
+              onClose={() => setSelectedMonth(null)}
+            />
+          )}
+        </>
+      )}
+      
+      <button className="cp-profile-logout" onClick={onLogout}>
+        <IcoLogout /> Log out
+      </button>
+    </div>
+  );
+}
 // ─── Main export ──────────────────────────────────────────────────────────────
 export default function ClientPortal() {
   const [user,         setUser]         = useState(null);
@@ -1103,13 +1403,16 @@ const handleSelectDate = (dayKey) => {
             </div>
 
             <div className="cp-drawer-footer">
-              <div className="cp-user-card">
+              <button
+                className="cp-user-card cp-user-card-btn"
+                onClick={() => { setSection("profile"); setMobileNavOpen(false); scrollToTop(); }}
+              >
                 <div className="cp-user-avatar">{initials(displayName)}</div>
                 <div className="cp-user-meta">
                   <div className="cp-user-name">{displayName}</div>
                   <div className="cp-user-role">{displayRole}</div>
                 </div>
-              </div>
+              </button>
             </div>
           </div>
 
@@ -1160,13 +1463,16 @@ const handleSelectDate = (dayKey) => {
               </div>
 
               <div className="cp-sidebar-footer">
-                <div className="cp-user-card">
+                <button
+                  className="cp-user-card cp-user-card-btn"
+                  onClick={() => { setSection("profile"); scrollToTop(); }}
+                >
                   <div className="cp-user-avatar">{initials(displayName)}</div>
                   <div className="cp-user-meta">
                     <div className="cp-user-name">{displayName}</div>
                     <div className="cp-user-role">{displayRole}</div>
                   </div>
-                </div>
+                </button>
               </div>
             </aside>
           )}
@@ -1185,7 +1491,8 @@ const handleSelectDate = (dayKey) => {
 
                   {section === "overview"  && <Overview siteName={activeSite} onNavigate={goToSection} />}
                   {section === "materials" && <MaterialRequests siteName={activeSite} userName={displayName} onStatsChange={setPendingCount} />}
-                  {section === "media"     && (<ReportsAndPhotos siteName={activeSite} jumpDate={jumpDate} onClearJump={() => setJumpDate(null)} />)}
+                  {section === "media"     && <ReportsAndPhotos siteName={activeSite} jumpDate={jumpDate} onClearJump={() => setJumpDate(null)} />}
+                  {section === "profile"   && <ProfilePage siteName={activeSite} onLogout={handleLogout} />}
 
                 </>
               ) : (

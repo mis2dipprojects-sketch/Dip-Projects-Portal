@@ -874,7 +874,110 @@ function TaskCard({ task, onStatusChange, updating, onReschedule, onClick }) {
     </div>
   );
 }
-
+// ── Task Table ─────────────────────────────────────────────────────────────
+function TaskTable({ tasks, onStatusChange, updating, onReschedule, onClick, showAssignedBy }) {
+  return (
+    <div className="tt-wrap">
+      <table className="tt-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Site</th>
+            {showAssignedBy && <th>Given By</th>}
+            <th>Due Date</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Recurrence</th>
+            <th>Files</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {tasks.map((task) => {
+            const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
+            const s = STATUS_STYLES[task.status] || STATUS_STYLES.pending;
+            return (
+              <tr key={task.id} className="tt-row" onClick={() => onClick?.(task)}>
+                <td className="tt-title-cell">
+                  <div className="tt-title">{task.title}</div>
+                  {task.description && (
+                    <div className="tt-desc">{task.description}</div>
+                  )}
+                </td>
+                <td>{task.site_name || "—"}</td>
+                {showAssignedBy && <td>{task.assigned_by || "—"}</td>}
+                <td>
+                  {task.due_date
+                    ? new Date(task.due_date).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    : "—"}
+                </td>
+                <td>
+                  <span className="op-badge" style={{ background: p.bg, color: p.color }}>
+                    <span className="op-badge-dot" style={{ background: p.dot }} />
+                    {task.priority}
+                  </span>
+                </td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  <select
+                    className="op-status-select"
+                    style={{ background: s.bg, color: s.color }}
+                    value={task.status}
+                    disabled={updating === task.id}
+                    onChange={(e) => onStatusChange(task.id, e.target.value, e)}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                  {updating === task.id && <span className="op-saving"> saving…</span>}
+                </td>
+                <td>
+                  {task.recurrence ? (
+                    <span className="op-meta-pill op-pill-blue">
+                      {task.recurrence.charAt(0).toUpperCase() + task.recurrence.slice(1).toLowerCase()}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {task.audio_url && (
+                      <span title="Has audio" style={{ color: "#7c3aed" }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /></svg>
+                      </span>
+                    )}
+                    {task.document_url && (
+                      <span title="Has document" style={{ color: "#2563eb" }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  {task.reschedule_allowed && task.status !== "completed" && (
+                    <button
+                      className="op-reschedule-btn"
+                      onClick={() => onReschedule(task)}
+                      title="Request reschedule"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
+                      Reschedule
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 function TaskList({
   tasks,
   loading,
@@ -929,20 +1032,16 @@ function TaskList({
               : emptyText}
           </p>
         </div>
-      ) : (
-        <div className="op-task-grid">
-          {filtered.map((t) => (
-            <TaskCard
-              key={t.id}
-              task={t}
-              onStatusChange={onStatusChange}
-              updating={updatingId}
-              onReschedule={onReschedule}
-              onClick={onDetailClick}
-            />
-          ))}
-        </div>
-      )}
+        ) : (
+                <TaskTable
+                  tasks={filtered}
+                  onStatusChange={onStatusChange}
+                  updating={updatingId}
+                  onReschedule={onReschedule}
+                  onClick={onDetailClick}
+                  showAssignedBy={showAssignedBy}
+                />
+              )}
     </>
   );
 }
@@ -976,6 +1075,7 @@ function LeaveCard({ leave, showActions, onApprove, onOpenReject, currentUser })
         {days && <span className="op-meta-pill">{days} day{days>1?"s":""}</span>}
         {leave.site_name && <span className="op-meta-pill">{leave.site_name}</span>}
       </div>
+      
       {leave.reason && <p className="lv-reason">"{leave.reason}"</p>}
       <ApprovalPips leave={leave}/>
       {reasons.length > 0 && reasons.map(r => (
@@ -1010,7 +1110,9 @@ function LeaveCard({ leave, showActions, onApprove, onOpenReject, currentUser })
     </div>
   );
 }
-
+function isRecurringTask(t) {
+  return t.is_recurring === true || t.is_recurring === "true" || Boolean(t.recurrence);
+} 
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function OfficePortal() {
   const [rescheduleTask, setRescheduleTask] = useState(null); // task object or null
@@ -1204,33 +1306,55 @@ const [rejectReason, setRejectReason] = useState("");
     setLoadingReschedules(false);
   }, []);
 
-  const fetchTasks = useCallback(async (u) => {
-    if (!u) return;
-    setLoadingTasks(true);
-    const { data: mine } = await supabase
-      .from("tasks")
-      .select("*")
-      .eq("assigned_to", u.user_name)
-      .eq("is_recurring", false)
-      .order("due_date", { ascending: true });
-    const { data: recurring } = await supabase
-      .from("tasks")
-      .select("*")
-      .eq("assigned_to", u.user_name)
-      .eq("is_recurring", true)
-      .order("due_date", { ascending: true });
-    const { data: delegated } = await supabase
-      .from("tasks")
-      .select("*")
-      .eq("assigned_by", u.user_name)
-      .neq("assigned_to", u.user_name)
-      .order("created_at", { ascending: false });
-    setMyTasks(mine || []);
-    setRecurringTasks(recurring || []);
-    setDelegatedTasks(delegated || []);
-    setLoadingTasks(false);
-  }, []);
+  // const fetchTasks = useCallback(async (u) => {
+  //   if (!u) return;
+  //   setLoadingTasks(true);
+  //   const { data: mine } = await supabase
+  //     .from("tasks")
+  //     .select("*")
+  //     .eq("assigned_to", u.user_name)
+  //     .eq("is_recurring", false)
+  //     .order("due_date", { ascending: true });
+  //   const { data: recurring } = await supabase
+  //     .from("tasks")
+  //     .select("*")
+  //     .eq("assigned_to", u.user_name)
+  //     .eq("is_recurring", true)
+  //     .order("due_date", { ascending: true });
+  //   const { data: delegated } = await supabase
+  //     .from("tasks")
+  //     .select("*")
+  //     .eq("assigned_by", u.user_name)
+  //     .neq("assigned_to", u.user_name)
+  //     .order("created_at", { ascending: false });
+  //   setMyTasks(mine || []);
+  //   setRecurringTasks(recurring || []);
+  //   setDelegatedTasks(delegated || []);
+  //   setLoadingTasks(false);
+  // }, []);
+const fetchTasks = useCallback(async (u) => {
+  if (!u) return;
+  setLoadingTasks(true);
 
+  const { data: mineAll } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("assigned_to", u.user_name)
+    .order("due_date", { ascending: true });
+
+  const { data: delegated } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("assigned_by", u.user_name)
+    .neq("assigned_to", u.user_name)
+    .order("created_at", { ascending: false });
+
+  const mine = mineAll || [];
+  setMyTasks(mine.filter((t) => !isRecurringTask(t)));
+  setRecurringTasks(mine.filter((t) => isRecurringTask(t)));
+  setDelegatedTasks(delegated || []);
+  setLoadingTasks(false);
+}, []);
   const fetchLeaves = useCallback(async (u) => {
     if (!u) return;
     setLoadingLeaves(true);
@@ -1297,7 +1421,7 @@ const [rejectReason, setRejectReason] = useState("");
       setDelegatedTasks((p) => patch(p));
 
       // Spawn next recurring instance if applicable
-      if (task?.is_recurring) {
+      if (isRecurringTask(task)) {
         const nextDue = getNextDueDate(task.due_date, task.recurrence);
         const { data: newTask, error: insertErr } = await supabase
           .from("tasks")
@@ -1391,7 +1515,7 @@ const [rejectReason, setRejectReason] = useState("");
       setDelegatedTasks((p) => patch(p));
 
       // ── If a recurring task is completed, spawn the next instance ──
-      if (newStatus === "completed" && task?.is_recurring) {
+      if (newStatus === "completed" && isRecurringTask(task)) {
         const nextDue = getNextDueDate(task.due_date, task.recurrence);
         const { data: newTask, error: insertErr } = await supabase
           .from("tasks")
@@ -1590,7 +1714,21 @@ const confirmProxyReject = async () => {
   }
   setRejectTarget(null);
 };
+const allTasks = useMemo(() => {
+    const map = new Map();
+    [...myTasks, ...recurringTasks].forEach((t) => map.set(t.id, t));
+    return [...map.values()].sort(
+      (a, b) => new Date(a.due_date || a.created_at || 0) - new Date(b.due_date || b.created_at || 0),
+    );
+  }, [myTasks, recurringTasks]);
 
+const delegatedNormalOnly = useMemo(
+  () =>
+    delegatedTasks
+      .filter((t) => !isRecurringTask(t))
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)),
+  [delegatedTasks],
+);
   if (!user)
     return (
       <h2 style={{ textAlign: "center", marginTop: 80, color: "#94a3b8" }}>
@@ -1598,17 +1736,6 @@ const confirmProxyReject = async () => {
       </h2>
     );
 
-  const delegatedMixed = [
-    ...delegatedTasks,
-    ...myTasks.filter((t) => !delegatedTasks.some((d) => d.id === t.id)),
-    ...recurringTasks.filter((t) => !delegatedTasks.some((d) => d.id === t.id)),
-  ].sort(
-    (a, b) =>
-      new Date(a.due_date || a.created_at || 0) -
-      new Date(b.due_date || b.created_at || 0),
-  );
-
-  // const activeItem = [...TASK_NAV,...LEAVE_NAV,...REPORTS_NAV].find(n=>n.key===activeTab);
   const activeItem = [
     ...TASK_NAV,
     ...LEAVE_NAV,
@@ -1681,7 +1808,7 @@ const confirmProxyReject = async () => {
       case "delegated-tasks":
         return (
           <TaskList
-            tasks={delegatedMixed}
+            tasks={delegatedNormalOnly}
             loading={loadingTasks}
             onStatusChange={handleStatusChange}
             updatingId={updatingId}
@@ -1690,7 +1817,7 @@ const confirmProxyReject = async () => {
             onFilterChange={makeFilterChange(setDelegatedFilters)}
             onFilterClear={makeFilterClear(setDelegatedFilters)}
             showAssignedBy={true}
-            allTasks={delegatedMixed}
+            allTasks={delegatedNormalOnly}
             onReschedule={(task) => {
               setRescheduleTask(task);
               setRescheduleForm({ requested_date: "", reason: "" });
@@ -3362,7 +3489,23 @@ const confirmProxyReject = async () => {
               transition: background .15s;
             }
             .op-reschedule-btn:hover { background: #c0bcce; }
-            
+            .tt-wrap { overflow-x: auto; border: 1px solid #e8edf3; border-radius: 12px; }
+.tt-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 720px; }
+.tt-table thead th {
+  text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: #94a3b8; background: #f8fafc;
+  padding: 10px 14px; border-bottom: 1px solid #e8edf3; white-space: nowrap;
+}
+.tt-row { cursor: pointer; transition: background .12s; }
+.tt-row:hover { background: #f8fafc; }
+.tt-row td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.tt-title-cell { max-width: 260px; }
+.tt-title { font-weight: 600; color: #1e293b; }
+.tt-desc { font-size: 11.5px; color: #94a3b8; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+@media (max-width: 760px) {
+  .tt-table { font-size: 12px; }
+  .tt-table thead th, .tt-row td { padding: 8px 10px; }
+}
         `}</style>
 
       <div className="op-root">
@@ -3550,7 +3693,7 @@ const confirmProxyReject = async () => {
                             ? myTasks
                             : activeTab === "recurring-tasks"
                               ? recurringTasks
-                              : delegatedMixed
+                              : delegatedNormalOnly
                         }
                         showAssignedBy={activeTab === "delegated-tasks"}
                       />
@@ -3611,7 +3754,7 @@ const confirmProxyReject = async () => {
                                 ? myTasks
                                 : activeTab === "recurring-tasks"
                                   ? recurringTasks
-                                  : delegatedMixed
+                                  : delegatedNormalOnly
                             }
                             showAssignedBy={activeTab === "delegated-tasks"}
                           />
@@ -3619,6 +3762,7 @@ const confirmProxyReject = async () => {
                       )}
                     </div>
                   </>
+                  
                 )}
               </div>
               {renderContent()}

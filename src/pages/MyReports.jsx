@@ -17,7 +17,7 @@ function officeViewerUrl(url) {
 
 function resolveViewUrl(url, isOffice) {
   if (!isOffice) return url;
-  return officeViewerUrl(url);   // always wrap office docs — mobile browsers can't render pptx directly either
+  return officeViewerUrl(url);
 }
 async function downloadPdf(url) {
   try {
@@ -33,7 +33,7 @@ async function downloadPdf(url) {
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
   } catch (e) {
-    window.open(url, "_blank"); // fallback if fetch fails (e.g. CORS)
+    window.open(url, "_blank");
   } 
 }
 

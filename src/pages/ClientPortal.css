@@ -975,33 +975,17 @@
 .theme-dark .cp-drilldown-bar-track { background: var(--border); }
 .theme-dark .cp-drilldown-close { background: var(--surface); border-color: var(--border); color: var(--ink-soft); }
 
-.theme-dark .cp-filter-bar {
-  background: rgba(36, 26, 18, 0.85); /* var(--surface) at ~85% opacity */
-}
-.theme-dark .cp-filter-toggle {
-  background: var(--surface);
-  color: var(--ink-soft);
-  border-color: var(--border);
-}
-.theme-dark .cp-filter-toggle.open {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.theme-dark .cp-filter-panel.open {
-  background: var(--surface-2);
-  border-color: var(--border);
-}
+.theme-dark .cp-filter-bar {background: rgba(36, 26, 18, 0.85); }
+.theme-dark .cp-filter-toggle {background: var(--surface);color: var(--ink-soft);border-color: var(--border);}
+.theme-dark .cp-filter-toggle.open {border-color: var(--accent);color: var(--accent);}
+.theme-dark .cp-filter-panel.open {background: var(--surface-2);border-color: var(--border);}
 .theme-dark .cp-chip.act.type-all  ,
 .theme-dark .cp-chip.act.type-dpr  ,
 .theme-dark .cp-chip.act.type-wpr  ,
 .theme-dark .cp-chip.act.type-photo,
 .theme-dark .cp-chip.act.type-graphical{color:#000}
-.theme-dark .cp-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
+.theme-dark .cp-chip { display: inline-flex; align-items: center; gap: 6px;}
+.theme-dark .cp-profile-logout-wrap {background: var(--surface); border:1px solid var(--border);}
 /* ─── Skeleton loading ───────────────────────────────────────────────────── */
 @keyframes cpShimmer {
   0%   { background-position: -400px 0; }

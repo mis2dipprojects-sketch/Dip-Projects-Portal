@@ -2209,8 +2209,7 @@ function ProfilePage({ siteName, onLogout, theme, onToggleTheme }) {
             >
               <div
                 className="logout-modal"
-                onClick={(e) => e.stopPropagation()}
-              >
+                onClick={(e) => e.stopPropagation()}>
                 <div className="logout-modal-icon">
                   <svg
                     width="26"

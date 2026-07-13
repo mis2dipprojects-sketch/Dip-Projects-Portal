@@ -167,7 +167,6 @@ export default function Navbar({ onMenuToggle, menuOpen }) {
         .logout-modal {
           background: #fff;
           border: 1.5px solid #c96a10;
-          border-radius: 18px;
           padding: 32px 28px 24px;
           max-width: 360px;
           width: 100%;
@@ -215,7 +214,6 @@ export default function Navbar({ onMenuToggle, menuOpen }) {
           padding: 10px 16px;
           background: linear-gradient(135deg,rgba(61,18,0,0.06),rgba(201,106,16,0.08));
           border: 1px solid #c96a10;
-          border-radius: 10px;
           width: 100%;
           margin: 4px 0;
         }
@@ -256,7 +254,6 @@ export default function Navbar({ onMenuToggle, menuOpen }) {
         .logout-btn-cancel {
           flex: 1;
           height: 44px;
-          border-radius: 10px;
           border: 1.5px solid #c96a10;
           background: #fff;
           color: #7a2e00;
@@ -274,7 +271,6 @@ export default function Navbar({ onMenuToggle, menuOpen }) {
         .logout-btn-confirm {
           flex: 1;
           height: 44px;
-          border-radius: 10px;
           border: none;
           background: linear-gradient(135deg,#3d1200,#7a2e00,#c96a10);
           color: #fff;

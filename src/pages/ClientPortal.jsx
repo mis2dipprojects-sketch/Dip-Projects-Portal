@@ -975,7 +975,7 @@ const unified = [
   ...photos.map(p => ({
     type: p.image_type === "graphical" ? "graphical" : "photo",
     date: p.created_at,
-    title: p.caption || (p.image_type === "graphical" ? "Progress Chart" : "Site Photo"),
+    title: p.caption || (p.image_type === "graphical" ? "Graphical Drawing" : "Site Photo"),
     meta: p.image_type === "graphical" ? "Weekly Report" : (p.source === "dpr" ? "Daily Report" : "Weekly Report"),
     url: p.public_url,
     kind: "image",
@@ -1143,7 +1143,7 @@ const TYPE_FILTERS = [
                   <div className="cp-media-body">
                     <span className={`cp-media-badge ${it.type}`}>
                     {it.type === "dpr" ? <IcoDoc /> : it.type === "wpr" ? <IcoDoc /> : <IcoImg />}
-                    {it.type === "dpr" ? "Daily Report" : it.type === "wpr" ? "Weekly Report" : it.type === "graphical" ? "Progress Chart" : "Site Photo"}
+                    {it.type === "dpr" ? "Daily Report" : it.type === "wpr" ? "Weekly Report" : it.type === "graphical" ? "Graphical Drawing" : "Site Photo"}
                   </span>
                     <div className="cp-media-title">{it.title}</div>
                     <div className="cp-media-meta">

@@ -167,6 +167,36 @@ const IcoMoon = () => (
     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
   </svg>
 );
+const IcoLayers = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+    <polyline points="2 17 12 22 22 17"/>
+    <polyline points="2 12 12 17 22 12"/>
+  </svg>
+);
+const IcoChart = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10"/>
+    <line x1="12" y1="20" x2="12" y2="4"/>
+    <line x1="6" y1="20" x2="6" y2="14"/>
+  </svg>
+);
+const IcoDocBars = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="20" x2="18" y2="10"/>
+    <line x1="12" y1="20" x2="12" y2="4"/>
+    <line x1="6" y1="20" x2="6" y2="14"/>
+  </svg>
+);
+const IcoBluePrint = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2"/>
+    <path d="M3 9h18"/>
+    <path d="M9 3v18"/>
+    <path d="M14 14l4 4"/>
+    <path d="M14 18h4v-4"/>
+  </svg>
+);
 // ─── Status config ────────────────────────────────────────────────────────────
 
 const STATUS_CFG = {
@@ -402,6 +432,20 @@ function MediaFolderTree({ siteName, activeDate, onSelectDate }) {
     </div>
   );
 }
+function StatSkeleton() {
+  return <div className="cp-skel" style={{ width: 40, height: 24, marginBottom: 5 }} />;
+}
+function FeedSkeletonRow() {
+  return (
+    <div className="cp-feed-row">
+      <div className="cp-skel" style={{ width: 32, height: 32, borderRadius: "var(--r-md)" }} />
+      <div className="cp-feed-main" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="cp-skel" style={{ width: "70%", height: 13 }} />
+        <div className="cp-skel" style={{ width: "40%", height: 11 }} />
+      </div>
+    </div>
+  );
+}
 // ─── Overview / dashboard panel ───────────────────────────────────────────────
 function Overview({ siteName, onNavigate }) {
   const [loading, setLoading] = useState(true);
@@ -462,12 +506,12 @@ function Overview({ siteName, onNavigate }) {
       </div>
 
       <div className="cp-stats cols-6">
-        <div className="cp-stat"><div className="cp-stat-num amber">{stats.pending}</div><div className="cp-stat-label">Pending</div></div>
-        <div className="cp-stat"><div className="cp-stat-num green">{stats.accepted}</div><div className="cp-stat-label">Accepted</div></div>
-        <div className="cp-stat"><div className="cp-stat-num red">{stats.rejected}</div><div className="cp-stat-label">Rejected</div></div>
-        <div className="cp-stat"><div className="cp-stat-num blue">{stats.dpr}</div><div className="cp-stat-label">Daily Reports</div></div>
-        <div className="cp-stat"><div className="cp-stat-num" style={{ color: "var(--accent)" }}>{stats.wpr}</div><div className="cp-stat-label">Weekly Reports</div></div>
-        <div className="cp-stat"><div className="cp-stat-num green">{stats.photos}</div><div className="cp-stat-label">Site Photos</div></div>
+        <div className="cp-stat"><div className="cp-stat-num amber">{loading ? <StatSkeleton /> : stats.pending}</div><div className="cp-stat-label">Pending</div></div>
+        <div className="cp-stat"><div className="cp-stat-num green">{loading ? <StatSkeleton /> : stats.accepted}</div><div className="cp-stat-label">Accepted</div></div>
+        <div className="cp-stat"><div className="cp-stat-num red">{loading ? <StatSkeleton /> : stats.rejected}</div><div className="cp-stat-label">Rejected</div></div>
+        <div className="cp-stat"><div className="cp-stat-num blue">{loading ? <StatSkeleton /> : stats.dpr}</div><div className="cp-stat-label">Daily Reports</div></div>
+        <div className="cp-stat"><div className="cp-stat-num" style={{ color: "var(--accent)" }}>{loading ? <StatSkeleton /> : stats.wpr}</div><div className="cp-stat-label">Weekly Reports</div></div>
+        <div className="cp-stat"><div className="cp-stat-num green">{loading ? <StatSkeleton /> : stats.photos}</div><div className="cp-stat-label">Site Photos</div></div>
       </div>
 
       <div className="cp-quick-grid">
@@ -810,6 +854,26 @@ function MonthDrilldown({ monthKey, items, onClose }) {
     </div>
   );
 }
+function MediaSkeletonGrid({ count = 8 }) {
+  return (
+    <div className="cp-media-grid">
+      {Array.from({ length: count }).map((_, i) => (
+        <div className="cp-skel-card" key={i}>
+          <div className="cp-skel cp-skel-photo" />
+          <div className="cp-skel-body">
+            <div className="cp-skel cp-skel-badge" />
+            <div className="cp-skel cp-skel-title" />
+            <div className="cp-skel cp-skel-meta" />
+            <div className="cp-skel-actions">
+              <div className="cp-skel cp-skel-action" />
+              <div className="cp-skel cp-skel-action" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 // ─── Reports & Photos panel ────────────────────────────────────────────────
 function ReportsAndPhotos({ siteName, jumpDate, onClearJump  }) {
   const [dprs, setDprs]     = useState([]);
@@ -953,12 +1017,12 @@ const VIEW_MODES = [
 ];
 
 const TYPE_FILTERS = [
-  { key: "all",       label: `All (${counts.all})`,            cls: "type-all"       },
-  { key: "dpr",       label: `Daily Reports (${counts.dpr})`,   cls: "type-dpr"       },
-  { key: "wpr",       label: `Weekly Reports (${counts.wpr})`,  cls: "type-wpr"       },
-  { key: "photo",     label: `Site Photos (${counts.photo})`,   cls: "type-photo"     },
-  { key: "graphical", label: `Graphical (${counts.graphical})`, cls: "type-graphical" },
-];
+  { key: "all",       label: `All (${counts.all})`,            cls: "type-all",       icon: <IcoLayers />  },
+  { key: "dpr",       label: `Daily Reports (${counts.dpr})`,   cls: "type-dpr",       icon: <IcoDoc />     },
+  { key: "wpr",       label: `Weekly Reports (${counts.wpr})`,  cls: "type-wpr",       icon: <IcoDocBars /> },
+  { key: "photo",     label: `Site Photos (${counts.photo})`,   cls: "type-photo",     icon: <IcoImg />     },
+  { key: "graphical", label: `Graphical (${counts.graphical})`, cls: "type-graphical", icon:  <IcoBluePrint/>},
+];  
 
   const activeViewLabel = VIEW_MODES.find(v => v.key === viewMode)?.label || "Recent";
   const activeTypeLabel = TYPE_FILTERS.find(f => f.key === typeFilter)?.label || "All";
@@ -1034,23 +1098,23 @@ const TYPE_FILTERS = [
       </div>
     )}
 
-    <div className="cp-typefilters">
-      {TYPE_FILTERS.map(f => (
-        <button
-          key={f.key}
-          className={`cp-chip${typeFilter === f.key ? " act " + f.cls : ""}`}
-          onClick={() => { setTypeFilter(f.key); scrollToTop(); }}
-        >
-          {f.label}
-        </button>
-      ))}
-    </div>
+      <div className="cp-typefilters">
+        {TYPE_FILTERS.map(f => (
+          <button
+            key={f.key}
+            className={`cp-chip${typeFilter === f.key ? " act " + f.cls : ""}`}
+            onClick={() => { setTypeFilter(f.key); scrollToTop(); }}
+          >
+            {f.icon} {f.label}
+          </button>
+        ))}
+      </div>
   </div>
 </div>
 
 {loading ? (
-        <div className="cp-loading"><div className="cp-spinner" /> Loading reports &amp; photos…</div>
-      ) : !scoped.length ? (
+  <MediaSkeletonGrid count={8} />
+) : !scoped.length ? (
   <div className="cp-empty">
     <IcoBox />
     <div className="cp-empty-title">

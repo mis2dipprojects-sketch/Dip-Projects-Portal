@@ -447,7 +447,7 @@ function FeedSkeletonRow() {
   );
 }
 // ─── Overview / dashboard panel ───────────────────────────────────────────────
-function Overview({ siteName, onNavigate }) {
+function Overview({ siteName, onNavigate, newRequestCount }) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ pending: 0, accepted: 0, rejected: 0, dpr: 0, wpr: 0, photos: 0 });
   const [recent, setRecent] = useState([]);
@@ -516,6 +516,7 @@ function Overview({ siteName, onNavigate }) {
 
       <div className="cp-quick-grid">
         <button className="cp-quick-card" onClick={() => onNavigate("materials")}>
+          {!!newRequestCount && <span className="cp-quick-badge">{newRequestCount}</span>}
           <div className="cp-quick-icon"><IcoBoxNav /></div>
           <div className="cp-quick-title">Material Requests</div>
           <div className="cp-quick-sub">Review and action pending procurement requests from site.</div>
@@ -597,11 +598,11 @@ function MaterialRequests({ siteName, userName, onStatsChange }) {
     setLoading(false);
   }, [siteName, filter]);
 
-  const loadStats = useCallback(async () => {
+const loadStats = useCallback(async () => {
     if (!siteName) return;
     const { data } = await supabase
       .from("material_requirements")
-      .select("status")
+      .select("id, status")
       .ilike("site_name", siteName);
     setAllRows(data || []);
     if (onStatsChange) {
@@ -1432,7 +1433,17 @@ export default function ClientPortal() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // state additions in ClientPortal
 const [theme, setTheme] = useState(() => localStorage.getItem("cp_theme") || "light");
+const loadPendingCount = useCallback(async () => {
+    if (!activeSite) return;
+    const { count } = await supabase
+      .from("material_requirements")
+      .select("id", { count: "exact", head: true })
+      .ilike("site_name", activeSite)
+      .eq("status", "pending");
+    setPendingCount(count || 0);
+  }, [activeSite]);
 
+  useEffect(() => { loadPendingCount(); }, [loadPendingCount]);
   useEffect(() => {
     localStorage.setItem("cp_theme", theme);
   }, [theme]);
@@ -1497,7 +1508,7 @@ const handleSelectDate = (dayKey) => {
   const displayName = user.name || user.username || "Client";
   const displayRole = user.role || user.department || "Client";
 
-  const NAV_ITEMS = [
+const NAV_ITEMS = [
     { key: "overview",  label: "Overview",          icon: IcoHome },
     { key: "materials", label: "Material Requests",  icon: IcoBoxNav, badge: pendingCount },
     { key: "media",     label: "Reports & Photos",   icon: IcoFolder },
@@ -1643,10 +1654,10 @@ const handleSelectDate = (dayKey) => {
                     </div>
                   </div>
 
-                  {section === "overview"  && <Overview siteName={activeSite} onNavigate={goToSection} />}
+                  {section === "overview"  && <Overview siteName={activeSite} onNavigate={goToSection} newRequestCount={pendingCount} />}
                   {section === "materials" && <MaterialRequests siteName={activeSite} userName={displayName} onStatsChange={setPendingCount} />}
                   {section === "media"     && <ReportsAndPhotos siteName={activeSite} jumpDate={jumpDate} onClearJump={() => setJumpDate(null)} />}
-                  {section === "profile"   &&   <ProfilePage siteName={activeSite} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme}/>}
+                  {section === "profile"   && <ProfilePage siteName={activeSite} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme}/>}
 
                 </>
               ) : (

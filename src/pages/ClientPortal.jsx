@@ -1500,6 +1500,12 @@ function MediaSkeletonGrid({ count = 8 }) {
     </div>
   );
 }
+function isOfficeFile(url) {
+  if (!url) return false;
+  const clean = url.split("?")[0].split("#")[0];
+  const ext = clean.split(".").pop().toLowerCase();
+  return ["ppt", "pptx", "doc", "docx", "xls", "xlsx"].includes(ext);
+}
 // ─── Reports & Photos panel ────────────────────────────────────────────────
 function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
   const [dprs, setDprs] = useState([]);
@@ -1615,15 +1621,16 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
         url: r.pdf_url,
         kind: "doc",
       })),
-    ...wprs.map((r) => ({
-      type: "wpr",
-      date: r.report_date || r.created_at,
-      title: `Weekly Report #${r.report_number || ""}`,
-      meta: r.engineer_name,
-      url: r.presentation_url,
-      kind: "doc",
-      isOffice: true,
-    })),
+...wprs.map((r) => ({
+  type: "wpr",
+  date: r.report_date || r.created_at,       // used for sorting/grouping by report period
+  displayDate: r.created_at || r.report_date, // used for showing actual time
+  title: `Weekly Report #${r.report_number || ""}`,
+  meta: r.engineer_name,
+  url: r.presentation_url,
+  kind: "doc",
+  isOffice: isOfficeFile(r.presentation_url),
+})),
     ...photos.map((p) => ({
       type: p.image_type === "graphical" ? "graphical" : "photo",
       date: p.created_at,
@@ -1902,7 +1909,7 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
                     </span>
                     <div className="cp-media-title">{it.title}</div>
                     <div className="cp-media-meta">
-                      <IcoClock /> {fmtDateTime(it.date)}
+                      <IcoClock /> {fmtDateTime(it.displayDate || it.date)}
                     </div>
                     {it.kind === "doc" &&
                       (it.url ? (
@@ -1915,13 +1922,13 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
                           >
                             <IcoEye /> View
                           </a>
-                          <a
-                            className="cp-media-link dl"
-                            href={it.url}
-                            download
-                          >
-                            <IcoDl /> Download
-                          </a>
+                         <button
+  type="button"
+  className="cp-media-link dl"
+  onClick={() => forceDownload(it.url, it.title || "file")}
+>
+  <IcoDl /> Download
+</button>
                         </div>
                       ) : (
                         <span
@@ -1970,7 +1977,46 @@ const SECTIONS = {
   },
   profile: { title: "My Profile", sub: "" },
 };
+const mimeToExt = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/msword": "doc",
+  "application/vnd.ms-powerpoint": "ppt",
+};
 
+function getExtensionFromUrl(url, fallback = "") {
+  if (!url) return fallback;
+  try {
+    const clean = url.split("?")[0].split("#")[0];
+    const ext = clean.split(".").pop().toLowerCase();
+    if (ext && ext.length <= 5 && /^[a-z0-9]+$/.test(ext)) return ext;
+  } catch (_) {}
+  return fallback;
+}
+
+async function forceDownload(url, filename) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename || "download";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    console.error("Download failed:", err);
+    // fallback: open in new tab if fetch/blob fails (e.g. CORS)
+    window.open(url, "_blank");
+  }
+}
 // ─── Profile panel ─────────────────────────────────────────────────────────
 function ProfilePage({ siteName, onLogout, theme, onToggleTheme }) {
   const [site, setSite] = useState(null);
@@ -2209,7 +2255,8 @@ function ProfilePage({ siteName, onLogout, theme, onToggleTheme }) {
             >
               <div
                 className="logout-modal"
-                onClick={(e) => e.stopPropagation()}>
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="logout-modal-icon">
                   <svg
                     width="26"
@@ -2312,7 +2359,7 @@ export default function ClientPortal() {
       .select("id", { count: "exact", head: true })
       .ilike("site_name", activeSite)
       .eq("status", "pending");
-      setPendingCount(count || 0);
+    setPendingCount(count || 0);
   }, [activeSite]);
 
   useEffect(() => {

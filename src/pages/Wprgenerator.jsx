@@ -232,7 +232,60 @@ async function uploadBlob(supabase, bucketName, blob, path, contentType) {
     .getPublicUrl(path);
   return urlData.publicUrl;
 }
+function isOfficeFile(url) {
+  if (!url) return false;
+  const clean = url.split("?")[0].split("#")[0];
+  const ext = clean.split(".").pop().toLowerCase();
+  return ["ppt", "pptx", "doc", "docx", "xls", "xlsx"].includes(ext);
+}
 
+function getExtensionFromUrl(url, fallback = "") {
+  if (!url) return fallback;
+  try {
+    const clean = url.split("?")[0].split("#")[0];
+    const ext = clean.split(".").pop().toLowerCase();
+    if (ext && ext.length <= 5 && /^[a-z0-9]+$/.test(ext)) return ext;
+  } catch (_) {}
+  return fallback;
+}
+
+const mimeToExt = {
+  "application/pdf": "pdf",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/msword": "doc",
+  "application/vnd.ms-powerpoint": "ppt",
+};
+
+async function forceDownload(url, filenameBase) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const ext = mimeToExt[blob.type] || getExtensionFromUrl(url, "");
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = ext ? `${filenameBase}.${ext}` : filenameBase;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    console.error("Download failed:", err);
+    window.open(url, "_blank");
+  }
+}
+
+function resolveViewUrl(url) {
+  if (!url) return url;
+  return isOfficeFile(url)
+    ? `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`
+    : url;
+}
 // ─── Excel parsing via SheetJS ───────────────────────────────────────────────
 let _xlsxPromise = null;
 function loadXlsx() {
@@ -2801,7 +2854,6 @@ export default function WprGenerator({ user, supabase }) {
       const safeSite = site.replace(/\s+/g, "_");
       const folder = `${dateStr}_${safeEng}`;
 
-      const pptPath = `${datePath}/wpr/reports/WPR_${zp(reportNum)}_${safeSite}_uploaded.${ext}`;
       const bucketName = bucketNameFor(site);
       setGenProgress(20);
       setGenStep("Preparing storage…");
@@ -2858,7 +2910,7 @@ export default function WprGenerator({ user, supabase }) {
       setGenStep("Uploading file…");
 
       const ext = file.name.split(".").pop() || "pptx";
-      //const pptPath = `wpr/reports/WPR_${zp(reportNum)}_${safeSite}_uploaded.${ext}`;
+      const pptPath = `${datePath}/wpr/reports/WPR_${zp(reportNum)}_${safeSite}_uploaded.${ext}`;
       const contentType =
         file.type ||
         "application/vnd.openxmlformats-officedocument.presentationml.presentation";
@@ -4963,41 +5015,49 @@ export default function WprGenerator({ user, supabase }) {
                       <path d="M20 6L9 17l-5-5" />
                     </svg>
                   </div>
-                  <a
-                    href={`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(successUrls.pptUrl)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="wpr-link-row"
-                  >
-                    <span className="wpr-link-icon">
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      >
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                        <polyline points="15 3 21 3 21 9" />
-                        <line x1="10" y1="14" x2="21" y2="3" />
-                      </svg>
-                    </span>
-                    <div className="wpr-link-label">
-                      <div style={{ fontWeight: 800 }}>View Report</div>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: "var(--ink3)",
-                          marginTop: 2,
-                        }}
-                      >
-                        Preview in browser
-                      </div>
-                    </div>
-                    <span className="wpr-link-arrow">→</span>
-                  </a>
+                 <a href={resolveViewUrl(successUrls.pptUrl)}
+                target="_blank"
+                rel="noreferrer"
+                className="wpr-link-row"
+              >
+                <span className="wpr-link-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </span>
+                <div className="wpr-link-label">
+                  <div style={{ fontWeight: 800 }}>View Report</div>
+                  <div style={{ fontSize: 11, color: "var(--ink3)", marginTop: 2 }}>
+                    Preview in browser
+                  </div>
+                </div>
+                <span className="wpr-link-arrow">→</span>
+              </a>
+
+              <button
+                type="button"
+                className="wpr-link-row"
+                style={{ width: "100%", border: "none", cursor: "pointer", textAlign: "left" }}
+                onClick={() =>
+                  forceDownload(successUrls.pptUrl, `WPR_${zp(reportNum)}_${site.replace(/\s+/g, "_")}`)
+                }
+              >
+                <span className="wpr-link-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                </span>
+                <div className="wpr-link-label">
+                  <div style={{ fontWeight: 800 }}>Download Report</div>
+                  <div style={{ fontSize: 11, color: "var(--ink3)", marginTop: 2 }}>
+                    Save in its original format
+                  </div>
+                </div>
+                <span className="wpr-link-arrow">↓</span>
+              </button>
                 </div>
                 <button
                   className="btn btn-amber"

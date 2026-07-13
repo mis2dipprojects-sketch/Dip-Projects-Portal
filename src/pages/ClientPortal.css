@@ -798,6 +798,7 @@
 }
 .cp-profile-logout-wrap {
   display: flex;
+  gap:20px;
   justify-content: center;
   margin-top: 12px;
 }
@@ -822,9 +823,10 @@
 .cp-profile-contact-phone { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: #2563eb; text-decoration: none; flex-shrink: 0; }
 
 .cp-profile-logout {
-  display: inline-flex; align-items: center; gap: 8px; margin-top: 12px;
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; justify-content:center;  
   background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 10px;
   padding: 11px 22px; font-weight: 700; font-size: 13.5px; cursor: pointer; transition: background .15s;
+  width:50%;
 }
 .cp-profile-logout:hover { background: #fee2e2; }
 .cp-chart-wrap { background: #fff; border: 1px solid #e8edf3; border-radius: 14px; padding: 16px 18px 10px; margin-bottom: 16px; }
@@ -850,13 +852,13 @@
 .cp-chart-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .cp-chart-svg { width: 100%; height: auto; aspect-ratio: 2 / 1; display: block; }
 @media (max-width: 760px) {
-  .cp-chart-svg { height: 420px; }
+  .cp-chart-svg { height: 480px; }
   .cp-chart-svg { height: 420px; }
   .cp-chart-legend { gap: 12px; }
   .cp-chart-legend-item { font-size: 11.5px; }
 }.cp-chart-wrap { background: #fff; border: 1px solid #e8edf3; border-radius: 14px; padding: 24px 0 16px; margin-bottom: 16px; }
 .cp-chart-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 26px; box-sizing: border-box; }
-.cp-chart-svg { width: 100%; min-width: 900px; height: auto; aspect-ratio: 2 / 1; display: block; }
+.cp-chart-svg { width: 100%; min-width: 640px; height: auto; aspect-ratio: 2 / 1; display: block; }
 .cp-chart-legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 12px; padding: 14px 26px 0; border-top: 1px solid #f1f5f9; }
 .cp-chart-legend-item { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: #64748b; font-weight: 600; }
 .cp-chart-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -891,3 +893,99 @@
 .cp-chart-scroll::-webkit-scrollbar-thumb:hover {
   background: #b2530093;
 }
+
+/* ─── Dark theme ─────────────────────────────────────────────────────────── */
+.cp-wrap.theme-dark {
+  --bg: #19120c;
+  --surface: #241a12;
+  --surface-2: #2e2118;
+  --border: #3d2c1f;
+  --ink: #f3e9dd;
+  --ink-soft: #c9b8a8;
+  --ink-faint: #8f7d6c;
+  --brand: #ff9142;
+  --brand-2: #ffb066;
+  --accent: #ff8a3d;
+  --accent-soft: #3a2515;
+  --success: #4ade80;
+  --success-bg: #16321f;
+  --danger: #f87171;
+  --danger-bg: #3a1a1a;
+  --warning: #fbbf24;
+  --warning-bg: #3a2a10;
+  --info: #fb923c;
+  --info-bg: #33210f;
+
+  background: linear-gradient(135deg, #19120c 0%, #241a12 100%);
+}
+
+/* Sidebar / drawer (hardcoded white in the base CSS) */
+.theme-dark .cp-sidebar { background: #241a12; box-shadow: 14px 0 42px rgba(0,0,0,0.5); }
+.theme-dark .cp-nav-item { color: rgba(243,233,221,.72); }
+.theme-dark .cp-mobile-drawer .cp-nav-item,
+.theme-dark .cp-mobile-drawer .cp-site-btn { color: var(--ink-soft); }
+
+/* Page header / hero (hardcoded gradients) */
+.theme-dark .cp-page-header { background: linear-gradient(135deg, #241a12 0%, #33230f 100%); }
+.theme-dark .cp-hero { background: linear-gradient(135deg, #33230f 0%, #241a12 100%); border-color: #4a3319; }
+
+/* Profile hero avatar + meta text (hardcoded hex) */
+.theme-dark .cp-profile-avatar { background: linear-gradient(135deg,#3a2a4a,#2a1f3a); color: #c9b3ff; }
+.theme-dark .cp-profile-jobno,
+.theme-dark .cp-profile-client,
+.theme-dark .cp-profile-section-title { color: var(--ink-faint); }
+
+/* Contact rows */
+.theme-dark .cp-profile-contact-row { background: var(--surface); border-color: var(--border); }
+.theme-dark .cp-profile-contact-avatar { background: var(--surface-2); color: var(--ink-soft); }
+.theme-dark .cp-profile-contact-role { color: var(--ink-faint); }
+.theme-dark .cp-profile-contact-name { color: var(--ink); }
+
+/* Theme toggle + logout buttons */
+.cp-theme-toggle {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; justify-content:center;
+  background: var(--surface-2); color: var(--ink-soft); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 22px; font-weight: 700; font-size: 13.5px;
+  cursor: pointer; transition: background .15s, color .15s;
+  width:50%;
+}
+.cp-theme-toggle:hover { background: var(--accent-soft); color: var(--accent); }
+.theme-dark .cp-profile-logout { background: #3a1a1a; color: #f87171; border-color: #5a2a2a; }
+.theme-dark .cp-profile-logout:hover { background: #4a2020; }
+
+/* Chart card */
+.theme-dark .cp-chart-wrap { background: var(--surface); border-color: var(--border); }
+.theme-dark .cp-chart-legend { border-top-color: var(--border); }
+.theme-dark .cp-chart-legend-item { color: var(--ink-soft); }
+.theme-dark .cp-chart-scroll { scrollbar-color: var(--accent) var(--surface-2); }
+.theme-dark .cp-chart-scroll::-webkit-scrollbar-track { background: var(--surface-2); }
+/* SVG text/gridlines are set via presentation attributes (fill/stroke),
+   which CSS can override even though they're set in the SVG markup */
+.theme-dark .cp-chart-svg text { fill: var(--ink-faint) !important; }
+.theme-dark .cp-chart-svg line { stroke: var(--border) !important; }
+
+/* Drilldown panel */
+.theme-dark .cp-drilldown { background: var(--surface-2); border-color: var(--border); }
+.theme-dark .cp-drilldown-title,
+.theme-dark .cp-drilldown-bar-count { color: var(--ink); }
+.theme-dark .cp-drilldown-bar-label { color: var(--ink-soft); }
+.theme-dark .cp-drilldown-bar-track { background: var(--border); }
+.theme-dark .cp-drilldown-close { background: var(--surface); border-color: var(--border); color: var(--ink-soft); }
+
+.theme-dark .cp-filter-bar {
+  background: rgba(36, 26, 18, 0.85); /* var(--surface) at ~85% opacity */
+}
+.theme-dark .cp-filter-toggle {
+  background: var(--surface);
+  color: var(--ink-soft);
+  border-color: var(--border);
+}
+.theme-dark .cp-filter-toggle.open {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.theme-dark .cp-filter-panel.open {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+.theme-dark .cp-chip.act-amber, .cp-chip.act-green, .cp-chip.act-red {color: #000000; }

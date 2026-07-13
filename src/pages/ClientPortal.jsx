@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import Navbar from "../components/Navbar";
 import { createClient } from "@supabase/supabase-js";
 import "./ClientPortal.css";
-import { Navigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 const SUPABASE_URL  = "https://efqfjfthsleymhljswcq.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmcWZqZnRoc2xleW1obGpzd2NxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDY0MjMsImV4cCI6MjA5NTkyMjQyM30.PYMRiKdnhzb6pkvhDB4M4Qdp3nSGhsZpHGuclVqYNMs";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -151,6 +151,20 @@ const IcoPhone = () => (
 const IcoLogout = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+  </svg>
+);
+const IcoSun = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="4"/>
+    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>
+);
+const IcoMoon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
   </svg>
 );
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -1113,18 +1127,17 @@ const SECTIONS = {
   media:     { title: "Reports & Photos",     sub: "Daily reports, weekly reports and site photos." },
   profile:   { title: "My Profile",           sub: "" },
 };
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("portalName");
-    Navigate("/");
-  };
+
 // ─── Profile panel ─────────────────────────────────────────────────────────
-function ProfilePage({ siteName, onLogout }) {
+function ProfilePage({ siteName, onLogout, theme, onToggleTheme }) {
   const [site, setSite] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activity, setActivity] = useState([]); // unified dpr/wpr/photo items for the chart
+  const [activity, setActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false); // NEW
+
+  const user = JSON.parse(localStorage.getItem("user") || "null"); // NEW — for the modal's name/role display
 
   useEffect(() => {
     if (!siteName) { setLoading(false); return; }
@@ -1186,7 +1199,7 @@ function ProfilePage({ siteName, onLogout }) {
     })();
   }, [siteName]);
 
-  const monthlySeries = buildMonthlySeries(activity);
+  const monthlySeries = buildMonthlySeries(activity, 6);
   const monthItems = selectedMonth ? activity.filter(it => monthKeyOf(it.date) === selectedMonth) : [];
 
   if (loading) {
@@ -1281,14 +1294,70 @@ return (
         )}
 
         <div className="cp-profile-logout-wrap">
-          <button className="cp-profile-logout" onClick={onLogout}>
-            <IcoLogout /> Log out
+          <button className="cp-theme-toggle" onClick={onToggleTheme}>
+            {theme === "dark" ? <IcoSun /> : <IcoMoon />}
+            {theme === "dark" ? "Light Mode" : "Dark Mode"}
           </button>
+
+          <button className="cp-profile-logout" onClick={() => setShowLogoutModal(true)}>
+            <IcoLogout /> Log out
+            </button>
+
+      {showLogoutModal && (
+        <div className="logout-backdrop" onClick={() => setShowLogoutModal(false)}>
+          <div className="logout-modal" onClick={e => e.stopPropagation()}>
+
+            <div className="logout-modal-icon">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </div>
+
+            <div className="logout-modal-title">Sign Out?</div>
+            <div className="logout-modal-sub">
+              You'll be returned to the login screen. Any unsaved changes will be lost.
+            </div>
+
+            {user && (
+              <div className="logout-modal-user">
+                <div className="logout-modal-avatar">
+                  {user.name?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div className="logout-modal-uname">{user.name}</div>
+                  <div className="logout-modal-urole">{user.role || user.designation || ""}</div>
+                </div>
+              </div>
+            )}
+
+            <div className="logout-modal-btns">
+              <button className="logout-btn-cancel" onClick={() => setShowLogoutModal(false)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                Cancel
+              </button>
+              <button className="logout-btn-confirm" onClick={onLogout}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Yes, Sign Out
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
         </div>
       </div>
     </div>
   );
 }
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 export default function ClientPortal() {
   const [user,         setUser]         = useState(null);
@@ -1298,7 +1367,21 @@ export default function ClientPortal() {
   const [pendingCount, setPendingCount] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // state additions in ClientPortal
+const [theme, setTheme] = useState(() => localStorage.getItem("cp_theme") || "light");
+
+  useEffect(() => {
+    localStorage.setItem("cp_theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(t => (t === "light" ? "dark" : "light"));
 const [jumpDate, setJumpDate] = useState(null);
+ const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("portalName");
+    navigate("/");
+  };
 
 const goToSection = (key) => {
   setSection(key);
@@ -1359,7 +1442,7 @@ const handleSelectDate = (dayKey) => {
   return (
     <>
       <Navbar onMenuToggle={() => setMobileNavOpen(v => !v)} menuOpen={mobileNavOpen} />
-      <div className="cp-wrap">
+      <div className={`cp-wrap${theme === "dark" ? " theme-dark" : ""}`}>
         <div className="cp-shell">
           <div className={`cp-menu-backdrop${mobileNavOpen ? " open" : ""}`} onClick={() => setMobileNavOpen(false)} />
 
@@ -1499,7 +1582,7 @@ const handleSelectDate = (dayKey) => {
                   {section === "overview"  && <Overview siteName={activeSite} onNavigate={goToSection} />}
                   {section === "materials" && <MaterialRequests siteName={activeSite} userName={displayName} onStatsChange={setPendingCount} />}
                   {section === "media"     && <ReportsAndPhotos siteName={activeSite} jumpDate={jumpDate} onClearJump={() => setJumpDate(null)} />}
-                  {section === "profile"   && <ProfilePage siteName={activeSite} onLogout={handleLogout} />}
+                  {section === "profile"   &&   <ProfilePage siteName={activeSite} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme}/>}
 
                 </>
               ) : (

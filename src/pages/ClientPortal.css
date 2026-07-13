@@ -801,7 +801,9 @@
   display: flex;
   gap:20px;
   justify-content: center;
-  margin-top: 12px;
+  background-color: #fff;
+  padding:10px;
+  border-radius:10px;
 }
 .cp-profile-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; }
 .cp-profile-avatar {

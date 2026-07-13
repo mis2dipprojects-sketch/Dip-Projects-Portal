@@ -806,6 +806,36 @@ function monthLabelOf(key) {
   const [y, m] = key.split("-").map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
 }
+function daysInMonth(year, month1to12) {
+  return new Date(year, month1to12, 0).getDate();
+}
+
+function buildDailySeries(items, monthKey) {
+  const [y, m] = monthKey.split("-").map(Number); // monthKey = "YYYY-MM", m is 1-indexed
+  const numDays = daysInMonth(y, m);
+  const days = [];
+  for (let d = 1; d <= numDays; d++) {
+    const dateObj = new Date(y, m - 1, d);
+    days.push({
+      day: d,
+      label: dateObj.toLocaleDateString("en-IN", { weekday: "short" }) + " " + d,
+      dpr: 0, wpr: 0, photo: 0, graphical: 0,
+    });
+  }
+  items.forEach(it => {
+    const d = new Date(it.date);
+    if (isNaN(d) || d.getFullYear() !== y || d.getMonth() !== m - 1) return;
+    const bucket = days[d.getDate() - 1];
+    if (bucket) bucket[it.type] = (bucket[it.type] || 0) + 1;
+  });
+  return days;
+}
+
+function shiftMonthKey(monthKey, delta) {
+  const [y, m] = monthKey.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
 function buildMonthlySeries(items, monthsBack = 12) {
   const now = new Date();
   const keys = [];
@@ -1363,7 +1393,7 @@ return (
             )}
           </>
         )}
-
+ <div className="cp-profile-section-title" style={{ alignSelf: "flex-start" }}>Account</div>
         <div className="cp-profile-logout-wrap">
           <button className="cp-theme-toggle" onClick={onToggleTheme}>
             {theme === "dark" ? <IcoSun /> : <IcoMoon />}

@@ -1074,22 +1074,28 @@ const TYPE_FILTERS = [
       <div className="cp-range-picker">
         <div className="cp-range-field">
           <label>From</label>
-          <input
-            type="date"
-            value={rangeStart}
-            max={rangeEnd || undefined}
-            onChange={e => setRangeStart(e.target.value)}
-          />
+          <div className="cp-date-wrap">
+            <input
+              type="date"
+              value={rangeStart}
+              max={rangeEnd || undefined}
+              onChange={e => setRangeStart(e.target.value)}
+            />
+            {!rangeStart && <span className="cp-date-placeholder">dd-mm-yyyy</span>}
+          </div>
         </div>
         <span className="cp-range-sep">→</span>
         <div className="cp-range-field">
           <label>To</label>
-          <input
-            type="date"
-            value={rangeEnd}
-            min={rangeStart || undefined}
-            onChange={e => setRangeEnd(e.target.value)}
-          />
+          <div className="cp-date-wrap">
+            <input
+              type="date"
+              value={rangeEnd}
+              min={rangeStart || undefined}
+              onChange={e => setRangeEnd(e.target.value)}
+            />
+            {!rangeEnd && <span className="cp-date-placeholder">dd-mm-yyyy</span>}
+          </div>
         </div>
         {(rangeStart || rangeEnd) && (
           <button className="cp-range-clear" onClick={() => { setRangeStart(""); setRangeEnd(""); }}>

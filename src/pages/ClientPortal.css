@@ -2904,7 +2904,6 @@ html {
   .cp-filters { top: 50px; }
   #cp-filter-bar{top:60px !important;}
 }
-.theme-dark .cp-chip.act-amber,.cp-chip.act-green, .cp-chip.act-red {
+.theme-dark .cp-chip.act-amber,.theme-dark .cp-chip.act-green,.theme-dark .cp-chip.act-red, .theme-dark .cp-chip.act {
   color: #000000;
 }
-.theme-dark .cp-chip.act  {color:#000}

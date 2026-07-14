@@ -1,9 +1,8 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Navbar from "../components/Navbar";
 import { supabase } from "../supabase";
 import SiteReport from "./Sitereport";
 import Checklists from "./Checklists";
-import MyReports from "./MyReports";
 import { resolveApprovalChain, deriveLeaveStatus, mergeRejectionReason } from "./SitePortal";
 // ── Nav Items ──────────────────────────────────────────────────────────────
 const TASK_NAV = [
@@ -42,27 +41,6 @@ const TASK_NAV = [
       >
         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
         <path d="M3 3v5h5" />
-      </svg>
-    ),
-  },
-  {
-    key: "delegated-tasks",
-    label: "All Delegated Tasks",
-    icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
   },
@@ -179,6 +157,17 @@ const REPORTS_NAV = [
       </svg>
     ),
   },
+   {
+    key: "svr-reports",
+    label: "SVR Reports",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9l5 5v3" />
+        <polyline points="14 3 14 8 19 8" />
+        <path d="M12 22l2 2 4-4" />
+      </svg>
+    ),
+  },
   {
     key: "checklists",
     label: "Checklists",
@@ -199,24 +188,7 @@ const REPORTS_NAV = [
     ),
   },
 ];
-const MY_REPORTS_ITEM = {
-  key: "my-reports",
-  label: "My Reports",
-  icon: (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-    </svg>
-  ),
-};
+
 const REPORT_SUBMISSIONS_ITEM = {
   key: "report-submissions",
   label: "Report Submissions",
@@ -266,7 +238,11 @@ const EMPTY_FILTERS = {
   status: "",
   assignedBy: "",
 };
-
+function buildDownloadUrl(url, filename) {
+  if (!url) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}download=${encodeURIComponent(filename || "report.pdf")}`;
+}
 // ── Filter Bar ─────────────────────────────────────────────────────────────
 function TaskFilterBar({
   filters,
@@ -833,17 +809,9 @@ function TaskCard({ task, onStatusChange, updating, onReschedule, onClick }) {
         )}
       </div>
       <div className="op-task-footer" onClick={(e) => e.stopPropagation()}>
-        <select
-          className="op-status-select"
-          style={{ background: s.bg, color: s.color }}
-          value={task.status}
-          disabled={updating === task.id}
-          onChange={(e) => onStatusChange(task.id, e.target.value, e)}
-        >
-          <option value="pending">Pending</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
-        </select>
+        <span className="op-badge" style={{ background: s.bg, color: s.color }}>
+  {task.status?.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+</span>
         {updating === task.id && <span className="op-saving">saving…</span>}
         {task.reschedule_allowed && task.status !== "completed" && (
           <button
@@ -874,22 +842,113 @@ function TaskCard({ task, onStatusChange, updating, onReschedule, onClick }) {
     </div>
   );
 }
+function TaskActionMenu({ task, onReschedule, onSendVerification, onRaiseTicket }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const canReschedule = task.reschedule_allowed && task.status !== "completed";
+
+  const handleMenuOpen = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const menuHeight = 140; // approx height of the 3-item menu
+    setMenuPosition({
+      top: spaceBelow < menuHeight ? rect.top - menuHeight - 4 : rect.bottom + 4,
+      left: rect.right - 190, // align right edge to button, menu is 190px wide
+    });
+    setMenuOpen(true);
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
+      <button className="tt-action-btn" onClick={handleMenuOpen}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+          <circle cx="12" cy="5" r="1.6" />
+          <circle cx="12" cy="12" r="1.6" />
+          <circle cx="12" cy="19" r="1.6" />
+        </svg>
+      </button>
+
+      {menuOpen && (
+        <div
+          className="tt-action-menu"
+          style={{
+            position: "fixed",
+            top: menuPosition.top,
+            left: menuPosition.left,
+            zIndex: 9999,
+          }}
+        >
+          <button
+            className="tt-action-item tt-action-success"
+            onClick={() => { setMenuOpen(false); onSendVerification(task); }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 11l3 3L22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+            Send for Verification
+          </button>
+
+          <button
+            className="tt-action-item tt-action-primary"
+            disabled={!canReschedule}
+            onClick={() => { if (canReschedule) { setMenuOpen(false); onReschedule(task); } }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            Reschedule
+          </button>
+
+          <button
+            className="tt-action-item tt-action-danger"
+            onClick={() => { setMenuOpen(false); onRaiseTicket(task); }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+              <line x1="12" y1="10" x2="12" y2="14" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            Raise Ticket
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 // ── Task Table ─────────────────────────────────────────────────────────────
-function TaskTable({ tasks, onStatusChange, updating, onReschedule, onClick, showAssignedBy }) {
+function TaskTable({
+  tasks, onStatusChange, updating, onReschedule, onClick,
+  showAssignedBy, showRecurrence = true, userMap = {},onSendVerification, onRaiseTicket,
+}) {
+  const nameFor = (username) => userMap[username] || username || "—";
+
   return (
     <div className="tt-wrap">
       <table className="tt-table">
         <thead>
           <tr>
             <th>Title</th>
+            {showAssignedBy && <th>Assigned To</th>}
             <th>Site</th>
             {showAssignedBy && <th>Given By</th>}
             <th>Due Date</th>
             <th>Priority</th>
             <th>Status</th>
-            <th>Recurrence</th>
+            {showRecurrence && <th>Recurrence</th>}
             <th>Files</th>
-            <th></th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -904,8 +963,9 @@ function TaskTable({ tasks, onStatusChange, updating, onReschedule, onClick, sho
                     <div className="tt-desc">{task.description}</div>
                   )}
                 </td>
+                {showAssignedBy && <td>{nameFor(task.assigned_to)}</td>}
                 <td>{task.site_name || "—"}</td>
-                {showAssignedBy && <td>{task.assigned_by || "—"}</td>}
+                {showAssignedBy && <td>{nameFor(task.assigned_by)}</td>}
                 <td>
                   {task.due_date
                     ? new Date(task.due_date).toLocaleDateString("en-IN", {
@@ -921,29 +981,29 @@ function TaskTable({ tasks, onStatusChange, updating, onReschedule, onClick, sho
                     {task.priority}
                   </span>
                 </td>
-                <td onClick={(e) => e.stopPropagation()}>
-                  <select
-                    className="op-status-select"
-                    style={{ background: s.bg, color: s.color }}
-                    value={task.status}
-                    disabled={updating === task.id}
-                    onChange={(e) => onStatusChange(task.id, e.target.value, e)}
+<td>
+  <span className="op-badge" style={{ background: s.bg, color: s.color }}>
+    {task.status?.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+  </span>
+</td>
+               <td>
+                {task.recurrence ? (
+                  <span className="op-meta-pill op-pill-blue">
+                    {task.recurrence.charAt(0).toUpperCase() + task.recurrence.slice(1).toLowerCase()}
+                  </span>
+                ) : isRecurringTask(task) ? (
+                  <span
+                    className="op-meta-pill"
+                    style={{ color: "#d97706", background: "#fffbeb", borderColor: "#fde68a" }}
+                    title="This recurring task has no frequency set"
                   >
-                    <option value="pending">Pending</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                  </select>
-                  {updating === task.id && <span className="op-saving"> saving…</span>}
-                </td>
-                <td>
-                  {task.recurrence ? (
-                    <span className="op-meta-pill op-pill-blue">
-                      {task.recurrence.charAt(0).toUpperCase() + task.recurrence.slice(1).toLowerCase()}
-                    </span>
-                  ) : (
-                    "—"
-                  )}
-                </td>
+                    ⚠ No frequency set
+                  </span>
+                  
+                ) : (
+                  "—"
+                )}
+              </td>
                 <td>
                   <div style={{ display: "flex", gap: 6 }}>
                     {task.audio_url && (
@@ -958,18 +1018,14 @@ function TaskTable({ tasks, onStatusChange, updating, onReschedule, onClick, sho
                     )}
                   </div>
                 </td>
-                <td onClick={(e) => e.stopPropagation()}>
-                  {task.reschedule_allowed && task.status !== "completed" && (
-                    <button
-                      className="op-reschedule-btn"
-                      onClick={() => onReschedule(task)}
-                      title="Request reschedule"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
-                      Reschedule
-                    </button>
-                  )}
-                </td>
+               <td onClick={(e) => e.stopPropagation()}>
+                <TaskActionMenu
+                  task={task}
+                  onReschedule={onReschedule}
+                  onSendVerification={onSendVerification}
+                  onRaiseTicket={onRaiseTicket}
+                />
+              </td>
               </tr>
             );
           })}
@@ -979,18 +1035,9 @@ function TaskTable({ tasks, onStatusChange, updating, onReschedule, onClick, sho
   );
 }
 function TaskList({
-  tasks,
-  loading,
-  onStatusChange,
-  updatingId,
-  emptyText,
-  filters,
-  onFilterChange,
-  onFilterClear,
-  showAssignedBy,
-  allTasks,
-  onReschedule,
-  onDetailClick,
+  tasks, loading, onStatusChange, updatingId, emptyText, filters,
+  onFilterChange, onFilterClear, showAssignedBy, allTasks,
+  onReschedule, onDetailClick, showRecurrence = true, userMap = {},onSendVerification, onRaiseTicket,
 }) {
   const filtered = applyFilters(tasks, filters);
   const hasActiveFilters = Object.values(filters).some((v) => v !== "");
@@ -1033,14 +1080,18 @@ function TaskList({
           </p>
         </div>
         ) : (
-                <TaskTable
-                  tasks={filtered}
-                  onStatusChange={onStatusChange}
-                  updating={updatingId}
-                  onReschedule={onReschedule}
-                  onClick={onDetailClick}
-                  showAssignedBy={showAssignedBy}
-                />
+                 <TaskTable
+          tasks={filtered}
+          onStatusChange={onStatusChange}
+          updating={updatingId}
+          onReschedule={onReschedule}
+          onClick={onDetailClick}
+          showAssignedBy={showAssignedBy}
+          showRecurrence={showRecurrence}
+          userMap={userMap}
+              onSendVerification={onSendVerification} // ← add
+    onRaiseTicket={onRaiseTicket}
+        />
               )}
     </>
   );
@@ -1111,8 +1162,13 @@ function LeaveCard({ leave, showActions, onApprove, onOpenReject, currentUser })
   );
 }
 function isRecurringTask(t) {
-  return t.is_recurring === true || t.is_recurring === "true" || Boolean(t.recurrence);
-} 
+  return (
+    t.is_recurring === true ||
+    t.is_recurring === "true" ||
+    Boolean(t.recurrence) ||
+    Boolean(t.parent_task_id)
+  );
+}
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function OfficePortal() {
   const [rescheduleTask, setRescheduleTask] = useState(null); // task object or null
@@ -1141,7 +1197,6 @@ export default function OfficePortal() {
   // Tasks
   const [myTasks, setMyTasks] = useState([]);
   const [recurringTasks, setRecurringTasks] = useState([]);
-  const [delegatedTasks, setDelegatedTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
 
@@ -1150,10 +1205,40 @@ export default function OfficePortal() {
   const [recurringFilters, setRecurringFilters] = useState({
     ...EMPTY_FILTERS,
   });
-  const [delegatedFilters, setDelegatedFilters] = useState({
-    ...EMPTY_FILTERS,
-  });
+  useEffect(() => {
+  if (!user) return;
+  const channel = supabase
+    .channel("tasks-status-sync")
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "tasks" },
+      (payload) => {
+        const updated = payload.new;
+        const patch = (list) =>
+          list.map((t) => (t.id === updated.id ? { ...t, ...updated } : t));
+        setMyTasks((p) => patch(p));
+        setRecurringTasks((p) => patch(p));
+      },
+    )
+    .subscribe();
 
+  return () => supabase.removeChannel(channel);
+}, [user]); 
+const [userMap, setUserMap] = useState({});
+useEffect(() => {
+  supabase
+    .from("user_details")
+    .select("username, name")
+    .then(({ data, error }) => {
+      if (!error && data) {
+        const map = {};
+        data.forEach((u) => {
+          map[u.username] = u.name;
+        });
+        setUserMap(map);
+      }
+    });
+}, []);
   // Leaves
   const [myLeaves, setMyLeaves] = useState([]);
   const [proxyLeaves, setProxyLeaves] = useState([]);
@@ -1262,7 +1347,22 @@ const [rejectReason, setRejectReason] = useState("");
     setSiteReports(normalized);
     setLoadingReports(false);
   }, []);
+const [mySvrReports, setMySvrReports] = useState([]);
+const [loadingSvrReports, setLoadingSvrReports] = useState(false);
 
+const fetchMySvrReports = useCallback(async (u) => {
+  if (!u) return;
+  setLoadingSvrReports(true);
+const { data, error } = await supabase
+  .from("site_reports")
+  .select(
+    "id, site_name, reporter_name, designation, visit_date, visit_time, progress_of_work, quality_observations, safety_concerns, issues_concerns, site_visit_instructions, key_instructions, submitted_by, submitted_by_name, pdf_url, created_at",
+  )
+  .eq("submitted_by", u.user_name)   // ✅ matches what's actually stored
+  .order("created_at", { ascending: false });
+  if (!error) setMySvrReports(data || []);
+  setLoadingSvrReports(false);
+}, []);
   // Leave form
   const [leaveForm, setLeaveForm] = useState({
     leave_type: "",
@@ -1336,23 +1436,19 @@ const fetchTasks = useCallback(async (u) => {
   if (!u) return;
   setLoadingTasks(true);
 
-  const { data: mineAll } = await supabase
-    .from("tasks")
-    .select("*")
-    .eq("assigned_to", u.user_name)
-    .order("due_date", { ascending: true });
+  const isAdmin = u.role?.toLowerCase().trim() === "admin";
 
-  const { data: delegated } = await supabase
-    .from("tasks")
-    .select("*")
-    .eq("assigned_by", u.user_name)
-    .neq("assigned_to", u.user_name)
-    .order("created_at", { ascending: false });
+  const { data: mineAll } = isAdmin
+    ? await supabase.from("tasks").select("*").order("due_date", { ascending: true })
+    : await supabase
+        .from("tasks")
+        .select("*")
+        .eq("assigned_to", u.user_name)
+        .order("due_date", { ascending: true });
 
   const mine = mineAll || [];
   setMyTasks(mine.filter((t) => !isRecurringTask(t)));
   setRecurringTasks(mine.filter((t) => isRecurringTask(t)));
-  setDelegatedTasks(delegated || []);
   setLoadingTasks(false);
 }, []);
   const fetchLeaves = useCallback(async (u) => {
@@ -1375,20 +1471,28 @@ const fetchTasks = useCallback(async (u) => {
     setLoadingLeaves(false);
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      fetchTasks(user);
-      fetchLeaves(user);
-      fetchMyReschedules(user);
-      fetchSiteReports(user);
-    }
-  }, [user, fetchTasks, fetchLeaves, fetchMyReschedules, fetchSiteReports]);
-
+useEffect(() => {
+  if (user) {
+    fetchTasks(user);
+    fetchLeaves(user);
+    fetchMyReschedules(user);
+    fetchSiteReports(user);
+    fetchMySvrReports(user);
+  }
+}, [user, fetchTasks, fetchLeaves, fetchMyReschedules, fetchSiteReports, fetchMySvrReports]);
   const showToast = (type, msg) => {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 3500);
   };
+const handleSendVerification = async (task) => {
+  showToast("success", `"${task.title}" sent for verification.`);
+  // TODO: wire this to your actual verification workflow / backend update
+};
 
+const handleRaiseTicket = async (task) => {
+  showToast("success", `Ticket raised for "${task.title}".`);
+  // TODO: wire this to your ticketing table / support system
+};
   const handleNavClick = (key) => {
     setActiveTab(key);
     if (typeof window !== "undefined" && window.innerWidth <= 760)
@@ -1399,6 +1503,54 @@ const fetchTasks = useCallback(async (u) => {
       markReschedulesRead();
     }
   };
+
+  const spawnNextRecurringInstance = async (task, nextDue) => {
+  const { data: newTask, error: insertErr } = await supabase
+    .from("tasks")
+    .insert([
+      {
+        title: task.title,
+        description: task.description || null,
+        assigned_to: task.assigned_to,
+        assigned_by: task.assigned_by || null,
+        site_name: task.site_name || null,
+        priority: task.priority || "medium",
+        status: "pending",
+        is_recurring: true,
+        recurrence: task.recurrence,
+        due_date: nextDue,
+        audio_url: task.audio_url || null,
+        document_url: task.document_url || null,
+        has_checkpoints: task.has_checkpoints || false,
+        reschedule_allowed: task.reschedule_allowed || false,
+        parent_task_id: task.parent_task_id || task.id,
+        recurrence_anchor: task.recurrence_anchor || task.due_date || nextDue,
+        last_generated_date: nextDue,
+      },
+    ])
+    .select()
+    .single();
+
+  if (insertErr || !newTask) return { error: insertErr, task: null };
+
+  // Force the recurring fields, in case a DB trigger/default overwrote them
+  if (newTask.is_recurring !== true || !newTask.recurrence) {
+    const { data: fixed, error: fixErr } = await supabase
+      .from("tasks")
+      .update({
+        is_recurring: true,
+        recurrence: task.recurrence,
+        parent_task_id: task.parent_task_id || task.id,
+      })
+      .eq("id", newTask.id)
+      .select()
+      .single();
+
+    if (!fixErr && fixed) return { error: null, task: fixed };
+  }
+
+  return { error: null, task: newTask };
+};
 
   const handleChecklistConfirm = async () => {
     if (!checkpoints.every((cp) => checkedItems[cp.id]))
@@ -1418,44 +1570,22 @@ const fetchTasks = useCallback(async (u) => {
         list.map((t) => (t.id === taskId ? { ...t, status: "completed" } : t));
       setMyTasks((p) => patch(p));
       setRecurringTasks((p) => patch(p));
-      setDelegatedTasks((p) => patch(p));
 
       // Spawn next recurring instance if applicable
       if (isRecurringTask(task)) {
-        const nextDue = getNextDueDate(task.due_date, task.recurrence);
-        const { data: newTask, error: insertErr } = await supabase
-          .from("tasks")
-          .insert([
-            {
-              title: task.title,
-              description: task.description || null,
-              assigned_to: task.assigned_to,
-              assigned_by: task.assigned_by || null,
-              site_name: task.site_name || null,
-              priority: task.priority || "medium",
-              status: "pending",
-              is_recurring: true,
-              recurrence: task.recurrence,
-              due_date: nextDue,
-              audio_url: task.audio_url || null,
-              document_url: task.document_url || null,
-              has_checkpoints: task.has_checkpoints || false,
-              reschedule_allowed: task.reschedule_allowed || false,
-            },
-          ])
-          .select()
-          .single();
+      const nextDue = getNextDueDate(task.due_date, task.recurrence);
+      const { task: newTask } = await spawnNextRecurringInstance(task, nextDue);
 
-        if (!insertErr && newTask) {
-          setRecurringTasks((p) => [...p, newTask]);
-          showToast(
-            "success",
-            `Completed! Next instance due ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
-          );
-        } else {
-          showToast("success", "Task marked as completed!");
-        }
-      } else {
+  if (newTask) {
+    setRecurringTasks((p) => [...p, newTask]);
+    showToast(
+      "success",
+      `Completed! Next instance due ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
+    );
+  } else {
+    showToast("success", "Task marked as completed!");
+  }
+} else {
         showToast("success", "Task marked as completed!");
       }
     } else {
@@ -1483,23 +1613,24 @@ const fetchTasks = useCallback(async (u) => {
 
   const handleStatusChange = async (taskId, newStatus, e) => {
     e?.stopPropagation();
-    const task = [...myTasks, ...recurringTasks, ...delegatedTasks].find(
-      (t) => t.id === taskId,
-    );
+const task = [...myTasks, ...recurringTasks].find((t) => t.id === taskId);
 
     // Checklist gate
-    if (newStatus === "completed" && task?.has_checkpoints) {
-      setFetchingCPs(true);
-      const { data } = await supabase
-        .from("checkpoints")
-        .select("id, checkpoint")
-        .eq("task_type", task.title);
-      setCheckpoints(data || []);
-      setCheckedItems({});
-      setChecklistModal(task);
-      setFetchingCPs(false);
-      return;
-    }
+    if (newStatus === "completed" && isRecurringTask(task)) {
+  const nextDue = getNextDueDate(task.due_date, task.recurrence);
+  const { task: newTask, error: insertErr } = await spawnNextRecurringInstance(task, nextDue);
+
+  if (newTask) {
+    setRecurringTasks((p) => [...p, newTask]);
+    showToast(
+      "success",
+      `Task completed! Next instance created for ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
+    );
+  } else {
+    showToast("success", "Task marked complete.");
+    if (insertErr) console.error("Failed to spawn next instance:", insertErr.message);
+  }
+}
 
     setUpdatingId(taskId);
     const { error } = await supabase
@@ -1512,34 +1643,36 @@ const fetchTasks = useCallback(async (u) => {
         list.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
       setMyTasks((p) => patch(p));
       setRecurringTasks((p) => patch(p));
-      setDelegatedTasks((p) => patch(p));
 
       // ── If a recurring task is completed, spawn the next instance ──
       if (newStatus === "completed" && isRecurringTask(task)) {
         const nextDue = getNextDueDate(task.due_date, task.recurrence);
         const { data: newTask, error: insertErr } = await supabase
-          .from("tasks")
-          .insert([
-            {
-              title: task.title,
-              description: task.description || null,
-              assigned_to: task.assigned_to,
-              assigned_by: task.assigned_by || null,
-              site_name: task.site_name || null,
-              priority: task.priority || "medium",
-              status: "pending",
-              is_recurring: true,
-              recurrence: task.recurrence,
-              due_date: nextDue,
-              audio_url: task.audio_url || null, // ← copies audio
-              document_url: task.document_url || null, // ← copies doc
-              has_checkpoints: task.has_checkpoints || false,
-              reschedule_allowed: task.reschedule_allowed || false,
-            },
-          ])
-          .select()
-          .single();
-
+  .from("tasks")
+  .insert([
+    {
+      title: task.title,
+      description: task.description || null,
+      assigned_to: task.assigned_to,
+      assigned_by: task.assigned_by || null,
+      site_name: task.site_name || null,
+      priority: task.priority || "medium",
+      status: "pending",
+      is_recurring: true,
+      recurrence: task.recurrence,
+      due_date: nextDue,
+      audio_url: task.audio_url || null,
+      document_url: task.document_url || null,
+      has_checkpoints: task.has_checkpoints || false,
+      reschedule_allowed: task.reschedule_allowed || false,
+      // NEW — link this instance back to its recurring chain
+      parent_task_id: task.parent_task_id || task.id,
+      recurrence_anchor: task.recurrence_anchor || task.due_date || nextDue,
+      last_generated_date: nextDue,
+    },
+  ])
+  .select()
+  .single();
         if (!insertErr && newTask) {
           setRecurringTasks((p) => [...p, newTask]);
           showToast(
@@ -1722,13 +1855,6 @@ const allTasks = useMemo(() => {
     );
   }, [myTasks, recurringTasks]);
 
-const delegatedNormalOnly = useMemo(
-  () =>
-    delegatedTasks
-      .filter((t) => !isRecurringTask(t))
-      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)),
-  [delegatedTasks],
-);
   if (!user)
     return (
       <h2 style={{ textAlign: "center", marginTop: 80, color: "#94a3b8" }}>
@@ -1736,13 +1862,12 @@ const delegatedNormalOnly = useMemo(
       </h2>
     );
 
-  const activeItem = [
-    ...TASK_NAV,
-    ...LEAVE_NAV,
-    ...REPORTS_NAV,
-    REPORT_SUBMISSIONS_ITEM,
-    MY_REPORTS_ITEM,
-  ].find((n) => n.key === activeTab);
+const activeItem = [
+  ...TASK_NAV,
+  ...LEAVE_NAV,
+  ...REPORTS_NAV,
+  REPORT_SUBMISSIONS_ITEM,
+].find((n) => n.key === activeTab);
   const proxyPendingCount = proxyLeaves.filter(
     (l) =>
       (l.level_approver_user_name === user.user_name &&
@@ -1763,26 +1888,30 @@ const delegatedNormalOnly = useMemo(
 
   const renderContent = () => {
     switch (activeTab) {
-      case "my-tasks":
-        return (
-          <TaskList
-            tasks={myTasks}
-            loading={loadingTasks}
-            onStatusChange={handleStatusChange}
-            updatingId={updatingId}
-            emptyText="No tasks assigned to you yet."
-            filters={myTaskFilters}
-            onFilterChange={makeFilterChange(setMyTaskFilters)}
-            onFilterClear={makeFilterClear(setMyTaskFilters)}
-            showAssignedBy={false}
-            allTasks={myTasks}
-            onReschedule={(task) => {
-              setRescheduleTask(task);
-              setRescheduleForm({ requested_date: "", reason: "" });
-            }}
-            onDetailClick={(task) => setDetailTask(task)}
-          />
-        );
+      case "my-tasks": {
+  const isAdmin = user?.role?.toLowerCase().trim() === "admin";
+  return (
+    <TaskList
+      tasks={myTasks}
+      loading={loadingTasks}
+      onStatusChange={handleStatusChange}
+      updatingId={updatingId}
+      emptyText="No tasks assigned to you yet."
+      filters={myTaskFilters}
+      onFilterChange={makeFilterChange(setMyTaskFilters)}
+      onFilterClear={makeFilterClear(setMyTaskFilters)}
+      showAssignedBy={isAdmin}
+      showRecurrence={!isAdmin ? false : true}
+      allTasks={myTasks}
+      userMap={userMap}
+      onReschedule={(task) => {
+        setRescheduleTask(task);
+        setRescheduleForm({ requested_date: "", reason: "" });
+      }}
+      onDetailClick={(task) => setDetailTask(task)}
+    />
+  );
+}
 
       case "recurring-tasks":
         return (
@@ -1797,6 +1926,8 @@ const delegatedNormalOnly = useMemo(
             onFilterClear={makeFilterClear(setRecurringFilters)}
             showAssignedBy={false}
             allTasks={recurringTasks}
+             onSendVerification={handleSendVerification}
+  onRaiseTicket={handleRaiseTicket}
             onReschedule={(task) => {
               setRescheduleTask(task);
               setRescheduleForm({ requested_date: "", reason: "" });
@@ -1804,27 +1935,7 @@ const delegatedNormalOnly = useMemo(
             onDetailClick={(task) => setDetailTask(task)}
           />
         );
-
-      case "delegated-tasks":
-        return (
-          <TaskList
-            tasks={delegatedNormalOnly}
-            loading={loadingTasks}
-            onStatusChange={handleStatusChange}
-            updatingId={updatingId}
-            emptyText="You haven't delegated any tasks yet."
-            filters={delegatedFilters}
-            onFilterChange={makeFilterChange(setDelegatedFilters)}
-            onFilterClear={makeFilterClear(setDelegatedFilters)}
-            showAssignedBy={true}
-            allTasks={delegatedNormalOnly}
-            onReschedule={(task) => {
-              setRescheduleTask(task);
-              setRescheduleForm({ requested_date: "", reason: "" });
-            }}
-            onDetailClick={(task) => setDetailTask(task)}
-          />
-        );
+        
 
       case "apply-leave":
         return (
@@ -2096,7 +2207,75 @@ const delegatedNormalOnly = useMemo(
 
       case "site-report":
         return <SiteReport user={user} />;
-
+            case "svr-reports":
+  if (loadingSvrReports)
+    return (
+      <div className="op-empty-state">
+        <div className="op-spinner" />
+        <p className="op-empty-text">Loading your reports…</p>
+      </div>
+    );
+  if (!mySvrReports.length)
+    return (
+      <div className="op-empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3 }}>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+        <p className="op-empty-text">You haven't submitted any Site Visit Reports yet.</p>
+      </div>
+    );
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>
+      {mySvrReports.map((r) => (
+        <div
+          key={r.id}
+          style={{
+            background: "#fff", border: "1px solid #e8edf3", borderLeft: "4px solid #16a34a",
+            borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20, background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0" }}>
+              Site Visit
+            </span>
+            {r.site_name && <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>{r.site_name}</span>}
+          </div>
+          <div style={{ fontSize: 12.5, color: "#64748b" }}>
+            {r.visit_date
+              ? new Date(r.visit_date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+              : "—"}
+          </div>
+          {r.progress_of_work && (
+            <p style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, margin: 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+              {r.progress_of_work}
+            </p>
+          )}
+          {r.pdf_url ? (
+            <div style={{ display: "flex", gap: 8 }}>
+              <a href={r.pdf_url} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 7, padding: "6px 12px", textDecoration: "none" }}>
+                View
+              </a>
+              <a   href={buildDownloadUrl(r.pdf_url, `${r.site || "site"}-${r.source}-${r.date || r.id}.pdf`)}
+  download
+  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#2563eb", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
+>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Download
+              </a>
+            </div>
+          ) : (
+            <span style={{ fontSize: 11, color: "#94a3b8", fontStyle: "italic" }}>No PDF attached</span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
       case "checklists":
         return <Checklists user={user} />;
 
@@ -2486,8 +2665,7 @@ const delegatedNormalOnly = useMemo(
             })}
           </div>
         );
-      case "my-reports":
-        return <MyReports user={user} />;
+        
       // ADD before the default case:
       case "report-submissions": {
         if (user?.role?.toLowerCase().trim() !== "project head") return null;
@@ -3489,6 +3667,31 @@ const delegatedNormalOnly = useMemo(
               transition: background .15s;
             }
             .op-reschedule-btn:hover { background: #c0bcce; }
+            .tt-action-btn {
+  width: 30px; height: 30px; border-radius: 7px;
+  border: 1px solid #e8edf3; background: #f8fafc; color: #64748b;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background .15s, color .15s;
+}
+.tt-action-btn:hover { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
+
+.tt-action-menu {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 50;
+  background: #fff; border: 1px solid #e8edf3; border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 6px; width: 190px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.tt-action-item {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 600;
+  color: #334155; background: transparent; border: none; border-radius: 7px;
+  padding: 8px 10px; text-align: left; cursor: pointer; transition: background .12s;
+}
+.tt-action-item:hover:not(:disabled) { background: #f1f5f9; }
+.tt-action-item:disabled { color: #cbd5e1; cursor: not-allowed; }
+.tt-action-item.tt-action-danger:hover:not(:disabled) { background: #fef2f2; color: #dc2626; }
+.tt-action-item.tt-action-primary:hover:not(:disabled) { background: #fef2f2; color: #2666dc; }
+.tt-action-item.tt-action-success:hover:not(:disabled) { background: #fef2f2; color: #0c9907; }
             .tt-wrap { overflow-x: auto; border: 1px solid #e8edf3; border-radius: 12px; }
 .tt-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 720px; }
 .tt-table thead th {
@@ -3577,7 +3780,11 @@ const delegatedNormalOnly = useMemo(
             </div>
             <nav className="op-nav">
               <span className="op-nav-section">Tasks</span>
-              {TASK_NAV.map((item) => (
+              {TASK_NAV.filter(
+                (item) =>
+                  item.key !== "delegated-tasks" ||
+                  user?.role?.toLowerCase().trim() === "admin",
+              ).map((item) => (
                 <button
                   key={item.key}
                   className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
@@ -3629,13 +3836,6 @@ const delegatedNormalOnly = useMemo(
                   {item.label}
                 </button>
               ))}
-              <button
-                className={`op-nav-item${activeTab === "my-reports" ? " active" : ""}`}
-                onClick={() => handleNavClick("my-reports")}
-              >
-                <span className="op-nav-icon">{MY_REPORTS_ITEM.icon}</span>
-                {MY_REPORTS_ITEM.label}
-              </button>
 
               {user?.role?.toLowerCase().trim() === "project head" && (
                 <button
@@ -3660,44 +3860,25 @@ const delegatedNormalOnly = useMemo(
                 </div>
 
                 {/* Show filter controls only on task tabs */}
-                {["my-tasks", "recurring-tasks", "delegated-tasks"].includes(
-                  activeTab,
-                ) && (
-                  <>
-                    {/* Desktop: inline filter bar */}
-                    <div className="tf-bar-inline">
-                      <TaskFilterBar
-                        filters={
-                          activeTab === "my-tasks"
-                            ? myTaskFilters
-                            : activeTab === "recurring-tasks"
-                              ? recurringFilters
-                              : delegatedFilters
-                        }
-                        onChange={
-                          activeTab === "my-tasks"
-                            ? makeFilterChange(setMyTaskFilters)
-                            : activeTab === "recurring-tasks"
-                              ? makeFilterChange(setRecurringFilters)
-                              : makeFilterChange(setDelegatedFilters)
-                        }
-                        onClear={
-                          activeTab === "my-tasks"
-                            ? makeFilterClear(setMyTaskFilters)
-                            : activeTab === "recurring-tasks"
-                              ? makeFilterClear(setRecurringFilters)
-                              : makeFilterClear(setDelegatedFilters)
-                        }
-                        taskList={
-                          activeTab === "my-tasks"
-                            ? myTasks
-                            : activeTab === "recurring-tasks"
-                              ? recurringTasks
-                              : delegatedNormalOnly
-                        }
-                        showAssignedBy={activeTab === "delegated-tasks"}
-                      />
-                    </div>
+                {["my-tasks", "recurring-tasks"].includes(activeTab) && (
+                <>
+                  <div className="tf-bar-inline">
+                    <TaskFilterBar
+                      filters={activeTab === "my-tasks" ? myTaskFilters : recurringFilters}
+                      onChange={
+                        activeTab === "my-tasks"
+                          ? makeFilterChange(setMyTaskFilters)
+                          : makeFilterChange(setRecurringFilters)
+                      }
+                      onClear={
+                        activeTab === "my-tasks"
+                          ? makeFilterClear(setMyTaskFilters)
+                          : makeFilterClear(setRecurringFilters)
+                      }
+                      taskList={activeTab === "my-tasks" ? myTasks : recurringTasks}
+                      showAssignedBy={activeTab === "my-tasks" && user?.role?.toLowerCase().trim() === "admin"}
+                    />
+                  </div>
 
                     {/* Mobile: filter icon button + popup */}
                     <div
@@ -3728,35 +3909,22 @@ const delegatedNormalOnly = useMemo(
                       {mobileFilterOpen && (
                         <div className="tf-popup">
                           <TaskFilterBar
-                            filters={
-                              activeTab === "my-tasks"
-                                ? myTaskFilters
-                                : activeTab === "recurring-tasks"
-                                  ? recurringFilters
-                                  : delegatedFilters
-                            }
+                            filters={activeTab === "my-tasks" ? myTaskFilters : recurringFilters}
                             onChange={
                               activeTab === "my-tasks"
                                 ? makeFilterChange(setMyTaskFilters)
-                                : activeTab === "recurring-tasks"
-                                  ? makeFilterChange(setRecurringFilters)
-                                  : makeFilterChange(setDelegatedFilters)
+                                : makeFilterChange(setRecurringFilters)
                             }
                             onClear={
                               activeTab === "my-tasks"
                                 ? makeFilterClear(setMyTaskFilters)
-                                : activeTab === "recurring-tasks"
-                                  ? makeFilterClear(setRecurringFilters)
-                                  : makeFilterClear(setDelegatedFilters)
+                                : makeFilterClear(setRecurringFilters)
                             }
-                            taskList={
-                              activeTab === "my-tasks"
-                                ? myTasks
-                                : activeTab === "recurring-tasks"
-                                  ? recurringTasks
-                                  : delegatedNormalOnly
+                            taskList={activeTab === "my-tasks" ? myTasks : recurringTasks}
+                            showAssignedBy={
+                              activeTab === "my-tasks" &&
+                              user?.role?.toLowerCase().trim() === "admin"
                             }
-                            showAssignedBy={activeTab === "delegated-tasks"}
                           />
                         </div>
                       )}
@@ -3786,7 +3954,8 @@ const delegatedNormalOnly = useMemo(
           onClick={(e) => {
             if (e.target === e.currentTarget) setRescheduleTask(null);
           }}
-        >
+        > 
+        
           <div
             style={{
               background: "#fff",

@@ -302,7 +302,7 @@ function AudioRecorder({ onRecorded }) {
 // ── TaskForm (drop-in replacement) ────────────────────────────────────────────
 // Accepts same props as before: form, handleFormChange, setForm, handleSubmit, submitting, onSuccess
 // NEW: reads/writes form.enable_checkpoints (bool)
-export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submitting, onSuccess }) {
+export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submitting, onSuccess, employees = [], sites = [] }) {
   const [cpCount, setCpCount] = useState(0);
 
   // extend EMPTY_FORM to include enable_checkpoints — call this in AdminPortal
@@ -358,8 +358,22 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
             <input className="ap-input" name="title" value={form.title} onChange={handleFormChange} placeholder="e.g. Inspect electrical panel"/>
           </div>
           <div className="ap-field">
-            <label className="ap-label">Assign To (username) <span className="ap-req">*</span></label>
-            <input className="ap-input" name="assigned_to" value={form.assigned_to} onChange={handleFormChange} placeholder="e.g. john_doe"/>
+            <label className="ap-label">Assign To <span className="ap-req">*</span></label>
+            <select
+              className="ap-input ap-select"
+              name="assigned_to"
+              value={form.assigned_to}
+              onChange={handleFormChange}
+            >
+              <option value="">Select employee…</option>
+              {employees
+                .filter(e => e.status !== "Inactive")
+                .map(e => (
+                  <option key={e.username} value={e.username}>
+                    {e.name}
+                  </option>
+                ))}
+            </select>
           </div>
         </div>
 
@@ -375,7 +389,19 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
         <div className="ap-form-row ap-col-3">
           <div className="ap-field">
             <label className="ap-label">Site Name</label>
-            <input className="ap-input" name="site_name" value={form.site_name} onChange={handleFormChange} placeholder="e.g. Site A"/>
+            <select
+              className="ap-input ap-select"
+              name="site_name"
+              value={form.site_name}
+              onChange={handleFormChange}
+            >
+              <option value="">Select site…</option>
+              {sites.map((s) => (
+                <option key={s.id} value={s.site_name}>
+                  {s.site_name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="ap-field">
             <label className="ap-label">Priority</label>
@@ -398,7 +424,7 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
         {/* ── Due Date + Recurring toggle ── */}
         <div className="ap-form-row ap-col-2">
           <div className="ap-field">
-            <label className="ap-label">Start / Due Date</label>
+            <label className="ap-label">Due Date</label>
             <input className="ap-input" type="date" name="due_date" value={form.due_date} onChange={handleFormChange}/>
           </div>
           <div className="ap-field ap-field-center">
@@ -430,6 +456,75 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
                 </div>
               </div>
             </div>
+            {form.recurrence === "weekly" && (
+  <div className="ap-form-row ap-col-1">
+    <div className="ap-field">
+      <label className="ap-label">Repeat on which day?</label>
+      <div className="ap-weekday-grid">
+        {WEEKDAYS.map((day, i) => (
+          <button
+            key={day}
+            type="button"
+            className={`ap-wday${String(form.anchor_weekday) === String(i) ? " Active" : ""}`}
+            onClick={() => setForm((p) => ({ ...p, anchor_weekday: String(i) }))}
+          >
+            {day.slice(0, 3)}
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
+
+{form.recurrence === "monthly" && (
+  <div className="ap-form-row ap-col-2">
+    <div className="ap-field">
+      <label className="ap-label">Repeat on day of month</label>
+      <select
+        className="ap-input ap-select"
+        name="anchor_day"
+        value={form.anchor_day}
+        onChange={handleFormChange}
+      >
+        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+          <option key={d} value={d}>{d}{ordinal(d)}</option>
+        ))}
+      </select>
+    </div>
+  </div>
+)}
+
+{form.recurrence === "yearly" && (
+  <div className="ap-form-row ap-col-2">
+    <div className="ap-field">
+      <label className="ap-label">Month</label>
+      <select
+        className="ap-input ap-select"
+        name="anchor_month"
+        value={form.anchor_month}
+        onChange={handleFormChange}
+      >
+        {MONTHS.map((m, i) => (
+          <option key={m} value={i + 1}>{m}</option>
+        ))}
+      </select>
+    </div>
+    <div className="ap-field">
+      <label className="ap-label">Day</label>
+      <select
+        className="ap-input ap-select"
+        name="anchor_month_day"
+        value={form.anchor_month_day}
+        onChange={handleFormChange}
+      >
+        {Array.from({ length: monthDays }, (_, i) => i + 1).map((d) => (
+          <option key={d} value={d}>{d}{ordinal(d)}</option>
+        ))}
+      </select>
+    </div>
+  </div>
+)}
+
             {anchorPreview && (
               <div className="ap-anchor-preview">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -449,6 +544,22 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
 
         <div className="ap-form-row ap-col-2">
           <div className="ap-field ap-field-center">
+            <label className="ap-label">Reschedule Request</label>
+            <label className="ap-toggle">
+              <input
+                type="checkbox"
+                name="reschedule_allowed"
+                checked={!!form.reschedule_allowed}
+                onChange={handleFormChange}
+              />
+              <span className="ap-toggle-track"><span className="ap-toggle-thumb"/></span>
+              <span className="ap-toggle-label">
+                {form.reschedule_allowed ? "Yes — employee can request reschedule" : "No"}
+              </span>
+            </label>
+          </div>
+
+          <div className="ap-field ap-field-center">
             <label className="ap-label">Enable Checkpoints</label>
             <label className="ap-toggle">
               <input
@@ -461,17 +572,17 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
               <span className="ap-toggle-label">{form.enable_checkpoints ? "Yes" : "No"}</span>
             </label>
           </div>
-
-          {/* Info pill when enabled */}
-          {form.enable_checkpoints && (
-            <div className="ap-field" style={{justifyContent:"flex-end"}}>
-              <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#6d28d9",background:"#f5f3ff",border:"1px solid #e0e7ff",borderRadius:8,padding:"7px 12px"}}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                {cpCount > 0 ? `${cpCount} checkpoint${cpCount>1?"s":""} defined` : "No checkpoints yet"}
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* Info pill when checkpoints enabled */}
+        {form.enable_checkpoints && (
+          <div className="ap-form-row ap-col-1">
+            <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#6d28d9",background:"#f5f3ff",border:"1px solid #e0e7ff",borderRadius:8,padding:"7px 12px",width:"fit-content"}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              {cpCount > 0 ? `${cpCount} checkpoint${cpCount>1?"s":""} defined` : "No checkpoints yet"}
+            </div>
+          </div>
+        )}
 
         {/* Checkpoint manager panel */}
         {form.enable_checkpoints && (

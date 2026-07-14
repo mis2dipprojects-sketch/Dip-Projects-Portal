@@ -4967,23 +4967,9 @@ export default function WprGenerator({ user, supabase }) {
                 <div className="wpr-success-links">
                   <div
                     className="wpr-link-row"
-                    style={{
-                      background:
-                        "linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",
-                      border: "1.5px solid #c96a10",
-                      color: "#fff",
-                    }}
-                  >
+                    style={{background:"linear-gradient(135deg,#3d1200,#7a2e00,#c96a10)",border: "1.5px solid #c96a10",color: "#fff",}}>
                     <span className="wpr-link-icon">
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <rect x="2" y="2" width="20" height="20" rx="2" />
                         <path d="M7 12h2l2-4 2 8 2-4h2" />
                       </svg>
@@ -4993,33 +4979,16 @@ export default function WprGenerator({ user, supabase }) {
                         PowerPoint Downloaded!
                       </div>
                       <div
-                        style={{
-                          fontSize: 11,
-                          color: "rgba(255,255,255,0.7)",
-                          marginTop: 2,
-                        }}
-                      >
+                        style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2,}}>
                         WPR_{zp(reportNum)}_{site}.pptx — check your Downloads
                         folder
                       </div>
                     </div>
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#16a34a"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round">
                       <path d="M20 6L9 17l-5-5" />
                     </svg>
                   </div>
-                 <a href={resolveViewUrl(successUrls.pptUrl)}
-                target="_blank"
-                rel="noreferrer"
-                className="wpr-link-row"
-              >
+                 <a href={resolveViewUrl(successUrls.pptUrl)} target="_blank" rel="noreferrer" className="wpr-link-row">
                 <span className="wpr-link-icon">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -5059,11 +5028,7 @@ export default function WprGenerator({ user, supabase }) {
                 <span className="wpr-link-arrow">↓</span>
               </button>
                 </div>
-                <button
-                  className="btn btn-amber"
-                  style={{ width: "100%", height: 44, marginTop: 4 }}
-                  onClick={closeOverlay}
-                >
+                <button className="btn btn-amber" style={{ width: "100%", height: 44, marginTop: 4 }} onClick={closeOverlay} >
                   ✓ Done
                 </button>
               </div>

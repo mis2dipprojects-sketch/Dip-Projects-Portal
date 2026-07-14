@@ -93,6 +93,7 @@ const scrollToTop = () => {
 };
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
+
 const IcoCheck = () => (
   <svg
     width="13"
@@ -2618,6 +2619,9 @@ export default function ClientPortal() {
                     <div>
                       <div className="cp-page-title">
                         {SECTIONS[section].title}
+                      </div>
+                      <div className="cp-page-sub">
+                        Active Site: <strong>{activeSite}</strong>
                       </div>
                     </div>
                   </div>

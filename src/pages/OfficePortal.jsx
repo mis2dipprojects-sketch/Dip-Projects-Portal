@@ -3,7 +3,11 @@ import Navbar from "../components/Navbar";
 import { supabase } from "../supabase";
 import SiteReport from "./Sitereport";
 import Checklists from "./Checklists";
-import { resolveApprovalChain, deriveLeaveStatus, mergeRejectionReason } from "./SitePortal";
+import {
+  resolveApprovalChain,
+  deriveLeaveStatus,
+  mergeRejectionReason,
+} from "./SitePortal";
 // ── Nav Items ──────────────────────────────────────────────────────────────
 const TASK_NAV = [
   {
@@ -48,7 +52,32 @@ const TASK_NAV = [
     key: "my-reschedules",
     label: "My Reschedule Requests",
     icon: (
-      <svg
+         <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <path d="M12 13a3 3 0 1 1-2.6 4.5" />
+      <polyline points="9.5 17.5 9.5 14.5 12.5 14.5" />
+    </svg>
+    ),
+  },
+];
+
+const VERIFY_REQUESTS_ITEM = {
+  key: "verify-requests",
+  label: "Reschedule Requests",
+  icon: (
+   <svg
         width="18"
         height="18"
         viewBox="0 0 24 24"
@@ -63,10 +92,8 @@ const TASK_NAV = [
         <line x1="12" y1="8" x2="12" y2="12" />
         <line x1="12" y1="16" x2="12.01" y2="16" />
       </svg>
-    ),
-  },
-];
-
+  ),
+};
 const LEAVE_NAV = [
   {
     key: "apply-leave",
@@ -112,27 +139,6 @@ const LEAVE_NAV = [
       </svg>
     ),
   },
-  {
-    key: "proxy-request",
-    label: "Leave Approvals",
-    icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <line x1="19" y1="8" x2="19" y2="14" />
-        <line x1="22" y1="11" x2="16" y2="11" />
-      </svg>
-    ),
-  },
 ];
 const REPORTS_NAV = [
   {
@@ -157,11 +163,20 @@ const REPORTS_NAV = [
       </svg>
     ),
   },
-   {
-    key: "svr-reports",
-    label: "SVR Reports",
+  {
+    key: "my-reports",
+    label: "My Reports",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9l5 5v3" />
         <polyline points="14 3 14 8 19 8" />
         <path d="M12 22l2 2 4-4" />
@@ -502,13 +517,22 @@ function applyFilters(tasks, filters) {
     return true;
   });
 }
-
+function getAdminRejectionReason(leave) {
+  if (leave.admin_note) return leave.admin_note;
+  if (Array.isArray(leave.rejection_reason)) {
+    const found = leave.rejection_reason.find(
+      (r) => r && typeof r === "object" && r.reason,
+    );
+    if (found) return found.reason;
+  }
+  if (typeof leave.rejection_reason === "string" && leave.rejection_reason.trim())
+    return leave.rejection_reason;
+  return null;
+}
 // ── Leave status helpers ───────────────────────────────────────────────────
 function computeLeaveStatus(leave) {
-  if (leave.level_approved === false || leave.head_approved === false)
-    return "rejected";
-  if (leave.level_approved === true && leave.head_approved === true)
-    return "approved";
+  if (leave.admin_approved === false) return "rejected";
+  if (leave.admin_approved === true) return "approved";
   return "pending";
 }
 
@@ -587,12 +611,18 @@ function LeaveBadge({ leave }) {
 
 function ApprovalPips({ leave }) {
   return (
-    <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:4 }}>
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
       {leave.level_approver_user_name && (
-        <ApprovalPip label={`${leave.level_approver_role || "Level"} (${leave.level_approver_name || leave.level_approver_user_name})`} state={leave.level_approved} />
+        <ApprovalPip
+          label={`${leave.level_approver_role || "Level"} (${leave.level_approver_name || leave.level_approver_user_name})`}
+          state={leave.level_approved}
+        />
       )}
       {leave.head_approver_user_name && (
-        <ApprovalPip label={`${leave.head_approver_role || "Head"} (${leave.head_approver_name || leave.head_approver_user_name})`} state={leave.head_approved} />
+        <ApprovalPip
+          label={`${leave.head_approver_role || "Head"} (${leave.head_approver_name || leave.head_approver_user_name})`}
+          state={leave.head_approved}
+        />
       )}
     </div>
   );
@@ -810,8 +840,10 @@ function TaskCard({ task, onStatusChange, updating, onReschedule, onClick }) {
       </div>
       <div className="op-task-footer" onClick={(e) => e.stopPropagation()}>
         <span className="op-badge" style={{ background: s.bg, color: s.color }}>
-  {task.status?.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-</span>
+          {task.status
+            ?.replace("_", " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase())}
+        </span>
         {updating === task.id && <span className="op-saving">saving…</span>}
         {task.reschedule_allowed && task.status !== "completed" && (
           <button
@@ -842,7 +874,12 @@ function TaskCard({ task, onStatusChange, updating, onReschedule, onClick }) {
     </div>
   );
 }
-function TaskActionMenu({ task, onReschedule, onSendVerification, onRaiseTicket }) {
+function TaskActionMenu({
+  task,
+  onReschedule,
+  onSendVerification,
+  onRaiseTicket,
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const ref = useRef(null);
@@ -862,16 +899,29 @@ function TaskActionMenu({ task, onReschedule, onSendVerification, onRaiseTicket 
     const spaceBelow = window.innerHeight - rect.bottom;
     const menuHeight = 140; // approx height of the 3-item menu
     setMenuPosition({
-      top: spaceBelow < menuHeight ? rect.top - menuHeight - 4 : rect.bottom + 4,
+      top:
+        spaceBelow < menuHeight ? rect.top - menuHeight - 4 : rect.bottom + 4,
       left: rect.right - 190, // align right edge to button, menu is 190px wide
     });
     setMenuOpen(true);
   };
 
   return (
-    <div ref={ref} style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
+    <div
+      ref={ref}
+      style={{ position: "relative" }}
+      onClick={(e) => e.stopPropagation()}
+    >
       <button className="tt-action-btn" onClick={handleMenuOpen}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        >
           <circle cx="12" cy="5" r="1.6" />
           <circle cx="12" cy="12" r="1.6" />
           <circle cx="12" cy="19" r="1.6" />
@@ -890,9 +940,21 @@ function TaskActionMenu({ task, onReschedule, onSendVerification, onRaiseTicket 
         >
           <button
             className="tt-action-item tt-action-success"
-            onClick={() => { setMenuOpen(false); onSendVerification(task); }}
+            onClick={() => {
+              setMenuOpen(false);
+              onSendVerification(task);
+            }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M9 11l3 3L22 4" />
               <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
             </svg>
@@ -902,9 +964,23 @@ function TaskActionMenu({ task, onReschedule, onSendVerification, onRaiseTicket 
           <button
             className="tt-action-item tt-action-primary"
             disabled={!canReschedule}
-            onClick={() => { if (canReschedule) { setMenuOpen(false); onReschedule(task); } }}
+            onClick={() => {
+              if (canReschedule) {
+                setMenuOpen(false);
+                onReschedule(task);
+              }
+            }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
               <path d="M3 3v5h5" />
             </svg>
@@ -913,9 +989,21 @@ function TaskActionMenu({ task, onReschedule, onSendVerification, onRaiseTicket 
 
           <button
             className="tt-action-item tt-action-danger"
-            onClick={() => { setMenuOpen(false); onRaiseTicket(task); }}
+            onClick={() => {
+              setMenuOpen(false);
+              onRaiseTicket(task);
+            }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
               <line x1="12" y1="10" x2="12" y2="14" />
               <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -929,8 +1017,16 @@ function TaskActionMenu({ task, onReschedule, onSendVerification, onRaiseTicket 
 }
 // ── Task Table ─────────────────────────────────────────────────────────────
 function TaskTable({
-  tasks, onStatusChange, updating, onReschedule, onClick,
-  showAssignedBy, showRecurrence = true, userMap = {},onSendVerification, onRaiseTicket,
+  tasks,
+  onStatusChange,
+  updating,
+  onReschedule,
+  onClick,
+  showAssignedBy,
+  showRecurrence = true,
+  userMap = {},
+  onSendVerification,
+  onRaiseTicket,
 }) {
   const nameFor = (username) => userMap[username] || username || "—";
 
@@ -956,7 +1052,11 @@ function TaskTable({
             const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
             const s = STATUS_STYLES[task.status] || STATUS_STYLES.pending;
             return (
-              <tr key={task.id} className="tt-row" onClick={() => onClick?.(task)}>
+              <tr
+                key={task.id}
+                className="tt-row"
+                onClick={() => onClick?.(task)}
+              >
                 <td className="tt-title-cell">
                   <div className="tt-title">{task.title}</div>
                   {task.description && (
@@ -976,56 +1076,95 @@ function TaskTable({
                     : "—"}
                 </td>
                 <td>
-                  <span className="op-badge" style={{ background: p.bg, color: p.color }}>
-                    <span className="op-badge-dot" style={{ background: p.dot }} />
+                  <span
+                    className="op-badge"
+                    style={{ background: p.bg, color: p.color }}
+                  >
+                    <span
+                      className="op-badge-dot"
+                      style={{ background: p.dot }}
+                    />
                     {task.priority}
                   </span>
                 </td>
-<td>
-  <span className="op-badge" style={{ background: s.bg, color: s.color }}>
-    {task.status?.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-  </span>
-</td>
-               <td>
-                {task.recurrence ? (
-                  <span className="op-meta-pill op-pill-blue">
-                    {task.recurrence.charAt(0).toUpperCase() + task.recurrence.slice(1).toLowerCase()}
-                  </span>
-                ) : isRecurringTask(task) ? (
+                <td>
                   <span
-                    className="op-meta-pill"
-                    style={{ color: "#d97706", background: "#fffbeb", borderColor: "#fde68a" }}
-                    title="This recurring task has no frequency set"
+                    className="op-badge"
+                    style={{ background: s.bg, color: s.color }}
                   >
-                    ⚠ No frequency set
+                    {task.status
+                      ?.replace("_", " ")
+                      .replace(/\b\w/g, (c) => c.toUpperCase())}
                   </span>
-                  
-                ) : (
-                  "—"
-                )}
-              </td>
+                </td>
+                <td>
+                  {task.recurrence ? (
+                    <span className="op-meta-pill op-pill-blue">
+                      {task.recurrence.charAt(0).toUpperCase() +
+                        task.recurrence.slice(1).toLowerCase()}
+                    </span>
+                  ) : isRecurringTask(task) ? (
+                    <span
+                      className="op-meta-pill"
+                      style={{
+                        color: "#d97706",
+                        background: "#fffbeb",
+                        borderColor: "#fde68a",
+                      }}
+                      title="This recurring task has no frequency set"
+                    >
+                      ⚠ No frequency set
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td>
                   <div style={{ display: "flex", gap: 6 }}>
                     {task.audio_url && (
                       <span title="Has audio" style={{ color: "#7c3aed" }}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /></svg>
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                        </svg>
                       </span>
                     )}
                     {task.document_url && (
                       <span title="Has document" style={{ color: "#2563eb" }}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                        </svg>
                       </span>
                     )}
                   </div>
                 </td>
-               <td onClick={(e) => e.stopPropagation()}>
-                <TaskActionMenu
-                  task={task}
-                  onReschedule={onReschedule}
-                  onSendVerification={onSendVerification}
-                  onRaiseTicket={onRaiseTicket}
-                />
-              </td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  <TaskActionMenu
+                    task={task}
+                    onReschedule={onReschedule}
+                    onSendVerification={onSendVerification}
+                    onRaiseTicket={onRaiseTicket}
+                  />
+                </td>
               </tr>
             );
           })}
@@ -1035,9 +1174,22 @@ function TaskTable({
   );
 }
 function TaskList({
-  tasks, loading, onStatusChange, updatingId, emptyText, filters,
-  onFilterChange, onFilterClear, showAssignedBy, allTasks,
-  onReschedule, onDetailClick, showRecurrence = true, userMap = {},onSendVerification, onRaiseTicket,
+  tasks,
+  loading,
+  onStatusChange,
+  updatingId,
+  emptyText,
+  filters,
+  onFilterChange,
+  onFilterClear,
+  showAssignedBy,
+  allTasks,
+  onReschedule,
+  onDetailClick,
+  showRecurrence = true,
+  userMap = {},
+  onSendVerification,
+  onRaiseTicket,
 }) {
   const filtered = applyFilters(tasks, filters);
   const hasActiveFilters = Object.values(filters).some((v) => v !== "");
@@ -1079,8 +1231,8 @@ function TaskList({
               : emptyText}
           </p>
         </div>
-        ) : (
-                 <TaskTable
+      ) : (
+        <TaskTable
           tasks={filtered}
           onStatusChange={onStatusChange}
           updating={updatingId}
@@ -1089,75 +1241,445 @@ function TaskList({
           showAssignedBy={showAssignedBy}
           showRecurrence={showRecurrence}
           userMap={userMap}
-              onSendVerification={onSendVerification} // ← add
-    onRaiseTicket={onRaiseTicket}
+          onSendVerification={onSendVerification} // ← add
+          onRaiseTicket={onRaiseTicket}
         />
-              )}
+      )}
     </>
   );
 }
+function MyLeaveTable({ leaves }) {
+  const fmt = (d) =>
+    d
+      ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
 
-// ── Leave Card ─────────────────────────────────────────────────────────────
-function LeaveCard({ leave, showActions, onApprove, onOpenReject, currentUser }) {
-  const status = computeLeaveStatus(leave);
-  const fmt = (d) => d ? new Date(d+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}) : "—";
-  const days = leave.from_date && leave.to_date
-    ? Math.ceil((new Date(leave.to_date)-new Date(leave.from_date))/(1000*60*60*24))+1
-    : null;
-  const reasons = Array.isArray(leave.rejection_reason)
-  ? leave.rejection_reason.filter(r => r && typeof r === "object")
-  : [];
   return (
-    <div className="lv-card" style={{ borderLeftColor: status==="approved" ? "#16a34a" : status==="rejected" ? "#dc2626" : "#f59e0b" }}>
+    <div className="tt-wrap">
+      <table className="tt-table">
+        <thead>
+          <tr>
+            <th>Leave Type</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Days</th>
+            <th>Reason</th>
+            <th>Approval</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {leaves.map((l) => {
+            const days =
+              l.from_date && l.to_date
+                ? Math.ceil(
+                    (new Date(l.to_date) - new Date(l.from_date)) /
+                      (1000 * 60 * 60 * 24),
+                  ) + 1
+                : null;
+            return (
+              <tr key={l.id} className="tt-row">
+                <td className="tt-title-cell">
+                  <div className="tt-title">{l.leave_type}</div>
+                </td>
+                <td>{fmt(l.from_date)}</td>
+                <td>{fmt(l.to_date)}</td>
+                <td>{days ? `${days} day${days > 1 ? "s" : ""}` : "—"}</td>
+                <td style={{ maxWidth: 220 }}>
+                  {l.reason ? (
+                    <span style={{ fontSize: 12.5, color: "#64748b" }}>
+                      {l.reason}
+                    </span>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>—</span>
+                  )}
+                </td>
+                <td>
+                  {l.level_approver_user_name || l.head_approver_user_name ? (
+                    <ApprovalPips leave={l} />
+                  ) : computeLeaveStatus(l) === "rejected" ? (
+                    <span style={{ fontSize: 12, color: "#dc2626" }}>
+                      {getAdminRejectionReason(l) || "—"}
+                    </span>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>—</span>
+                  )}
+                </td>
+                <td>
+                  <LeaveBadge leave={l} />
+                </td>
+              </tr>
+            );
+          })}
+
+        </tbody>
+      </table>
+    </div>
+  );
+}
+function VerifyRequestsTable({ requests, onApprove, onReject, updatingId }) {
+  const fmt = (d) =>
+    d
+      ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
+  const statusStyle = {
+    pending: { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
+    approved: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+    rejected: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca" },
+  };
+
+  return (
+    <div className="tt-wrap">
+      <table className="tt-table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Requested By</th>
+            <th>Site</th>
+            <th>Current Due</th>
+            <th>Requested Date</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {requests.map((req) => {
+            const sc = statusStyle[req.status] || statusStyle.pending;
+            const isPending = req.status === "pending";
+            return (
+              <tr key={req.id} className="tt-row">
+                <td className="tt-title-cell">
+                  <div className="tt-title">
+                    {req.tasks?.title || `Task #${req.task_id}`}
+                  </div>
+                </td>
+                <td>{req.requested_by}</td>
+                <td>{req.tasks?.site_name || "—"}</td>
+                <td>{fmt(req.current_due)}</td>
+                <td style={{ color: "#7c3aed", fontWeight: 600 }}>
+                  {fmt(req.requested_date)}
+                </td>
+                <td style={{ maxWidth: 200 }}>
+                  {req.reason ? (
+                    <span style={{ fontSize: 12.5, color: "#64748b" }}>
+                      {req.reason}
+                    </span>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>—</span>
+                  )}
+                </td>
+                <td>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "3px 9px",
+                      borderRadius: 20,
+                      background: sc.bg,
+                      color: sc.color,
+                      border: `1px solid ${sc.border}`,
+                    }}
+                  >
+                    {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                  </span>
+                  {req.status === "rejected" && req.admin_note && (
+                    <div
+                      style={{ fontSize: 11, color: "#dc2626", marginTop: 4, maxWidth: 180 }}
+                    >
+                      {req.admin_note}
+                    </div>
+                  )}
+                </td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  {isPending ? (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        className="lv-btn-approve"
+                        disabled={updatingId === req.id}
+                        onClick={() => onApprove(req)}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        className="lv-btn-reject"
+                        disabled={updatingId === req.id}
+                        onClick={() => onReject(req)}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+                      {req.status === "approved" ? "✓ Approved" : "✗ Rejected"}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+function MyRescheduleTable({ reschedules }) {
+  const fmt = (d) =>
+    d
+      ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
+  const statusStyle = {
+    pending: { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
+    approved: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+    rejected: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca" },
+  };
+
+  return (
+    <div className="tt-wrap">
+      <table className="tt-table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Site</th>
+            <th>Current Due</th>
+            <th>Requested Date</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th>Actioned By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {reschedules.map((req) => {
+            const sc = statusStyle[req.status] || statusStyle.pending;
+            return (
+              <tr key={req.id} className="tt-row">
+                <td className="tt-title-cell">
+                  <div className="tt-title">
+                    {req.tasks?.title || `Task #${req.task_id}`}
+                  </div>
+                </td>
+                <td>{req.tasks?.site_name || "—"}</td>
+                <td>{fmt(req.current_due)}</td>
+                <td style={{ color: "#7c3aed", fontWeight: 600 }}>
+                  {fmt(req.requested_date)}
+                </td>
+                <td style={{ maxWidth: 200 }}>
+                  {req.reason ? (
+                    <span style={{ fontSize: 12.5, color: "#64748b" }}>
+                      {req.reason}
+                    </span>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>—</span>
+                  )}
+                </td>
+                <td>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "3px 9px",
+                      borderRadius: 20,
+                      background: sc.bg,
+                      color: sc.color,
+                      border: `1px solid ${sc.border}`,
+                    }}
+                  >
+                    {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                  </span>
+                  {req.status === "rejected" && req.admin_note && (
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "#dc2626",
+                        marginTop: 4,
+                        maxWidth: 180,
+                      }}
+                    >
+                      {req.admin_note}
+                    </div>
+                  )}
+                </td>
+                <td>{req.actioned_by || "—"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+// ── Leave Card ─────────────────────────────────────────────────────────────
+function LeaveCard({
+  leave,
+  showActions,
+  onApprove,
+  onOpenReject,
+  currentUser,
+}) {
+  const status = computeLeaveStatus(leave);
+  const fmt = (d) =>
+    d
+      ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
+  const days =
+    leave.from_date && leave.to_date
+      ? Math.ceil(
+          (new Date(leave.to_date) - new Date(leave.from_date)) /
+            (1000 * 60 * 60 * 24),
+        ) + 1
+      : null;
+  const reasons = Array.isArray(leave.rejection_reason)
+    ? leave.rejection_reason.filter((r) => r && typeof r === "object")
+    : [];
+  return (
+    <div
+      className="lv-card"
+      style={{
+        borderLeftColor:
+          status === "approved"
+            ? "#16a34a"
+            : status === "rejected"
+              ? "#dc2626"
+              : "#f59e0b",
+      }}
+    >
       <div className="lv-card-top">
         <div>
           <div className="lv-card-title">{leave.leave_type}</div>
           {leave.user_name && leave.user_name !== leave.name && (
-            <div className="lv-card-sub">by <strong>{leave.name}</strong></div>
+            <div className="lv-card-sub">
+              by <strong>{leave.name}</strong>
+            </div>
           )}
         </div>
-        <LeaveBadge leave={leave}/>
+        <LeaveBadge leave={leave} />
       </div>
       <div className="lv-card-dates">
         <span className="op-meta-pill">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
           {fmt(leave.from_date)} → {fmt(leave.to_date)}
         </span>
-        {days && <span className="op-meta-pill">{days} day{days>1?"s":""}</span>}
-        {leave.site_name && <span className="op-meta-pill">{leave.site_name}</span>}
+        {days && (
+          <span className="op-meta-pill">
+            {days} day{days > 1 ? "s" : ""}
+          </span>
+        )}
+        {leave.site_name && (
+          <span className="op-meta-pill">{leave.site_name}</span>
+        )}
       </div>
-      
+
       {leave.reason && <p className="lv-reason">"{leave.reason}"</p>}
-      <ApprovalPips leave={leave}/>
-      {reasons.length > 0 && reasons.map(r => (
-        <div key={r.slot} className="lv-rejection">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <strong>{r.slot === "head" ? "Head" : "Level"} rejection</strong> ({r.by}): {r.reason}
-        </div>
-      ))}
-      {showActions && (() => {
-        const isLevelSlot = leave.level_approver_user_name === currentUser;
-        const isHeadSlot  = leave.head_approver_user_name  === currentUser;
-        const myState = isHeadSlot ? leave.head_approved : leave.level_approved;
-        if (!isLevelSlot && !isHeadSlot) return null;
-        if (myState === null) return (
-          <div className="lv-actions">
-            <button className="lv-btn-approve" onClick={()=>onApprove(leave)}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-              Approve
-            </button>
-            <button className="lv-btn-reject" onClick={()=>onOpenReject(leave)}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              Reject
-            </button>
+      <ApprovalPips leave={leave} />
+      {reasons.length > 0 &&
+        reasons.map((r) => (
+          <div key={r.slot} className="lv-rejection">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <strong>{r.slot === "head" ? "Head" : "Level"} rejection</strong> (
+            {r.by}): {r.reason}
           </div>
-        );
-        return (
-          <div className="lv-already-responded">
-            {myState ? "✓ You approved this" : "✗ You rejected this"}
-          </div>
-        );
-      })()}
+        ))}
+      {showActions &&
+        (() => {
+          const isLevelSlot = leave.level_approver_user_name === currentUser;
+          const isHeadSlot = leave.head_approver_user_name === currentUser;
+          const myState = isHeadSlot
+            ? leave.head_approved
+            : leave.level_approved;
+          if (!isLevelSlot && !isHeadSlot) return null;
+          if (myState === null)
+            return (
+              <div className="lv-actions">
+                <button
+                  className="lv-btn-approve"
+                  onClick={() => onApprove(leave)}
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  >
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Approve
+                </button>
+                <button
+                  className="lv-btn-reject"
+                  onClick={() => onOpenReject(leave)}
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                  Reject
+                </button>
+              </div>
+            );
+          return (
+            <div className="lv-already-responded">
+              {myState ? "✓ You approved this" : "✗ You rejected this"}
+            </div>
+          );
+        })()}
     </div>
   );
 }
@@ -1175,6 +1697,7 @@ export default function OfficePortal() {
   const [rescheduleForm, setRescheduleForm] = useState({
     requested_date: "",
     reason: "",
+    verify_with: "", // ← add this
   });
   const [rescheduleSub, setRescheduleSub] = useState(false);
   const [myReschedules, setMyReschedules] = useState([]);
@@ -1200,53 +1723,89 @@ export default function OfficePortal() {
   const [loadingTasks, setLoadingTasks] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
 
+  const [engineerOfficeUsers, setEngineerOfficeUsers] = useState([]);
+const [verifyRequests, setVerifyRequests] = useState([]);
+const [loadingVerifyRequests, setLoadingVerifyRequests] = useState(false);
+const [updatingVerifyId, setUpdatingVerifyId] = useState(null);
+const [verifyRejectModal, setVerifyRejectModal] = useState(null); // { req, reason }
+
+const fetchVerifyRequests = useCallback(async (u) => {
+  if (!u) return;
+  setLoadingVerifyRequests(true);
+  const { data, error } = await supabase
+    .from("reschedule_requests")
+    .select(
+      "id, task_id, status, reason, requested_date, current_due, admin_note, actioned_by, actioned_at, created_at, requested_by, verify_with, tasks(title, site_name, due_date)"
+    )
+    .eq("verify_with", u.user_name)
+    .order("created_at", { ascending: false });
+  if (!error) setVerifyRequests(data || []);
+  setLoadingVerifyRequests(false);
+}, []);
+  useEffect(() => {
+    supabase
+      .from("user_details")
+      .select("username, name, department")
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setEngineerOfficeUsers(
+            data.filter(
+              (u) =>
+                String(u.department || "")
+                  .trim()
+                  .toLowerCase() === "engineer office",
+            ),
+          );
+        }
+      });
+  }, []);
   // Filters — one set per task tab, reset independently
   const [myTaskFilters, setMyTaskFilters] = useState({ ...EMPTY_FILTERS });
   const [recurringFilters, setRecurringFilters] = useState({
     ...EMPTY_FILTERS,
   });
   useEffect(() => {
-  if (!user) return;
-  const channel = supabase
-    .channel("tasks-status-sync")
-    .on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "tasks" },
-      (payload) => {
-        const updated = payload.new;
-        const patch = (list) =>
-          list.map((t) => (t.id === updated.id ? { ...t, ...updated } : t));
-        setMyTasks((p) => patch(p));
-        setRecurringTasks((p) => patch(p));
-      },
-    )
-    .subscribe();
+    if (!user) return;
+    const channel = supabase
+      .channel("tasks-status-sync")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "tasks" },
+        (payload) => {
+          const updated = payload.new;
+          const patch = (list) =>
+            list.map((t) => (t.id === updated.id ? { ...t, ...updated } : t));
+          setMyTasks((p) => patch(p));
+          setRecurringTasks((p) => patch(p));
+        },
+      )
+      .subscribe();
 
-  return () => supabase.removeChannel(channel);
-}, [user]); 
-const [userMap, setUserMap] = useState({});
-useEffect(() => {
-  supabase
-    .from("user_details")
-    .select("username, name")
-    .then(({ data, error }) => {
-      if (!error && data) {
-        const map = {};
-        data.forEach((u) => {
-          map[u.username] = u.name;
-        });
-        setUserMap(map);
-      }
-    });
-}, []);
+    return () => supabase.removeChannel(channel);
+  }, [user]);
+  const [userMap, setUserMap] = useState({});
+  useEffect(() => {
+    supabase
+      .from("user_details")
+      .select("username, name")
+      .then(({ data, error }) => {
+        if (!error && data) {
+          const map = {};
+          data.forEach((u) => {
+            map[u.username] = u.name;
+          });
+          setUserMap(map);
+        }
+      });
+  }, []);
   // Leaves
   const [myLeaves, setMyLeaves] = useState([]);
   const [proxyLeaves, setProxyLeaves] = useState([]);
   const [loadingLeaves, setLoadingLeaves] = useState(false);
   const [leaveSubmitting, setLeaveSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
-const [rejectTarget, setRejectTarget] = useState(null); // { leave, isHead }
-const [rejectReason, setRejectReason] = useState("");
+  const [rejectTarget, setRejectTarget] = useState(null); // { leave, isHead }
+  const [rejectReason, setRejectReason] = useState("");
   const [siteReports, setSiteReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [reportFilter, setReportFilter] = useState({
@@ -1347,22 +1906,22 @@ const [rejectReason, setRejectReason] = useState("");
     setSiteReports(normalized);
     setLoadingReports(false);
   }, []);
-const [mySvrReports, setMySvrReports] = useState([]);
-const [loadingSvrReports, setLoadingSvrReports] = useState(false);
+  const [mySvrReports, setMySvrReports] = useState([]);
+  const [loadingSvrReports, setLoadingSvrReports] = useState(false);
 
-const fetchMySvrReports = useCallback(async (u) => {
-  if (!u) return;
-  setLoadingSvrReports(true);
-const { data, error } = await supabase
-  .from("site_reports")
-  .select(
-    "id, site_name, reporter_name, designation, visit_date, visit_time, progress_of_work, quality_observations, safety_concerns, issues_concerns, site_visit_instructions, key_instructions, submitted_by, submitted_by_name, pdf_url, created_at",
-  )
-  .eq("submitted_by", u.user_name)   // ✅ matches what's actually stored
-  .order("created_at", { ascending: false });
-  if (!error) setMySvrReports(data || []);
-  setLoadingSvrReports(false);
-}, []);
+  const fetchMySvrReports = useCallback(async (u) => {
+    if (!u) return;
+    setLoadingSvrReports(true);
+    const { data, error } = await supabase
+      .from("site_reports")
+      .select(
+        "id, site_name, reporter_name, designation, visit_date, visit_time, progress_of_work, quality_observations, safety_concerns, issues_concerns, site_visit_instructions, key_instructions, submitted_by, submitted_by_name, pdf_url, created_at",
+      )
+      .eq("submitted_by", u.user_name) // ✅ matches what's actually stored
+      .order("created_at", { ascending: false });
+    if (!error) setMySvrReports(data || []);
+    setLoadingSvrReports(false);
+  }, []);
   // Leave form
   const [leaveForm, setLeaveForm] = useState({
     leave_type: "",
@@ -1370,26 +1929,11 @@ const { data, error } = await supabase
     to_date: "",
     reason: "",
   });
-  const [leaveChain, setLeaveChain] = useState(null);
-  const [leaveChainLoading, setLeaveChainLoading] = useState(true);
 
   useEffect(() => {
     const s = localStorage.getItem("user");
     if (s) setUser(JSON.parse(s));
   }, []);
-
-  useEffect(() => {
-    if (!user?.role) return;
-    const site = user.site_names?.[0] || user.site_name || "";
-    if (!site) {
-      setLeaveChainLoading(false);
-      return;
-    }
-    setLeaveChainLoading(true);
-    resolveApprovalChain(supabase, site, user.role, user.user_name)
-      .then(setLeaveChain)
-      .finally(() => setLeaveChainLoading(false));
-  }, [user]);
 
   const fetchMyReschedules = useCallback(async (u) => {
     if (!u) return;
@@ -1432,25 +1976,28 @@ const { data, error } = await supabase
   //   setDelegatedTasks(delegated || []);
   //   setLoadingTasks(false);
   // }, []);
-const fetchTasks = useCallback(async (u) => {
-  if (!u) return;
-  setLoadingTasks(true);
+  const fetchTasks = useCallback(async (u) => {
+    if (!u) return;
+    setLoadingTasks(true);
 
-  const isAdmin = u.role?.toLowerCase().trim() === "admin";
+    const isAdmin = u.role?.toLowerCase().trim() === "admin";
 
-  const { data: mineAll } = isAdmin
-    ? await supabase.from("tasks").select("*").order("due_date", { ascending: true })
-    : await supabase
-        .from("tasks")
-        .select("*")
-        .eq("assigned_to", u.user_name)
-        .order("due_date", { ascending: true });
+    const { data: mineAll } = isAdmin
+      ? await supabase
+          .from("tasks")
+          .select("*")
+          .order("due_date", { ascending: true })
+      : await supabase
+          .from("tasks")
+          .select("*")
+          .eq("assigned_to", u.user_name)
+          .order("due_date", { ascending: true });
 
-  const mine = mineAll || [];
-  setMyTasks(mine.filter((t) => !isRecurringTask(t)));
-  setRecurringTasks(mine.filter((t) => isRecurringTask(t)));
-  setLoadingTasks(false);
-}, []);
+    const mine = mineAll || [];
+    setMyTasks(mine.filter((t) => !isRecurringTask(t)));
+    setRecurringTasks(mine.filter((t) => isRecurringTask(t)));
+    setLoadingTasks(false);
+  }, []);
   const fetchLeaves = useCallback(async (u) => {
     if (!u) return;
     setLoadingLeaves(true);
@@ -1471,86 +2018,123 @@ const fetchTasks = useCallback(async (u) => {
     setLoadingLeaves(false);
   }, []);
 
-useEffect(() => {
+  useEffect(() => {
   if (user) {
     fetchTasks(user);
     fetchLeaves(user);
     fetchMyReschedules(user);
     fetchSiteReports(user);
     fetchMySvrReports(user);
+    fetchVerifyRequests(user); // ← add
   }
-}, [user, fetchTasks, fetchLeaves, fetchMyReschedules, fetchSiteReports, fetchMySvrReports]);
+}, [user, fetchTasks, fetchLeaves, fetchMyReschedules, fetchSiteReports, fetchMySvrReports, fetchVerifyRequests]);
   const showToast = (type, msg) => {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 3500);
   };
-const handleSendVerification = async (task) => {
-  showToast("success", `"${task.title}" sent for verification.`);
-  // TODO: wire this to your actual verification workflow / backend update
+  const handleSendVerification = async (task) => {
+    showToast("success", `"${task.title}" sent for verification.`);
+    // TODO: wire this to your actual verification workflow / backend update
+  };
+const handleVerifyAction = async (req, approved) => {
+  if (!approved) {
+    setVerifyRejectModal({ req, reason: "" });
+    return;
+  }
+  setUpdatingVerifyId(req.id);
+  const payload = {
+    status: "approved",
+    actioned_by: user.user_name,
+    actioned_at: new Date().toISOString(),
+    admin_note: null,
+  };
+  const { error } = await supabase.from("reschedule_requests").update(payload).eq("id", req.id);
+  if (!error) {
+    await supabase.from("tasks").update({ due_date: req.requested_date }).eq("id", req.task_id);
+  }
+  setUpdatingVerifyId(null);
+  if (error) return showToast("error", "Failed to update: " + error.message);
+  setVerifyRequests((prev) => prev.map((r) => (r.id === req.id ? { ...r, ...payload } : r)));
+  showToast("success", "Reschedule approved — task due date updated.");
 };
 
-const handleRaiseTicket = async (task) => {
-  showToast("success", `Ticket raised for "${task.title}".`);
-  // TODO: wire this to your ticketing table / support system
+const handleVerifyRejectConfirm = async () => {
+  if (!verifyRejectModal.reason.trim()) return;
+  const req = verifyRejectModal.req;
+  const reason = verifyRejectModal.reason.trim();
+  setVerifyRejectModal(null);
+  setUpdatingVerifyId(req.id);
+  const payload = {
+    status: "rejected",
+    actioned_by: user.user_name,
+    actioned_at: new Date().toISOString(),
+    admin_note: reason,
+  };
+  const { error } = await supabase.from("reschedule_requests").update(payload).eq("id", req.id);
+  setUpdatingVerifyId(null);
+  if (error) return showToast("error", "Failed to reject: " + error.message);
+  setVerifyRequests((prev) => prev.map((r) => (r.id === req.id ? { ...r, ...payload } : r)));
+  showToast("success", "Reschedule rejected.");
 };
+  const handleRaiseTicket = async (task) => {
+    showToast("success", `Ticket raised for "${task.title}".`);
+    // TODO: wire this to your ticketing table / support system
+  };
   const handleNavClick = (key) => {
     setActiveTab(key);
     if (typeof window !== "undefined" && window.innerWidth <= 760)
       setSidebarOpen(false);
-
-    // Mark all actioned reschedule requests as read when tab is opened
-    if (key === "my-reschedules") {
-      markReschedulesRead();
-    }
+    if (key === "my-reschedules") markReschedulesRead();
+    if (key === "my-leaves") markLeavesRead(); // ← add this
   };
 
   const spawnNextRecurringInstance = async (task, nextDue) => {
-  const { data: newTask, error: insertErr } = await supabase
-    .from("tasks")
-    .insert([
-      {
-        title: task.title,
-        description: task.description || null,
-        assigned_to: task.assigned_to,
-        assigned_by: task.assigned_by || null,
-        site_name: task.site_name || null,
-        priority: task.priority || "medium",
-        status: "pending",
-        is_recurring: true,
-        recurrence: task.recurrence,
-        due_date: nextDue,
-        audio_url: task.audio_url || null,
-        document_url: task.document_url || null,
-        has_checkpoints: task.has_checkpoints || false,
-        reschedule_allowed: task.reschedule_allowed || false,
-        parent_task_id: task.parent_task_id || task.id,
-        recurrence_anchor: task.recurrence_anchor || task.due_date || nextDue,
-        last_generated_date: nextDue,
-      },
-    ])
-    .select()
-    .single();
-
-  if (insertErr || !newTask) return { error: insertErr, task: null };
-
-  // Force the recurring fields, in case a DB trigger/default overwrote them
-  if (newTask.is_recurring !== true || !newTask.recurrence) {
-    const { data: fixed, error: fixErr } = await supabase
+    const { data: newTask, error: insertErr } = await supabase
       .from("tasks")
-      .update({
-        is_recurring: true,
-        recurrence: task.recurrence,
-        parent_task_id: task.parent_task_id || task.id,
-      })
-      .eq("id", newTask.id)
+      .insert([
+        {
+          title: task.title,
+          description: task.description || null,
+          assigned_to: task.assigned_to,
+          assigned_by: task.assigned_by || null,
+          site_name: task.site_name || null,
+          priority: task.priority || "medium",
+          status: "pending",
+          is_recurring: true,
+          recurrence: task.recurrence,
+          due_date: nextDue,
+          audio_url: task.audio_url || null,
+          document_url: task.document_url || null,
+          has_checkpoints: task.has_checkpoints || false,
+          reschedule_allowed: task.reschedule_allowed || false,
+          parent_task_id: task.parent_task_id || task.id,
+          recurrence_anchor: task.recurrence_anchor || task.due_date || nextDue,
+          last_generated_date: nextDue,
+        },
+      ])
       .select()
       .single();
 
-    if (!fixErr && fixed) return { error: null, task: fixed };
-  }
+    if (insertErr || !newTask) return { error: insertErr, task: null };
 
-  return { error: null, task: newTask };
-};
+    // Force the recurring fields, in case a DB trigger/default overwrote them
+    if (newTask.is_recurring !== true || !newTask.recurrence) {
+      const { data: fixed, error: fixErr } = await supabase
+        .from("tasks")
+        .update({
+          is_recurring: true,
+          recurrence: task.recurrence,
+          parent_task_id: task.parent_task_id || task.id,
+        })
+        .eq("id", newTask.id)
+        .select()
+        .single();
+
+      if (!fixErr && fixed) return { error: null, task: fixed };
+    }
+
+    return { error: null, task: newTask };
+  };
 
   const handleChecklistConfirm = async () => {
     if (!checkpoints.every((cp) => checkedItems[cp.id]))
@@ -1573,19 +2157,22 @@ const handleRaiseTicket = async (task) => {
 
       // Spawn next recurring instance if applicable
       if (isRecurringTask(task)) {
-      const nextDue = getNextDueDate(task.due_date, task.recurrence);
-      const { task: newTask } = await spawnNextRecurringInstance(task, nextDue);
+        const nextDue = getNextDueDate(task.due_date, task.recurrence);
+        const { task: newTask } = await spawnNextRecurringInstance(
+          task,
+          nextDue,
+        );
 
-  if (newTask) {
-    setRecurringTasks((p) => [...p, newTask]);
-    showToast(
-      "success",
-      `Completed! Next instance due ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
-    );
-  } else {
-    showToast("success", "Task marked as completed!");
-  }
-} else {
+        if (newTask) {
+          setRecurringTasks((p) => [...p, newTask]);
+          showToast(
+            "success",
+            `Completed! Next instance due ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
+          );
+        } else {
+          showToast("success", "Task marked as completed!");
+        }
+      } else {
         showToast("success", "Task marked as completed!");
       }
     } else {
@@ -1613,24 +2200,26 @@ const handleRaiseTicket = async (task) => {
 
   const handleStatusChange = async (taskId, newStatus, e) => {
     e?.stopPropagation();
-const task = [...myTasks, ...recurringTasks].find((t) => t.id === taskId);
+    const task = [...myTasks, ...recurringTasks].find((t) => t.id === taskId);
 
     // Checklist gate
     if (newStatus === "completed" && isRecurringTask(task)) {
-  const nextDue = getNextDueDate(task.due_date, task.recurrence);
-  const { task: newTask, error: insertErr } = await spawnNextRecurringInstance(task, nextDue);
+      const nextDue = getNextDueDate(task.due_date, task.recurrence);
+      const { task: newTask, error: insertErr } =
+        await spawnNextRecurringInstance(task, nextDue);
 
-  if (newTask) {
-    setRecurringTasks((p) => [...p, newTask]);
-    showToast(
-      "success",
-      `Task completed! Next instance created for ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
-    );
-  } else {
-    showToast("success", "Task marked complete.");
-    if (insertErr) console.error("Failed to spawn next instance:", insertErr.message);
-  }
-}
+      if (newTask) {
+        setRecurringTasks((p) => [...p, newTask]);
+        showToast(
+          "success",
+          `Task completed! Next instance created for ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
+        );
+      } else {
+        showToast("success", "Task marked complete.");
+        if (insertErr)
+          console.error("Failed to spawn next instance:", insertErr.message);
+      }
+    }
 
     setUpdatingId(taskId);
     const { error } = await supabase
@@ -1648,31 +2237,32 @@ const task = [...myTasks, ...recurringTasks].find((t) => t.id === taskId);
       if (newStatus === "completed" && isRecurringTask(task)) {
         const nextDue = getNextDueDate(task.due_date, task.recurrence);
         const { data: newTask, error: insertErr } = await supabase
-  .from("tasks")
-  .insert([
-    {
-      title: task.title,
-      description: task.description || null,
-      assigned_to: task.assigned_to,
-      assigned_by: task.assigned_by || null,
-      site_name: task.site_name || null,
-      priority: task.priority || "medium",
-      status: "pending",
-      is_recurring: true,
-      recurrence: task.recurrence,
-      due_date: nextDue,
-      audio_url: task.audio_url || null,
-      document_url: task.document_url || null,
-      has_checkpoints: task.has_checkpoints || false,
-      reschedule_allowed: task.reschedule_allowed || false,
-      // NEW — link this instance back to its recurring chain
-      parent_task_id: task.parent_task_id || task.id,
-      recurrence_anchor: task.recurrence_anchor || task.due_date || nextDue,
-      last_generated_date: nextDue,
-    },
-  ])
-  .select()
-  .single();
+          .from("tasks")
+          .insert([
+            {
+              title: task.title,
+              description: task.description || null,
+              assigned_to: task.assigned_to,
+              assigned_by: task.assigned_by || null,
+              site_name: task.site_name || null,
+              priority: task.priority || "medium",
+              status: "pending",
+              is_recurring: true,
+              recurrence: task.recurrence,
+              due_date: nextDue,
+              audio_url: task.audio_url || null,
+              document_url: task.document_url || null,
+              has_checkpoints: task.has_checkpoints || false,
+              reschedule_allowed: task.reschedule_allowed || false,
+              // NEW — link this instance back to its recurring chain
+              parent_task_id: task.parent_task_id || task.id,
+              recurrence_anchor:
+                task.recurrence_anchor || task.due_date || nextDue,
+              last_generated_date: nextDue,
+            },
+          ])
+          .select()
+          .single();
         if (!insertErr && newTask) {
           setRecurringTasks((p) => [...p, newTask]);
           showToast(
@@ -1738,6 +2328,7 @@ const task = [...myTasks, ...recurringTasks].find((t) => t.id === taskId);
         requested_date: rescheduleForm.requested_date,
         reason: rescheduleForm.reason.trim(),
         status: "pending",
+        verify_with: rescheduleForm.verify_with || null, // ← add this
       },
     ]);
     setRescheduleSub(false);
@@ -1747,7 +2338,37 @@ const task = [...myTasks, ...recurringTasks].find((t) => t.id === taskId);
     } else {
       showToast("success", "Reschedule request submitted!");
       setRescheduleTask(null);
-      setRescheduleForm({ requested_date: "", reason: "" });
+      setRescheduleForm({ requested_date: "", reason: "", verify_with: "" });
+    }
+  };
+  const unreadLeavesCount = myLeaves.filter(
+    (l) =>
+      (computeLeaveStatus(l) === "approved" ||
+        computeLeaveStatus(l) === "rejected") &&
+      l.employee_read !== true,
+  ).length;
+
+  const markLeavesRead = async () => {
+    const unreadIds = myLeaves
+      .filter(
+        (l) =>
+          (computeLeaveStatus(l) === "approved" ||
+            computeLeaveStatus(l) === "rejected") &&
+          l.employee_read !== true,
+      )
+      .map((l) => l.id);
+    if (!unreadIds.length) return;
+
+    const { error } = await supabase
+      .from("leaves")
+      .update({ employee_read: true })
+      .in("id", unreadIds);
+    if (!error) {
+      setMyLeaves((prev) =>
+        prev.map((l) =>
+          unreadIds.includes(l.id) ? { ...l, employee_read: true } : l,
+        ),
+      );
     }
   };
   const handleLeaveSubmit = async () => {
@@ -1764,16 +2385,6 @@ const task = [...myTasks, ...recurringTasks].find((t) => t.id === taskId);
     if (!site) return showToast("error", "No site assigned to your account.");
 
     setLeaveSubmitting(true);
-    const chain =
-      leaveChain ||
-      (await resolveApprovalChain(supabase, site, user.role, user.user_name));
-
-    const initialLevel = chain.levelApprover ? null : true;
-    const initialHead = chain.autoApproved
-      ? true
-      : chain.headApprover
-        ? null
-        : true;
 
     const payload = {
       user_name: user.user_name,
@@ -1783,75 +2394,114 @@ const task = [...myTasks, ...recurringTasks].find((t) => t.id === taskId);
       from_date: leaveForm.from_date,
       to_date: leaveForm.to_date,
       reason: leaveForm.reason.trim() || null,
-      level_approver_user_name: chain.levelApprover?.username || null,
-      level_approver_role: chain.levelApprover?.role || null,
-      level_approved: initialLevel,
-      head_approver_user_name: chain.headApprover?.username || null,
-      head_approver_role: chain.headApprover?.role || null,
-      head_approved: initialHead,
-      status: deriveLeaveStatus(initialLevel, initialHead),
+      // No level/head approval chain — goes straight to admin
+      level_approver_user_name: null,
+      level_approver_role: null,
+      level_approved: null,
+      head_approver_user_name: null,
+      head_approver_role: null,
+      head_approved: null,
+      admin_approved: null,
+      status: "Pending",
     };
     const { error } = await supabase.from("leaves").insert([payload]);
     setLeaveSubmitting(false);
     if (error) {
       showToast("error", "Failed to submit leave. " + error.message);
     } else {
-      showToast("success", "Leave application submitted successfully!");
+      showToast(
+        "success",
+        "Leave application submitted successfully! Waiting for admin approval.",
+      );
       setLeaveForm({ leave_type: "", from_date: "", to_date: "", reason: "" });
       fetchLeaves(user);
       setActiveTab("my-leaves");
     }
   };
 
-const handleProxyApprove = async (leave) => {
-  const isHeadSlot = leave.head_approver_user_name === user.user_name;
-  const field = isHeadSlot ? "head_approved" : "level_approved";
-  const newLevel = isHeadSlot ? leave.level_approved : true;
-  const newHead  = isHeadSlot ? true : leave.head_approved;
+  const handleProxyApprove = async (leave) => {
+    const isHeadSlot = leave.head_approver_user_name === user.user_name;
+    const field = isHeadSlot ? "head_approved" : "level_approved";
+    const newLevel = isHeadSlot ? leave.level_approved : true;
+    const newHead = isHeadSlot ? true : leave.head_approved;
 
-  const { error } = await supabase.from("leaves")
-    .update({ [field]: true, status: deriveLeaveStatus(newLevel, newHead) })
-    .eq("id", leave.id);
-  if (!error) {
-    setProxyLeaves(p => p.map(l => l.id === leave.id ? { ...l, [field]: true, status: deriveLeaveStatus(newLevel, newHead) } : l));
-    showToast("success", "Leave approved.");
-  } else {
-    showToast("error", "Action failed. " + error.message);
-  }
-};
+    const { error } = await supabase
+      .from("leaves")
+      .update({ [field]: true, status: deriveLeaveStatus(newLevel, newHead) })
+      .eq("id", leave.id);
+    if (!error) {
+      setProxyLeaves((p) =>
+        p.map((l) =>
+          l.id === leave.id
+            ? {
+                ...l,
+                [field]: true,
+                status: deriveLeaveStatus(newLevel, newHead),
+              }
+            : l,
+        ),
+      );
+      showToast("success", "Leave approved.");
+    } else {
+      showToast("error", "Action failed. " + error.message);
+    }
+  };
 
-const openProxyReject = (leave) => {
-  const isHeadSlot = leave.head_approver_user_name === user.user_name;
-  setRejectTarget({ leave, isHead: isHeadSlot });
-  setRejectReason("");
-};
+  const openProxyReject = (leave) => {
+    const isHeadSlot = leave.head_approver_user_name === user.user_name;
+    setRejectTarget({ leave, isHead: isHeadSlot });
+    setRejectReason("");
+  };
 
-const confirmProxyReject = async () => {
-  if (!rejectReason.trim()) return;
-  const { leave, isHead } = rejectTarget;
-  const field = isHead ? "head_approved" : "level_approved";
-  const newLevel = isHead ? leave.level_approved : false;
-  const newHead  = isHead ? false : leave.head_approved;
-  const slot = isHead ? "head" : "level";
-  const merged = mergeRejectionReason(leave.rejection_reason, slot, user.user_name, rejectReason.trim());
+  const confirmProxyReject = async () => {
+    if (!rejectReason.trim()) return;
+    const { leave, isHead } = rejectTarget;
+    const field = isHead ? "head_approved" : "level_approved";
+    const newLevel = isHead ? leave.level_approved : false;
+    const newHead = isHead ? false : leave.head_approved;
+    const slot = isHead ? "head" : "level";
+    const merged = mergeRejectionReason(
+      leave.rejection_reason,
+      slot,
+      user.user_name,
+      rejectReason.trim(),
+    );
 
-  const { error } = await supabase.from("leaves")
-    .update({ [field]: false, status: deriveLeaveStatus(newLevel, newHead), rejection_reason: merged })
-    .eq("id", leave.id);
+    const { error } = await supabase
+      .from("leaves")
+      .update({
+        [field]: false,
+        status: deriveLeaveStatus(newLevel, newHead),
+        rejection_reason: merged,
+      })
+      .eq("id", leave.id);
 
-  if (!error) {
-    setProxyLeaves(p => p.map(l => l.id === leave.id ? { ...l, [field]: false, status: deriveLeaveStatus(newLevel, newHead), rejection_reason: merged } : l));
-    showToast("success", "Leave rejected.");
-  } else {
-    showToast("error", "Action failed. " + error.message);
-  }
-  setRejectTarget(null);
-};
-const allTasks = useMemo(() => {
+    if (!error) {
+      setProxyLeaves((p) =>
+        p.map((l) =>
+          l.id === leave.id
+            ? {
+                ...l,
+                [field]: false,
+                status: deriveLeaveStatus(newLevel, newHead),
+                rejection_reason: merged,
+              }
+            : l,
+        ),
+      );
+      showToast("success", "Leave rejected.");
+    } else {
+      showToast("error", "Action failed. " + error.message);
+    }
+    setRejectTarget(null);
+  };
+  const allTasks = useMemo(() => {
     const map = new Map();
     [...myTasks, ...recurringTasks].forEach((t) => map.set(t.id, t));
     return [...map.values()].sort(
-      (a, b) => new Date(a.due_date || a.created_at || 0) - new Date(b.due_date || b.created_at || 0),
+      (a, b) =>
+        new Date(a.due_date || a.created_at || 0) -
+        new Date(b.due_date || b.created_at || 0),
     );
   }, [myTasks, recurringTasks]);
 
@@ -1867,7 +2517,9 @@ const activeItem = [
   ...LEAVE_NAV,
   ...REPORTS_NAV,
   REPORT_SUBMISSIONS_ITEM,
+  VERIFY_REQUESTS_ITEM,
 ].find((n) => n.key === activeTab);
+
   const proxyPendingCount = proxyLeaves.filter(
     (l) =>
       (l.level_approver_user_name === user.user_name &&
@@ -1889,29 +2541,33 @@ const activeItem = [
   const renderContent = () => {
     switch (activeTab) {
       case "my-tasks": {
-  const isAdmin = user?.role?.toLowerCase().trim() === "admin";
-  return (
-    <TaskList
-      tasks={myTasks}
-      loading={loadingTasks}
-      onStatusChange={handleStatusChange}
-      updatingId={updatingId}
-      emptyText="No tasks assigned to you yet."
-      filters={myTaskFilters}
-      onFilterChange={makeFilterChange(setMyTaskFilters)}
-      onFilterClear={makeFilterClear(setMyTaskFilters)}
-      showAssignedBy={isAdmin}
-      showRecurrence={!isAdmin ? false : true}
-      allTasks={myTasks}
-      userMap={userMap}
-      onReschedule={(task) => {
-        setRescheduleTask(task);
-        setRescheduleForm({ requested_date: "", reason: "" });
-      }}
-      onDetailClick={(task) => setDetailTask(task)}
-    />
-  );
-}
+        const isAdmin = user?.role?.toLowerCase().trim() === "admin";
+        return (
+          <TaskList
+            tasks={myTasks}
+            loading={loadingTasks}
+            onStatusChange={handleStatusChange}
+            updatingId={updatingId}
+            emptyText="No tasks assigned to you yet."
+            filters={myTaskFilters}
+            onFilterChange={makeFilterChange(setMyTaskFilters)}
+            onFilterClear={makeFilterClear(setMyTaskFilters)}
+            showAssignedBy={isAdmin}
+            showRecurrence={!isAdmin ? false : true}
+            allTasks={myTasks}
+            userMap={userMap}
+            onReschedule={(task) => {
+              setRescheduleTask(task);
+              setRescheduleForm({
+                requested_date: "",
+                reason: "",
+                verify_with: "",
+              });
+            }}
+            onDetailClick={(task) => setDetailTask(task)}
+          />
+        );
+      }
 
       case "recurring-tasks":
         return (
@@ -1926,16 +2582,19 @@ const activeItem = [
             onFilterClear={makeFilterClear(setRecurringFilters)}
             showAssignedBy={false}
             allTasks={recurringTasks}
-             onSendVerification={handleSendVerification}
-  onRaiseTicket={handleRaiseTicket}
+            onSendVerification={handleSendVerification}
+            onRaiseTicket={handleRaiseTicket}
             onReschedule={(task) => {
               setRescheduleTask(task);
-              setRescheduleForm({ requested_date: "", reason: "" });
+              setRescheduleForm({
+                requested_date: "",
+                reason: "",
+                verify_with: "",
+              });
             }}
             onDetailClick={(task) => setDetailTask(task)}
           />
         );
-        
 
       case "apply-leave":
         return (
@@ -1955,35 +2614,8 @@ const activeItem = [
                 <line x1="12" y1="8" x2="12" y2="12" />
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
-              {leaveChainLoading ? (
-                "Finding your approvers…"
-              ) : leaveChain?.autoApproved ? (
-                "You're the top of the approval chain for this site — your leave will be auto-approved."
-              ) : (
-                <>
-                  Your leave will be routed to{" "}
-                  {leaveChain?.levelApprover && (
-                    <strong>
-                      {leaveChain.levelApprover.name ||
-                        leaveChain.levelApprover.username}
-                    </strong>
-                  )}
-                  {leaveChain?.levelApprover &&
-                    leaveChain?.headApprover &&
-                    " and "}
-                  {leaveChain?.headApprover && (
-                    <strong>
-                      {leaveChain.headApprover.name ||
-                        leaveChain.headApprover.username}{" "}
-                      (Head)
-                    </strong>
-                  )}
-                  {!leaveChain?.levelApprover &&
-                    !leaveChain?.headApprover &&
-                    "your project head."}{" "}
-                  Both must approve for it to be granted.
-                </>
-              )}
+              Your leave application will be sent directly to the admin for
+              approval.
             </div>
             <div className="lv-form-grid">
               <div className="lv-field lv-col-2">
@@ -2092,7 +2724,7 @@ const activeItem = [
                 <button
                   className="lv-btn-submit"
                   onClick={handleLeaveSubmit}
-                  disabled={leaveSubmitting || leaveChainLoading}
+                  disabled={leaveSubmitting}
                 >
                   {leaveSubmitting ? (
                     <>
@@ -2160,11 +2792,16 @@ const activeItem = [
             </div>
           );
         return (
-          <div className="lv-cards-grid">
-            {myLeaves.map((l) => (
-              <LeaveCard key={l.id} leave={l} showActions={false} />
-            ))}
-          </div>
+          <>
+            <div className="lv-table-only">
+              <MyLeaveTable leaves={myLeaves} />
+            </div>
+            <div className="lv-cards-only">
+              {myLeaves.map((l) => (
+                <LeaveCard key={l.id} leave={l} showActions={false} />
+              ))}
+            </div>
+          </>
         );
 
       case "proxy-request":
@@ -2197,85 +2834,312 @@ const activeItem = [
               </p>
             </div>
           );
-        return <div className="lv-cards-grid">
-            {proxyLeaves.map(l=>
-              <LeaveCard key={l.id} leave={l} showActions={true}
-                onApprove={handleProxyApprove} onOpenReject={openProxyReject}
-                currentUser={user.user_name}/>
-            )}
-          </div>;
+        return (
+          <div className="lv-cards-grid">
+            {proxyLeaves.map((l) => (
+              <LeaveCard
+                key={l.id}
+                leave={l}
+                showActions={true}
+                onApprove={handleProxyApprove}
+                onOpenReject={openProxyReject}
+                currentUser={user.user_name}
+              />
+            ))}
+          </div>
+        );
 
-      case "site-report":
-        return <SiteReport user={user} />;
-            case "svr-reports":
-  if (loadingSvrReports)
+        case "verify-requests": {
+  const fmtDate = (d) =>
+    d ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+
+  if (loadingVerifyRequests)
     return (
       <div className="op-empty-state">
         <div className="op-spinner" />
-        <p className="op-empty-text">Loading your reports…</p>
+        <p className="op-empty-text">Loading…</p>
       </div>
     );
-  if (!mySvrReports.length)
+  if (!verifyRequests.length)
     return (
       <div className="op-empty-state">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3 }}>
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-        </svg>
-        <p className="op-empty-text">You haven't submitted any Site Visit Reports yet.</p>
+        <p className="op-empty-text">No reschedule requests sent to you for verification.</p>
       </div>
     );
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>
-      {mySvrReports.map((r) => (
-        <div
-          key={r.id}
-          style={{
-            background: "#fff", border: "1px solid #e8edf3", borderLeft: "4px solid #16a34a",
-            borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20, background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0" }}>
-              Site Visit
-            </span>
-            {r.site_name && <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>{r.site_name}</span>}
-          </div>
-          <div style={{ fontSize: 12.5, color: "#64748b" }}>
-            {r.visit_date
-              ? new Date(r.visit_date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-              : "—"}
-          </div>
-          {r.progress_of_work && (
-            <p style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, margin: 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-              {r.progress_of_work}
-            </p>
-          )}
-          {r.pdf_url ? (
-            <div style={{ display: "flex", gap: 8 }}>
-              <a href={r.pdf_url} target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 7, padding: "6px 12px", textDecoration: "none" }}>
-                View
-              </a>
-              <a   href={buildDownloadUrl(r.pdf_url, `${r.site || "site"}-${r.source}-${r.date || r.id}.pdf`)}
-  download
-  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#2563eb", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 7, padding: "6px 12px", cursor: "pointer" }}
->
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                Download
-              </a>
+
+return (
+    <>
+      <div className="lv-table-only">
+        <VerifyRequestsTable
+          requests={verifyRequests}
+          onApprove={(req) => handleVerifyAction(req, true)}
+          onReject={(req) => handleVerifyAction(req, false)}
+          updatingId={updatingVerifyId}
+        />
+      </div>
+      <div className="lv-cards-only">
+        {verifyRequests.map((req) => {
+        const isPending = req.status === "pending";
+        const sc =
+          req.status === "approved"
+            ? { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" }
+            : req.status === "rejected"
+            ? { bg: "#fef2f2", color: "#dc2626", border: "#fecaca" }
+            : { bg: "#fffbeb", color: "#d97706", border: "#fde68a" };
+        return (
+          <div
+            key={req.id}
+            className="lv-card"
+            style={{ borderLeftColor: sc.color }}
+          >
+            <div className="lv-card-top">
+              <div>
+                <div className="lv-card-title">{req.tasks?.title || `Task #${req.task_id}`}</div>
+                <div className="lv-card-sub">
+                  Requested by {req.requested_by}
+                  {req.tasks?.site_name && ` · ${req.tasks.site_name}`}
+                </div>
+              </div>
+              <span
+                className="ap-leave-status"
+                style={{ background: sc.bg, color: sc.color, borderColor: sc.border }}
+              >
+                {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+              </span>
             </div>
-          ) : (
-            <span style={{ fontSize: 11, color: "#94a3b8", fontStyle: "italic" }}>No PDF attached</span>
-          )}
-        </div>
-      ))}
+
+            <div className="lv-card-dates">
+              <span className="op-meta-pill">Current due: {fmtDate(req.current_due)}</span>
+              <span
+                className="op-meta-pill"
+                style={{ color: "#7c3aed", background: "#f5f3ff", borderColor: "#e0e7ff" }}
+              >
+                Requested: {fmtDate(req.requested_date)}
+              </span>
+            </div>
+
+            {req.reason && <p className="lv-reason">"{req.reason}"</p>}
+            {req.admin_note && (
+              <div className="lv-rejection">
+                <strong>Rejected:</strong> {req.admin_note}
+              </div>
+            )}
+
+            {isPending ? (
+              <div className="lv-actions">
+                <button
+                  className="lv-btn-approve"
+                  disabled={updatingVerifyId === req.id}
+                  onClick={() => handleVerifyAction(req, true)}
+                >
+                  Approve
+                </button>
+                <button
+                  className="lv-btn-reject"
+                  disabled={updatingVerifyId === req.id}
+                  onClick={() => handleVerifyAction(req, false)}
+                >
+                  Reject
+                </button>
+                {updatingVerifyId === req.id && <span className="ap-saving">saving…</span>}
+              </div>
+            ) : (
+              <div className="lv-already-responded">
+                {req.status === "approved"
+                  ? `✓ Approved — due date updated to ${fmtDate(req.requested_date)}`
+                  : "✗ Rejected"}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
+    </>
   );
+}
+      case "site-report":
+        return <SiteReport user={user} />;
+      case "my-reports":
+        if (loadingSvrReports)
+          return (
+            <div className="op-empty-state">
+              <div className="op-spinner" />
+              <p className="op-empty-text">Loading your reports…</p>
+            </div>
+          );
+        if (!mySvrReports.length)
+          return (
+            <div className="op-empty-state">
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ opacity: 0.3 }}
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              <p className="op-empty-text">
+                You haven't submitted any Site Visit Reports yet.
+              </p>
+            </div>
+          );
+        return (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))",
+              gap: 12,
+            }}
+          >
+            {mySvrReports.map((r) => (
+              <div
+                key={r.id}
+                style={{
+                  background: "#fff",
+                  border: "1px solid #e8edf3",
+                  borderLeft: "4px solid #16a34a",
+                  borderRadius: 10,
+                  padding: "14px 16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "3px 9px",
+                      borderRadius: 20,
+                      background: "#f0fdf4",
+                      color: "#16a34a",
+                      border: "1px solid #bbf7d0",
+                    }}
+                  >
+                    Site Visit
+                  </span>
+                  {r.site_name && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "#94a3b8",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {r.site_name}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12.5, color: "#64748b" }}>
+                  {r.visit_date
+                    ? new Date(r.visit_date + "T00:00:00").toLocaleDateString(
+                        "en-IN",
+                        { day: "numeric", month: "short", year: "numeric" },
+                      )
+                    : "—"}
+                </div>
+                {r.progress_of_work && (
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#64748b",
+                      lineHeight: 1.5,
+                      margin: 0,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {r.progress_of_work}
+                  </p>
+                )}
+                {r.pdf_url ? (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <a
+                      href={r.pdf_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#475569",
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 7,
+                        padding: "6px 12px",
+                        textDecoration: "none",
+                      }}
+                    >
+                      View
+                    </a>
+                    <a
+                      href={buildDownloadUrl(
+                        r.pdf_url,
+                        `${r.site || "site"}-${r.source}-${r.date || r.id}.pdf`,
+                      )}
+                      download
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#2563eb",
+                        background: "#eff6ff",
+                        border: "1px solid #bfdbfe",
+                        borderRadius: 7,
+                        padding: "6px 12px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      Download
+                    </a>
+                  </div>
+                ) : (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "#94a3b8",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    No PDF attached
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        );
       case "checklists":
         return <Checklists user={user} />;
 
@@ -2310,326 +3174,299 @@ const activeItem = [
             </div>
           );
         return (
-          <div className="lv-cards-grid">
-            {myReschedules.map((req) => {
-              const isPending = req.status === "pending";
-              const isApproved = req.status === "approved";
-              const isRejected = req.status === "rejected";
-              const isUnread =
-                req.employee_read !== true && (isApproved || isRejected);
+          <>
+            <div className="lv-table-only">
+              <MyRescheduleTable reschedules={myReschedules} />
+            </div>
+            <div className="lv-cards-only">
+              {myReschedules.map((req) => {
+                const isPending = req.status === "pending";
+                const isApproved = req.status === "approved";
+                const isRejected = req.status === "rejected";
+                const isUnread =
+                  req.employee_read !== true && (isApproved || isRejected);
 
-              const statusColors = {
-                pending: {
-                  bg: "#fffbeb",
-                  color: "#d97706",
-                  border: "#fde68a",
-                  leftBorder: "#f59e0b",
-                },
-                approved: {
-                  bg: "#f0fdf4",
-                  color: "#16a34a",
-                  border: "#bbf7d0",
-                  leftBorder: "#16a34a",
-                },
-                rejected: {
-                  bg: "#fef2f2",
-                  color: "#dc2626",
-                  border: "#fecaca",
-                  leftBorder: "#dc2626",
-                },
-              };
-              const sc = statusColors[req.status] || statusColors.pending;
+                const statusColors = {
+                  pending: {
+                    bg: "#fffbeb",
+                    color: "#d97706",
+                    border: "#fde68a",
+                    leftBorder: "#f59e0b",
+                  },
+                  approved: {
+                    bg: "#f0fdf4",
+                    color: "#16a34a",
+                    border: "#bbf7d0",
+                    leftBorder: "#16a34a",
+                  },
+                  rejected: {
+                    bg: "#fef2f2",
+                    color: "#dc2626",
+                    border: "#fecaca",
+                    leftBorder: "#dc2626",
+                  },
+                };
+                const sc = statusColors[req.status] || statusColors.pending;
 
-              const fmtDate = (d) =>
-                d
-                  ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })
-                  : "—";
+                const fmtDate = (d) =>
+                  d
+                    ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    : "—";
 
-              return (
-                <div
-                  key={req.id}
-                  className="lv-card"
-                  style={{
-                    borderLeftColor: sc.leftBorder,
-                    // Subtle highlight for unread actioned cards
-                    background: isUnread ? "#fafafa" : "#fff",
-                    boxShadow: isUnread ? "0 0 0 2px #e0e7ff" : undefined,
-                  }}
-                >
-                  {/* ── Top: task name + status badge ── */}
-                  <div className="lv-card-top">
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                return (
+                  <div
+                    key={req.id}
+                    className="lv-card"
+                    style={{
+                      borderLeftColor: sc.leftBorder,
+                      // Subtle highlight for unread actioned cards
+                      background: isUnread ? "#fafafa" : "#fff",
+                      boxShadow: isUnread ? "0 0 0 2px #e0e7ff" : undefined,
+                    }}
+                  >
+                    {/* ── Top: task name + status badge ── */}
+                    <div className="lv-card-top">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <div className="lv-card-title">
+                            {req.tasks?.title || `Task #${req.task_id}`}
+                          </div>
+                          {/* NEW badge for unread decisions */}
+                          {isUnread && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 800,
+                                padding: "2px 7px",
+                                borderRadius: 20,
+                                background: "#7c3aed",
+                                color: "#fff",
+                                letterSpacing: ".04em",
+                                flexShrink: 0,
+                              }}
+                            >
+                              NEW
+                            </span>
+                          )}
+                        </div>
+                        {req.tasks?.site_name && (
+                          <div className="lv-card-sub">
+                            {req.tasks.site_name}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Status badge */}
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5,
+                          flexShrink: 0,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "3px 9px",
+                          borderRadius: 20,
+                          background: sc.bg,
+                          color: sc.color,
+                          border: `1px solid ${sc.border}`,
+                        }}
+                      >
+                        {isPending && (
+                          <svg
+                            width="10"
+                            height="10"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                          </svg>
+                        )}
+                        {isApproved && (
+                          <svg
+                            width="10"
+                            height="10"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                          >
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                        )}
+                        {isRejected && (
+                          <svg
+                            width="10"
+                            height="10"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                          >
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        )}
+                        {req.status.charAt(0).toUpperCase() +
+                          req.status.slice(1)}
+                      </span>
+                    </div>
+
+                    {/* ── Pending state: "awaiting admin review" banner ── */}
+                    {isPending && (
                       <div
                         style={{
                           display: "flex",
                           alignItems: "center",
                           gap: 8,
-                          flexWrap: "wrap",
+                          background: "#fffbeb",
+                          border: "1px solid #fde68a",
+                          borderRadius: 8,
+                          padding: "10px 12px",
+                          fontSize: 12.5,
+                          color: "#92400e",
+                          lineHeight: 1.5,
                         }}
                       >
-                        <div className="lv-card-title">
-                          {req.tasks?.title || `Task #${req.task_id}`}
-                        </div>
-                        {/* NEW badge for unread decisions */}
-                        {isUnread && (
-                          <span
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 800,
-                              padding: "2px 7px",
-                              borderRadius: 20,
-                              background: "#7c3aed",
-                              color: "#fff",
-                              letterSpacing: ".04em",
-                              flexShrink: 0,
-                            }}
-                          >
-                            NEW
-                          </span>
-                        )}
-                      </div>
-                      {req.tasks?.site_name && (
-                        <div className="lv-card-sub">{req.tasks.site_name}</div>
-                      )}
-                    </div>
-
-                    {/* Status badge */}
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 5,
-                        flexShrink: 0,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: "3px 9px",
-                        borderRadius: 20,
-                        background: sc.bg,
-                        color: sc.color,
-                        border: `1px solid ${sc.border}`,
-                      }}
-                    >
-                      {isPending && (
                         <svg
-                          width="10"
-                          height="10"
+                          width="14"
+                          height="14"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
-                          strokeWidth="2.5"
+                          strokeWidth="2"
                           strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ flexShrink: 0 }}
                         >
                           <circle cx="12" cy="12" r="10" />
                           <path d="M12 6v6l4 2" />
                         </svg>
-                      )}
-                      {isApproved && (
+                        <span>
+                          <strong>Pending admin approval</strong> — your request
+                          has been submitted and is awaiting review.
+                        </span>
+                      </div>
+                    )}
+
+                    {/* ── Approved state: confirmation banner ── */}
+                    {isApproved && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          background: "#f0fdf4",
+                          border: "1px solid #bbf7d0",
+                          borderRadius: 8,
+                          padding: "10px 12px",
+                          fontSize: 12.5,
+                          color: "#166534",
+                          lineHeight: 1.5,
+                        }}
+                      >
                         <svg
-                          width="10"
-                          height="10"
+                          width="14"
+                          height="14"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="2.5"
                           strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ flexShrink: 0 }}
                         >
                           <path d="M20 6L9 17l-5-5" />
                         </svg>
-                      )}
-                      {isRejected && (
+                        <span>
+                          <strong>Approved!</strong> Your task due date has been
+                          updated to{" "}
+                          <strong>{fmtDate(req.requested_date)}</strong>.
+                        </span>
+                      </div>
+                    )}
+
+                    {/* ── Rejected state: rejection banner ── */}
+                    {isRejected && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 8,
+                          background: "#fef2f2",
+                          border: "1px solid #fecaca",
+                          borderRadius: 8,
+                          padding: "10px 12px",
+                          fontSize: 12.5,
+                          color: "#991b1b",
+                          lineHeight: 1.5,
+                        }}
+                      >
                         <svg
-                          width="10"
-                          height="10"
+                          width="14"
+                          height="14"
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
-                          strokeWidth="2.5"
+                          strokeWidth="2"
                           strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ flexShrink: 0, marginTop: 1 }}
                         >
-                          <line x1="18" y1="6" x2="6" y2="18" />
-                          <line x1="6" y1="6" x2="18" y2="18" />
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="8" x2="12" y2="12" />
+                          <line x1="12" y1="16" x2="12.01" y2="16" />
                         </svg>
-                      )}
-                      {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
-                    </span>
-                  </div>
+                        <span>
+                          <strong>Rejected.</strong>{" "}
+                          {req.admin_note
+                            ? `Reason: ${req.admin_note}`
+                            : "Your reschedule request was not approved."}
+                        </span>
+                      </div>
+                    )}
 
-                  {/* ── Pending state: "awaiting admin review" banner ── */}
-                  {isPending && (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        background: "#fffbeb",
-                        border: "1px solid #fde68a",
-                        borderRadius: 8,
-                        padding: "10px 12px",
-                        fontSize: 12.5,
-                        color: "#92400e",
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        style={{ flexShrink: 0 }}
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 6v6l4 2" />
-                      </svg>
-                      <span>
-                        <strong>Pending admin approval</strong> — your request
-                        has been submitted and is awaiting review.
+                    {/* ── Date pills ── */}
+                    <div className="lv-card-dates">
+                      <span className="op-meta-pill">
+                        <svg
+                          width="11"
+                          height="11"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect x="3" y="4" width="18" height="18" rx="2" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                        Current due: {fmtDate(req.current_due)}
                       </span>
-                    </div>
-                  )}
-
-                  {/* ── Approved state: confirmation banner ── */}
-                  {isApproved && (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        background: "#f0fdf4",
-                        border: "1px solid #bbf7d0",
-                        borderRadius: 8,
-                        padding: "10px 12px",
-                        fontSize: 12.5,
-                        color: "#166534",
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        style={{ flexShrink: 0 }}
-                      >
-                        <path d="M20 6L9 17l-5-5" />
-                      </svg>
-                      <span>
-                        <strong>Approved!</strong> Your task due date has been
-                        updated to{" "}
-                        <strong>{fmtDate(req.requested_date)}</strong>.
-                      </span>
-                    </div>
-                  )}
-
-                  {/* ── Rejected state: rejection banner ── */}
-                  {isRejected && (
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 8,
-                        background: "#fef2f2",
-                        border: "1px solid #fecaca",
-                        borderRadius: 8,
-                        padding: "10px 12px",
-                        fontSize: 12.5,
-                        color: "#991b1b",
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        style={{ flexShrink: 0, marginTop: 1 }}
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="12" />
-                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                      </svg>
-                      <span>
-                        <strong>Rejected.</strong>{" "}
-                        {req.admin_note
-                          ? `Reason: ${req.admin_note}`
-                          : "Your reschedule request was not approved."}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* ── Date pills ── */}
-                  <div className="lv-card-dates">
-                    <span className="op-meta-pill">
-                      <svg
-                        width="11"
-                        height="11"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <rect x="3" y="4" width="18" height="18" rx="2" />
-                        <line x1="3" y1="10" x2="21" y2="10" />
-                      </svg>
-                      Current due: {fmtDate(req.current_due)}
-                    </span>
-                    <span
-                      className="op-meta-pill"
-                      style={{
-                        color: "#7c3aed",
-                        background: "#f5f3ff",
-                        borderColor: "#e0e7ff",
-                      }}
-                    >
-                      <svg
-                        width="11"
-                        height="11"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                        <path d="M3 3v5h5" />
-                      </svg>
-                      Requested: {fmtDate(req.requested_date)}
-                    </span>
-                  </div>
-
-                  {/* ── Reason ── */}
-                  {req.reason && <p className="lv-reason">"{req.reason}"</p>}
-
-                  {/* ── Actioned by / submitted on ── */}
-                  <div
-                    style={{ display: "flex", flexDirection: "column", gap: 3 }}
-                  >
-                    {req.actioned_by && (
-                      <div
+                      <span
+                        className="op-meta-pill"
                         style={{
-                          fontSize: 11.5,
-                          color: "#94a3b8",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 5,
+                          color: "#7c3aed",
+                          background: "#f5f3ff",
+                          borderColor: "#e0e7ff",
                         }}
                       >
                         <svg
@@ -2642,30 +3479,69 @@ const activeItem = [
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         >
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                          <circle cx="12" cy="7" r="4" />
+                          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                          <path d="M3 3v5h5" />
                         </svg>
-                        {isApproved ? "Approved" : "Rejected"} by{" "}
-                        {req.actioned_by}
-                        {req.actioned_at &&
-                          ` · ${new Date(req.actioned_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}
+                        Requested: {fmtDate(req.requested_date)}
+                      </span>
+                    </div>
+
+                    {/* ── Reason ── */}
+                    {req.reason && <p className="lv-reason">"{req.reason}"</p>}
+
+                    {/* ── Actioned by / submitted on ── */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 3,
+                      }}
+                    >
+                      {req.actioned_by && (
+                        <div
+                          style={{
+                            fontSize: 11.5,
+                            color: "#94a3b8",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 5,
+                          }}
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                          {isApproved ? "Approved" : "Rejected"} by{" "}
+                          {req.actioned_by}
+                          {req.actioned_at &&
+                            ` · ${new Date(req.actioned_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 11, color: "#cbd5e1" }}>
+                        Submitted{" "}
+                        {new Date(req.created_at).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </div>
-                    )}
-                    <div style={{ fontSize: 11, color: "#cbd5e1" }}>
-                      Submitted{" "}
-                      {new Date(req.created_at).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </>
         );
-        
+
       // ADD before the default case:
       case "report-submissions": {
         if (user?.role?.toLowerCase().trim() !== "project head") return null;
@@ -3709,6 +4585,16 @@ const activeItem = [
   .tt-table { font-size: 12px; }
   .tt-table thead th, .tt-row td { padding: 8px 10px; }
 }
+  .tt-table thead th {
+              background: #b1aeaea1 !important;
+              color: #5a5858 !important;
+            }
+              .lv-table-only { display: block; }
+.lv-cards-only { display: none; }
+@media (max-width: 760px) {
+  .lv-table-only { display: none; }
+  .lv-cards-only { display: grid; grid-template-columns: repeat(auto-fill,minmax(320px,1fr)); gap: 16px; }
+}
         `}</style>
 
       <div className="op-root">
@@ -3794,34 +4680,36 @@ const activeItem = [
                   {item.label}
                 </button>
               ))}
+              {verifyRequests.length > 0 && (
+                <button
+                  className={`op-nav-item${activeTab === "verify-requests" ? " active" : ""}`}
+                  onClick={() => handleNavClick("verify-requests")}
+                >
+                  <span className="op-nav-icon">{VERIFY_REQUESTS_ITEM.icon}</span>
+                  {VERIFY_REQUESTS_ITEM.label}
+                  {verifyRequests.filter((r) => r.status === "pending").length > 0 && (
+                    <span className="op-nav-badge">
+                      {verifyRequests.filter((r) => r.status === "pending").length}
+                    </span>
+                  )}
+                </button>
+              )}
               <span className="op-nav-section" style={{ marginTop: 8 }}>
                 Leave
               </span>
-              {LEAVE_NAV.filter(
-                (item) =>
-                  item.key !== "proxy-request" || proxyLeaves.length > 0,
-              ) // ← add this filter
-                .map((item) => (
-                  <button
-                    key={item.key}
-                    className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
-                    onClick={() => handleNavClick(item.key)}
-                  >
-                    <span className="op-nav-icon">{item.icon}</span>
-                    {item.label}
-                    {item.key === "proxy-request" && proxyPendingCount > 0 && (
-                      <span className="op-nav-badge">{proxyPendingCount}</span>
-                    )}
-                    {item.key === "my-reschedules" && unreadReschedules > 0 && (
-                      <span
-                        className="op-nav-badge"
-                        style={{ background: "#7c3aed" }}
-                      >
-                        {unreadReschedules}
-                      </span>
-                    )}
-                  </button>
-                ))}
+              {LEAVE_NAV.map((item) => (
+                <button
+                  key={item.key}
+                  className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
+                  onClick={() => handleNavClick(item.key)}
+                >
+                  <span className="op-nav-icon">{item.icon}</span>
+                  {item.label}
+                  {item.key === "my-leaves" && unreadLeavesCount > 0 && (
+                    <span className="op-nav-badge">{unreadLeavesCount}</span>
+                  )}
+                </button>
+              ))}
 
               <span className="op-nav-section" style={{ marginTop: 8 }}>
                 Reports
@@ -3861,24 +4749,33 @@ const activeItem = [
 
                 {/* Show filter controls only on task tabs */}
                 {["my-tasks", "recurring-tasks"].includes(activeTab) && (
-                <>
-                  <div className="tf-bar-inline">
-                    <TaskFilterBar
-                      filters={activeTab === "my-tasks" ? myTaskFilters : recurringFilters}
-                      onChange={
-                        activeTab === "my-tasks"
-                          ? makeFilterChange(setMyTaskFilters)
-                          : makeFilterChange(setRecurringFilters)
-                      }
-                      onClear={
-                        activeTab === "my-tasks"
-                          ? makeFilterClear(setMyTaskFilters)
-                          : makeFilterClear(setRecurringFilters)
-                      }
-                      taskList={activeTab === "my-tasks" ? myTasks : recurringTasks}
-                      showAssignedBy={activeTab === "my-tasks" && user?.role?.toLowerCase().trim() === "admin"}
-                    />
-                  </div>
+                  <>
+                    <div className="tf-bar-inline">
+                      <TaskFilterBar
+                        filters={
+                          activeTab === "my-tasks"
+                            ? myTaskFilters
+                            : recurringFilters
+                        }
+                        onChange={
+                          activeTab === "my-tasks"
+                            ? makeFilterChange(setMyTaskFilters)
+                            : makeFilterChange(setRecurringFilters)
+                        }
+                        onClear={
+                          activeTab === "my-tasks"
+                            ? makeFilterClear(setMyTaskFilters)
+                            : makeFilterClear(setRecurringFilters)
+                        }
+                        taskList={
+                          activeTab === "my-tasks" ? myTasks : recurringTasks
+                        }
+                        showAssignedBy={
+                          activeTab === "my-tasks" &&
+                          user?.role?.toLowerCase().trim() === "admin"
+                        }
+                      />
+                    </div>
 
                     {/* Mobile: filter icon button + popup */}
                     <div
@@ -3909,7 +4806,11 @@ const activeItem = [
                       {mobileFilterOpen && (
                         <div className="tf-popup">
                           <TaskFilterBar
-                            filters={activeTab === "my-tasks" ? myTaskFilters : recurringFilters}
+                            filters={
+                              activeTab === "my-tasks"
+                                ? myTaskFilters
+                                : recurringFilters
+                            }
                             onChange={
                               activeTab === "my-tasks"
                                 ? makeFilterChange(setMyTaskFilters)
@@ -3920,7 +4821,11 @@ const activeItem = [
                                 ? makeFilterClear(setMyTaskFilters)
                                 : makeFilterClear(setRecurringFilters)
                             }
-                            taskList={activeTab === "my-tasks" ? myTasks : recurringTasks}
+                            taskList={
+                              activeTab === "my-tasks"
+                                ? myTasks
+                                : recurringTasks
+                            }
                             showAssignedBy={
                               activeTab === "my-tasks" &&
                               user?.role?.toLowerCase().trim() === "admin"
@@ -3930,7 +4835,6 @@ const activeItem = [
                       )}
                     </div>
                   </>
-                  
                 )}
               </div>
               {renderContent()}
@@ -3954,8 +4858,7 @@ const activeItem = [
           onClick={(e) => {
             if (e.target === e.currentTarget) setRescheduleTask(null);
           }}
-        > 
-        
+        >
           <div
             style={{
               background: "#fff",
@@ -4164,6 +5067,58 @@ const activeItem = [
                   }
                 />
               </div>
+              {/* Send for verification */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+                >
+                  Send for Verification To
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: "#94a3b8",
+                      background: "#f1f5f9",
+                      borderRadius: 4,
+                      padding: "1px 6px",
+                      marginLeft: 6,
+                    }}
+                  >
+                    optional
+                  </span>
+                </label>
+                <select
+                  style={{
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontSize: 13.5,
+                    color: "#1e293b",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    padding: "9px 12px",
+                    outline: "none",
+                    width: "100%",
+                    cursor: "pointer",
+                  }}
+                  value={rescheduleForm.verify_with}
+                  onChange={(e) =>
+                    setRescheduleForm((p) => ({
+                      ...p,
+                      verify_with: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">Select Engineer Office staff…</option>
+                  {engineerOfficeUsers.map((u) => (
+                    <option key={u.username} value={u.username}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+                <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+                  Choose who should verify this task once rescheduled.
+                </span>
+              </div>
             </div>
 
             {/* Footer */}
@@ -4252,6 +5207,50 @@ const activeItem = [
           </div>
         </div>
       )}
+      {verifyRejectModal && (
+  <div
+    style={{
+      position: "fixed", inset: 0, zIndex: 10040,
+      background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+    }}
+    onClick={(e) => { if (e.target === e.currentTarget) setVerifyRejectModal(null); }}
+  >
+    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
+      <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Reject Reschedule Request</div>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+          {verifyRejectModal.req.tasks?.title || `Task #${verifyRejectModal.req.task_id}`}
+        </div>
+      </div>
+      <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
+        <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+          Reason for Rejection <span style={{ color: "#dc2626" }}>*</span>
+        </label>
+        <textarea
+          rows={3}
+          autoFocus
+          placeholder="Explain why this reschedule is being rejected…"
+          style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "#1e293b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", outline: "none", width: "100%", resize: "vertical", minHeight: 90 }}
+          value={verifyRejectModal.reason}
+          onChange={(e) => setVerifyRejectModal((p) => ({ ...p, reason: e.target.value }))}
+        />
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
+        <button onClick={() => setVerifyRejectModal(null)} style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}>
+          Cancel
+        </button>
+        <button
+          onClick={handleVerifyRejectConfirm}
+          disabled={!verifyRejectModal.reason.trim()}
+          style={{ background: verifyRejectModal.reason.trim() ? "#dc2626" : "#f1f5f9", color: verifyRejectModal.reason.trim() ? "#fff" : "#94a3b8", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 20px", borderRadius: 8, border: "none", cursor: verifyRejectModal.reason.trim() ? "pointer" : "not-allowed" }}
+        >
+          Confirm Rejection
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       {detailTask && (
         <div
           style={{
@@ -5076,25 +6075,77 @@ const activeItem = [
       )}
       {rejectTarget && (
         <div
-          style={{ position:"fixed", inset:0, zIndex:10030, background:"rgba(15,23,42,.45)", backdropFilter:"blur(3px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
-          onClick={e => { if (e.target===e.currentTarget) setRejectTarget(null); }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10030,
+            background: "rgba(15,23,42,.45)",
+            backdropFilter: "blur(3px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setRejectTarget(null);
+          }}
         >
-          <div style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:420, padding:24, boxShadow:"0 20px 60px rgba(0,0,0,.2)" }}>
-            <div style={{ fontSize:16, fontWeight:700, color:"#1e293b", marginBottom:6 }}>Reject this leave application?</div>
-            <div style={{ fontSize:13, color:"#64748b", marginBottom:14 }}>
-              <strong>{rejectTarget.leave.leave_type}</strong> · {new Date(rejectTarget.leave.from_date+"T00:00:00").toLocaleDateString("en-IN")} → {new Date(rejectTarget.leave.to_date+"T00:00:00").toLocaleDateString("en-IN")}
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 420,
+              padding: 24,
+              boxShadow: "0 20px 60px rgba(0,0,0,.2)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: "#1e293b",
+                marginBottom: 6,
+              }}
+            >
+              Reject this leave application?
             </div>
-            <label className="lv-label">Reason for rejection <span className="lv-req">*</span></label>
+            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 14 }}>
+              <strong>{rejectTarget.leave.leave_type}</strong> ·{" "}
+              {new Date(
+                rejectTarget.leave.from_date + "T00:00:00",
+              ).toLocaleDateString("en-IN")}{" "}
+              →{" "}
+              {new Date(
+                rejectTarget.leave.to_date + "T00:00:00",
+              ).toLocaleDateString("en-IN")}
+            </div>
+            <label className="lv-label">
+              Reason for rejection <span className="lv-req">*</span>
+            </label>
             <textarea
-              className="lv-input lv-textarea" rows={3}
+              className="lv-input lv-textarea"
+              rows={3}
               placeholder="Explain why this leave is being rejected…"
-              value={rejectReason} onChange={e=>setRejectReason(e.target.value)}
-              style={{ marginBottom:18 }}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              style={{ marginBottom: 18 }}
             />
-            <div style={{ display:"flex", gap:10 }}>
-              <button className="lv-btn-reset" style={{flex:1,justifyContent:"center"}} onClick={()=>setRejectTarget(null)}>Cancel</button>
+            <div style={{ display: "flex", gap: 10 }}>
               <button
-                className="lv-btn-submit" style={{flex:1,justifyContent:"center",background:"#dc2626"}}
+                className="lv-btn-reset"
+                style={{ flex: 1, justifyContent: "center" }}
+                onClick={() => setRejectTarget(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="lv-btn-submit"
+                style={{
+                  flex: 1,
+                  justifyContent: "center",
+                  background: "#dc2626",
+                }}
                 disabled={!rejectReason.trim()}
                 onClick={confirmProxyReject}
               >

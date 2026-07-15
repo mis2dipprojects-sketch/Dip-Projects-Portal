@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import Navbar from "../components/Navbar";
 import { supabase } from "../supabase";
 import { useRecurringTasks } from "../hooks/useRecurringTasks";
-import SiteReport from "./Sitereport";  
+import SiteReport from "./Sitereport";
 import {
   TaskForm as TaskFormWithCheckpoints,
   EMPTY_FORM,
@@ -107,6 +107,7 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  
   {
     key: "reschedule-requests",
     label: "Reschedule Requests",
@@ -212,56 +213,64 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
-  
 ];
 const REPORTS_NAV = [
-{
-  key: "add-drawings",
-  label: "Add Drawings",
-  icon: (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="3" y="5" width="12" height="14" rx="1"/>
-      <path d="M6 9h6M6 12h6M6 15h4"/>
-      <path d="M16 16l5-5 2 2-5 5-3 1z"/>
-    </svg>
-  ),
-},
-{
-  key: "all-drawings",
-  label: "All Drawings",
-  icon: (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="3" y="3" width="18" height="18" rx="1"/>
-      <path d="M3 9h18"/>
-      <path d="M9 3v18"/>
-      <path d="M15 3v18"/>
-      <path d="M3 15h18"/>
-    </svg>
-  ),
-},
+  {
+    key: "add-drawings",
+    label: "Add Drawings",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="3" y="5" width="12" height="14" rx="1" />
+        <path d="M6 9h6M6 12h6M6 15h4" />
+        <path d="M16 16l5-5 2 2-5 5-3 1z" />
+      </svg>
+    ),
+  },
+  {
+    key: "all-drawings",
+    label: "All Drawings",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="3" y="3" width="18" height="18" rx="1" />
+        <path d="M3 9h18" />
+        <path d="M9 3v18" />
+        <path d="M15 3v18" />
+        <path d="M3 15h18" />
+      </svg>
+    ),
+  },
   {
     key: "site-report",
-    label: "Site Report",
+    label: "Site Visit Report",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
         <line x1="9" y1="13" x2="15" y2="13" />
@@ -270,139 +279,166 @@ const REPORTS_NAV = [
     ),
   },
   {
-    key: "svr-reports",
-    label: "SVR Reports",
+    key: "my-reports",
+    label: "My Reports",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9l5 5v3" />
         <polyline points="14 3 14 8 19 8" />
         <path d="M12 22l2 2 4-4" />
       </svg>
     ),
   },
-    
+  {
+    key: "report-submissions",
+    label: "Report Submissions",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+        <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+      </svg>
+    ),
+  },
 ];
 const TICKETS_NAV = [
-{
-  key: "new-tickets",
-  label: "New Tickets",
-  icon: (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z" />
-      <path d="M12 7v10" strokeDasharray="2 2" />
-    </svg>
-  ),
-},
-{
-  key: "solved-ticket",
-  label: "Solved Tickets",
-  icon: (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z" />
-      <path d="M9 12l2 2 4-4" />
-    </svg>
-  ),
-}
+  {
+    key: "new-tickets",
+    label: "New Tickets",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z" />
+        <path d="M12 7v10" strokeDasharray="2 2" />
+      </svg>
+    ),
+  },
+  {
+    key: "solved-ticket",
+    label: "Solved Tickets",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z" />
+        <path d="M9 12l2 2 4-4" />
+      </svg>
+    ),
+  },
 ];
 const VERIFICATION_NAV = [
-{
-  key: "pending-verification",
-  label: "Pending Verification",
-  icon: (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M6 2h12" />
-      <path d="M6 22h12" />
-      <path d="M8 2v4l4 4 4-4V2" />
-      <path d="M8 22v-4l4-4 4 4v4" />
-    </svg>
-  ),
-},
-{
-  key: "approved-verification",
-  label: "Approved Tasks",
-  icon: (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M8 12l3 3 5-6" />
-    </svg>
-  ),
-},
-{
-  key: "rejected-verification",
-  label: "Rejected Tasks",
-  icon: (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M9 9l6 6" />
-      <path d="M15 9l-6 6" />
-    </svg>
-  ),
-},
-{
-  key: "overdue-tasks",
-  label: "Overdue Tasks",
-  icon: (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
-      <path d="M19 5l2-2" />
-    </svg>
-  ),
-}
+  {
+    key: "pending-verification",
+    label: "Pending Verification",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M6 2h12" />
+        <path d="M6 22h12" />
+        <path d="M8 2v4l4 4 4-4V2" />
+        <path d="M8 22v-4l4-4 4 4v4" />
+      </svg>
+    ),
+  },
+  {
+    key: "approved-verification",
+    label: "Approved Tasks",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M8 12l3 3 5-6" />
+      </svg>
+    ),
+  },
+  {
+    key: "rejected-verification",
+    label: "Rejected Tasks",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9 9l6 6" />
+        <path d="M15 9l-6 6" />
+      </svg>
+    ),
+  },
+  {
+    key: "overdue-tasks",
+    label: "Overdue Tasks",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+        <path d="M19 5l2-2" />
+      </svg>
+    ),
+  },
 ];
 const PRIORITY_STYLES = {
   high: { bg: "#fef2f2", color: "#dc2626", dot: "#dc2626" },
@@ -459,7 +495,7 @@ function daysInMonth(month) {
   return new Date(2001, parseInt(month, 10), 0).getDate();
 }
 function nameFor(userMap, username) {
-  return userMap[username] || username || "—";
+  return (userMap && userMap[username]) || username || "—";
 }
 function buildAnchor(form) {
   switch (form.recurrence) {
@@ -552,6 +588,36 @@ function getLeaveDays(leave) {
   );
 }
 
+function formatSubmissionDate(d) {
+  if (!d) return "—";
+  const date = String(d).includes("T")
+    ? new Date(d)
+    : new Date(d + "T00:00:00");
+  if (isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+function isOfficeDoc(url) {
+  return /\.(pptx|ppt|docx|doc|xlsx|xls)(\?|$)/i.test(url || "");
+}
+
+function getViewUrl(url) {
+  if (!url) return url;
+  if (isOfficeDoc(url)) {
+    return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+  }
+  return url; // pdf, images, etc. — browser can render natively
+}
+function getFileExt(url) {
+  if (!url) return "file";
+  const clean = url.split("?")[0].split("#")[0];
+  const parts = clean.split(".");
+  return parts.length > 1 ? parts.pop().toLowerCase() : "file";
+}
+
 function buildDownloadUrl(url, filename) {
   if (!url) return url;
   const sep = url.includes("?") ? "&" : "?";
@@ -597,7 +663,16 @@ function isFinalLeaveStatus(leave) {
   const storedStatus = normalizeText(leave.status);
   return storedStatus === "approved" || storedStatus === "rejected";
 }
-
+function applySubmissionFilters(rows, filters) {
+  return rows.filter((r) => {
+    if (filters.site && r.site !== filters.site) return false;
+    if (filters.engineer && r.engineer !== filters.engineer) return false;
+    if (filters.reportType && r.source !== filters.reportType) return false;
+    if (filters.dateFrom && r.date && r.date < filters.dateFrom) return false;
+    if (filters.dateTo && r.date && r.date > filters.dateTo) return false;
+    return true;
+  });
+}
 function applyTaskFilters(tasks, filters) {
   return tasks.filter((t) => {
     if (filters.assignedTo && t.assigned_to !== filters.assignedTo)
@@ -666,6 +741,467 @@ function formatNextDue(date) {
   if (diff <= 7)
     return { label, badge: `In ${diff} days`, color: "#2563eb", bg: "#eff6ff" };
   return { label, badge: null };
+}
+function EmployeeFilterBar({
+  filters,
+  onChange,
+  onClear,
+  employees,
+  sites,
+  inline,
+  mobileOpen,
+  onMobileToggle,
+}) {
+  const isActive = Object.values(filters).some((v) => v !== "");
+
+  const empSiteNames = (emp) =>
+    emp.site_names?.length
+      ? emp.site_names
+      : emp.site_name
+        ? [emp.site_name]
+        : [];
+
+  // Names available given the current site filter (but ignoring name filter itself)
+  const namesFiltered = employees.filter((emp) =>
+    filters.site ? empSiteNames(emp).includes(filters.site) : true,
+  );
+  const names = [
+    ...new Set(namesFiltered.map((e) => e.name).filter(Boolean)),
+  ].sort();
+
+  // Sites available given the current name filter (but ignoring site filter itself)
+  const sitesFiltered = employees.filter((emp) =>
+    filters.name ? emp.name === filters.name : true,
+  );
+  const siteNames = [
+    ...new Set(
+      sitesFiltered.flatMap((emp) => empSiteNames(emp)).filter(Boolean),
+    ),
+  ].sort();
+
+  const fields = (
+    <>
+      <div className="tf-group">
+        <span className="tf-label">Name</span>
+        <select
+          className="tf-select"
+          value={filters.name}
+          onChange={(e) => onChange("name", e.target.value)}
+        >
+          <option value="">All names</option>
+          {names.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="tf-divider" />
+      <div className="tf-group">
+        <span className="tf-label">Site</span>
+        <select
+          className="tf-select"
+          value={filters.site}
+          onChange={(e) => onChange("site", e.target.value)}
+        >
+          <option value="">All sites</option>
+          {siteNames.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
+      {isActive && (
+        <button className="tf-clear" onClick={onClear}>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+          Clear
+        </button>
+      )}
+    </>
+  );
+
+  if (inline) {
+    return (
+      <>
+        <div className="tf-bar-inline">{fields}</div>
+        <div
+          style={{ position: "relative", marginLeft: "auto", flexShrink: 0 }}
+        >
+          <button
+            className={`tf-mobile-btn${mobileOpen ? " Active" : ""}`}
+            onClick={onMobileToggle}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            >
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+              <line x1="11" y1="18" x2="13" y2="18" />
+            </svg>
+            {isActive && <span className="tf-mobile-badge" />}
+          </button>
+          {mobileOpen && (
+            <div className="tf-popup">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {fields}
+              </div>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  return <div className="tf-bar tf-bar-fixed">{fields}</div>;
+}
+
+function SiteFilterBar({
+  filters,
+  onChange,
+  onClear,
+  employees,
+  sites,
+  inline,
+  mobileOpen,
+  onMobileToggle,
+}) {
+  const isActive = Object.values(filters).some((v) => v !== "");
+  const siteNames = [
+    ...new Set((sites || []).map((s) => s.site_name).filter(Boolean)),
+  ].sort();
+
+  const fields = (
+    <>
+      <div className="tf-group">
+        <span className="tf-label">Site</span>
+        <select
+          className="tf-select"
+          value={filters.site}
+          onChange={(e) => onChange("site", e.target.value)}
+        >
+          <option value="">All sites</option>
+          {siteNames.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="tf-divider" />
+      <div className="tf-group">
+        <span className="tf-label">Assigned User</span>
+        <select
+          className="tf-select"
+          value={filters.assignedUser}
+          onChange={(e) => onChange("assignedUser", e.target.value)}
+        >
+          <option value="">All users</option>
+          {employees.map((e) => (
+            <option key={e.username} value={e.username}>
+              {e.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {isActive && (
+        <button className="tf-clear" onClick={onClear}>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+          Clear
+        </button>
+      )}
+    </>
+  );
+
+  if (inline) {
+    return (
+      <>
+        <div className="tf-bar-inline">{fields}</div>
+        <div
+          style={{ position: "relative", marginLeft: "auto", flexShrink: 0 }}
+        >
+          <button
+            className={`tf-mobile-btn${mobileOpen ? " Active" : ""}`}
+            onClick={onMobileToggle}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            >
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+              <line x1="11" y1="18" x2="13" y2="18" />
+            </svg>
+            {isActive && <span className="tf-mobile-badge" />}
+          </button>
+          {mobileOpen && (
+            <div className="tf-popup">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {fields}
+              </div>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  return <div className="tf-bar tf-bar-fixed">{fields}</div>;
+}
+function SubmissionFilterBar({
+  filters,
+  onChange,
+  onClear,
+  rows,
+  inline,
+  mobileOpen,
+  onMobileToggle,
+}) {
+  const sitesFiltered = applySubmissionFilters(rows, { ...filters, site: "" });
+  const engineersFiltered = applySubmissionFilters(rows, {
+    ...filters,
+    engineer: "",
+  });
+  const typesFiltered = applySubmissionFilters(rows, {
+    ...filters,
+    reportType: "",
+  });
+
+  const sites = [
+    ...new Set(sitesFiltered.map((r) => r.site).filter(Boolean)),
+  ].sort();
+  const engineers = [
+    ...new Set(engineersFiltered.map((r) => r.engineer).filter(Boolean)),
+  ].sort();
+  const types = [
+    ...new Set(typesFiltered.map((r) => r.source).filter(Boolean)),
+  ].sort();
+
+  const isActive = Object.values(filters).some((v) => v !== "");
+
+  const fields = (
+    <>
+      <div className="tf-group">
+        <span className="tf-label">Site</span>
+        <select
+          className="tf-select"
+          value={filters.site}
+          onChange={(e) => onChange("site", e.target.value)}
+        >
+          <option value="">All sites</option>
+          {sites.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="tf-divider" />
+      <div className="tf-group">
+        <span className="tf-label">Engineer</span>
+        <select
+          className="tf-select"
+          value={filters.engineer}
+          onChange={(e) => onChange("engineer", e.target.value)}
+        >
+          <option value="">All engineers</option>
+          {engineers.map((e2) => (
+            <option key={e2} value={e2}>
+              {e2}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="tf-divider" />
+      <div className="tf-group">
+        <span className="tf-label">Type</span>
+        <select
+          className="tf-select"
+          value={filters.reportType}
+          onChange={(e) => onChange("reportType", e.target.value)}
+        >
+          <option value="">All types</option>
+          {types.map((t) => (
+            <option key={t} value={t}>
+              {t.toUpperCase()}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="tf-divider" />
+      <div className="tf-group">
+        <span className="tf-label">Date</span>
+        <input
+          className="tf-input tf-date"
+          type="date"
+          value={filters.dateFrom}
+          onChange={(e) => onChange("dateFrom", e.target.value)}
+        />
+        <span className="tf-sep-text">–</span>
+        <input
+          className="tf-input tf-date"
+          type="date"
+          value={filters.dateTo}
+          min={filters.dateFrom}
+          onChange={(e) => onChange("dateTo", e.target.value)}
+        />
+      </div>
+      {isActive && (
+        <button className="tf-clear" onClick={onClear}>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+          Clear
+        </button>
+      )}
+    </>
+  );
+
+  if (inline) {
+    return (
+      <>
+        <div className="tf-bar-inline">{fields}</div>
+        <div
+          style={{ position: "relative", marginLeft: "auto", flexShrink: 0 }}
+        >
+          <button
+            className={`tf-mobile-btn${mobileOpen ? " Active" : ""}`}
+            onClick={onMobileToggle}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            >
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+              <line x1="11" y1="18" x2="13" y2="18" />
+            </svg>
+            {isActive && <span className="tf-mobile-badge" />}
+          </button>
+          {mobileOpen && (
+            <div className="tf-popup">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {fields}
+              </div>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  return <div className="tf-bar tf-bar-fixed">{fields}</div>;
+}
+function RescheduleFilterBar({ filters, onChange, onClear, reschedules, userMap, inline, mobileOpen, onMobileToggle }) {
+  const isActive = Object.values(filters).some((v) => v !== "");
+  const names = [
+    ...new Set(reschedules.map((r) => nameFor(userMap, r.requested_by)).filter(Boolean)),
+  ].sort();
+
+  const fields = (
+    <>
+      <div className="tf-group">
+        <span className="tf-label">Name</span>
+        <select className="tf-select" value={filters.name} onChange={(e) => onChange("name", e.target.value)}>
+          <option value="">All names</option>
+          {names.map((n) => (
+            <option key={n} value={n}>{n}</option>
+          ))}
+        </select>
+      </div>
+      <div className="tf-divider" />
+      <div className="tf-group">
+        <span className="tf-label">Status</span>
+        <select className="tf-select" value={filters.status} onChange={(e) => onChange("status", e.target.value)}>
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      {isActive && (
+        <button className="tf-clear" onClick={onClear}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+          Clear
+        </button>
+      )}
+    </>
+  );
+
+  if (inline) {
+    return (
+      <>
+        <div className="tf-bar-inline">{fields}</div>
+        <div style={{ position: "relative", marginLeft: "auto", flexShrink: 0 }}>
+          <button className={`tf-mobile-btn${mobileOpen ? " Active" : ""}`} onClick={onMobileToggle}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+              <line x1="11" y1="18" x2="13" y2="18" />
+            </svg>
+            {isActive && <span className="tf-mobile-badge" />}
+          </button>
+          {mobileOpen && (
+            <div className="tf-popup">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{fields}</div>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  return <div className="tf-bar tf-bar-fixed">{fields}</div>;
 }
 // ── Task Filter Bar ────────────────────────────────────────────────────────
 function TaskFilterBar({
@@ -1781,8 +2317,9 @@ function LeaveRequestCard({ leave, onAction, updating, roleByName }) {
         )}
       </div>
       {leave.rejection_reason && (
-        <div className="ap-leave-rejection">
-          {formatAuditEntries(leave.rejection_reason, roleByName)}
+        <div className="lv-rejection">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <strong>Rejected:</strong> {formatAuditEntries(leave.rejection_reason, roleByName)}
         </div>
       )}
       {canAct ? (
@@ -2422,7 +2959,190 @@ async function uploadSiteImage(supabaseClient, siteName, file) {
     .getPublicUrl(path);
   return urlData.publicUrl;
 }
-function RescheduleRequestCard({ req, onAction, updating, roleByName }) {
+function LeaveRow({ leave, onAction, updating, roleByName }) {
+  const status = computeLeaveStatus(leave);
+  const style = LEAVE_STATUS_STYLES[status];
+  const days = getLeaveDays(leave);
+  const managedByHead = isSiteEngineerLeave(leave);
+  const canAct =
+    !managedByHead &&
+    (leave.admin_approved === null || leave.admin_approved === undefined) &&
+    !isFinalLeaveStatus(leave);
+
+  return (
+    <tr className="ap-tr">
+      <td className="ap-td ap-td-title">
+        {leave.name || leave.user_name || "Employee"}
+        <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>
+          {leave.user_name}
+        </div>
+      </td>
+      <td className="ap-td">{leave.site_name || "—"}</td>
+      <td className="ap-td">{leave.leave_type || "Leave"}</td>
+      <td className="ap-td">
+        {formatLeaveDate(leave.from_date)} → {formatLeaveDate(leave.to_date)}
+        {days && (
+          <div style={{ fontSize: 11.5, color: "#94a3b8" }}>
+            {days} day{days > 1 ? "s" : ""}
+          </div>
+        )}
+      </td>
+      <td className="ap-td" style={{ maxWidth: 220 }}>
+        {leave.reason ? (
+          <span style={{ fontSize: 12.5, color: "#64748b" }}>
+            {formatAuditEntries(leave.reason, roleByName)}
+          </span>
+        ) : (
+          <span style={{ color: "#94a3b8" }}>—</span>
+        )}
+      </td>
+      <td className="ap-td">
+        {managedByHead ? (
+          <span className={`ap-approval-pill ${getHeadApprovalClass(leave)}`}>
+            {getHeadApprovalText(leave)}
+          </span>
+        ) : (
+          <>
+            {leave.admin_approved === true && (
+              <span className="ap-approval-pill ok">Admin: Approved</span>
+            )}
+            {leave.admin_approved === false && (
+              <span className="ap-approval-pill no">Admin: Rejected</span>
+            )}
+            {(leave.admin_approved === null || leave.admin_approved === undefined) && (
+              <span className="ap-approval-pill">Admin: Pending</span>
+            )}
+          </>
+        )}
+      </td>
+      <td className="ap-td">
+        <span
+          className="ap-leave-status"
+          style={{ background: style.bg, color: style.color, borderColor: style.border }}
+        >
+          {status.charAt(0).toUpperCase() + status.slice(1)}
+        </span>
+        {leave.rejection_reason && (
+          <div style={{ fontSize: 11, color: "#dc2626", marginTop: 4, maxWidth: 180 }}>
+            {formatAuditEntries(leave.rejection_reason, roleByName)}
+          </div>
+        )}
+      </td>
+      <td className="ap-td">
+        {canAct ? (
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              className="ap-btn-approve"
+              disabled={updating === leave.id}
+              onClick={() => onAction(leave, true)}
+              style={{ padding: "5px 10px", fontSize: 11.5 }}
+            >
+              Approve
+            </button>
+            <button
+              className="ap-btn-reject"
+              disabled={updating === leave.id}
+              onClick={() => onAction(leave, false)}
+              style={{ padding: "5px 10px", fontSize: 11.5 }}
+            >
+              Reject
+            </button>
+            {updating === leave.id && <span className="ap-saving">saving…</span>}
+          </div>
+        ) : managedByHead ? (
+          <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>
+            Managed by site head
+          </span>
+        ) : (
+          <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>
+            Actioned
+          </span>
+        )}
+      </td>
+    </tr>
+  );
+}
+function RescheduleRow({ req, onAction, updating, userMap }) {
+  const ss = RESCHED_STATUS_STYLES[req.status] || RESCHED_STATUS_STYLES.pending;
+  const fmtDate = (d) =>
+    d
+      ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
+  const taskTitle = req.tasks?.title || `Task #${req.task_id}`;
+  const siteName = req.tasks?.site_name;
+
+  return (
+    <tr className="ap-tr">
+      <td className="ap-td ap-td-title">
+        {nameFor(userMap, req.requested_by)}
+      </td>
+      <td className="ap-td">
+        {taskTitle}
+        {siteName && (
+          <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>
+            {siteName}
+          </div>
+        )}
+      </td>
+      <td className="ap-td">{fmtDate(req.current_due)}</td>
+      <td className="ap-td" style={{ color: "#7c3aed", fontWeight: 600 }}>
+        {fmtDate(req.requested_date)}
+      </td>
+      <td className="ap-td" style={{ maxWidth: 220 }}>
+        {req.reason ? (
+          <span style={{ fontSize: 12.5, color: "#64748b" }}>
+            {formatAuditEntries(req.reason)}
+          </span>
+        ) : (
+          <span style={{ color: "#94a3b8" }}>—</span>
+        )}
+      </td>
+      <td className="ap-td">
+        <span
+          className="ap-leave-status"
+          style={{ background: ss.bg, color: ss.color, borderColor: ss.border }}
+        >
+          {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+        </span>
+      </td>
+      <td className="ap-td">
+        {req.status === "pending" ? (
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              className="ap-btn-approve"
+              disabled={updating === req.id}
+              onClick={() => onAction(req, true)}
+              style={{ padding: "5px 10px", fontSize: 11.5 }}
+            >
+              Approve
+            </button>
+            <button
+              className="ap-btn-reject"
+              disabled={updating === req.id}
+              onClick={() => onAction(req, false)}
+              style={{ padding: "5px 10px", fontSize: 11.5 }}
+            >
+              Reject
+            </button>
+            {updating === req.id && <span className="ap-saving">saving…</span>}
+          </div>
+         ) : (
+          <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>
+            {req.status === "approved"
+              ? `Approved by ${nameFor(userMap, req.actioned_by)}`
+              : `Rejected by ${nameFor(userMap, req.actioned_by)}`}
+          </span>
+        )}  
+      </td>
+    </tr>
+  );
+}
+
+function RescheduleRequestCard({ req, onAction, updating, roleByName, userMap }) {
   const ss = RESCHED_STATUS_STYLES[req.status] || RESCHED_STATUS_STYLES.pending;
   const fmtDate = (d) =>
     d
@@ -2449,7 +3169,7 @@ function RescheduleRequestCard({ req, onAction, updating, roleByName }) {
     >
       <div className="ap-leave-card-top">
         <div>
-          <div className="ap-leave-title">{req.requested_by}</div>
+          <div className="ap-leave-title">{nameFor(userMap, req.requested_by)}</div>
           <div className="ap-leave-sub">
             Task: <strong>{taskTitle}</strong>
             {siteName && ` · ${siteName}`}
@@ -2545,8 +3265,8 @@ function RescheduleRequestCard({ req, onAction, updating, roleByName }) {
       ) : (
         <div className="ap-leave-done">
           {req.status === "approved"
-            ? `✓ Approved by ${req.actioned_by} — due date updated to ${fmtDate(req.requested_date)}`
-            : `✗ Rejected by ${req.actioned_by}`}
+            ? `✓ Approved by ${nameFor(userMap, req.actioned_by)} — due date updated to ${fmtDate(req.requested_date)}`
+            : `✗ Rejected by ${nameFor(userMap, req.actioned_by)}`}
         </div>
       )}
     </div>
@@ -2569,6 +3289,7 @@ export default function AdminPortal() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [rejectModal, setRejectModal] = useState(null);
 
+  const [leaveRejectModal, setLeaveRejectModal] = useState(null); // { leave, reason }
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null); // holds employee object when editing
@@ -2583,22 +3304,113 @@ export default function AdminPortal() {
     status: "Active",
   });
   const [empSubmitting, setEmpSubmitting] = useState(false);
-const [mySvrReports, setMySvrReports] = useState([]);
-const [loadingSvrReports, setLoadingSvrReports] = useState(false);
+  const [mySvrReports, setMySvrReports] = useState([]);
+  const [loadingSvrReports, setLoadingSvrReports] = useState(false);
+  const [rescheduleFilters, setRescheduleFilters] = useState({ name: "", status: "" });
+const [rescheduleMobileFilterOpen, setRescheduleMobileFilterOpen] = useState(false);
+  const [submissionMobileFilterOpen, setSubmissionMobileFilterOpen] =
+    useState(false);
+  const [employeeFilters, setEmployeeFilters] = useState({
+    name: "",
+    site: "",
+  });
+  const [employeeMobileFilterOpen, setEmployeeMobileFilterOpen] =
+    useState(false);
 
-const fetchMySvrReports = useCallback(async (u) => {
-  if (!u) return;
-  setLoadingSvrReports(true);
-const { data, error } = await supabase
-  .from("site_reports")
-  .select(
-    "id, site_name, reporter_name, designation, visit_date, visit_time, progress_of_work, quality_observations, safety_concerns, issues_concerns, site_visit_instructions, key_instructions, submitted_by, submitted_by_name, pdf_url, created_at",
-  )
-  .eq("submitted_by", u.user_name)   // ✅ matches what's actually stored
-  .order("created_at", { ascending: false });
-  if (!error) setMySvrReports(data || []);
-  setLoadingSvrReports(false);
-}, []);
+  const [siteFiltersState, setSiteFiltersState] = useState({
+    site: "",
+    assignedUser: "",
+  });
+  const [siteMobileFilterOpen, setSiteMobileFilterOpen] = useState(false);
+
+  const fetchAllReportSubmissions = useCallback(async (u) => {
+    if (!u || u.role?.toLowerCase().trim() !== "admin") return;
+    setLoadingSubmissions(true);
+
+    const [dprRes, svrRes, wprRes] = await Promise.allSettled([
+      supabase
+        .from("dpr_reports")
+        .select("id, site, engineer, report_type, date, pdf_url, created_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("site_reports")
+        .select("id, site_name, reporter_name, visit_date, pdf_url, created_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("wpr_reports")
+        .select(
+          "id, site_name, engineer_name, created_at, presentation_url, created_at",
+        )
+        .order("created_at", { ascending: false }),
+    ]);
+
+    const dprData =
+      dprRes.status === "fulfilled" && !dprRes.value.error
+        ? dprRes.value.data
+        : [];
+    const svrData =
+      svrRes.status === "fulfilled" && !svrRes.value.error
+        ? svrRes.value.data
+        : [];
+    const wprData =
+      wprRes.status === "fulfilled" && !wprRes.value.error
+        ? wprRes.value.data
+        : [];
+
+    const normalized = [
+      ...(dprData || [])
+        .filter((r) => normalizeText(r.report_type) !== "morning")
+        .map((r) => ({
+          id: `dpr-${r.id}`,
+          site: r.site,
+          engineer: r.engineer,
+          date: r.date,
+          created_at: r.created_at,
+          pdf_url: r.pdf_url,
+          report_type: r.report_type
+            ? `DPR (${toTitleCase(r.report_type)})`
+            : "DPR",
+          source: "dpr",
+        })),
+      ...(svrData || []).map((r) => ({
+        id: `svr-${r.id}`,
+        site: r.site_name,
+        engineer: r.reporter_name,
+        date: r.visit_date,
+        created_at: r.created_at,
+        pdf_url: r.pdf_url,
+        report_type: "SVR",
+        source: "svr",
+      })),
+      ...(wprData || []).map((r) => ({
+        id: `wpr-${r.id}`,
+        site: r.site_name,
+        engineer: r.engineer_name,
+        date: r.created_at,
+        created_at: r.created_at,
+        pdf_url: r.presentation_url,
+        report_type: "WPR",
+        source: "wpr",
+      })),
+    ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    setAllSubmissions(normalized);
+    setLoadingSubmissions(false);
+  }, []);
+
+  const fetchMySvrReports = useCallback(async (u) => {
+    if (!u) return;
+    setLoadingSvrReports(true);
+    const { data, error } = await supabase
+      .from("site_reports")
+      .select(
+        "id, site_name, reporter_name, designation, visit_date, visit_time, progress_of_work, quality_observations, safety_concerns, issues_concerns, site_visit_instructions, key_instructions, submitted_by, submitted_by_name, pdf_url, created_at",
+      )
+      .eq("submitted_by", u.user_name) // ✅ matches what's actually stored
+      .order("created_at", { ascending: false });
+    if (!error) setMySvrReports(data || []);
+    setLoadingSvrReports(false);
+  }, []);
   const EMPTY_SITE_FORM = {
     site_name: "",
     user_name: "",
@@ -2643,6 +3455,16 @@ const { data, error } = await supabase
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
 
+  //Report submission
+  const [allSubmissions, setAllSubmissions] = useState([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  const [submissionFilters, setSubmissionFilters] = useState({
+    site: "",
+    engineer: "",
+    reportType: "",
+    dateFrom: "",
+    dateTo: "",
+  });
   // Task filters
   const [taskFilters, setTaskFilters] = useState({ ...EMPTY_TASK_FILTERS });
   const total = allTasks.length;
@@ -2650,10 +3472,51 @@ const { data, error } = await supabase
     (map, e) => ({ ...map, [e.name]: e.role }),
     {},
   );
-  
-const assignableEmployees = employees.filter((e) =>
-  ["site engineer", "engineer office"].includes(normalizeText(e.department)),
-);
+  const filteredEmployees = employees.filter((emp) => {
+    if (employeeFilters.name && emp.name !== employeeFilters.name) return false;
+    if (employeeFilters.site) {
+      const empSites = emp.site_names?.length
+        ? emp.site_names
+        : emp.site_name
+          ? [emp.site_name]
+          : [];
+      if (!empSites.includes(employeeFilters.site)) return false;
+    }
+    return true;
+  });
+  const [userMap, setUserMap] = useState({});
+    useEffect(() => {
+      supabase
+        .from("user_details")
+        .select("username, name")
+        .then(({ data, error }) => {
+          if (!error && data) {
+            const map = {};
+            data.forEach((u) => {
+              map[u.username] = u.name;
+            });
+            setUserMap(map);
+          }
+        });
+    }, []);
+const filteredReschedules = allReschedules.filter((r) => {
+  if (rescheduleFilters.name && nameFor(userMap, r.requested_by) !== rescheduleFilters.name) return false;
+  if (rescheduleFilters.status && r.status !== rescheduleFilters.status) return false;
+  return true;
+});
+  const filteredSites = sites.filter((site) => {
+    if (siteFiltersState.site && site.site_name !== siteFiltersState.site)
+      return false;
+    if (
+      siteFiltersState.assignedUser &&
+      site.user_name !== siteFiltersState.assignedUser
+    )
+      return false;
+    return true;
+  });
+  const assignableEmployees = employees.filter((e) =>
+    ["site engineer", "engineer office"].includes(normalizeText(e.department)),
+  );
   const EMPTY_RECURRING_FILTERS = {
     dueSoon: false,
     site: "",
@@ -2663,21 +3526,7 @@ const assignableEmployees = employees.filter((e) =>
   const [recurringFilters, setRecurringFilters] = useState({
     ...EMPTY_RECURRING_FILTERS,
   });
-  const [userMap, setUserMap] = useState({});
-  useEffect(() => {
-    supabase
-      .from("user_details")
-      .select("username, name")
-      .then(({ data, error }) => {
-        if (!error && data) {
-          const map = {};
-          data.forEach((u) => {
-            map[u.username] = u.name;
-          });
-          setUserMap(map);
-        }
-      });
-  }, []);
+
 
   const [detailTask, setDetailTask] = useState(null);
   useEffect(() => {
@@ -2695,15 +3544,25 @@ const assignableEmployees = employees.filter((e) =>
     setLoadingTasks(false);
   }, []);
 
+  // const fetchAllReschedules = useCallback(async () => {
+  //   setLoadingReschedules(true);
+  //   const { data } = await supabase
+  //     .from("reschedule_requests")
+  //     .select("*, tasks(title, site_name)")
+  //     .order("created_at", { ascending: false });
+  //   setAllReschedules(data || []);
+  //   setLoadingReschedules(false);
+  // }, []);
   const fetchAllReschedules = useCallback(async () => {
-    setLoadingReschedules(true);
-    const { data } = await supabase
-      .from("reschedule_requests")
-      .select("*, tasks(title, site_name)")
-      .order("created_at", { ascending: false });
-    setAllReschedules(data || []);
-    setLoadingReschedules(false);
-  }, []);
+  setLoadingReschedules(true);
+  const { data } = await supabase
+    .from("reschedule_requests")
+    .select("*, tasks(title, site_name)")
+    .is("verify_with", null)          // ← only requests with no specific verifier
+    .order("created_at", { ascending: false });
+  setAllReschedules(data || []);
+  setLoadingReschedules(false);
+}, []);
 
   const fetchAllLeaves = useCallback(async () => {
     setLoadingLeaves(true);
@@ -2991,23 +3850,25 @@ const assignableEmployees = employees.filter((e) =>
   };
 
   useEffect(() => {
-  if (user) {
-    fetchAllTasks();
-    fetchAllLeaves();
-    fetchEmployees();
-    fetchAllReschedules();
-    fetchSites();
-    fetchMySvrReports(user); // add this
-  }
-}, [
-  user,
-  fetchAllTasks,
-  fetchAllLeaves,
-  fetchEmployees,
-  fetchAllReschedules,
-  fetchSites,
-  fetchMySvrReports, // add this
-]);
+    if (user) {
+      fetchAllTasks();
+      fetchAllLeaves();
+      fetchEmployees();
+      fetchAllReschedules();
+      fetchSites();
+      fetchMySvrReports(user);
+      fetchAllReportSubmissions(user);
+    }
+  }, [
+    user,
+    fetchAllTasks,
+    fetchAllLeaves,
+    fetchEmployees,
+    fetchAllReschedules,
+    fetchSites,
+    fetchMySvrReports,
+    fetchAllReportSubmissions,
+  ]);
 
   useRecurringTasks(user, fetchAllTasks);
 
@@ -3018,6 +3879,8 @@ const assignableEmployees = employees.filter((e) =>
 
   const handleNavClick = (key) => {
     setActiveTab(key);
+    if (key === "my-reports") fetchMySvrReports(user);
+    if (key === "report-submissions") fetchAllReportSubmissions(user);
     if (key === "add-employee") {
       setEditingEmployee(null);
       setEmpForm({
@@ -3215,29 +4078,48 @@ const assignableEmployees = employees.filter((e) =>
   };
 
   const handleLeaveAction = async (leave, approved) => {
-    setUpdatingLeaveId(leave.id);
-    const payload = {
-      admin_approved: approved,
-      approved_by: approved ? user.user_name : null,
-      rejection_reason: null,
-      status: approved ? "Approved" : "Rejected",
-    };
-    const { error } = await supabase
-      .from("leaves")
-      .update(payload)
-      .eq("id", leave.id);
-    setUpdatingLeaveId(null);
-    if (error) {
-      showToast("error", "Failed to update leave. " + error.message);
-      return;
-    }
-    setAllLeaves((prev) =>
-      prev.map((item) =>
-        item.id === leave.id ? { ...item, ...payload } : item,
-      ),
-    );
-    showToast("success", approved ? "Leave approved." : "Leave rejected.");
+  if (!approved) {
+    setLeaveRejectModal({ leave, reason: "" });
+    return;
+  }
+  setUpdatingLeaveId(leave.id);
+  const payload = {
+    admin_approved: true,
+    approved_by: user.user_name,
+    rejection_reason: null,
+    status: "Approved",
   };
+  const { error } = await supabase.from("leaves").update(payload).eq("id", leave.id);
+  setUpdatingLeaveId(null);
+  if (error) {
+    showToast("error", "Failed to update leave. " + error.message);
+    return;
+  }
+  setAllLeaves((prev) => prev.map((item) => (item.id === leave.id ? { ...item, ...payload } : item)));
+  showToast("success", "Leave approved.");
+};
+
+const handleLeaveRejectConfirm = async () => {
+  if (!leaveRejectModal.reason.trim()) return;
+  const leave = leaveRejectModal.leave;
+  const reason = leaveRejectModal.reason.trim();
+  setLeaveRejectModal(null);
+  setUpdatingLeaveId(leave.id);
+  const payload = {
+    admin_approved: false,
+    approved_by: null,
+    rejection_reason: reason,
+    status: "Rejected",
+  };
+  const { error } = await supabase.from("leaves").update(payload).eq("id", leave.id);
+  setUpdatingLeaveId(null);
+  if (error) {
+    showToast("error", "Failed to reject leave. " + error.message);
+    return;
+  }
+  setAllLeaves((prev) => prev.map((item) => (item.id === leave.id ? { ...item, ...payload } : item)));
+  showToast("success", "Leave rejected.");
+};
 
   if (!user)
     return (
@@ -3246,7 +4128,12 @@ const assignableEmployees = employees.filter((e) =>
       </h2>
     );
 
-  const activeItem = [...NAV_ITEMS, ...REPORTS_NAV, ...VERIFICATION_NAV, ...TICKETS_NAV].find((n) => n.key === activeTab);
+  const activeItem = [
+    ...NAV_ITEMS,
+    ...REPORTS_NAV,
+    ...VERIFICATION_NAV,
+    ...TICKETS_NAV,
+  ].find((n) => n.key === activeTab);
 
   const pending = allTasks.filter((t) => t.status === "pending").length;
   const inProgress = allTasks.filter((t) => t.status === "in_progress").length;
@@ -4274,17 +5161,43 @@ const assignableEmployees = employees.filter((e) =>
                 <strong>{leaveRejected}</strong>
               </div>
             </div>
-            <div className="ap-leave-grid">
-              {allLeaves.map((leave) => (
-                <LeaveRequestCard
-                  key={leave.id}
-                  leave={leave}
-                  onAction={handleLeaveAction}
-                  updating={updatingLeaveId}
-                  roleByName={roleByName}
-                />
-              ))}
-            </div>
+            <>
+  <div className="ap-table-wrap">
+    <table className="ap-table">
+      <thead>
+        <tr>
+          {["Employee", "Site", "Type", "Dates", "Reason", "Approval", "Status", "Action"].map((h) => (
+            <th key={h} className="ap-th">{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {allLeaves.map((leave) => (
+          <LeaveRow
+            key={leave.id}
+            leave={leave}
+            onAction={handleLeaveAction}
+            updating={updatingLeaveId}
+            roleByName={roleByName}
+          />
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  {/* Mobile cards — unchanged, reject now opens the same modal */}
+  <div className="ap-task-mobile-grid">
+    {allLeaves.map((leave) => (
+      <LeaveRequestCard
+        key={leave.id}
+        leave={leave}
+        onAction={handleLeaveAction}
+        updating={updatingLeaveId}
+        roleByName={roleByName}
+      />
+    ))}
+  </div>
+</>
           </>
         );
 
@@ -4541,7 +5454,7 @@ const assignableEmployees = employees.filter((e) =>
             <div className="op-spinner" />
             <p className="op-empty-text">Loading employees…</p>
           </div>
-        ) : employees.length === 0 ? (
+        ) : filteredEmployees.length === 0 ? (
           <div className="op-empty-state">
             <svg
               width="48"
@@ -4590,7 +5503,7 @@ const assignableEmployees = employees.filter((e) =>
                   </tr>
                 </thead>
                 <tbody>
-                  {employees.map((emp, idx) => (
+                  {filteredEmployees.map((emp, idx) => (
                     <tr key={emp.id} className="ap-tr">
                       <td
                         className="ap-td"
@@ -4704,7 +5617,7 @@ const assignableEmployees = employees.filter((e) =>
 
             {/* Mobile cards */}
             <div className="ap-task-mobile-grid">
-              {employees.map((emp) => (
+              {filteredEmployees.map((emp) => (
                 <div key={emp.id} className="ap-task-card-mobile">
                   <div className="ap-task-card-head">
                     <div>
@@ -5133,7 +6046,7 @@ const assignableEmployees = employees.filter((e) =>
             <div className="op-spinner" />
             <p className="op-empty-text">Loading sites…</p>
           </div>
-        ) : sites.length === 0 ? (
+        ) : filteredSites.length === 0 ? (
           <div className="op-empty-state">
             <svg
               width="48"
@@ -5181,7 +6094,7 @@ const assignableEmployees = employees.filter((e) =>
                   </tr>
                 </thead>
                 <tbody>
-                  {sites.map((site, idx) => (
+                  {filteredSites.map((site, idx) => (
                     <tr key={site.id} className="ap-tr">
                       <td
                         className="ap-td"
@@ -5288,7 +6201,7 @@ const assignableEmployees = employees.filter((e) =>
             </div>
 
             <div className="ap-task-mobile-grid">
-              {sites.map((site) => (
+              {filteredSites.map((site) => (
                 <div key={site.id} className="ap-task-card-mobile">
                   <div className="ap-task-card-head">
                     <div>
@@ -5389,107 +6302,487 @@ const assignableEmployees = employees.filter((e) =>
         ) : (
           <>
             <div className="ap-leave-summary ap-leave-summary-tight">
-              <div>
+              <div style={{ background: "#eff6ff", borderColor: "#bfdbfe" }}>
                 <span>Total</span>
-                <strong>{allReschedules.length}</strong>
+                <strong style={{ color: "#2563eb" }}>{allReschedules.length}</strong>
               </div>
-              <div>
+              <div style={{ background: "#fffbeb", borderColor: "#fde68a" }}>
                 <span>Pending</span>
-                <strong>{reschedPending}</strong>
+                <strong style={{ color: "#d97706" }}>{reschedPending}</strong>
               </div>
-              <div>
+              <div style={{ background: "#f0fdf4", borderColor: "#bbf7d0" }}>
                 <span>Approved</span>
-                <strong>
+                <strong style={{ color: "#16a34a" }}>
                   {allReschedules.filter((r) => r.status === "approved").length}
                 </strong>
               </div>
-              <div>
+              <div style={{ background: "#fef2f2", borderColor: "#fecaca" }}>
                 <span>Rejected</span>
-                <strong>
+                <strong style={{ color: "#dc2626" }}>
                   {allReschedules.filter((r) => r.status === "rejected").length}
                 </strong>
               </div>
             </div>
-            <div className="ap-leave-grid">
-              {allReschedules.map((req) => (
-                <RescheduleRequestCard
-                  key={req.id}
-                  req={req}
-                  onAction={handleRescheduleAction}
-                  updating={updatingRescheduleId}
-                  roleByName={roleByName}
-                />
-              ))}
+            {/* Desktop table */}
+            <div className="ap-table-wrap">
+              <table className="ap-table">
+                <thead>
+                  <tr>
+                    {[
+                      "Requested By",
+                      "Task",
+                      "Current Due",
+                      "Requested Date",
+                      "Reason",
+                      "Status",
+                      "",
+                    ].map((h) => (
+                      <th key={h} className="ap-th">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+               {/* Desktop table */}
+                  <tbody>
+                    {filteredReschedules.map((req) => (
+                      <RescheduleRow
+                        key={req.id}
+                        req={req}
+                        onAction={handleRescheduleAction}
+                        updating={updatingRescheduleId}
+                        userMap={userMap}
+                      />
+                    ))}
+                  </tbody>
+              </table>
             </div>
+{/* Mobile cards */}
+<div className="ap-task-mobile-grid">
+  {filteredReschedules.map((req) => (
+    <RescheduleRequestCard
+      key={req.id}
+      req={req}
+      onAction={handleRescheduleAction}
+      updating={updatingRescheduleId}
+      roleByName={roleByName}
+      userMap={userMap}
+    />
+  ))}
+</div>
+          
           </>
         );
         case "site-report":
-  return <SiteReport user={user} />;
+        return <SiteReport user={user} />;
 
-case "svr-reports":
-  if (loadingSvrReports)
-    return (
-      <div className="op-empty-state">
-        <div className="op-spinner" />
-        <p className="op-empty-text">Loading your reports…</p>
-      </div>
-    );
-  if (!mySvrReports.length)
-    return (
-      <div className="op-empty-state">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3 }}>
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-        </svg>
-        <p className="op-empty-text">You haven't submitted any Site Visit Reports yet.</p>
-      </div>
-    );
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>
-      {mySvrReports.map((r) => (
-        <div
-          key={r.id}
-          style={{
-            background: "#fff", border: "1px solid #e8edf3", borderLeft: "4px solid #16a34a",
-            borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8,
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20, background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0" }}>
-              Site Visit
-            </span>
-            {r.site_name && <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>{r.site_name}</span>}
-          </div>
-          <div style={{ fontSize: 12.5, color: "#64748b" }}>
-            {r.visit_date
-              ? new Date(r.visit_date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-              : "—"}
-          </div>
-          {r.progress_of_work && (
-            <p style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, margin: 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-              {r.progress_of_work}
-            </p>
-          )}
-          {r.pdf_url ? (
-            <div style={{ display: "flex", gap: 8 }}>
-              <a href={r.pdf_url} target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 7, padding: "6px 12px", textDecoration: "none" }}>
-                View
-              </a>
-            <a href={buildDownloadUrl(r.pdf_url, `${r.site_name || "site"}-SVR-${r.visit_date || r.id}.pdf`)}
-                download
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "#2563eb", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 7, padding: "6px 12px", textDecoration: "none" }}
-              >
-                Download
-              </a>
+      case "my-reports":
+        if (loadingSvrReports)
+          return (
+            <div className="op-empty-state">
+              <div className="op-spinner" />
+              <p className="op-empty-text">Loading your reports…</p>
             </div>
-          ) : (
-            <span style={{ fontSize: 11, color: "#94a3b8", fontStyle: "italic" }}>No PDF attached</span>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+          );
+        if (!mySvrReports.length)
+          return (
+            <div className="op-empty-state">
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ opacity: 0.3 }}
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+              <p className="op-empty-text">
+                You haven't submitted any Site Visit Reports yet.
+              </p>
+            </div>
+          );
+        return (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))",
+              gap: 12,
+            }}
+          >
+            {mySvrReports.map((r) => (
+              <div
+                key={r.id}
+                style={{
+                  background: "#fff",
+                  border: "1px solid #e8edf3",
+                  borderLeft: "4px solid #16a34a",
+                  borderRadius: 10,
+                  padding: "14px 16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "3px 9px",
+                      borderRadius: 20,
+                      background: "#f0fdf4",
+                      color: "#16a34a",
+                      border: "1px solid #bbf7d0",
+                    }}
+                  >
+                    Site Visit
+                  </span>
+                  {r.site_name && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "#94a3b8",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {r.site_name}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12.5, color: "#64748b" }}>
+                  {r.visit_date
+                    ? new Date(r.visit_date + "T00:00:00").toLocaleDateString(
+                        "en-IN",
+                        { day: "numeric", month: "short", year: "numeric" },
+                      )
+                    : "—"}
+                </div>
+                {r.progress_of_work && (
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#64748b",
+                      lineHeight: 1.5,
+                      margin: 0,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {r.progress_of_work}
+                  </p>
+                )}
+                {r.pdf_url ? (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <a
+                      href={getViewUrl(r.pdf_url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#475569",
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 7,
+                        padding: "6px 12px",
+                        textDecoration: "none",
+                      }}
+                    >
+                      View
+                    </a>
+                    <a
+                      href={buildDownloadUrl(
+                        r.pdf_url,
+                        `${r.site_name || "site"}-SVR-${r.visit_date || r.id}.pdf`,
+                      )}
+                      download
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#2563eb",
+                        background: "#eff6ff",
+                        border: "1px solid #bfdbfe",
+                        borderRadius: 7,
+                        padding: "6px 12px",
+                        textDecoration: "none",
+                      }}
+                    >
+                      Download
+                    </a>
+                  </div>
+                ) : (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "#94a3b8",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    No PDF attached
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      case "report-submissions": {
+        if (user?.role?.toLowerCase().trim() !== "admin") return null;
+        const filteredSubmissions = applySubmissionFilters(
+          allSubmissions,
+          submissionFilters,
+        );
+        const hasSubFilters = Object.values(submissionFilters).some(
+          (v) => v !== "",
+        );
+
+        return loadingSubmissions ? (
+          <div className="op-empty-state">
+            <div className="op-spinner" />
+            <p className="op-empty-text">Loading report submissions…</p>
+          </div>
+        ) : (
+          <>
+            {hasSubFilters && (
+              <p className="tf-count">
+                Showing {filteredSubmissions.length} of {allSubmissions.length}{" "}
+                report
+                {allSubmissions.length !== 1 ? "s" : ""}
+              </p>
+            )}
+
+            {filteredSubmissions.length === 0 ? (
+              <div className="op-empty-state">
+                <svg
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ opacity: 0.3 }}
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <p className="op-empty-text">No report submissions found.</p>
+              </div>
+            ) : (
+              <>
+                {/* Desktop table */}
+                <div className="ap-table-wrap">
+                  <table className="ap-table">
+                    <thead>
+                      <tr>
+                        {[
+                          "Site Name",
+                          "Engineer Name",
+                          "Submission Date",
+                          "Report Type",
+                          "Action",
+                        ].map((h) => (
+                          <th key={h} className="ap-th">
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredSubmissions.map((r) => (
+                        <tr key={r.id} className="ap-tr">
+                          <td className="ap-td ap-td-title">{r.site || "—"}</td>
+                          <td className="ap-td">{r.engineer || "—"}</td>
+                          <td className="ap-td">
+                            {formatSubmissionDate(r.date)}
+                          </td>
+                          <td className="ap-td">
+                            <span className="ap-pill-blue">
+                              {r.report_type}
+                            </span>
+                          </td>
+                          <td className="ap-td">
+                            {r.pdf_url ? (
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <a
+                                  href={getViewUrl(r.pdf_url)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 5,
+                                    fontSize: 11.5,
+                                    fontWeight: 600,
+                                    color: "#475569",
+                                    background: "#f8fafc",
+                                    border: "1px solid #e2e8f0",
+                                    borderRadius: 6,
+                                    padding: "4px 10px",
+                                    textDecoration: "none",
+                                  }}
+                                >
+                                  View
+                                </a>
+
+                                <a
+                                  href={buildDownloadUrl(
+                                    r.pdf_url,
+                                    `${r.site || "site"}-${r.report_type}-${r.date || r.id}.${getFileExt(r.pdf_url)}`,
+                                  )}
+                                  download
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 5,
+                                    fontSize: 11.5,
+                                    fontWeight: 600,
+                                    color: "#2563eb",
+                                    background: "#eff6ff",
+                                    border: "1px solid #bfdbfe",
+                                    borderRadius: 6,
+                                    padding: "4px 10px",
+                                    textDecoration: "none",
+                                  }}
+                                >
+                                  Download
+                                </a>
+                              </div>
+                            ) : (
+                              <span
+                                style={{
+                                  fontSize: 11.5,
+                                  color: "#94a3b8",
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                No file
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile cards */}
+                <div className="ap-task-mobile-grid">
+                  {filteredSubmissions.map((r) => (
+                    <div key={r.id} className="ap-task-card-mobile">
+                      <div className="ap-task-card-head">
+                        <div>
+                          <div className="ap-task-card-title">
+                            {r.site || "—"}
+                          </div>
+                          <div className="ap-task-card-sub">
+                            {r.engineer || "—"}
+                          </div>
+                        </div>
+                        <span className="ap-pill-blue">{r.report_type}</span>
+                      </div>
+                      <div className="ap-task-card-meta">
+                        <div>
+                          <span>Submission Date</span>
+                          <strong>{formatSubmissionDate(r.date)}</strong>
+                        </div>
+                        <div>
+                          <span>File</span>
+                          <strong>
+                            {r.pdf_url
+                              ? getFileExt(r.pdf_url).toUpperCase()
+                              : "None"}
+                          </strong>
+                        </div>
+                      </div>
+                      {r.pdf_url ? (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <a
+                            href={getViewUrl(r.pdf_url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              flex: 1,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 6,
+                              fontSize: 12.5,
+                              fontWeight: 600,
+                              color: "#475569",
+                              background: "#f8fafc",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: 7,
+                              padding: "8px 12px",
+                              textDecoration: "none",
+                            }}
+                          >
+                            View
+                          </a>
+
+                          <a
+                            href={buildDownloadUrl(
+                              r.pdf_url,
+                              `${r.site || "site"}-${r.report_type}-${r.date || r.id}.${getFileExt(r.pdf_url)}`,
+                            )}
+                            download
+                            style={{
+                              flex: 1,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 6,
+                              fontSize: 12.5,
+                              fontWeight: 600,
+                              color: "#2563eb",
+                              background: "#eff6ff",
+                              border: "1px solid #bfdbfe",
+                              borderRadius: 7,
+                              padding: "8px 12px",
+                              textDecoration: "none",
+                            }}
+                          >
+                            Download
+                          </a>
+                        </div>
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: 11.5,
+                            color: "#94a3b8",
+                            fontStyle: "italic",
+                          }}
+                        >
+                          No file attached
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        );
+      }
       default:
         return null;
     }
@@ -5514,7 +6807,7 @@ case "svr-reports":
 
             .op-sidebar-close { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #c9d0d4d0; background: #fff; color: #64748b; cursor: pointer; align-items: center; justify-content: center; }
             .op-sidebar-backdrop { display: none; }
-            .op-nav { padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+            .op-nav { padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 2px; margin-bottom:20px}
             .op-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; color: #64748b; font-size: 13.5px; font-weight: 500; white-space: nowrap; border: none; background: transparent; width: 100%; text-align: left; transition: background .15s, color .15s; position: relative; }
             .op-nav-item:hover  { background: #f1f5f9; color: #1e293b; }
             .op-nav-item.Active { background: #fef2f2; color: #dc2626; }
@@ -5777,10 +7070,12 @@ case "svr-reports":
               .tf-popup { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200; background: #c9d0d4d0; border: 1px solid #c9d0d4d0; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 14px; width: 290px; }
 
               @media (max-width: 760px) {
-                 .tf-bar-inline { display: none !important; }
+                .tf-bar-inline { display: none !important; }
                 .tf-mobile-btn { display: inline-flex !important; }
                 .tf-popup .tf-group { width: 100%; }
-                .tf-popup .tf-select, .tf-popup .tf-date { width: 100%; }
+                .tf-popup .tf-select { width: 100%; }
+                .tf-popup .tf-date { width: calc(50% - 12px); min-width: 0; }
+                .tf-popup .tf-group { flex-wrap: wrap; }  
                 .tf-popup .tf-clear { width: 100%; justify-content: center; margin-left: 0; }
                 .tf-popup .tf-divider { display: none; }
               }
@@ -5799,6 +7094,28 @@ case "svr-reports":
                 .recurring-mobile-filter-btn { display: inline-flex; }
                 .recurring-desktop-bar { display: none !important; }
               }
+                @media (max-width: 760px) {
+                .tf-popup .tf-group {
+                  width: 100%;
+                  flex-wrap: wrap;
+                }
+                .tf-popup .tf-date {
+                  width: calc(50% - 14px);
+                  min-width: 0;
+                }
+                .tf-popup .tf-sep-text {
+                  flex-shrink: 0;
+                }
+              }
+            .ap-task-mobile-grid { display: none; }   /* hidden by default */
+            @media (max-width: 760px) {
+              .ap-table-wrap { display: none; }
+              .ap-task-mobile-grid { display: grid;}
+            }
+
+            .ap-table thead th {
+              background: #b1aeaea1 !important;
+            }
           `}</style>
 
       <div className="op-root">
@@ -5892,27 +7209,27 @@ case "svr-reports":
                 </button>
               ))}
               <span className="op-nav-section">Task Verification</span>
-                {VERIFICATION_NAV.map((item) => (
-                  <button
-                    key={item.key}
-                    className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
-                    onClick={() => handleNavClick(item.key)}
-                  >
-                    <span className="op-nav-icon">{item.icon}</span>
-                    {item.label}
-                  </button>
-                ))}
-                <span className="op-nav-section">Ticket Raised</span>
-                {TICKETS_NAV.map((item) => (
-                  <button
-                    key={item.key}
-                    className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
-                    onClick={() => handleNavClick(item.key)}
-                  >
-                    <span className="op-nav-icon">{item.icon}</span>
-                    {item.label}
-                  </button>
-                ))}
+              {VERIFICATION_NAV.map((item) => (
+                <button
+                  key={item.key}
+                  className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
+                  onClick={() => handleNavClick(item.key)}
+                >
+                  <span className="op-nav-icon">{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
+              <span className="op-nav-section">Ticket Raised</span>
+              {TICKETS_NAV.map((item) => (
+                <button
+                  key={item.key}
+                  className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
+                  onClick={() => handleNavClick(item.key)}
+                >
+                  <span className="op-nav-icon">{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
               <span className="op-nav-section">Employee Management</span>
               {NAV_ITEMS.slice(6, 8).map((item) => (
                 <button
@@ -5936,16 +7253,16 @@ case "svr-reports":
                 </button>
               ))}
               <span className="op-nav-section">Drawings & Reports</span>
-                {REPORTS_NAV.map((item) => (
-                  <button
-                    key={item.key}
-                    className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
-                    onClick={() => handleNavClick(item.key)}
-                  >
-                    <span className="op-nav-icon">{item.icon}</span>
-                    {item.label}
-                  </button>
-                ))}
+              {REPORTS_NAV.map((item) => (
+                <button
+                  key={item.key}
+                  className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
+                  onClick={() => handleNavClick(item.key)}
+                >
+                  <span className="op-nav-icon">{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
             </nav>
           </aside>
 
@@ -6069,6 +7386,73 @@ case "svr-reports":
                       onMobileToggle={() => setMobileFilterOpen((p) => !p)}
                     />
                   </>
+                )}
+                {activeTab === "report-submissions" && (
+                  <SubmissionFilterBar
+                    filters={submissionFilters}
+                    onChange={(key, val) =>
+                      setSubmissionFilters((prev) => ({ ...prev, [key]: val }))
+                    }
+                    onClear={() =>
+                      setSubmissionFilters({
+                        site: "",
+                        engineer: "",
+                        reportType: "",
+                        dateFrom: "",
+                        dateTo: "",
+                      })
+                    }
+                    rows={allSubmissions}
+                    inline={true}
+                    mobileOpen={submissionMobileFilterOpen}
+                    onMobileToggle={() =>
+                      setSubmissionMobileFilterOpen((p) => !p)
+                    }
+                  />
+                )}
+                {activeTab === "reschedule-requests" && (
+                  <RescheduleFilterBar
+                    filters={rescheduleFilters}
+                    onChange={(key, val) => setRescheduleFilters((prev) => ({ ...prev, [key]: val }))}
+                    onClear={() => setRescheduleFilters({ name: "", status: "" })}
+                    reschedules={allReschedules}
+                    userMap={userMap}
+                    inline={true}
+                    mobileOpen={rescheduleMobileFilterOpen}
+                    onMobileToggle={() => setRescheduleMobileFilterOpen((p) => !p)}
+                  />
+                )}
+                {activeTab === "manage-employees" && (
+                  <EmployeeFilterBar
+                    filters={employeeFilters}
+                    onChange={(key, val) =>
+                      setEmployeeFilters((prev) => ({ ...prev, [key]: val }))
+                    }
+                    onClear={() => setEmployeeFilters({ name: "", site: "" })}
+                    employees={employees}
+                    sites={sites}
+                    inline={true}
+                    mobileOpen={employeeMobileFilterOpen}
+                    onMobileToggle={() =>
+                      setEmployeeMobileFilterOpen((p) => !p)
+                    }
+                  />
+                )}
+                {activeTab === "manage-sites" && (
+                  <SiteFilterBar
+                    filters={siteFiltersState}
+                    onChange={(key, val) =>
+                      setSiteFiltersState((prev) => ({ ...prev, [key]: val }))
+                    }
+                    onClear={() =>
+                      setSiteFiltersState({ site: "", assignedUser: "" })
+                    }
+                    employees={employees}
+                    sites={sites}
+                    inline={true}
+                    mobileOpen={siteMobileFilterOpen}
+                    onMobileToggle={() => setSiteMobileFilterOpen((p) => !p)}
+                  />
                 )}
               </div>
               {renderContent()}
@@ -6788,6 +8172,65 @@ case "svr-reports":
           </div>
         </div>
       )}
+      {leaveRejectModal && (
+  <div
+    style={{
+      position: "fixed", inset: 0, zIndex: 10040,
+      background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+    }}
+    onClick={(e) => { if (e.target === e.currentTarget) setLeaveRejectModal(null); }}
+  >
+    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Reject Leave Request</div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+            {leaveRejectModal.leave.leave_type} · {leaveRejectModal.leave.name || leaveRejectModal.leave.user_name}
+          </div>
+        </div>
+        <button onClick={() => setLeaveRejectModal(null)} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", flexShrink: 0 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
+        <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+          Reason for Rejection <span style={{ color: "#dc2626" }}>*</span>
+        </label>
+        <textarea
+          rows={3}
+          autoFocus
+          placeholder="Explain why this leave request is being rejected…"
+          style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "#1e293b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", outline: "none", width: "100%", resize: "vertical", minHeight: 90 }}
+          value={leaveRejectModal.reason}
+          onChange={(e) => setLeaveRejectModal((p) => ({ ...p, reason: e.target.value }))}
+        />
+        <span style={{ fontSize: 11.5, color: "#94a3b8" }}>This message will be shown to the employee.</span>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
+        <button onClick={() => setLeaveRejectModal(null)} style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}>
+          Cancel
+        </button>
+        <button
+          onClick={handleLeaveRejectConfirm}
+          disabled={!leaveRejectModal.reason.trim()}
+          style={{ background: leaveRejectModal.reason.trim() ? "#dc2626" : "#f1f5f9", color: leaveRejectModal.reason.trim() ? "#fff" : "#94a3b8", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 20px", borderRadius: 8, border: "none", cursor: leaveRejectModal.reason.trim() ? "pointer" : "not-allowed" }}
+        >
+          Confirm Rejection
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </>
   );
 }

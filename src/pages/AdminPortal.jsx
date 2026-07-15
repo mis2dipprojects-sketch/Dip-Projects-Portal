@@ -1139,6 +1139,87 @@ function SubmissionFilterBar({
 
   return <div className="tf-bar tf-bar-fixed">{fields}</div>;
 }
+function LeaveFilterBar({ filters, onChange, onClear, leaves, inline, mobileOpen, onMobileToggle }) {
+  const isActive = Object.values(filters).some((v) => v !== "");
+  const names = [
+    ...new Set(leaves.map((l) => l.name || l.user_name).filter(Boolean)),
+  ].sort();
+
+  const fields = (
+    <>
+      <div className="tf-group">
+        <span className="tf-label">Name</span>
+        <select
+          className="tf-select"
+          value={filters.name}
+          onChange={(e) => onChange("name", e.target.value)}
+        >
+          <option value="">All names</option>
+          {names.map((n) => (
+            <option key={n} value={n}>{n}</option>
+          ))}
+        </select>
+      </div>
+      <div className="tf-divider" />
+      <div className="tf-group">
+        <span className="tf-label">Date</span>
+        <input
+          className="tf-input tf-date"
+          type="date"
+          value={filters.dateFrom}
+          onChange={(e) => onChange("dateFrom", e.target.value)}
+          title="From"
+        />
+        <span className="tf-sep-text">–</span>
+        <input
+          className="tf-input tf-date"
+          type="date"
+          value={filters.dateTo}
+          min={filters.dateFrom}
+          onChange={(e) => onChange("dateTo", e.target.value)}
+          title="To"
+        />
+      </div>
+      {isActive && (
+        <button className="tf-clear" onClick={onClear}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+          Clear
+        </button>
+      )}
+    </>
+  );
+
+  if (inline) {
+    return (
+      <>
+        <div className="tf-bar-inline">{fields}</div>
+        <div style={{ position: "relative", marginLeft: "auto", flexShrink: 0 }}>
+          <button
+            className={`tf-mobile-btn${mobileOpen ? " Active" : ""}`}
+            onClick={onMobileToggle}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+              <line x1="11" y1="18" x2="13" y2="18" />
+            </svg>
+            {isActive && <span className="tf-mobile-badge" />}
+          </button>
+          {mobileOpen && (
+            <div className="tf-popup">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{fields}</div>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  return <div className="tf-bar tf-bar-fixed">{fields}</div>;
+}
 function RescheduleFilterBar({ filters, onChange, onClear, reschedules, userMap, inline, mobileOpen, onMobileToggle }) {
   const isActive = Object.values(filters).some((v) => v !== "");
   const names = [
@@ -3062,6 +3143,7 @@ function LeaveRow({ leave, onAction, updating, roleByName }) {
     </tr>
   );
 }
+
 function RescheduleRow({ req, onAction, updating, userMap }) {
   const ss = RESCHED_STATUS_STYLES[req.status] || RESCHED_STATUS_STYLES.pending;
   const fmtDate = (d) =>
@@ -3272,7 +3354,142 @@ function RescheduleRequestCard({ req, onAction, updating, roleByName, userMap })
     </div>
   );
 }
+function AdminTicketsTable({ tickets, onSolve, updatingId, showAction = true }) {
+  const fmt = (d) =>
+    d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  const statusStyle = {
+    open: { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
+    solved: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+  };
 
+  return (
+    <div className="ap-table-wrap">
+      <table className="ap-table">
+        <thead>
+          <tr>
+            {["Task", "Raised By", "Sent To", "Site", "Query", "Attachment", "Raised On", "Status", showAction ? "Action" : null]
+              .filter(Boolean)
+              .map((h) => (
+                <th key={h} className="ap-th">{h}</th>
+              ))}
+          </tr>
+        </thead>
+        <tbody>
+          {tickets.map((t) => {
+            const sc = statusStyle[t.status] || statusStyle.open;
+            return (
+              <tr key={t.id} className="ap-tr">
+                <td className="ap-td ap-td-title">{t.task_title || "—"}</td>
+                <td className="ap-td">{t.raised_by_name || t.raised_by}</td>
+                <td className="ap-td">{t.assigned_to_name || t.assigned_to}</td>
+                <td className="ap-td">{t.site_name || "—"}</td>
+                <td className="ap-td" style={{ maxWidth: 220 }}>
+                  <span style={{ fontSize: 12.5, color: "#64748b" }}>{t.query}</span>
+                </td>
+                <td className="ap-td">
+                  {t.document_url ? (
+                    <a href={t.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}>
+                      View file
+                    </a>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>—</span>
+                  )}
+                </td>
+                
+                <td className="ap-td">{fmt(t.created_at)}</td>
+                <td className="ap-td">
+                  <span
+                    style={{
+                      display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700,
+                      padding: "3px 9px", borderRadius: 20, background: sc.bg, color: sc.color,
+                      border: `1px solid ${sc.border}`,
+                    }}
+                  >
+                    {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                  </span>
+                 {t.status === "solved" && t.resolution_note && (
+                  <div style={{ fontSize: 11, color: "#16a34a", marginTop: 4, maxWidth: 200 }}>{t.resolution_note}</div>
+                )}
+                {t.status === "solved" && t.resolution_document_url && (
+  
+                  <a  href={t.resolution_document_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}
+                  >
+                    View resolution file
+                  </a>
+                )}
+                {t.status === "solved" && t.resolved_by && (
+                  <div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 2 }}>by {t.resolved_by}</div>
+                )}
+                </td>
+                {showAction && (
+                  <td className="ap-td">
+                    {t.status === "open" ? (
+                      <button
+                        className="ap-btn-approve"
+                        disabled={updatingId === t.id}
+                        onClick={() => onSolve(t)}
+                        style={{ padding: "5px 10px", fontSize: 11.5 }}
+                      >
+                        Mark Solved
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>✓ Solved</span>
+                    )}
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <div className="ap-task-mobile-grid">
+        {tickets.map((t) => {
+          const sc = statusStyle[t.status] || statusStyle.open;
+          return (
+            <div key={t.id} className="ap-task-card-mobile">
+              <div className="ap-task-card-head">
+                <div>
+                  <div className="ap-task-card-title">{t.task_title || "—"}</div>
+                  <div className="ap-task-card-sub">
+                    {t.raised_by_name || t.raised_by} → {t.assigned_to_name || t.assigned_to}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20,
+                    background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`,
+                  }}
+                >
+                  {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                </span>
+              </div>
+              <div style={{ fontSize: 12.5, color: "#64748b" }}>{t.query}</div>
+              {t.document_url && (
+                <a href={t.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}>
+                  View attachment
+                </a>
+              )}
+              {showAction && t.status === "open" && (
+                <button
+                  className="ap-btn-approve"
+                  disabled={updatingId === t.id}
+                  onClick={() => onSolve(t)}
+                  style={{ width: "100%" }}
+                >
+                  Mark Solved
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 // ── main component ─────────────────────────────────────────────────────────
 export default function AdminPortal() {
   const [allReschedules, setAllReschedules] = useState([]);
@@ -3289,6 +3506,10 @@ export default function AdminPortal() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [rejectModal, setRejectModal] = useState(null);
 
+  const [allTickets, setAllTickets] = useState([]);
+const [loadingTickets, setLoadingTickets] = useState(false);
+const [ticketSolveModal, setTicketSolveModal] = useState(null); // { ticket, note }
+const [updatingTicketId, setUpdatingTicketId] = useState(null);
   const [leaveRejectModal, setLeaveRejectModal] = useState(null); // { leave, reason }
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
@@ -3308,6 +3529,8 @@ export default function AdminPortal() {
   const [loadingSvrReports, setLoadingSvrReports] = useState(false);
   const [rescheduleFilters, setRescheduleFilters] = useState({ name: "", status: "" });
 const [rescheduleMobileFilterOpen, setRescheduleMobileFilterOpen] = useState(false);
+const [leaveFilters, setLeaveFilters] = useState({ name: "", dateFrom: "", dateTo: "" });
+const [leaveMobileFilterOpen, setLeaveMobileFilterOpen] = useState(false);
   const [submissionMobileFilterOpen, setSubmissionMobileFilterOpen] =
     useState(false);
   const [employeeFilters, setEmployeeFilters] = useState({
@@ -3497,11 +3720,17 @@ const [rescheduleMobileFilterOpen, setRescheduleMobileFilterOpen] = useState(fal
             });
             setUserMap(map);
           }
-        });
+        }); 
     }, []);
 const filteredReschedules = allReschedules.filter((r) => {
   if (rescheduleFilters.name && nameFor(userMap, r.requested_by) !== rescheduleFilters.name) return false;
   if (rescheduleFilters.status && r.status !== rescheduleFilters.status) return false;
+  return true;
+});
+const filteredLeaves = allLeaves.filter((l) => {
+  if (leaveFilters.name && (l.name || l.user_name) !== leaveFilters.name) return false;
+  if (leaveFilters.dateTo && l.from_date && l.from_date > leaveFilters.dateTo) return false;
+  if (leaveFilters.dateFrom && l.to_date && l.to_date < leaveFilters.dateFrom) return false;
   return true;
 });
   const filteredSites = sites.filter((site) => {
@@ -3544,15 +3773,15 @@ const filteredReschedules = allReschedules.filter((r) => {
     setLoadingTasks(false);
   }, []);
 
-  // const fetchAllReschedules = useCallback(async () => {
-  //   setLoadingReschedules(true);
-  //   const { data } = await supabase
-  //     .from("reschedule_requests")
-  //     .select("*, tasks(title, site_name)")
-  //     .order("created_at", { ascending: false });
-  //   setAllReschedules(data || []);
-  //   setLoadingReschedules(false);
-  // }, []);
+const fetchAllTickets = useCallback(async () => {
+  setLoadingTickets(true);
+  const { data, error } = await supabase
+    .from("tickets")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (!error) setAllTickets(data || []);
+  setLoadingTickets(false);
+}, []);
   const fetchAllReschedules = useCallback(async () => {
   setLoadingReschedules(true);
   const { data } = await supabase
@@ -3849,26 +4078,28 @@ const filteredReschedules = allReschedules.filter((r) => {
     showToast("success", "Employee deleted.");
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchAllTasks();
-      fetchAllLeaves();
-      fetchEmployees();
-      fetchAllReschedules();
-      fetchSites();
-      fetchMySvrReports(user);
-      fetchAllReportSubmissions(user);
-    }
-  }, [
-    user,
-    fetchAllTasks,
-    fetchAllLeaves,
-    fetchEmployees,
-    fetchAllReschedules,
-    fetchSites,
-    fetchMySvrReports,
-    fetchAllReportSubmissions,
-  ]);
+useEffect(() => {
+  if (user) {
+    fetchAllTasks();
+    fetchAllLeaves();
+    fetchEmployees();
+    fetchAllReschedules();
+    fetchSites();
+    fetchMySvrReports(user);
+    fetchAllReportSubmissions(user);
+    fetchAllTickets(); // ← add
+  }
+}, [
+  user,
+  fetchAllTasks,
+  fetchAllLeaves,
+  fetchEmployees,
+  fetchAllReschedules,
+  fetchSites,
+  fetchMySvrReports,
+  fetchAllReportSubmissions,
+  fetchAllTickets, // ← add
+]);
 
   useRecurringTasks(user, fetchAllTasks);
 
@@ -4099,6 +4330,42 @@ const filteredReschedules = allReschedules.filter((r) => {
   showToast("success", "Leave approved.");
 };
 
+const handleMarkTicketSolved = async () => {
+  if (!ticketSolveModal) return;
+  const ticket = ticketSolveModal.ticket;
+  const note = ticketSolveModal.note.trim();
+
+  setUpdatingTicketId(ticket.id);
+
+  let resolution_document_url = null;
+  if (ticketSolveModal.file) {
+    const file = ticketSolveModal.file;
+    const path = `${user.user_name}/resolved_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+    const { error: uploadErr } = await supabase.storage
+      .from("ticket-raised")
+      .upload(path, file);
+    if (uploadErr) {
+      setUpdatingTicketId(null);
+      return showToast("error", "File upload failed: " + uploadErr.message);
+    }
+    const { data: pub } = supabase.storage.from("ticket-raised").getPublicUrl(path);
+    resolution_document_url = pub?.publicUrl || null;
+  }
+
+  const payload = {
+    status: "solved",
+    resolution_note: note || null,
+    resolution_document_url,
+    resolved_by: user.user_name,
+    resolved_at: new Date().toISOString(),
+  };
+  const { error } = await supabase.from("tickets").update(payload).eq("id", ticket.id);
+  setUpdatingTicketId(null);
+  if (error) return showToast("error", "Failed: " + error.message);
+  setAllTickets((prev) => prev.map((t) => (t.id === ticket.id ? { ...t, ...payload } : t)));
+  setTicketSolveModal(null);
+  showToast("success", "Ticket marked as solved.");
+};
 const handleLeaveRejectConfirm = async () => {
   if (!leaveRejectModal.reason.trim()) return;
   const leave = leaveRejectModal.leave;
@@ -5111,7 +5378,7 @@ const handleLeaveRejectConfirm = async () => {
             )}
           </>
         );
-      case "leave-requests":
+       case "leave-requests":
         return loadingLeaves ? (
           <div className="op-empty-state">
             <div className="op-spinner" />
@@ -5140,67 +5407,99 @@ const handleLeaveRejectConfirm = async () => {
         ) : (
           <>
             <div className="ap-leave-summary ap-leave-summary-tight">
-              <div>
-                <span>Total</span>
-                <strong>{leaveTotal}</strong>
-              </div>
-              <div>
-                <span>Pending</span>
-                <strong>{leavePending}</strong>
-              </div>
-              <div>
-                <span>Admin Action</span>
-                <strong>{leavePendingForAdmin}</strong>
-              </div>
-              <div>
-                <span>Approved</span>
-                <strong>{leaveApproved}</strong>
-              </div>
-              <div>
-                <span>Rejected</span>
-                <strong>{leaveRejected}</strong>
-              </div>
-            </div>
-            <>
-  <div className="ap-table-wrap">
-    <table className="ap-table">
-      <thead>
-        <tr>
-          {["Employee", "Site", "Type", "Dates", "Reason", "Approval", "Status", "Action"].map((h) => (
-            <th key={h} className="ap-th">{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {allLeaves.map((leave) => (
-          <LeaveRow
-            key={leave.id}
-            leave={leave}
-            onAction={handleLeaveAction}
-            updating={updatingLeaveId}
-            roleByName={roleByName}
-          />
-        ))}
-      </tbody>
-    </table>
+  <div style={{ background: "#eff6ff", borderColor: "#bfdbfe" }}>
+    <span>Total</span>
+    <strong style={{ color: "#2563eb" }}>{leaveTotal}</strong>
   </div>
+  <div style={{ background: "#fffbeb", borderColor: "#fde68a" }}>
+    <span>Pending</span>
+    <strong style={{ color: "#d97706" }}>{leavePending}</strong>
+  </div>
+  <div style={{ background: "#fef2f2", borderColor: "#fecaca" }}>
+    <span>Admin Action</span>
+    <strong style={{ color: "#dc2626" }}>{leavePendingForAdmin}</strong>
+  </div>
+  <div style={{ background: "#f0fdf4", borderColor: "#bbf7d0" }}>
+    <span>Approved</span>
+    <strong style={{ color: "#16a34a" }}>{leaveApproved}</strong>
+  </div>
+  <div style={{ background: "#fef2f2", borderColor: "#fecaca" }}>
+    <span>Rejected</span>
+    <strong style={{ color: "#dc2626" }}>{leaveRejected}</strong>
+  </div>
+</div>
+            {filteredLeaves.length === 0 ? (
+              <div className="op-empty-state">
+                <svg
+                  width="48"
+                  height="48"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ opacity: 0.3 }}
+                >
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                <p className="op-empty-text">No leave requests match the current filters.</p>
+                <button
+                  className="tf-clear"
+                  style={{ marginTop: 4 }}
+                  onClick={() => setLeaveFilters({ name: "", dateFrom: "", dateTo: "" })}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                  Clear filters
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="ap-table-wrap">
+                  <table className="ap-table">
+                    <thead>
+                      <tr>
+                        {["Employee", "Site", "Type", "Dates", "Reason", "Approval", "Status", "Action"].map((h) => (
+                          <th key={h} className="ap-th">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredLeaves.map((leave) => (
+                        <LeaveRow
+                          key={leave.id}
+                          leave={leave}
+                          onAction={handleLeaveAction}
+                          updating={updatingLeaveId}
+                          roleByName={roleByName}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
 
-  {/* Mobile cards — unchanged, reject now opens the same modal */}
-  <div className="ap-task-mobile-grid">
-    {allLeaves.map((leave) => (
-      <LeaveRequestCard
-        key={leave.id}
-        leave={leave}
-        onAction={handleLeaveAction}
-        updating={updatingLeaveId}
-        roleByName={roleByName}
-      />
-    ))}
-  </div>
-</>
+                {/* Mobile cards */}
+                <div className="ap-task-mobile-grid">
+                  {filteredLeaves.map((leave) => (
+                    <LeaveRequestCard
+                      key={leave.id}
+                      leave={leave}
+                      onAction={handleLeaveAction}
+                      updating={updatingLeaveId}
+                      roleByName={roleByName}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </>
-        );
-
+        );   
       case "add-employee":
         return (
           <div className="ap-form-grid">
@@ -6783,6 +7082,41 @@ const handleLeaveRejectConfirm = async () => {
           </>
         );
       }
+      case "new-tickets": {
+  const openTickets = allTickets.filter((t) => t.status === "open");
+  return loadingTickets ? (
+    <div className="op-empty-state">
+      <div className="op-spinner" />
+      <p className="op-empty-text">Loading tickets…</p>
+    </div>
+  ) : openTickets.length === 0 ? (
+    <div className="op-empty-state">
+      <p className="op-empty-text">No open tickets.</p>
+    </div>
+  ) : (
+    <AdminTicketsTable
+      tickets={openTickets}
+      updatingId={updatingTicketId}
+      onSolve={(t) => setTicketSolveModal({ ticket: t, note: "", file: null })}
+    />
+  );
+}
+
+case "solved-ticket": {
+  const solvedTickets = allTickets.filter((t) => t.status === "solved");
+  return loadingTickets ? (
+    <div className="op-empty-state">
+      <div className="op-spinner" />
+      <p className="op-empty-text">Loading tickets…</p>
+    </div>
+  ) : solvedTickets.length === 0 ? (
+    <div className="op-empty-state">
+      <p className="op-empty-text">No solved tickets yet.</p>
+    </div>
+  ) : (
+    <AdminTicketsTable tickets={solvedTickets} showAction={false} />
+  );
+}
       default:
         return null;
     }
@@ -7228,6 +7562,11 @@ const handleLeaveRejectConfirm = async () => {
                 >
                   <span className="op-nav-icon">{item.icon}</span>
                   {item.label}
+                  {item.key === "new-tickets" && allTickets.filter((t) => t.status === "open").length > 0 && (
+                    <span className="op-nav-badge">
+                      {allTickets.filter((t) => t.status === "open").length}
+                    </span>
+                  )}
                 </button>
               ))}
               <span className="op-nav-section">Employee Management</span>
@@ -7422,6 +7761,17 @@ const handleLeaveRejectConfirm = async () => {
                     onMobileToggle={() => setRescheduleMobileFilterOpen((p) => !p)}
                   />
                 )}
+                {activeTab === "leave-requests" && (
+                    <LeaveFilterBar
+                      filters={leaveFilters}
+                      onChange={(key, val) => setLeaveFilters((prev) => ({ ...prev, [key]: val }))}
+                      onClear={() => setLeaveFilters({ name: "", dateFrom: "", dateTo: "" })}
+                      leaves={allLeaves}
+                      inline={true}
+                      mobileOpen={leaveMobileFilterOpen}
+                      onMobileToggle={() => setLeaveMobileFilterOpen((p) => !p)}
+                    />
+                  )}
                 {activeTab === "manage-employees" && (
                   <EmployeeFilterBar
                     filters={employeeFilters}
@@ -8172,60 +8522,61 @@ const handleLeaveRejectConfirm = async () => {
           </div>
         </div>
       )}
-      {leaveRejectModal && (
+      {ticketSolveModal && (
   <div
     style={{
       position: "fixed", inset: 0, zIndex: 10040,
       background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
       display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}
-    onClick={(e) => { if (e.target === e.currentTarget) setLeaveRejectModal(null); }}
+    onClick={(e) => { if (e.target === e.currentTarget) setTicketSolveModal(null); }}
   >
     <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+      <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Mark Ticket as Solved</div>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+          {ticketSolveModal.ticket.task_title}
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Reject Leave Request</div>
-          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-            {leaveRejectModal.leave.leave_type} · {leaveRejectModal.leave.name || leaveRejectModal.leave.user_name}
-          </div>
-        </div>
-        <button onClick={() => setLeaveRejectModal(null)} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", flexShrink: 0 }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
       </div>
-
       <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
-        <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
-          Reason for Rejection <span style={{ color: "#dc2626" }}>*</span>
-        </label>
-        <textarea
-          rows={3}
-          autoFocus
-          placeholder="Explain why this leave request is being rejected…"
-          style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "#1e293b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", outline: "none", width: "100%", resize: "vertical", minHeight: 90 }}
-          value={leaveRejectModal.reason}
-          onChange={(e) => setLeaveRejectModal((p) => ({ ...p, reason: e.target.value }))}
-        />
-        <span style={{ fontSize: 11.5, color: "#94a3b8" }}>This message will be shown to the employee.</span>
-      </div>
-
+  <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+    Resolution Note
+    <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", background: "#f1f5f9", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>
+      optional
+    </span>
+  </label>
+  <textarea
+    rows={3}
+    placeholder="How was this resolved?"
+    style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "#1e293b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", outline: "none", width: "100%", resize: "vertical", minHeight: 80 }}
+    value={ticketSolveModal.note}
+    onChange={(e) => setTicketSolveModal((p) => ({ ...p, note: e.target.value }))}
+  />
+  <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569", marginTop: 8 }}>
+    Attach Resolution Document
+    <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", background: "#f1f5f9", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>
+      optional
+    </span>
+  </label>
+  <input
+    type="file"
+    onChange={(e) => setTicketSolveModal((p) => ({ ...p, file: e.target.files?.[0] || null }))}
+    style={{ fontSize: 12.5 }}
+  />
+  {ticketSolveModal.file && (
+    <span style={{ fontSize: 11.5, color: "#64748b" }}>{ticketSolveModal.file.name}</span>
+  )}
+</div>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
-        <button onClick={() => setLeaveRejectModal(null)} style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}>
+        <button onClick={() => setTicketSolveModal(null)} style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}>
           Cancel
         </button>
         <button
-          onClick={handleLeaveRejectConfirm}
-          disabled={!leaveRejectModal.reason.trim()}
-          style={{ background: leaveRejectModal.reason.trim() ? "#dc2626" : "#f1f5f9", color: leaveRejectModal.reason.trim() ? "#fff" : "#94a3b8", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 20px", borderRadius: 8, border: "none", cursor: leaveRejectModal.reason.trim() ? "pointer" : "not-allowed" }}
+          onClick={handleMarkTicketSolved}
+          disabled={updatingTicketId === ticketSolveModal.ticket.id}
+          style={{ background: "#16a34a", color: "#fff", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 20px", borderRadius: 8, border: "none", cursor: "pointer" }}
         >
-          Confirm Rejection
+          Confirm Solved
         </button>
       </div>
     </div>

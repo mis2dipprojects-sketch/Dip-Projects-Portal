@@ -73,6 +73,58 @@ const TASK_NAV = [
   },
 ];
 
+const NEW_TICKETS_ITEM = {
+  key: "new-tickets",
+  label: "New Tickets",
+  icon: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+      <line x1="12" y1="10" x2="12" y2="14" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
+};
+const TICKETS_NAV = [
+  {
+    key: "raised-tickets",
+    label: "Raised Tickets",
+    icon: (
+            <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z" />
+        <path d="M12 7v10" strokeDasharray="2 2" />
+      </svg>
+    ),
+  },
+  {
+    key: "solved-tickets",
+    label: "Solved Tickets",
+    icon: (
+<svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z" />
+        <path d="M9 12l2 2 4-4" />
+      </svg>
+    ),
+  },
+];
+
 const VERIFY_REQUESTS_ITEM = {
   key: "verify-requests",
   label: "Reschedule Requests",
@@ -1321,6 +1373,187 @@ function MyLeaveTable({ leaves }) {
     </div>
   );
 }
+ function NewTicketsTable({ tickets, onSolve, updatingId }) {
+  const fmt = (d) =>
+    d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  const statusStyle = {
+    open: { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
+    solved: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+  };
+
+  return (
+    <div className="tt-wrap">
+      <table className="tt-table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Raised By</th>
+            <th>Site</th>
+            <th>Query</th>
+            <th>Attachment</th>
+            <th>Raised On</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tickets.map((t) => {
+            const sc = statusStyle[t.status] || statusStyle.open;
+            return (
+              <tr key={t.id} className="tt-row">
+                <td className="tt-title-cell">
+                  <div className="tt-title">{t.task_title || "—"}</div>
+                </td>
+                <td>{t.raised_by_name || t.raised_by}</td>
+                <td>{t.site_name || "—"}</td>
+                <td style={{ maxWidth: 220 }}>
+                  <span style={{ fontSize: 12.5, color: "#64748b" }}>{t.query}</span>
+                </td>
+                <td>
+                  {t.document_url ? (
+                    <a href={t.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}>
+                      View file
+                    </a>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>—</span>
+                  )}
+                </td>
+                <td>{fmt(t.created_at)}</td>
+                <td>
+                  <span
+                    style={{
+                      display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700,
+                      padding: "3px 9px", borderRadius: 20, background: sc.bg, color: sc.color,
+                      border: `1px solid ${sc.border}`,
+                    }}
+                  >
+                    {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                  </span>
+                  {t.status === "solved" && t.resolution_note && (
+                    <div style={{ fontSize: 11, color: "#16a34a", marginTop: 4, maxWidth: 180 }}>{t.resolution_note}</div>
+                  )}
+                </td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  {t.status === "open" ? (
+                    <button
+                      className="lv-btn-approve"
+                      disabled={updatingId === t.id}
+                      onClick={() => onSolve(t)}
+                    >
+                      Mark Solved
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: 11.5, color: "#94a3b8" }}>✓ Solved</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RaisedTicketsTable({ tickets }) {
+  const fmt = (d) =>
+    d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  const statusStyle = {
+    open: { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
+    solved: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+  };
+
+  return (
+    <div className="tt-wrap">
+      <table className="tt-table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Sent To</th>
+            <th>Site</th>
+            <th>Query</th>
+            <th>Attachment</th>
+            <th>Raised On</th>
+            <th>Status</th>
+            <th>Resolution</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tickets.map((t) => {
+            const sc = statusStyle[t.status] || statusStyle.open;
+            return (
+              <tr key={t.id} className="tt-row">
+                <td className="tt-title-cell">
+                  <div className="tt-title">{t.task_title || "—"}</div>
+                </td>
+                <td>{t.assigned_to_name || t.assigned_to}</td>
+                <td>{t.site_name || "—"}</td>
+                <td style={{ maxWidth: 220 }}>
+                  <span style={{ fontSize: 12.5, color: "#64748b" }}>{t.query}</span>
+                </td>
+                <td>
+                  {t.document_url ? (
+                    <a href={t.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}>
+                      View file
+                    </a>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>—</span>
+                  )}
+                </td>
+                <td>{fmt(t.created_at)}</td>
+
+                {/* ── Status badge (its own column, was missing before) ── */}
+                <td>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "3px 9px",
+                      borderRadius: 20,
+                      background: sc.bg,
+                      color: sc.color,
+                      border: `1px solid ${sc.border}`,
+                    }}
+                  >
+                    {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                  </span>
+                </td>
+
+                {/* ── Resolution (note + file link only) ── */}
+                <td>
+                  {t.status === "solved" ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {t.resolution_note && (
+                        <span style={{ fontSize: 11.5, color: "#16a34a" }}>{t.resolution_note}</span>
+                      )}
+                      {t.resolution_document_url ? (
+                        
+                        <a  href={t.resolution_document_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}
+                        >
+                          View resolution file
+                        </a>
+                      ) : !t.resolution_note ? (
+                        <span style={{ color: "#94a3b8" }}>—</span>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>—</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function VerifyRequestsTable({ requests, onApprove, onReject, updatingId }) {
   const fmt = (d) =>
     d
@@ -1729,6 +1962,39 @@ const [loadingVerifyRequests, setLoadingVerifyRequests] = useState(false);
 const [updatingVerifyId, setUpdatingVerifyId] = useState(null);
 const [verifyRejectModal, setVerifyRejectModal] = useState(null); // { req, reason }
 
+const [ticketModal, setTicketModal] = useState(null); // { task, assigned_to, query, file, submitting }
+const [ticketSolveModal, setTicketSolveModal] = useState(null); // { ticket, note }
+const [allUsers, setAllUsers] = useState([]);
+const [newTickets, setNewTickets] = useState([]);
+const [loadingNewTickets, setLoadingNewTickets] = useState(false);
+const [raisedTickets, setRaisedTickets] = useState([]);
+const [loadingRaisedTickets, setLoadingRaisedTickets] = useState(false);
+const [updatingTicketId, setUpdatingTicketId] = useState(null);
+
+const fetchNewTickets = useCallback(async (u) => {
+  if (!u) return;
+  setLoadingNewTickets(true);
+  const { data, error } = await supabase
+    .from("tickets")
+    .select("*")
+    .eq("assigned_to", u.user_name)
+    .order("created_at", { ascending: false });
+  if (!error) setNewTickets(data || []);
+  setLoadingNewTickets(false);
+}, []);
+
+const fetchRaisedTickets = useCallback(async (u) => {
+  if (!u) return;
+  setLoadingRaisedTickets(true);
+  const { data, error } = await supabase
+    .from("tickets")
+    .select("*")
+    .eq("raised_by", u.user_name)
+    .order("created_at", { ascending: false });
+  if (!error) setRaisedTickets(data || []);
+  setLoadingRaisedTickets(false);
+}, []);
+
 const fetchVerifyRequests = useCallback(async (u) => {
   if (!u) return;
   setLoadingVerifyRequests(true);
@@ -1742,6 +2008,16 @@ const fetchVerifyRequests = useCallback(async (u) => {
   if (!error) setVerifyRequests(data || []);
   setLoadingVerifyRequests(false);
 }, []);
+
+useEffect(() => {
+  supabase
+    .from("user_details")
+    .select("username, name")
+    .then(({ data, error }) => {
+      if (!error && data) setAllUsers(data);
+    });
+}, []);
+
   useEffect(() => {
     supabase
       .from("user_details")
@@ -2018,16 +2294,19 @@ const fetchVerifyRequests = useCallback(async (u) => {
     setLoadingLeaves(false);
   }, []);
 
-  useEffect(() => {
+useEffect(() => {
   if (user) {
     fetchTasks(user);
     fetchLeaves(user);
     fetchMyReschedules(user);
     fetchSiteReports(user);
     fetchMySvrReports(user);
-    fetchVerifyRequests(user); // ← add
+    fetchVerifyRequests(user);
+    fetchNewTickets(user);      // ← add
+    fetchRaisedTickets(user);   // ← add
   }
-}, [user, fetchTasks, fetchLeaves, fetchMyReschedules, fetchSiteReports, fetchMySvrReports, fetchVerifyRequests]);
+}, [user, fetchTasks, fetchLeaves, fetchMyReschedules, fetchSiteReports, fetchMySvrReports, fetchVerifyRequests, fetchNewTickets, fetchRaisedTickets]);
+
   const showToast = (type, msg) => {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 3500);
@@ -2076,18 +2355,106 @@ const handleVerifyRejectConfirm = async () => {
   setVerifyRequests((prev) => prev.map((r) => (r.id === req.id ? { ...r, ...payload } : r)));
   showToast("success", "Reschedule rejected.");
 };
-  const handleRaiseTicket = async (task) => {
-    showToast("success", `Ticket raised for "${task.title}".`);
-    // TODO: wire this to your ticketing table / support system
-  };
-  const handleNavClick = (key) => {
-    setActiveTab(key);
-    if (typeof window !== "undefined" && window.innerWidth <= 760)
-      setSidebarOpen(false);
-    if (key === "my-reschedules") markReschedulesRead();
-    if (key === "my-leaves") markLeavesRead(); // ← add this
+const handleRaiseTicket = (task) => {
+    setTicketModal({ task, assigned_to: "", query: "", file: null, submitting: false });
   };
 
+  const handleTicketSubmit = async () => {
+    if (!ticketModal.assigned_to)
+      return showToast("error", "Please select who to send this ticket to.");
+    if (!ticketModal.query.trim())
+      return showToast("error", "Please describe your query.");
+
+    setTicketModal((p) => ({ ...p, submitting: true }));
+
+    let documentUrl = null;
+    if (ticketModal.file) {
+      const file = ticketModal.file;
+      const ext = file.name.split(".").pop();
+      const path = `${user.user_name}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { error: uploadErr } = await supabase.storage
+        .from("ticket-raised")
+        .upload(path, file);
+      if (uploadErr) {
+        setTicketModal((p) => ({ ...p, submitting: false }));
+        return showToast("error", "File upload failed: " + uploadErr.message);
+      }
+      const { data: pub } = supabase.storage.from("ticket-raised").getPublicUrl(path);
+      documentUrl = pub?.publicUrl || null;
+    }
+
+    const recipient = allUsers.find((u) => u.username === ticketModal.assigned_to);
+
+    const { error } = await supabase.from("tickets").insert([
+      {
+        task_id: ticketModal.task?.id || null,
+        task_title: ticketModal.task?.title || null,
+        site_name: ticketModal.task?.site_name || null,
+        raised_by: user.user_name,
+        raised_by_name: user.name,
+        assigned_to: ticketModal.assigned_to,
+        assigned_to_name: recipient?.name || ticketModal.assigned_to,
+        query: ticketModal.query.trim(),
+        document_url: documentUrl,
+        status: "open",
+      },
+    ]);
+
+    setTicketModal((p) => ({ ...p, submitting: false }));
+
+    if (error) {
+      showToast("error", "Failed to raise ticket: " + error.message);
+    } else {
+      showToast("success", "Ticket raised successfully!");
+      setTicketModal(null);
+      fetchRaisedTickets(user);
+    }
+  };
+
+const handleMarkTicketSolved = async () => {
+  if (!ticketSolveModal) return;
+  const ticket = ticketSolveModal.ticket;
+  const note = ticketSolveModal.note.trim();
+
+  setUpdatingTicketId(ticket.id);
+
+  let resolution_document_url = null;
+  if (ticketSolveModal.file) {
+    const file = ticketSolveModal.file;
+    const path = `${user.user_name}/resolved_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+    const { error: uploadErr } = await supabase.storage
+      .from("ticket-raised")
+      .upload(path, file);
+    if (uploadErr) {
+      setUpdatingTicketId(null);
+      return showToast("error", "File upload failed: " + uploadErr.message);
+    }
+    const { data: pub } = supabase.storage.from("ticket-raised").getPublicUrl(path);
+    resolution_document_url = pub?.publicUrl || null;
+  }
+
+  const payload = {
+    status: "solved",
+    resolution_note: note || null,
+    resolution_document_url,
+    resolved_by: user.user_name,
+    resolved_at: new Date().toISOString(),
+  };
+  const { error } = await supabase.from("tickets").update(payload).eq("id", ticket.id);
+  setUpdatingTicketId(null);
+  if (error) return showToast("error", "Failed: " + error.message);
+  setNewTickets((prev) => prev.map((t) => (t.id === ticket.id ? { ...t, ...payload } : t)));
+  setTicketSolveModal(null);
+  showToast("success", "Ticket marked as solved.");
+};
+const handleNavClick = (key) => {
+  setActiveTab(key);
+  if (typeof window !== "undefined" && window.innerWidth <= 760)
+    setSidebarOpen(false);
+  if (key === "my-reschedules") markReschedulesRead();
+  if (key === "my-leaves") markLeavesRead();
+  if (key === "solved-tickets") markTicketsRead(); // ← add
+};
   const spawnNextRecurringInstance = async (task, nextDue) => {
     const { data: newTask, error: insertErr } = await supabase
       .from("tasks")
@@ -2278,7 +2645,23 @@ const handleVerifyRejectConfirm = async () => {
     }
     setUpdatingId(null);
   };
+const markTicketsRead = async () => {
+  const unreadIds = raisedTickets
+    .filter((t) => t.status === "solved" && t.raised_by_read !== true)
+    .map((t) => t.id);
+  if (!unreadIds.length) return;
 
+  const { error } = await supabase
+    .from("tickets")
+    .update({ raised_by_read: true })
+    .in("id", unreadIds);
+
+  if (!error) {
+    setRaisedTickets((prev) =>
+      prev.map((t) => (unreadIds.includes(t.id) ? { ...t, raised_by_read: true } : t)),
+    );
+  }
+};  
   const markReschedulesRead = async () => {
     const unreadIds = myReschedules
       .filter(
@@ -2518,6 +2901,8 @@ const activeItem = [
   ...REPORTS_NAV,
   REPORT_SUBMISSIONS_ITEM,
   VERIFY_REQUESTS_ITEM,
+  NEW_TICKETS_ITEM,
+  ...TICKETS_NAV,
 ].find((n) => n.key === activeTab);
 
   const proxyPendingCount = proxyLeaves.filter(
@@ -2848,7 +3233,61 @@ const activeItem = [
             ))}
           </div>
         );
+case "new-tickets":
+  if (loadingNewTickets)
+    return (
+      <div className="op-empty-state">
+        <div className="op-spinner" />
+        <p className="op-empty-text">Loading…</p>
+      </div>
+    );
+  if (!newTickets.length)
+    return (
+      <div className="op-empty-state">
+        <p className="op-empty-text">No tickets have been raised to you yet.</p>
+      </div>
+    );
+  return (
+    <NewTicketsTable
+      tickets={newTickets}
+      updatingId={updatingTicketId}
+      onSolve={(t) => setTicketSolveModal({ ticket: t, note: "", file: null })}
+    />
+  );
 
+case "raised-tickets":
+  if (loadingRaisedTickets)
+    return (
+      <div className="op-empty-state">
+        <div className="op-spinner" />
+        <p className="op-empty-text">Loading…</p>
+      </div>
+    );
+  if (!raisedTickets.length)
+    return (
+      <div className="op-empty-state">
+        <p className="op-empty-text">You haven't raised any tickets yet.</p>
+      </div>
+    );
+  return <RaisedTicketsTable tickets={raisedTickets} />;
+
+case "solved-tickets": {
+  const solved = raisedTickets.filter((t) => t.status === "solved");
+  if (loadingRaisedTickets)
+    return (
+      <div className="op-empty-state">
+        <div className="op-spinner" />
+        <p className="op-empty-text">Loading…</p>
+      </div>
+    );
+  if (!solved.length)
+    return (
+      <div className="op-empty-state">
+        <p className="op-empty-text">None of your raised tickets have been solved yet.</p>
+      </div>
+    );
+  return <RaisedTicketsTable tickets={solved} />;
+}
         case "verify-requests": {
   const fmtDate = (d) =>
     d ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
@@ -4694,6 +5133,38 @@ return (
                   )}
                 </button>
               )}
+              {newTickets.length > 0 && (
+  <button
+    className={`op-nav-item${activeTab === "new-tickets" ? " active" : ""}`}
+    onClick={() => handleNavClick("new-tickets")}
+  >
+    <span className="op-nav-icon">{NEW_TICKETS_ITEM.icon}</span>
+    {NEW_TICKETS_ITEM.label}
+    {newTickets.filter((t) => t.status === "open").length > 0 && (
+      <span className="op-nav-badge">
+        {newTickets.filter((t) => t.status === "open").length}
+      </span>
+    )}
+  </button>
+)}
+
+<span className="op-nav-section" style={{ marginTop: 8 }}>Tickets</span>
+{TICKETS_NAV.map((item) => (
+  <button
+    key={item.key}
+    className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
+    onClick={() => handleNavClick(item.key)}
+  >
+    <span className="op-nav-icon">{item.icon}</span>
+    {item.label}
+{item.key === "solved-tickets" &&
+  raisedTickets.filter((t) => t.status === "solved" && t.raised_by_read !== true).length > 0 && (
+    <span className="op-nav-badge">
+      {raisedTickets.filter((t) => t.status === "solved" && t.raised_by_read !== true).length}
+    </span>
+  )}
+  </button>
+))}
               <span className="op-nav-section" style={{ marginTop: 8 }}>
                 Leave
               </span>
@@ -5246,6 +5717,166 @@ return (
           style={{ background: verifyRejectModal.reason.trim() ? "#dc2626" : "#f1f5f9", color: verifyRejectModal.reason.trim() ? "#fff" : "#94a3b8", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 20px", borderRadius: 8, border: "none", cursor: verifyRejectModal.reason.trim() ? "pointer" : "not-allowed" }}
         >
           Confirm Rejection
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+{ticketModal && (
+  <div
+    style={{
+      position: "fixed", inset: 0, zIndex: 10040,
+      background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+    }}
+    onClick={(e) => { if (e.target === e.currentTarget) setTicketModal(null); }}
+  >
+    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
+      <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Raise Ticket</div>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+          {ticketModal.task?.title}
+        </div>
+      </div>
+
+      <div style={{ padding: "18px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+            Send To <span style={{ color: "#dc2626" }}>*</span>
+          </label>
+          <select
+            style={{
+              fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "#1e293b",
+              background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8,
+              padding: "9px 12px", outline: "none", width: "100%", cursor: "pointer",
+            }}
+            value={ticketModal.assigned_to}
+            onChange={(e) => setTicketModal((p) => ({ ...p, assigned_to: e.target.value }))}
+          >
+            <option value="">Select recipient…</option>
+            {allUsers
+              .filter((u) => u.username !== user?.user_name)
+              .map((u) => (
+                <option key={u.username} value={u.username}>{u.name}</option>
+              ))}
+          </select>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+            Your Query <span style={{ color: "#dc2626" }}>*</span>
+          </label>
+          <textarea
+            rows={4}
+            placeholder="Describe the issue or question…"
+            style={{
+              fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "#1e293b",
+              background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8,
+              padding: "9px 12px", outline: "none", width: "100%", resize: "vertical", minHeight: 90,
+            }}
+            value={ticketModal.query}
+            onChange={(e) => setTicketModal((p) => ({ ...p, query: e.target.value }))}
+          />
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+            Attach Document
+            <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", background: "#f1f5f9", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>
+              optional
+            </span>
+          </label>
+          <input
+            type="file"
+            onChange={(e) => setTicketModal((p) => ({ ...p, file: e.target.files?.[0] || null }))}
+            style={{ fontSize: 12.5 }}
+          />
+          {ticketModal.file && (
+            <span style={{ fontSize: 11.5, color: "#64748b" }}>{ticketModal.file.name}</span>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
+        <button
+          onClick={() => setTicketModal(null)}
+          style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleTicketSubmit}
+          disabled={ticketModal.submitting}
+          style={{
+            background: "#dc2626", color: "#fff", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600,
+            padding: "9px 20px", borderRadius: 8, border: "none", cursor: "pointer", opacity: ticketModal.submitting ? 0.6 : 1,
+          }}
+        >
+          {ticketModal.submitting ? "Submitting…" : "Raise Ticket"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{ticketSolveModal && (
+  <div
+    style={{
+      position: "fixed", inset: 0, zIndex: 10040,
+      background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+    }}
+    onClick={(e) => { if (e.target === e.currentTarget) setTicketSolveModal(null); }}
+  >
+    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
+      <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Mark Ticket as Solved</div>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+          {ticketSolveModal.ticket.task_title}
+        </div>
+      </div>
+      <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
+  <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+    Resolution Note
+    <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", background: "#f1f5f9", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>
+      optional
+    </span>
+  </label>
+  <textarea
+    rows={3}
+    placeholder="How was this resolved?"
+    style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "#1e293b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", outline: "none", width: "100%", resize: "vertical", minHeight: 80 }}
+    value={ticketSolveModal.note}
+    onChange={(e) => setTicketSolveModal((p) => ({ ...p, note: e.target.value }))}
+  />
+</div>
+
+<div style={{ padding: "0 22px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
+  <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+    Attach Resolution Document
+    <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", background: "#f1f5f9", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>
+      optional
+    </span>
+  </label>
+  <input
+    type="file"
+    onChange={(e) => setTicketSolveModal((p) => ({ ...p, file: e.target.files?.[0] || null }))}
+    style={{ fontSize: 12.5 }}
+  />
+  {ticketSolveModal.file && (
+    <span style={{ fontSize: 11.5, color: "#64748b" }}>{ticketSolveModal.file.name}</span>
+  )}
+</div>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
+        <button onClick={() => setTicketSolveModal(null)} style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}>
+          Cancel
+        </button>
+        <button
+          onClick={handleMarkTicketSolved}
+          disabled={updatingTicketId === ticketSolveModal.ticket.id}
+          style={{ background: "#16a34a", color: "#fff", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 20px", borderRadius: 8, border: "none", cursor: "pointer" }}
+        >
+          Confirm Solved
         </button>
       </div>
     </div>

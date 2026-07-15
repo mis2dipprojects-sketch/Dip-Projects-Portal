@@ -1970,6 +1970,12 @@ const [loadingNewTickets, setLoadingNewTickets] = useState(false);
 const [raisedTickets, setRaisedTickets] = useState([]);
 const [loadingRaisedTickets, setLoadingRaisedTickets] = useState(false);
 const [updatingTicketId, setUpdatingTicketId] = useState(null);
+const mainRef = useRef(null);
+
+useEffect(() => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+}, [activeTab]);
 
 const fetchNewTickets = useCallback(async (u) => {
   if (!u) return;
@@ -4782,7 +4788,7 @@ return (
           /* ── Sidebar ── */
           .op-sidebar { width: 240px; min-width: 240px; background: #fff; border-right: 1px solid #e8edf3; display: flex; flex-direction: column; transition: width .25s cubic-bezier(.4,0,.2,1), min-width .25s, opacity .2s; overflow: hidden; box-shadow: 2px 0 12px rgba(0,0,0,.04); position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; }
           .op-sidebar.collapsed { width: 0; min-width: 0; opacity: 0; pointer-events: none; }
-          .op-sidebar-header { padding: 20px 20px 12px; border-bottom: 1px solid #f0f4f8; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+          .op-sidebar-header {padding: 20px 20px 12px; border-bottom: 1px solid #f0f4f8; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
           
           .op-sidebar-close { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #c9d0d4d0; background: #fff; color: #64748b; cursor: pointer; align-items: center; justify-content: center; }
           .op-sidebar-backdrop { display: none; }
@@ -5210,7 +5216,7 @@ return (
             </nav>
           </aside>
 
-          <main className="op-main">
+          <main className="op-main" ref={mainRef}>
             <div className="op-content-card">
               <div className="op-content-header">
                 <div className="op-header-left">

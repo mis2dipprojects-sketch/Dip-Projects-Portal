@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback,useRef } from "react";
 import Navbar from "../components/Navbar";
 import { supabase } from "../supabase";
 import { useRecurringTasks } from "../hooks/useRecurringTasks";
@@ -3514,6 +3514,12 @@ const [updatingTicketId, setUpdatingTicketId] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null); // holds employee object when editing
+  const mainRef = useRef(null);
+
+useEffect(() => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+}, [activeTab]);
   const [empForm, setEmpForm] = useState({
     name: "",
     username: "",
@@ -7605,7 +7611,7 @@ case "solved-ticket": {
             </nav>
           </aside>
 
-          <main className="op-main">
+          <main className="op-main" ref={mainRef}>
             <div className="op-content-card">
               <div className="op-content-header">
                 <div className="op-header-left">

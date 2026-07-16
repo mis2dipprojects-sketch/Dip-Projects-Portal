@@ -4,11 +4,13 @@ import { supabase } from "../supabase";
 import SiteReport from "./Sitereport";
 import Checklists from "./Checklists";
 import "./OfficePortal.css";
+import { canAccessPortal, filterNav } from "../access.js";
 import {
   resolveApprovalChain,
   deriveLeaveStatus,
   mergeRejectionReason,
 } from "./SitePortal";
+
 // ── Nav Items ──────────────────────────────────────────────────────────────
 const TASK_NAV = [
   {
@@ -53,7 +55,32 @@ const TASK_NAV = [
     key: "my-reschedules",
     label: "My Reschedule Requests",
     icon: (
-         <svg
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="3" y="4" width="18" height="17" rx="2" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+        <path d="M12 13a3 3 0 1 1-2.6 4.5" />
+        <polyline points="9.5 17.5 9.5 14.5 12.5 14.5" />
+      </svg>
+    ),
+  },
+];
+
+const NEW_TICKETS_ITEM = {
+  key: "new-tickets",
+  label: "New Tickets",
+  icon: (
+    <svg
       width="18"
       height="18"
       viewBox="0 0 24 24"
@@ -63,22 +90,6 @@ const TASK_NAV = [
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <rect x="3" y="4" width="18" height="17" rx="2" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-      <path d="M12 13a3 3 0 1 1-2.6 4.5" />
-      <polyline points="9.5 17.5 9.5 14.5 12.5 14.5" />
-    </svg>
-    ),
-  },
-];
-
-const NEW_TICKETS_ITEM = {
-  key: "new-tickets",
-  label: "New Tickets",
-  icon: (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
       <line x1="12" y1="10" x2="12" y2="14" />
       <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -90,7 +101,7 @@ const TICKETS_NAV = [
     key: "raised-tickets",
     label: "Raised Tickets",
     icon: (
-            <svg
+      <svg
         width="18"
         height="18"
         viewBox="0 0 24 24"
@@ -109,7 +120,7 @@ const TICKETS_NAV = [
     key: "solved-tickets",
     label: "Solved Tickets",
     icon: (
-<svg
+      <svg
         width="18"
         height="18"
         viewBox="0 0 24 24"
@@ -130,21 +141,21 @@ const VERIFY_REQUESTS_ITEM = {
   key: "verify-requests",
   label: "Reschedule Requests",
   icon: (
-   <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-        <path d="M3 3v5h5" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
-      </svg>
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
   ),
 };
 const LEAVE_NAV = [
@@ -192,11 +203,20 @@ const LEAVE_NAV = [
       </svg>
     ),
   },
-   {
+  {
     key: "proxy-request",
     label: "Leave Approvals",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
@@ -601,7 +621,10 @@ function getAdminRejectionReason(leave) {
     );
     if (found) return found.reason;
   }
-  if (typeof leave.rejection_reason === "string" && leave.rejection_reason.trim())
+  if (
+    typeof leave.rejection_reason === "string" &&
+    leave.rejection_reason.trim()
+  )
     return leave.rejection_reason;
   return null;
 }
@@ -1398,15 +1421,20 @@ function MyLeaveTable({ leaves }) {
               </tr>
             );
           })}
-
         </tbody>
       </table>
     </div>
   );
 }
- function NewTicketsTable({ tickets, onSolve, updatingId }) {
+function NewTicketsTable({ tickets, onSolve, updatingId }) {
   const fmt = (d) =>
-    d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+    d
+      ? new Date(d).toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
   const statusStyle = {
     open: { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
     solved: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
@@ -1438,11 +1466,22 @@ function MyLeaveTable({ leaves }) {
                 <td>{t.raised_by_name || t.raised_by}</td>
                 <td>{t.site_name || "—"}</td>
                 <td style={{ maxWidth: 220 }}>
-                  <span style={{ fontSize: 12.5, color: "#64748b" }}>{t.query}</span>
+                  <span style={{ fontSize: 12.5, color: "#64748b" }}>
+                    {t.query}
+                  </span>
                 </td>
                 <td>
                   {t.document_url ? (
-                    <a href={t.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}>
+                    <a
+                      href={t.document_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: 12,
+                        color: "#2563eb",
+                        fontWeight: 600,
+                      }}
+                    >
                       View file
                     </a>
                   ) : (
@@ -1453,15 +1492,30 @@ function MyLeaveTable({ leaves }) {
                 <td>
                   <span
                     style={{
-                      display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700,
-                      padding: "3px 9px", borderRadius: 20, background: sc.bg, color: sc.color,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "3px 9px",
+                      borderRadius: 20,
+                      background: sc.bg,
+                      color: sc.color,
                       border: `1px solid ${sc.border}`,
                     }}
                   >
                     {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
                   </span>
                   {t.status === "solved" && t.resolution_note && (
-                    <div style={{ fontSize: 11, color: "#16a34a", marginTop: 4, maxWidth: 180 }}>{t.resolution_note}</div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "#16a34a",
+                        marginTop: 4,
+                        maxWidth: 180,
+                      }}
+                    >
+                      {t.resolution_note}
+                    </div>
                   )}
                 </td>
                 <td onClick={(e) => e.stopPropagation()}>
@@ -1474,7 +1528,9 @@ function MyLeaveTable({ leaves }) {
                       Mark Solved
                     </button>
                   ) : (
-                    <span style={{ fontSize: 11.5, color: "#94a3b8" }}>✓ Solved</span>
+                    <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+                      ✓ Solved
+                    </span>
                   )}
                 </td>
               </tr>
@@ -1488,7 +1544,13 @@ function MyLeaveTable({ leaves }) {
 
 function RaisedTicketsTable({ tickets }) {
   const fmt = (d) =>
-    d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+    d
+      ? new Date(d).toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
   const statusStyle = {
     open: { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
     solved: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
@@ -1520,11 +1582,22 @@ function RaisedTicketsTable({ tickets }) {
                 <td>{t.assigned_to_name || t.assigned_to}</td>
                 <td>{t.site_name || "—"}</td>
                 <td style={{ maxWidth: 220 }}>
-                  <span style={{ fontSize: 12.5, color: "#64748b" }}>{t.query}</span>
+                  <span style={{ fontSize: 12.5, color: "#64748b" }}>
+                    {t.query}
+                  </span>
                 </td>
                 <td>
                   {t.document_url ? (
-                    <a href={t.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}>
+                    <a
+                      href={t.document_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: 12,
+                        color: "#2563eb",
+                        fontWeight: 600,
+                      }}
+                    >
                       View file
                     </a>
                   ) : (
@@ -1555,16 +1628,28 @@ function RaisedTicketsTable({ tickets }) {
                 {/* ── Resolution (note + file link only) ── */}
                 <td>
                   {t.status === "solved" ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                      }}
+                    >
                       {t.resolution_note && (
-                        <span style={{ fontSize: 11.5, color: "#16a34a" }}>{t.resolution_note}</span>
+                        <span style={{ fontSize: 11.5, color: "#16a34a" }}>
+                          {t.resolution_note}
+                        </span>
                       )}
                       {t.resolution_document_url ? (
-                        
-                        <a  href={t.resolution_document_url}
+                        <a
+                          href={t.resolution_document_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}
+                          style={{
+                            fontSize: 12,
+                            color: "#2563eb",
+                            fontWeight: 600,
+                          }}
                         >
                           View resolution file
                         </a>
@@ -1659,7 +1744,12 @@ function VerifyRequestsTable({ requests, onApprove, onReject, updatingId }) {
                   </span>
                   {req.status === "rejected" && req.admin_note && (
                     <div
-                      style={{ fontSize: 11, color: "#dc2626", marginTop: 4, maxWidth: 180 }}
+                      style={{
+                        fontSize: 11,
+                        color: "#dc2626",
+                        marginTop: 4,
+                        maxWidth: 180,
+                      }}
                     >
                       {req.admin_note}
                     </div>
@@ -1697,7 +1787,14 @@ function VerifyRequestsTable({ requests, onApprove, onReject, updatingId }) {
     </div>
   );
 }
-function ProxyLeaveTable({ leaves, onApprove, onReject, updatingId, currentUser, onRowClick }) {
+function ProxyLeaveTable({
+  leaves,
+  onApprove,
+  onReject,
+  updatingId,
+  currentUser,
+  onRowClick,
+}) {
   const fmt = (d) =>
     d
       ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
@@ -2051,6 +2148,7 @@ function LeaveCard({
     </div>
   );
 }
+
 function isRecurringTask(t) {
   return (
     t.is_recurring === true ||
@@ -2058,6 +2156,14 @@ function isRecurringTask(t) {
     Boolean(t.recurrence) ||
     Boolean(t.parent_task_id)
   );
+}
+
+function isTodayOrPast(dateStr) {
+  if (!dateStr) return true;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr + "T00:00:00");
+  return d <= today;
 }
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function OfficePortal() {
@@ -2092,72 +2198,72 @@ export default function OfficePortal() {
   const [updatingId, setUpdatingId] = useState(null);
 
   const [engineerOfficeUsers, setEngineerOfficeUsers] = useState([]);
-const [verifyRequests, setVerifyRequests] = useState([]);
-const [loadingVerifyRequests, setLoadingVerifyRequests] = useState(false);
-const [updatingVerifyId, setUpdatingVerifyId] = useState(null);
-const [verifyRejectModal, setVerifyRejectModal] = useState(null); // { req, reason }
+  const [verifyRequests, setVerifyRequests] = useState([]);
+  const [loadingVerifyRequests, setLoadingVerifyRequests] = useState(false);
+  const [updatingVerifyId, setUpdatingVerifyId] = useState(null);
+  const [verifyRejectModal, setVerifyRejectModal] = useState(null); // { req, reason }
 
-const [ticketModal, setTicketModal] = useState(null); // { task, assigned_to, query, file, submitting }
-const [ticketSolveModal, setTicketSolveModal] = useState(null); // { ticket, note }
-const [allUsers, setAllUsers] = useState([]);
-const [newTickets, setNewTickets] = useState([]);
-const [loadingNewTickets, setLoadingNewTickets] = useState(false);
-const [raisedTickets, setRaisedTickets] = useState([]);
-const [loadingRaisedTickets, setLoadingRaisedTickets] = useState(false);
-const [updatingTicketId, setUpdatingTicketId] = useState(null);
-const mainRef = useRef(null);
+  const [ticketModal, setTicketModal] = useState(null); // { task, assigned_to, query, file, submitting }
+  const [ticketSolveModal, setTicketSolveModal] = useState(null); // { ticket, note }
+  const [allUsers, setAllUsers] = useState([]);
+  const [newTickets, setNewTickets] = useState([]);
+  const [loadingNewTickets, setLoadingNewTickets] = useState(false);
+  const [raisedTickets, setRaisedTickets] = useState([]);
+  const [loadingRaisedTickets, setLoadingRaisedTickets] = useState(false);
+  const [updatingTicketId, setUpdatingTicketId] = useState(null);
+  const mainRef = useRef(null);
+const canSwitchToAdmin = user?.role?.toLowerCase().trim() === "admin";
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeTab]);
 
-useEffect(() => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
-  mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-}, [activeTab]);
+  const fetchNewTickets = useCallback(async (u) => {
+    if (!u) return;
+    setLoadingNewTickets(true);
+    const { data, error } = await supabase
+      .from("tickets")
+      .select("*")
+      .eq("assigned_to", u.user_name)
+      .order("created_at", { ascending: false });
+    if (!error) setNewTickets(data || []);
+    setLoadingNewTickets(false);
+  }, []);
 
-const fetchNewTickets = useCallback(async (u) => {
-  if (!u) return;
-  setLoadingNewTickets(true);
-  const { data, error } = await supabase
-    .from("tickets")
-    .select("*")
-    .eq("assigned_to", u.user_name)
-    .order("created_at", { ascending: false });
-  if (!error) setNewTickets(data || []);
-  setLoadingNewTickets(false);
-}, []);
+  const fetchRaisedTickets = useCallback(async (u) => {
+    if (!u) return;
+    setLoadingRaisedTickets(true);
+    const { data, error } = await supabase
+      .from("tickets")
+      .select("*")
+      .eq("raised_by", u.user_name)
+      .order("created_at", { ascending: false });
+    if (!error) setRaisedTickets(data || []);
+    setLoadingRaisedTickets(false);
+  }, []);
 
-const fetchRaisedTickets = useCallback(async (u) => {
-  if (!u) return;
-  setLoadingRaisedTickets(true);
-  const { data, error } = await supabase
-    .from("tickets")
-    .select("*")
-    .eq("raised_by", u.user_name)
-    .order("created_at", { ascending: false });
-  if (!error) setRaisedTickets(data || []);
-  setLoadingRaisedTickets(false);
-}, []);
+  const fetchVerifyRequests = useCallback(async (u) => {
+    if (!u) return;
+    setLoadingVerifyRequests(true);
+    const { data, error } = await supabase
+      .from("reschedule_requests")
+      .select(
+        "id, task_id, status, reason, requested_date, current_due, admin_note, actioned_by, actioned_at, created_at, requested_by, verify_with, tasks(title, site_name, due_date)",
+      )
+      .eq("verify_with", u.user_name)
+      .order("created_at", { ascending: false });
+    if (!error) setVerifyRequests(data || []);
+    setLoadingVerifyRequests(false);
+  }, []);
 
-const fetchVerifyRequests = useCallback(async (u) => {
-  if (!u) return;
-  setLoadingVerifyRequests(true);
-  const { data, error } = await supabase
-    .from("reschedule_requests")
-    .select(
-      "id, task_id, status, reason, requested_date, current_due, admin_note, actioned_by, actioned_at, created_at, requested_by, verify_with, tasks(title, site_name, due_date)"
-    )
-    .eq("verify_with", u.user_name)
-    .order("created_at", { ascending: false });
-  if (!error) setVerifyRequests(data || []);
-  setLoadingVerifyRequests(false);
-}, []);
-
-useEffect(() => {
-  supabase
-    .from("user_details")
-    .select("username, name")
-    .then(({ data, error }) => {
-      if (!error && data) setAllUsers(data);
-    });
-}, []);
+  useEffect(() => {
+    supabase
+      .from("user_details")
+      .select("username, name")
+      .then(({ data, error }) => {
+        if (!error && data) setAllUsers(data);
+      });
+  }, []);
 
   useEffect(() => {
     supabase
@@ -2221,10 +2327,10 @@ useEffect(() => {
   const [loadingLeaves, setLoadingLeaves] = useState(false);
   const [leaveSubmitting, setLeaveSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
-const [rejectTarget, setRejectTarget] = useState(null); 
-const [leaveDetailModal, setLeaveDetailModal] = useState(null); 
-const [rejectReason, setRejectReason] = useState("");
-const [updatingProxyId, setUpdatingProxyId] = useState(null);   
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [leaveDetailModal, setLeaveDetailModal] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [updatingProxyId, setUpdatingProxyId] = useState(null);
   const [siteReports, setSiteReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [reportFilter, setReportFilter] = useState({
@@ -2267,10 +2373,12 @@ const [updatingProxyId, setUpdatingProxyId] = useState(null);
 
     // WPR — adjust table/column names to match your schema
     const { data: wprData } = await supabase
-    .from("wpr_reports")
-    .select("id, site_name, engineer_name, created_at, presentation_url, created_at")
-    .in("site_name", sites)
-    .order("created_at", { ascending: false });
+      .from("wpr_reports")
+      .select(
+        "id, site_name, engineer_name, created_at, presentation_url, created_at",
+      )
+      .in("site_name", sites)
+      .order("created_at", { ascending: false });
 
     const normalized = [
       ...(dprData || [])
@@ -2367,51 +2475,44 @@ const [updatingProxyId, setUpdatingProxyId] = useState(null);
   // const fetchTasks = useCallback(async (u) => {
   //   if (!u) return;
   //   setLoadingTasks(true);
-  //   const { data: mine } = await supabase
-  //     .from("tasks")
-  //     .select("*")
-  //     .eq("assigned_to", u.user_name)
-  //     .eq("is_recurring", false)
-  //     .order("due_date", { ascending: true });
-  //   const { data: recurring } = await supabase
-  //     .from("tasks")
-  //     .select("*")
-  //     .eq("assigned_to", u.user_name)
-  //     .eq("is_recurring", true)
-  //     .order("due_date", { ascending: true });
-  //   const { data: delegated } = await supabase
-  //     .from("tasks")
-  //     .select("*")
-  //     .eq("assigned_by", u.user_name)
-  //     .neq("assigned_to", u.user_name)
-  //     .order("created_at", { ascending: false });
-  //   setMyTasks(mine || []);
-  //   setRecurringTasks(recurring || []);
-  //   setDelegatedTasks(delegated || []);
+
+  //   const isAdmin = u.role?.toLowerCase().trim() === "admin";
+
+  //   const { data: mineAll } = isAdmin
+  //     ? await supabase
+  //         .from("tasks")
+  //         .select("*")
+  //         .order("due_date", { ascending: true })
+  //     : await supabase
+  //         .from("tasks")
+  //         .select("*")
+  //         .eq("assigned_to", u.user_name)
+  //         .order("due_date", { ascending: true });
+
+  //   const mine = mineAll || [];
+  //   setMyTasks(mine.filter((t) => !isRecurringTask(t)));
+  //   setRecurringTasks(mine.filter((t) => isRecurringTask(t)));
   //   setLoadingTasks(false);
   // }, []);
+
   const fetchTasks = useCallback(async (u) => {
     if (!u) return;
     setLoadingTasks(true);
 
-    const isAdmin = u.role?.toLowerCase().trim() === "admin";
-
-    const { data: mineAll } = isAdmin
-      ? await supabase
-          .from("tasks")
-          .select("*")
-          .order("due_date", { ascending: true })
-      : await supabase
-          .from("tasks")
-          .select("*")
-          .eq("assigned_to", u.user_name)
-          .order("due_date", { ascending: true });
+    const { data: mineAll } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("assigned_to", u.user_name)
+      .order("created_at", { ascending: false });
 
     const mine = mineAll || [];
     setMyTasks(mine.filter((t) => !isRecurringTask(t)));
-    setRecurringTasks(mine.filter((t) => isRecurringTask(t)));
+    setRecurringTasks(
+      mine.filter((t) => isRecurringTask(t) && isTodayOrPast(t.due_date)),
+    );
     setLoadingTasks(false);
   }, []);
+
   const fetchLeaves = useCallback(async (u) => {
     if (!u) return;
     setLoadingLeaves(true);
@@ -2432,18 +2533,28 @@ const [updatingProxyId, setUpdatingProxyId] = useState(null);
     setLoadingLeaves(false);
   }, []);
 
-useEffect(() => {
-  if (user) {
-    fetchTasks(user);
-    fetchLeaves(user);
-    fetchMyReschedules(user);
-    fetchSiteReports(user);
-    fetchMySvrReports(user);
-    fetchVerifyRequests(user);
-    fetchNewTickets(user);      // ← add
-    fetchRaisedTickets(user);   // ← add
-  }
-}, [user, fetchTasks, fetchLeaves, fetchMyReschedules, fetchSiteReports, fetchMySvrReports, fetchVerifyRequests, fetchNewTickets, fetchRaisedTickets]);
+  useEffect(() => {
+    if (user) {
+      fetchTasks(user);
+      fetchLeaves(user);
+      fetchMyReschedules(user);
+      fetchSiteReports(user);
+      fetchMySvrReports(user);
+      fetchVerifyRequests(user);
+      fetchNewTickets(user); // ← add
+      fetchRaisedTickets(user); // ← add
+    }
+  }, [
+    user,
+    fetchTasks,
+    fetchLeaves,
+    fetchMyReschedules,
+    fetchSiteReports,
+    fetchMySvrReports,
+    fetchVerifyRequests,
+    fetchNewTickets,
+    fetchRaisedTickets,
+  ]);
 
   const showToast = (type, msg) => {
     setToast({ type, msg });
@@ -2453,48 +2564,67 @@ useEffect(() => {
     showToast("success", `"${task.title}" sent for verification.`);
     // TODO: wire this to your actual verification workflow / backend update
   };
-const handleVerifyAction = async (req, approved) => {
-  if (!approved) {
-    setVerifyRejectModal({ req, reason: "" });
-    return;
-  }
-  setUpdatingVerifyId(req.id);
-  const payload = {
-    status: "approved",
-    actioned_by: user.user_name,
-    actioned_at: new Date().toISOString(),
-    admin_note: null,
+  const handleVerifyAction = async (req, approved) => {
+    if (!approved) {
+      setVerifyRejectModal({ req, reason: "" });
+      return;
+    }
+    setUpdatingVerifyId(req.id);
+    const payload = {
+      status: "approved",
+      actioned_by: user.user_name,
+      actioned_at: new Date().toISOString(),
+      admin_note: null,
+    };
+    const { error } = await supabase
+      .from("reschedule_requests")
+      .update(payload)
+      .eq("id", req.id);
+    if (!error) {
+      await supabase
+        .from("tasks")
+        .update({ due_date: req.requested_date })
+        .eq("id", req.task_id);
+    }
+    setUpdatingVerifyId(null);
+    if (error) return showToast("error", "Failed to update: " + error.message);
+    setVerifyRequests((prev) =>
+      prev.map((r) => (r.id === req.id ? { ...r, ...payload } : r)),
+    );
+    showToast("success", "Reschedule approved — task due date updated.");
   };
-  const { error } = await supabase.from("reschedule_requests").update(payload).eq("id", req.id);
-  if (!error) {
-    await supabase.from("tasks").update({ due_date: req.requested_date }).eq("id", req.task_id);
-  }
-  setUpdatingVerifyId(null);
-  if (error) return showToast("error", "Failed to update: " + error.message);
-  setVerifyRequests((prev) => prev.map((r) => (r.id === req.id ? { ...r, ...payload } : r)));
-  showToast("success", "Reschedule approved — task due date updated.");
-};
 
-const handleVerifyRejectConfirm = async () => {
-  if (!verifyRejectModal.reason.trim()) return;
-  const req = verifyRejectModal.req;
-  const reason = verifyRejectModal.reason.trim();
-  setVerifyRejectModal(null);
-  setUpdatingVerifyId(req.id);
-  const payload = {
-    status: "rejected",
-    actioned_by: user.user_name,
-    actioned_at: new Date().toISOString(),
-    admin_note: reason,
+  const handleVerifyRejectConfirm = async () => {
+    if (!verifyRejectModal.reason.trim()) return;
+    const req = verifyRejectModal.req;
+    const reason = verifyRejectModal.reason.trim();
+    setVerifyRejectModal(null);
+    setUpdatingVerifyId(req.id);
+    const payload = {
+      status: "rejected",
+      actioned_by: user.user_name,
+      actioned_at: new Date().toISOString(),
+      admin_note: reason,
+    };
+    const { error } = await supabase
+      .from("reschedule_requests")
+      .update(payload)
+      .eq("id", req.id);
+    setUpdatingVerifyId(null);
+    if (error) return showToast("error", "Failed to reject: " + error.message);
+    setVerifyRequests((prev) =>
+      prev.map((r) => (r.id === req.id ? { ...r, ...payload } : r)),
+    );
+    showToast("success", "Reschedule rejected.");
   };
-  const { error } = await supabase.from("reschedule_requests").update(payload).eq("id", req.id);
-  setUpdatingVerifyId(null);
-  if (error) return showToast("error", "Failed to reject: " + error.message);
-  setVerifyRequests((prev) => prev.map((r) => (r.id === req.id ? { ...r, ...payload } : r)));
-  showToast("success", "Reschedule rejected.");
-};
-const handleRaiseTicket = (task) => {
-    setTicketModal({ task, assigned_to: "", query: "", file: null, submitting: false });
+  const handleRaiseTicket = (task) => {
+    setTicketModal({
+      task,
+      assigned_to: "",
+      query: "",
+      file: null,
+      submitting: false,
+    });
   };
 
   const handleTicketSubmit = async () => {
@@ -2517,11 +2647,15 @@ const handleRaiseTicket = (task) => {
         setTicketModal((p) => ({ ...p, submitting: false }));
         return showToast("error", "File upload failed: " + uploadErr.message);
       }
-      const { data: pub } = supabase.storage.from("ticket-raised").getPublicUrl(path);
+      const { data: pub } = supabase.storage
+        .from("ticket-raised")
+        .getPublicUrl(path);
       documentUrl = pub?.publicUrl || null;
     }
 
-    const recipient = allUsers.find((u) => u.username === ticketModal.assigned_to);
+    const recipient = allUsers.find(
+      (u) => u.username === ticketModal.assigned_to,
+    );
 
     const { error } = await supabase.from("tickets").insert([
       {
@@ -2549,50 +2683,57 @@ const handleRaiseTicket = (task) => {
     }
   };
 
-const handleMarkTicketSolved = async () => {
-  if (!ticketSolveModal) return;
-  const ticket = ticketSolveModal.ticket;
-  const note = ticketSolveModal.note.trim();
+  const handleMarkTicketSolved = async () => {
+    if (!ticketSolveModal) return;
+    const ticket = ticketSolveModal.ticket;
+    const note = ticketSolveModal.note.trim();
 
-  setUpdatingTicketId(ticket.id);
+    setUpdatingTicketId(ticket.id);
 
-  let resolution_document_url = null;
-  if (ticketSolveModal.file) {
-    const file = ticketSolveModal.file;
-    const path = `${user.user_name}/resolved_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-    const { error: uploadErr } = await supabase.storage
-      .from("ticket-raised")
-      .upload(path, file);
-    if (uploadErr) {
-      setUpdatingTicketId(null);
-      return showToast("error", "File upload failed: " + uploadErr.message);
+    let resolution_document_url = null;
+    if (ticketSolveModal.file) {
+      const file = ticketSolveModal.file;
+      const path = `${user.user_name}/resolved_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { error: uploadErr } = await supabase.storage
+        .from("ticket-raised")
+        .upload(path, file);
+      if (uploadErr) {
+        setUpdatingTicketId(null);
+        return showToast("error", "File upload failed: " + uploadErr.message);
+      }
+      const { data: pub } = supabase.storage
+        .from("ticket-raised")
+        .getPublicUrl(path);
+      resolution_document_url = pub?.publicUrl || null;
     }
-    const { data: pub } = supabase.storage.from("ticket-raised").getPublicUrl(path);
-    resolution_document_url = pub?.publicUrl || null;
-  }
 
-  const payload = {
-    status: "solved",
-    resolution_note: note || null,
-    resolution_document_url,
-    resolved_by: user.user_name,
-    resolved_at: new Date().toISOString(),
+    const payload = {
+      status: "solved",
+      resolution_note: note || null,
+      resolution_document_url,
+      resolved_by: user.user_name,
+      resolved_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("tickets")
+      .update(payload)
+      .eq("id", ticket.id);
+    setUpdatingTicketId(null);
+    if (error) return showToast("error", "Failed: " + error.message);
+    setNewTickets((prev) =>
+      prev.map((t) => (t.id === ticket.id ? { ...t, ...payload } : t)),
+    );
+    setTicketSolveModal(null);
+    showToast("success", "Ticket marked as solved.");
   };
-  const { error } = await supabase.from("tickets").update(payload).eq("id", ticket.id);
-  setUpdatingTicketId(null);
-  if (error) return showToast("error", "Failed: " + error.message);
-  setNewTickets((prev) => prev.map((t) => (t.id === ticket.id ? { ...t, ...payload } : t)));
-  setTicketSolveModal(null);
-  showToast("success", "Ticket marked as solved.");
-};
-const handleNavClick = (key) => {
-  setActiveTab(key);
-  if (typeof window !== "undefined" && window.innerWidth <= 760)
-    setSidebarOpen(false);
-  if (key === "my-reschedules") markReschedulesRead();
-  if (key === "my-leaves") markLeavesRead();
-  if (key === "solved-tickets") markTicketsRead(); // ← add
-};
+  const handleNavClick = (key) => {
+    setActiveTab(key);
+    if (typeof window !== "undefined" && window.innerWidth <= 760)
+      setSidebarOpen(false);
+    if (key === "my-reschedules") markReschedulesRead();
+    if (key === "my-leaves") markLeavesRead();
+    if (key === "solved-tickets") markTicketsRead(); // ← add
+  };
   const spawnNextRecurringInstance = async (task, nextDue) => {
     const { data: newTask, error: insertErr } = await supabase
       .from("tasks")
@@ -2668,8 +2809,10 @@ const handleNavClick = (key) => {
           nextDue,
         );
 
-        if (newTask) {
-          setRecurringTasks((p) => [...p, newTask]);
+          if (newTask) {
+          if (isTodayOrPast(newTask.due_date)) {
+            setRecurringTasks((p) => [...p, newTask]);
+          }
           showToast(
             "success",
             `Completed! Next instance due ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
@@ -2703,28 +2846,9 @@ const handleNavClick = (key) => {
     return base.toISOString().split("T")[0];
   };
 
-  const handleStatusChange = async (taskId, newStatus, e) => {
+const handleStatusChange = async (taskId, newStatus, e) => {
     e?.stopPropagation();
     const task = [...myTasks, ...recurringTasks].find((t) => t.id === taskId);
-
-    // Checklist gate
-    if (newStatus === "completed" && isRecurringTask(task)) {
-      const nextDue = getNextDueDate(task.due_date, task.recurrence);
-      const { task: newTask, error: insertErr } =
-        await spawnNextRecurringInstance(task, nextDue);
-
-      if (newTask) {
-        setRecurringTasks((p) => [...p, newTask]);
-        showToast(
-          "success",
-          `Task completed! Next instance created for ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
-        );
-      } else {
-        showToast("success", "Task marked complete.");
-        if (insertErr)
-          console.error("Failed to spawn next instance:", insertErr.message);
-      }
-    }
 
     setUpdatingId(taskId);
     const { error } = await supabase
@@ -2741,38 +2865,17 @@ const handleNavClick = (key) => {
       // ── If a recurring task is completed, spawn the next instance ──
       if (newStatus === "completed" && isRecurringTask(task)) {
         const nextDue = getNextDueDate(task.due_date, task.recurrence);
-        const { data: newTask, error: insertErr } = await supabase
-          .from("tasks")
-          .insert([
-            {
-              title: task.title,
-              description: task.description || null,
-              assigned_to: task.assigned_to,
-              assigned_by: task.assigned_by || null,
-              site_name: task.site_name || null,
-              priority: task.priority || "medium",
-              status: "pending",
-              is_recurring: true,
-              recurrence: task.recurrence,
-              due_date: nextDue,
-              audio_url: task.audio_url || null,
-              document_url: task.document_url || null,
-              has_checkpoints: task.has_checkpoints || false,
-              reschedule_allowed: task.reschedule_allowed || false,
-              // NEW — link this instance back to its recurring chain
-              parent_task_id: task.parent_task_id || task.id,
-              recurrence_anchor:
-                task.recurrence_anchor || task.due_date || nextDue,
-              last_generated_date: nextDue,
-            },
-          ])
-          .select()
-          .single();
-        if (!insertErr && newTask) {
-          setRecurringTasks((p) => [...p, newTask]);
+        const { task: newTask, error: insertErr } =
+          await spawnNextRecurringInstance(task, nextDue);
+
+        if (newTask) {
+          // Keep it hidden until its own due date actually arrives
+          if (isTodayOrPast(newTask.due_date)) {
+            setRecurringTasks((p) => [...p, newTask]);
+          }
           showToast(
             "success",
-            `Task completed! Next instance created for ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
+            `Task completed! Next instance due ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
           );
         } else {
           showToast("success", "Task marked complete.");
@@ -2783,23 +2886,26 @@ const handleNavClick = (key) => {
     }
     setUpdatingId(null);
   };
-const markTicketsRead = async () => {
-  const unreadIds = raisedTickets
-    .filter((t) => t.status === "solved" && t.raised_by_read !== true)
-    .map((t) => t.id);
-  if (!unreadIds.length) return;
 
-  const { error } = await supabase
-    .from("tickets")
-    .update({ raised_by_read: true })
-    .in("id", unreadIds);
+  const markTicketsRead = async () => {
+    const unreadIds = raisedTickets
+      .filter((t) => t.status === "solved" && t.raised_by_read !== true)
+      .map((t) => t.id);
+    if (!unreadIds.length) return;
 
-  if (!error) {
-    setRaisedTickets((prev) =>
-      prev.map((t) => (unreadIds.includes(t.id) ? { ...t, raised_by_read: true } : t)),
-    );
-  }
-};  
+    const { error } = await supabase
+      .from("tickets")
+      .update({ raised_by_read: true })
+      .in("id", unreadIds);
+
+    if (!error) {
+      setRaisedTickets((prev) =>
+        prev.map((t) =>
+          unreadIds.includes(t.id) ? { ...t, raised_by_read: true } : t,
+        ),
+      );
+    }
+  };
   const markReschedulesRead = async () => {
     const unreadIds = myReschedules
       .filter(
@@ -2892,146 +2998,150 @@ const markTicketsRead = async () => {
       );
     }
   };
-const handleLeaveSubmit = async () => {
-  if (!leaveForm.leave_type)
-    return showToast("error", "Please select a leave type.");
-  if (!leaveForm.from_date)
-    return showToast("error", "Please select a start date.");
-  if (!leaveForm.to_date)
-    return showToast("error", "Please select an end date.");
-  if (new Date(leaveForm.to_date) < new Date(leaveForm.from_date))
-    return showToast("error", "End date must be after start date.");
+  const handleLeaveSubmit = async () => {
+    if (!leaveForm.leave_type)
+      return showToast("error", "Please select a leave type.");
+    if (!leaveForm.from_date)
+      return showToast("error", "Please select a start date.");
+    if (!leaveForm.to_date)
+      return showToast("error", "Please select an end date.");
+    if (new Date(leaveForm.to_date) < new Date(leaveForm.from_date))
+      return showToast("error", "End date must be after start date.");
 
-  const site = user.site_names?.[0] || user.site_name || "";
-  if (!site) return showToast("error", "No site assigned to your account.");
+    const site = user.site_names?.[0] || user.site_name || "";
+    if (!site) return showToast("error", "No site assigned to your account.");
 
-  setLeaveSubmitting(true);
+    setLeaveSubmitting(true);
 
-  const chain = await resolveApprovalChain(
-    supabase,
-    site,
-    user.role,
-    user.user_name,
-  );
-  const initialLevel = chain.levelApprover ? null : true;
-  const initialHead = chain.autoApproved
-    ? true
-    : chain.headApprover
-      ? null
-      : true;
+    const chain = await resolveApprovalChain(
+      supabase,
+      site,
+      user.role,
+      user.user_name,
+    );
+    const initialLevel = chain.levelApprover ? null : true;
+    const initialHead = chain.autoApproved
+      ? true
+      : chain.headApprover
+        ? null
+        : true;
 
-  const payload = {
-    user_name: user.user_name,
-    name: user.name,
-    site_name: site,
-    leave_type: leaveForm.leave_type,
-    from_date: leaveForm.from_date,
-    to_date: leaveForm.to_date,
-    reason: leaveForm.reason.trim() || null,
-    level_approver_user_name: chain.levelApprover?.username || null,
-    level_approver_role: chain.levelApprover?.role || null,
-    level_approver_name: chain.levelApprover?.name || null,
-    level_approved: initialLevel,
-    head_approver_user_name: chain.headApprover?.username || null,
-    head_approver_role: chain.headApprover?.role || null,
-    head_approver_name: chain.headApprover?.name || null,
-    head_approved: initialHead,
-    admin_approved: null,
-    status: deriveLeaveStatus(initialLevel, initialHead),
+    const payload = {
+      user_name: user.user_name,
+      name: user.name,
+      site_name: site,
+      leave_type: leaveForm.leave_type,
+      from_date: leaveForm.from_date,
+      to_date: leaveForm.to_date,
+      reason: leaveForm.reason.trim() || null,
+      level_approver_user_name: chain.levelApprover?.username || null,
+      level_approver_role: chain.levelApprover?.role || null,
+      level_approver_name: chain.levelApprover?.name || null,
+      level_approved: initialLevel,
+      head_approver_user_name: chain.headApprover?.username || null,
+      head_approver_role: chain.headApprover?.role || null,
+      head_approver_name: chain.headApprover?.name || null,
+      head_approved: initialHead,
+      admin_approved: null,
+      status: deriveLeaveStatus(initialLevel, initialHead),
+    };
+
+    const { error } = await supabase.from("leaves").insert([payload]);
+    setLeaveSubmitting(false);
+    if (error) {
+      showToast("error", "Failed to submit leave. " + error.message);
+    } else {
+      showToast(
+        "success",
+        chain.autoApproved
+          ? "Leave application submitted and auto-approved!"
+          : "Leave application submitted successfully!",
+      );
+      setLeaveForm({ leave_type: "", from_date: "", to_date: "", reason: "" });
+      fetchLeaves(user);
+      setActiveTab("my-leaves");
+    }
   };
 
-  const { error } = await supabase.from("leaves").insert([payload]);
-  setLeaveSubmitting(false);
-  if (error) {
-    showToast("error", "Failed to submit leave. " + error.message);
-  } else {
-    showToast(
-      "success",
-      chain.autoApproved
-        ? "Leave application submitted and auto-approved!"
-        : "Leave application submitted successfully!",
-    );
-    setLeaveForm({ leave_type: "", from_date: "", to_date: "", reason: "" });
-    fetchLeaves(user);
-    setActiveTab("my-leaves");
-  }
-};
+  const handleProxyApprove = async (leave) => {
+    setUpdatingProxyId(leave.id); // ← add
+    const isHeadSlot = leave.head_approver_user_name === user.user_name;
+    const field = isHeadSlot ? "head_approved" : "level_approved";
+    const newLevel = isHeadSlot ? leave.level_approved : true;
+    const newHead = isHeadSlot ? true : leave.head_approved;
 
-const handleProxyApprove = async (leave) => {
-  setUpdatingProxyId(leave.id); // ← add
-  const isHeadSlot = leave.head_approver_user_name === user.user_name;
-  const field = isHeadSlot ? "head_approved" : "level_approved";
-  const newLevel = isHeadSlot ? leave.level_approved : true;
-  const newHead = isHeadSlot ? true : leave.head_approved;
-
-  const { error } = await supabase
-    .from("leaves")
-    .update({ [field]: true, status: deriveLeaveStatus(newLevel, newHead) })
-    .eq("id", leave.id);
-  setUpdatingProxyId(null); // ← add
-  if (!error) {
-    setProxyLeaves((p) =>
-      p.map((l) =>
-        l.id === leave.id
-          ? { ...l, [field]: true, status: deriveLeaveStatus(newLevel, newHead) }
-          : l,
-      ),
-    );
-    showToast("success", "Leave approved.");
-  } else {
-    showToast("error", "Action failed. " + error.message);
-  }
-};
+    const { error } = await supabase
+      .from("leaves")
+      .update({ [field]: true, status: deriveLeaveStatus(newLevel, newHead) })
+      .eq("id", leave.id);
+    setUpdatingProxyId(null); // ← add
+    if (!error) {
+      setProxyLeaves((p) =>
+        p.map((l) =>
+          l.id === leave.id
+            ? {
+                ...l,
+                [field]: true,
+                status: deriveLeaveStatus(newLevel, newHead),
+              }
+            : l,
+        ),
+      );
+      showToast("success", "Leave approved.");
+    } else {
+      showToast("error", "Action failed. " + error.message);
+    }
+  };
   const openProxyReject = (leave) => {
     const isHeadSlot = leave.head_approver_user_name === user.user_name;
     setRejectTarget({ leave, isHead: isHeadSlot });
     setRejectReason("");
   };
 
-const confirmProxyReject = async () => {
-  if (!rejectReason.trim()) return;
-  const { leave, isHead } = rejectTarget;
-  setUpdatingProxyId(leave.id); // ← add
-  const field = isHead ? "head_approved" : "level_approved";
-  const newLevel = isHead ? leave.level_approved : false;
-  const newHead = isHead ? false : leave.head_approved;
-  const slot = isHead ? "head" : "level";
-  const merged = mergeRejectionReason(
-    leave.rejection_reason,
-    slot,
-    user.user_name,
-    rejectReason.trim(),
-  );
-
-  const { error } = await supabase
-    .from("leaves")
-    .update({
-      [field]: false,
-      status: deriveLeaveStatus(newLevel, newHead),
-      rejection_reason: merged,
-    })
-    .eq("id", leave.id);
-
-  setUpdatingProxyId(null); // ← add
-  if (!error) {
-    setProxyLeaves((p) =>
-      p.map((l) =>
-        l.id === leave.id
-          ? {
-              ...l,
-              [field]: false,
-              status: deriveLeaveStatus(newLevel, newHead),
-              rejection_reason: merged,
-            }
-          : l,
-      ),
+  const confirmProxyReject = async () => {
+    if (!rejectReason.trim()) return;
+    const { leave, isHead } = rejectTarget;
+    setUpdatingProxyId(leave.id); // ← add
+    const field = isHead ? "head_approved" : "level_approved";
+    const newLevel = isHead ? leave.level_approved : false;
+    const newHead = isHead ? false : leave.head_approved;
+    const slot = isHead ? "head" : "level";
+    const merged = mergeRejectionReason(
+      leave.rejection_reason,
+      slot,
+      user.user_name,
+      rejectReason.trim(),
     );
-    showToast("success", "Leave rejected.");
-  } else {
-    showToast("error", "Action failed. " + error.message);
-  }
-  setRejectTarget(null);
-};
+
+    const { error } = await supabase
+      .from("leaves")
+      .update({
+        [field]: false,
+        status: deriveLeaveStatus(newLevel, newHead),
+        rejection_reason: merged,
+      })
+      .eq("id", leave.id);
+
+    setUpdatingProxyId(null); // ← add
+    if (!error) {
+      setProxyLeaves((p) =>
+        p.map((l) =>
+          l.id === leave.id
+            ? {
+                ...l,
+                [field]: false,
+                status: deriveLeaveStatus(newLevel, newHead),
+                rejection_reason: merged,
+              }
+            : l,
+        ),
+      );
+      showToast("success", "Leave rejected.");
+    } else {
+      showToast("error", "Action failed. " + error.message);
+    }
+    setRejectTarget(null);
+  };
 
   const allTasks = useMemo(() => {
     const map = new Map();
@@ -3050,15 +3160,15 @@ const confirmProxyReject = async () => {
       </h2>
     );
 
-const activeItem = [
-  ...TASK_NAV,
-  ...LEAVE_NAV,
-  ...REPORTS_NAV,
-  REPORT_SUBMISSIONS_ITEM,
-  VERIFY_REQUESTS_ITEM,
-  NEW_TICKETS_ITEM,
-  ...TICKETS_NAV,
-].find((n) => n.key === activeTab);
+  const activeItem = [
+    ...TASK_NAV,
+    ...LEAVE_NAV,
+    ...REPORTS_NAV,
+    REPORT_SUBMISSIONS_ITEM,
+    VERIFY_REQUESTS_ITEM,
+    NEW_TICKETS_ITEM,
+    ...TICKETS_NAV,
+  ].find((n) => n.key === activeTab);
 
   const proxyPendingCount = proxyLeaves.filter(
     (l) =>
@@ -3081,7 +3191,6 @@ const activeItem = [
   const renderContent = () => {
     switch (activeTab) {
       case "my-tasks": {
-        const isAdmin = user?.role?.toLowerCase().trim() === "admin";
         return (
           <TaskList
             tasks={myTasks}
@@ -3092,8 +3201,8 @@ const activeItem = [
             filters={myTaskFilters}
             onFilterChange={makeFilterChange(setMyTaskFilters)}
             onFilterClear={makeFilterClear(setMyTaskFilters)}
-            showAssignedBy={isAdmin}
-            showRecurrence={!isAdmin ? false : true}
+            showAssignedBy={false}
+            showRecurrence={false}
             allTasks={myTasks}
             userMap={userMap}
             onReschedule={(task) => {
@@ -3343,226 +3452,257 @@ const activeItem = [
             </div>
           </>
         );
-        
-        case "proxy-request":
-  if (loadingLeaves)
-    return (
-      <div className="op-empty-state">
-        <div className="op-spinner" />
-        <p className="op-empty-text">Loading…</p>
-      </div>
-    );
-  if (!proxyLeaves.length)
-    return (
-      <div className="op-empty-state">
-        <svg
-          width="48"
-          height="48"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ opacity: 0.3 }}
-        >
-          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-        </svg>
-        <p className="op-empty-text">
-          No leave requests are routed to you for approval yet.
-        </p>
-      </div>
-    );
-  return (
-    <>
-      <div className="lv-table-only">
-        <ProxyLeaveTable
-          leaves={proxyLeaves}
-          onApprove={handleProxyApprove}
-          onReject={openProxyReject}
-          updatingId={updatingProxyId}
-          currentUser={user.user_name}
-           onRowClick={setLeaveDetailModal}
-        />
-      </div>
-      <div className="lv-cards-only">
-        {proxyLeaves.map((l) => (
-          <LeaveCard
-            key={l.id}
-            leave={l}
-            showActions={true}
-            onApprove={handleProxyApprove}
-            onOpenReject={openProxyReject}
-            currentUser={user.user_name}
-          />
-        ))}
-      </div>
-    </>
-  );
-  case "new-tickets":
-  if (loadingNewTickets)
-    return (
-      <div className="op-empty-state">
-        <div className="op-spinner" />
-        <p className="op-empty-text">Loading…</p>
-      </div>
-    );
-  if (!newTickets.length)
-    return (
-      <div className="op-empty-state">
-        <p className="op-empty-text">No tickets have been raised to you yet.</p>
-      </div>
-    );
-  return (
-    <NewTicketsTable
-      tickets={newTickets}
-      updatingId={updatingTicketId}
-      onSolve={(t) => setTicketSolveModal({ ticket: t, note: "", file: null })}
-    />
-  );
 
-case "raised-tickets":
-  if (loadingRaisedTickets)
-    return (
-      <div className="op-empty-state">
-        <div className="op-spinner" />
-        <p className="op-empty-text">Loading…</p>
-      </div>
-    );
-  if (!raisedTickets.length)
-    return (
-      <div className="op-empty-state">
-        <p className="op-empty-text">You haven't raised any tickets yet.</p>
-      </div>
-    );
-  return <RaisedTicketsTable tickets={raisedTickets} />;
-
-case "solved-tickets": {
-  const solved = raisedTickets.filter((t) => t.status === "solved");
-  if (loadingRaisedTickets)
-    return (
-      <div className="op-empty-state">
-        <div className="op-spinner" />
-        <p className="op-empty-text">Loading…</p>
-      </div>
-    );
-  if (!solved.length)
-    return (
-      <div className="op-empty-state">
-        <p className="op-empty-text">None of your raised tickets have been solved yet.</p>
-      </div>
-    );
-  return <RaisedTicketsTable tickets={solved} />;
-}
-        case "verify-requests": {
-  const fmtDate = (d) =>
-    d ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
-
-  if (loadingVerifyRequests)
-    return (
-      <div className="op-empty-state">
-        <div className="op-spinner" />
-        <p className="op-empty-text">Loading…</p>
-      </div>
-    );
-  if (!verifyRequests.length)
-    return (
-      <div className="op-empty-state">
-        <p className="op-empty-text">No reschedule requests sent to you for verification.</p>
-      </div>
-    );
-
-return (
-    <>
-      <div className="lv-table-only">
-        <VerifyRequestsTable
-          requests={verifyRequests}
-          onApprove={(req) => handleVerifyAction(req, true)}
-          onReject={(req) => handleVerifyAction(req, false)}
-          updatingId={updatingVerifyId}
-        />
-      </div>
-      <div className="lv-cards-only">
-        {verifyRequests.map((req) => {
-        const isPending = req.status === "pending";
-        const sc =
-          req.status === "approved"
-            ? { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" }
-            : req.status === "rejected"
-            ? { bg: "#fef2f2", color: "#dc2626", border: "#fecaca" }
-            : { bg: "#fffbeb", color: "#d97706", border: "#fde68a" };
+      case "proxy-request":
+        if (loadingLeaves)
+          return (
+            <div className="op-empty-state">
+              <div className="op-spinner" />
+              <p className="op-empty-text">Loading…</p>
+            </div>
+          );
+        if (!proxyLeaves.length)
+          return (
+            <div className="op-empty-state">
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ opacity: 0.3 }}
+              >
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+              </svg>
+              <p className="op-empty-text">
+                No leave requests are routed to you for approval yet.
+              </p>
+            </div>
+          );
         return (
-          <div
-            key={req.id}
-            className="lv-card"
-            style={{ borderLeftColor: sc.color }}
-          >
-            <div className="lv-card-top">
-              <div>
-                <div className="lv-card-title">{req.tasks?.title || `Task #${req.task_id}`}</div>
-                <div className="lv-card-sub">
-                  Requested by {req.requested_by}
-                  {req.tasks?.site_name && ` · ${req.tasks.site_name}`}
-                </div>
-              </div>
-              <span
-                className="ap-leave-status"
-                style={{ background: sc.bg, color: sc.color, borderColor: sc.border }}
-              >
-                {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
-              </span>
+          <>
+            <div className="lv-table-only">
+              <ProxyLeaveTable
+                leaves={proxyLeaves}
+                onApprove={handleProxyApprove}
+                onReject={openProxyReject}
+                updatingId={updatingProxyId}
+                currentUser={user.user_name}
+                onRowClick={setLeaveDetailModal}
+              />
             </div>
-
-            <div className="lv-card-dates">
-              <span className="op-meta-pill">Current due: {fmtDate(req.current_due)}</span>
-              <span
-                className="op-meta-pill"
-                style={{ color: "#7c3aed", background: "#f5f3ff", borderColor: "#e0e7ff" }}
-              >
-                Requested: {fmtDate(req.requested_date)}
-              </span>
+            <div className="lv-cards-only">
+              {proxyLeaves.map((l) => (
+                <LeaveCard
+                  key={l.id}
+                  leave={l}
+                  showActions={true}
+                  onApprove={handleProxyApprove}
+                  onOpenReject={openProxyReject}
+                  currentUser={user.user_name}
+                />
+              ))}
             </div>
-
-            {req.reason && <p className="lv-reason">"{req.reason}"</p>}
-            {req.admin_note && (
-              <div className="lv-rejection">
-                <strong>Rejected:</strong> {req.admin_note}
-              </div>
-            )}
-
-            {isPending ? (
-              <div className="lv-actions">
-                <button
-                  className="lv-btn-approve"
-                  disabled={updatingVerifyId === req.id}
-                  onClick={() => handleVerifyAction(req, true)}
-                >
-                  Approve
-                </button>
-                <button
-                  className="lv-btn-reject"
-                  disabled={updatingVerifyId === req.id}
-                  onClick={() => handleVerifyAction(req, false)}
-                >
-                  Reject
-                </button>
-                {updatingVerifyId === req.id && <span className="ap-saving">saving…</span>}
-              </div>
-            ) : (
-              <div className="lv-already-responded">
-                {req.status === "approved"
-                  ? `✓ Approved — due date updated to ${fmtDate(req.requested_date)}`
-                  : "✗ Rejected"}
-              </div>
-            )}
-          </div>
+          </>
         );
-      })}
-    </div>
-    </>
-  );
-}
+      case "new-tickets":
+        if (loadingNewTickets)
+          return (
+            <div className="op-empty-state">
+              <div className="op-spinner" />
+              <p className="op-empty-text">Loading…</p>
+            </div>
+          );
+        if (!newTickets.length)
+          return (
+            <div className="op-empty-state">
+              <p className="op-empty-text">
+                No tickets have been raised to you yet.
+              </p>
+            </div>
+          );
+        return (
+          <NewTicketsTable
+            tickets={newTickets}
+            updatingId={updatingTicketId}
+            onSolve={(t) =>
+              setTicketSolveModal({ ticket: t, note: "", file: null })
+            }
+          />
+        );
+
+      case "raised-tickets":
+        if (loadingRaisedTickets)
+          return (
+            <div className="op-empty-state">
+              <div className="op-spinner" />
+              <p className="op-empty-text">Loading…</p>
+            </div>
+          );
+        if (!raisedTickets.length)
+          return (
+            <div className="op-empty-state">
+              <p className="op-empty-text">
+                You haven't raised any tickets yet.
+              </p>
+            </div>
+          );
+        return <RaisedTicketsTable tickets={raisedTickets} />;
+
+      case "solved-tickets": {
+        const solved = raisedTickets.filter((t) => t.status === "solved");
+        if (loadingRaisedTickets)
+          return (
+            <div className="op-empty-state">
+              <div className="op-spinner" />
+              <p className="op-empty-text">Loading…</p>
+            </div>
+          );
+        if (!solved.length)
+          return (
+            <div className="op-empty-state">
+              <p className="op-empty-text">
+                None of your raised tickets have been solved yet.
+              </p>
+            </div>
+          );
+        return <RaisedTicketsTable tickets={solved} />;
+      }
+      case "verify-requests": {
+        const fmtDate = (d) =>
+          d
+            ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })
+            : "—";
+
+        if (loadingVerifyRequests)
+          return (
+            <div className="op-empty-state">
+              <div className="op-spinner" />
+              <p className="op-empty-text">Loading…</p>
+            </div>
+          );
+        if (!verifyRequests.length)
+          return (
+            <div className="op-empty-state">
+              <p className="op-empty-text">
+                No reschedule requests sent to you for verification.
+              </p>
+            </div>
+          );
+
+        return (
+          <>
+            <div className="lv-table-only">
+              <VerifyRequestsTable
+                requests={verifyRequests}
+                onApprove={(req) => handleVerifyAction(req, true)}
+                onReject={(req) => handleVerifyAction(req, false)}
+                updatingId={updatingVerifyId}
+              />
+            </div>
+            <div className="lv-cards-only">
+              {verifyRequests.map((req) => {
+                const isPending = req.status === "pending";
+                const sc =
+                  req.status === "approved"
+                    ? { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" }
+                    : req.status === "rejected"
+                      ? { bg: "#fef2f2", color: "#dc2626", border: "#fecaca" }
+                      : { bg: "#fffbeb", color: "#d97706", border: "#fde68a" };
+                return (
+                  <div
+                    key={req.id}
+                    className="lv-card"
+                    style={{ borderLeftColor: sc.color }}
+                  >
+                    <div className="lv-card-top">
+                      <div>
+                        <div className="lv-card-title">
+                          {req.tasks?.title || `Task #${req.task_id}`}
+                        </div>
+                        <div className="lv-card-sub">
+                          Requested by {req.requested_by}
+                          {req.tasks?.site_name && ` · ${req.tasks.site_name}`}
+                        </div>
+                      </div>
+                      <span
+                        className="ap-leave-status"
+                        style={{
+                          background: sc.bg,
+                          color: sc.color,
+                          borderColor: sc.border,
+                        }}
+                      >
+                        {req.status.charAt(0).toUpperCase() +
+                          req.status.slice(1)}
+                      </span>
+                    </div>
+
+                    <div className="lv-card-dates">
+                      <span className="op-meta-pill">
+                        Current due: {fmtDate(req.current_due)}
+                      </span>
+                      <span
+                        className="op-meta-pill"
+                        style={{
+                          color: "#7c3aed",
+                          background: "#f5f3ff",
+                          borderColor: "#e0e7ff",
+                        }}
+                      >
+                        Requested: {fmtDate(req.requested_date)}
+                      </span>
+                    </div>
+
+                    {req.reason && <p className="lv-reason">"{req.reason}"</p>}
+                    {req.admin_note && (
+                      <div className="lv-rejection">
+                        <strong>Rejected:</strong> {req.admin_note}
+                      </div>
+                    )}
+
+                    {isPending ? (
+                      <div className="lv-actions">
+                        <button
+                          className="lv-btn-approve"
+                          disabled={updatingVerifyId === req.id}
+                          onClick={() => handleVerifyAction(req, true)}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          className="lv-btn-reject"
+                          disabled={updatingVerifyId === req.id}
+                          onClick={() => handleVerifyAction(req, false)}
+                        >
+                          Reject
+                        </button>
+                        {updatingVerifyId === req.id && (
+                          <span className="ap-saving">saving…</span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="lv-already-responded">
+                        {req.status === "approved"
+                          ? `✓ Approved — due date updated to ${fmtDate(req.requested_date)}`
+                          : "✗ Rejected"}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        );
+      }
       case "site-report":
         return <SiteReport user={user} />;
       case "my-reports":
@@ -4433,7 +4573,7 @@ return (
                     submitted.
                   </p>
                 </div>
-              )}  
+              )}
 
             {reportTab !== "wpr" ||
             siteReports.filter((r) => r.source === "wpr").length > 0 ? (
@@ -4533,127 +4673,205 @@ return (
                 </div>
 
                 {/* ── Content ── */}
-{loadingReports ? (
-  <div className="op-empty-state">
-    <div className="op-spinner" />
-    <p className="op-empty-text">Loading reports…</p>
-  </div>
-) : monthFiltered.length === 0 ? (
-  <div className="op-empty-state">
-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3 }}>
-      <path d="M3 3v18h18" />
-      <path d="M7 16l4-4 4 4 4-4" />
-    </svg>
-    <p className="op-empty-text">
-      No {reportTab.toUpperCase()} reports found{reportFilter.month ? " for this month" : ""}.
-    </p>
-  </div>
-) : (
-  <div className="tt-wrap">
-    <table className="tt-table">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Type</th>
-          <th>Engineer</th>
-          <th>Site</th>
-          <th>Files</th>
-        </tr>
-      </thead>
-      <tbody>
-        {monthFiltered.map((r) => {
-          const accent =
-            r.source === "svr" ? "#16a34a"
-            : r.source === "wpr" ? "#7c3aed"
-            : DPR_TYPE_COLOR[r.report_type]?.color || "#2563eb";
-
-          const typeBadge =
-            r.source === "svr"
-              ? { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0", label: "Site Visit" }
-              : r.source === "wpr"
-                ? { bg: "#f5f3ff", color: "#7c3aed", border: "#e0e7ff", label: "Weekly Report" }
-                : r.report_type === "morning"
-                  ? { bg: "#fffbeb", color: "#d97706", border: "#fde68a", label: "Morning DPR" }
-                  : r.report_type === "evening"
-                    ? { bg: "#eff6ff", color: "#2563eb", border: "#bfdbfe", label: "Evening DPR" }
-                    : { bg: "#f8fafc", color: "#64748b", border: "#e8edf3", label: r.report_type || "Report" };
-
-          const preview = r.source === "svr" ? r.progress_of_work : r.source === "dpr" ? r.payload?.work_done : null;
-
-          return (
-            <tr key={r.id} className="tt-row">
-              <td>
-                {fmtD(r.date || r.created_at?.slice(0, 10))}
-                <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                  {new Date(r.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
-                </div>
-              </td>
-              <td>
-                <span style={{ display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20, background: typeBadge.bg, color: typeBadge.color, border: `1px solid ${typeBadge.border}` }}>
-                  {typeBadge.label}
-                </span>
-                {r.source === "wpr" && r.week_end && (
-                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                    {fmtD(r.week_start)} → {fmtD(r.week_end)}
+                {loadingReports ? (
+                  <div className="op-empty-state">
+                    <div className="op-spinner" />
+                    <p className="op-empty-text">Loading reports…</p>
                   </div>
-                )}
-              </td>
-              <td>{r.engineer || "—"}</td>
-              <td>{r.site || "—"}</td>
-              <td>
-                {r.pdf_url ? (
-                  <div style={{ display: "flex", gap: 6 }}>
-                    
-                    <a  href={getViewUrl(r.pdf_url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 5,
-                        fontSize: 11.5,
-                        fontWeight: 600,
-                        color: "#475569",
-                        background: "#f8fafc",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: 6,
-                        padding: "4px 10px",
-                        textDecoration: "none",
-                      }}
+                ) : monthFiltered.length === 0 ? (
+                  <div className="op-empty-state">
+                    <svg
+                      width="48"
+                      height="48"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ opacity: 0.3 }}
                     >
-                      View
-                    </a>
-                    
-                    <a  href={r.pdf_url}
-                      download
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 5,
-                        fontSize: 11.5,
-                        fontWeight: 600,
-                        color: "#2563eb",
-                        background: "#eff6ff",
-                        border: "1px solid #bfdbfe",
-                        borderRadius: 6,
-                        padding: "4px 10px",
-                        textDecoration: "none",
-                      }}
-                    >
-                      Download
-                    </a>
+                      <path d="M3 3v18h18" />
+                      <path d="M7 16l4-4 4 4 4-4" />
+                    </svg>
+                    <p className="op-empty-text">
+                      No {reportTab.toUpperCase()} reports found
+                      {reportFilter.month ? " for this month" : ""}.
+                    </p>
                   </div>
                 ) : (
-                  <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>No file</span>
+                  <div className="tt-wrap">
+                    <table className="tt-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Type</th>
+                          <th>Engineer</th>
+                          <th>Site</th>
+                          <th>Files</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {monthFiltered.map((r) => {
+                          const accent =
+                            r.source === "svr"
+                              ? "#16a34a"
+                              : r.source === "wpr"
+                                ? "#7c3aed"
+                                : DPR_TYPE_COLOR[r.report_type]?.color ||
+                                  "#2563eb";
+
+                          const typeBadge =
+                            r.source === "svr"
+                              ? {
+                                  bg: "#f0fdf4",
+                                  color: "#16a34a",
+                                  border: "#bbf7d0",
+                                  label: "Site Visit",
+                                }
+                              : r.source === "wpr"
+                                ? {
+                                    bg: "#f5f3ff",
+                                    color: "#7c3aed",
+                                    border: "#e0e7ff",
+                                    label: "Weekly Report",
+                                  }
+                                : r.report_type === "morning"
+                                  ? {
+                                      bg: "#fffbeb",
+                                      color: "#d97706",
+                                      border: "#fde68a",
+                                      label: "Morning DPR",
+                                    }
+                                  : r.report_type === "evening"
+                                    ? {
+                                        bg: "#eff6ff",
+                                        color: "#2563eb",
+                                        border: "#bfdbfe",
+                                        label: "Evening DPR",
+                                      }
+                                    : {
+                                        bg: "#f8fafc",
+                                        color: "#64748b",
+                                        border: "#e8edf3",
+                                        label: r.report_type || "Report",
+                                      };
+
+                          const preview =
+                            r.source === "svr"
+                              ? r.progress_of_work
+                              : r.source === "dpr"
+                                ? r.payload?.work_done
+                                : null;
+
+                          return (
+                            <tr key={r.id} className="tt-row">
+                              <td>
+                                {fmtD(r.date || r.created_at?.slice(0, 10))}
+                                <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                                  {new Date(r.created_at).toLocaleTimeString(
+                                    "en-IN",
+                                    {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                      hour12: true,
+                                    },
+                                  )}
+                                </div>
+                              </td>
+                              <td>
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    padding: "3px 9px",
+                                    borderRadius: 20,
+                                    background: typeBadge.bg,
+                                    color: typeBadge.color,
+                                    border: `1px solid ${typeBadge.border}`,
+                                  }}
+                                >
+                                  {typeBadge.label}
+                                </span>
+                                {r.source === "wpr" && r.week_end && (
+                                  <div
+                                    style={{
+                                      fontSize: 11,
+                                      color: "#64748b",
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    {fmtD(r.week_start)} → {fmtD(r.week_end)}
+                                  </div>
+                                )}
+                              </td>
+                              <td>{r.engineer || "—"}</td>
+                              <td>{r.site || "—"}</td>
+                              <td>
+                                {r.pdf_url ? (
+                                  <div style={{ display: "flex", gap: 6 }}>
+                                    <a
+                                      href={getViewUrl(r.pdf_url)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 5,
+                                        fontSize: 11.5,
+                                        fontWeight: 600,
+                                        color: "#475569",
+                                        background: "#f8fafc",
+                                        border: "1px solid #e2e8f0",
+                                        borderRadius: 6,
+                                        padding: "4px 10px",
+                                        textDecoration: "none",
+                                      }}
+                                    >
+                                      View
+                                    </a>
+
+                                    <a
+                                      href={r.pdf_url}
+                                      download
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 5,
+                                        fontSize: 11.5,
+                                        fontWeight: 600,
+                                        color: "#2563eb",
+                                        background: "#eff6ff",
+                                        border: "1px solid #bfdbfe",
+                                        borderRadius: 6,
+                                        padding: "4px 10px",
+                                        textDecoration: "none",
+                                      }}
+                                    >
+                                      Download
+                                    </a>
+                                  </div>
+                                ) : (
+                                  <span
+                                    style={{
+                                      fontSize: 11.5,
+                                      color: "#94a3b8",
+                                      fontStyle: "italic",
+                                    }}
+                                  >
+                                    No file
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  </div>
-)}
               </>
             ) : null}
           </div>
@@ -4667,8 +4885,6 @@ return (
 
   return (
     <>
-
-
       <div className="op-root">
         <Navbar
           onMenuToggle={() => setSidebarOpen((p) => !p)}
@@ -4717,6 +4933,23 @@ return (
           )}
           <aside className={`op-sidebar${sidebarOpen ? "" : " collapsed"}`}>
             <div className="op-sidebar-header">
+              {canSwitchToAdmin && (
+                <button
+                  onClick={() => window.location.assign("/admin")}
+                  style={{display: "inline-flex", alignItems: "center", gap: 6,
+                    fontSize: 12, fontWeight: 700, color: "#2563eb",
+                    background: "#eff6ff", border: "1px solid #bfdbfe",
+                    borderRadius: 8, padding: "6px 10px", cursor: "pointer",
+                  }}
+                  title="Switch to Admin view"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8 3L4 7l4 4" /><path d="M4 7h16" />
+                    <path d="M16 21l4-4-4-4" /><path d="M20 17H4" />
+                  </svg>
+                  Switch to Admin
+                </button>
+              )}
               <button
                 className="op-sidebar-close"
                 aria-label="Close sidebar"
@@ -4738,11 +4971,11 @@ return (
             </div>
             <nav className="op-nav">
               <span className="op-nav-section">Tasks</span>
-              {TASK_NAV.filter(
+              {filterNav(TASK_NAV.filter(
                 (item) =>
                   item.key !== "delegated-tasks" ||
                   user?.role?.toLowerCase().trim() === "admin",
-              ).map((item) => (
+              ), user, "office").map((item) => (
                 <button
                   key={item.key}
                   className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
@@ -4752,58 +4985,75 @@ return (
                   {item.label}
                 </button>
               ))}
-              {verifyRequests.length > 0 && (
+              {verifyRequests.length > 0 && filterNav([VERIFY_REQUESTS_ITEM], user, "office").length > 0 && (
                 <button
                   className={`op-nav-item${activeTab === "verify-requests" ? " active" : ""}`}
                   onClick={() => handleNavClick("verify-requests")}
                 >
-                  <span className="op-nav-icon">{VERIFY_REQUESTS_ITEM.icon}</span>
+                  <span className="op-nav-icon">
+                    {VERIFY_REQUESTS_ITEM.icon}
+                  </span>
                   {VERIFY_REQUESTS_ITEM.label}
-                  {verifyRequests.filter((r) => r.status === "pending").length > 0 && (
+                  {verifyRequests.filter((r) => r.status === "pending").length >
+                    0 && (
                     <span className="op-nav-badge">
-                      {verifyRequests.filter((r) => r.status === "pending").length}
+                      {
+                        verifyRequests.filter((r) => r.status === "pending")
+                          .length
+                      }
                     </span>
                   )}
                 </button>
               )}
               {newTickets.length > 0 && (
-  <button
-    className={`op-nav-item${activeTab === "new-tickets" ? " active" : ""}`}
-    onClick={() => handleNavClick("new-tickets")}
-  >
-    <span className="op-nav-icon">{NEW_TICKETS_ITEM.icon}</span>
-    {NEW_TICKETS_ITEM.label}
-    {newTickets.filter((t) => t.status === "open").length > 0 && (
-      <span className="op-nav-badge">
-        {newTickets.filter((t) => t.status === "open").length}
-      </span>
-    )}
-  </button>
-)}
+                <button
+                  className={`op-nav-item${activeTab === "new-tickets" ? " active" : ""}`}
+                  onClick={() => handleNavClick("new-tickets")}
+                >
+                  <span className="op-nav-icon">{NEW_TICKETS_ITEM.icon}</span>
+                  {NEW_TICKETS_ITEM.label}
+                  {newTickets.filter((t) => t.status === "open").length > 0 && (
+                    <span className="op-nav-badge">
+                      {newTickets.filter((t) => t.status === "open").length}
+                    </span>
+                  )}
+                </button>
+              )}
 
-<span className="op-nav-section" style={{ marginTop: 8 }}>Tickets</span>
-{TICKETS_NAV.map((item) => (
-  <button
-    key={item.key}
-    className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
-    onClick={() => handleNavClick(item.key)}
-  >
-    <span className="op-nav-icon">{item.icon}</span>
-    {item.label}
-{item.key === "solved-tickets" &&
-  raisedTickets.filter((t) => t.status === "solved" && t.raised_by_read !== true).length > 0 && (
-    <span className="op-nav-badge">
-      {raisedTickets.filter((t) => t.status === "solved" && t.raised_by_read !== true).length}
-    </span>
-  )}
-  </button>
-))}
+              <span className="op-nav-section" style={{ marginTop: 8 }}>
+                Tickets
+              </span>
+              {filterNav(TICKETS_NAV, user, "office").map((item) => (
+                <button
+                  key={item.key}
+                  className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
+                  onClick={() => handleNavClick(item.key)}
+                >
+                  <span className="op-nav-icon">{item.icon}</span>
+                  {item.label}
+                  {item.key === "solved-tickets" &&
+                    raisedTickets.filter(
+                      (t) => t.status === "solved" && t.raised_by_read !== true,
+                    ).length > 0 && (
+                      <span className="op-nav-badge">
+                        {
+                          raisedTickets.filter(
+                            (t) =>
+                              t.status === "solved" &&
+                              t.raised_by_read !== true,
+                          ).length
+                        }
+                      </span>
+                    )}
+                </button>
+              ))}
               <span className="op-nav-section" style={{ marginTop: 8 }}>
                 Leave
               </span>
-              {LEAVE_NAV.filter(
-                (item) => item.key !== "proxy-request" || proxyLeaves.length > 0,
-              ).map((item) => (
+             {filterNav(LEAVE_NAV.filter(
+                (item) =>
+                  item.key !== "proxy-request" || proxyLeaves.length > 0,
+              ), user, "office").map((item) => (
                 <button
                   key={item.key}
                   className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
@@ -4822,7 +5072,7 @@ return (
               <span className="op-nav-section" style={{ marginTop: 8 }}>
                 Reports
               </span>
-              {REPORTS_NAV.map((item) => (
+              {filterNav(REPORTS_NAV, user, "office").map((item) => (
                 <button
                   key={item.key}
                   className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
@@ -5316,209 +5566,513 @@ return (
         </div>
       )}
       {verifyRejectModal && (
-  <div
-    style={{
-      position: "fixed", inset: 0, zIndex: 10040,
-      background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
-      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-    }}
-    onClick={(e) => { if (e.target === e.currentTarget) setVerifyRejectModal(null); }}
-  >
-    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
-      <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Reject Reschedule Request</div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-          {verifyRejectModal.req.tasks?.title || `Task #${verifyRejectModal.req.task_id}`}
-        </div>
-      </div>
-      <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
-        <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
-          Reason for Rejection <span style={{ color: "#dc2626" }}>*</span>
-        </label>
-        <textarea
-          rows={3}
-          autoFocus
-          placeholder="Explain why this reschedule is being rejected…"
-          style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "#1e293b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", outline: "none", width: "100%", resize: "vertical", minHeight: 90 }}
-          value={verifyRejectModal.reason}
-          onChange={(e) => setVerifyRejectModal((p) => ({ ...p, reason: e.target.value }))}
-        />
-      </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
-        <button onClick={() => setVerifyRejectModal(null)} style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}>
-          Cancel
-        </button>
-        <button
-          onClick={handleVerifyRejectConfirm}
-          disabled={!verifyRejectModal.reason.trim()}
-          style={{ background: verifyRejectModal.reason.trim() ? "#dc2626" : "#f1f5f9", color: verifyRejectModal.reason.trim() ? "#fff" : "#94a3b8", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 20px", borderRadius: 8, border: "none", cursor: verifyRejectModal.reason.trim() ? "pointer" : "not-allowed" }}
-        >
-          Confirm Rejection
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-{ticketModal && (
-  <div
-    style={{
-      position: "fixed", inset: 0, zIndex: 10040,
-      background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
-      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-    }}
-    onClick={(e) => { if (e.target === e.currentTarget) setTicketModal(null); }}
-  >
-    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
-      <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Raise Ticket</div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-          {ticketModal.task?.title}
-        </div>
-      </div>
-
-      <div style={{ padding: "18px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
-            Send To <span style={{ color: "#dc2626" }}>*</span>
-          </label>
-          <select
-            style={{
-              fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "#1e293b",
-              background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8,
-              padding: "9px 12px", outline: "none", width: "100%", cursor: "pointer",
-            }}
-            value={ticketModal.assigned_to}
-            onChange={(e) => setTicketModal((p) => ({ ...p, assigned_to: e.target.value }))}
-          >
-            <option value="">Select recipient…</option>
-            {allUsers
-              .filter((u) => u.username !== user?.user_name)
-              .map((u) => (
-                <option key={u.username} value={u.username}>{u.name}</option>
-              ))}
-          </select>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
-            Your Query <span style={{ color: "#dc2626" }}>*</span>
-          </label>
-          <textarea
-            rows={4}
-            placeholder="Describe the issue or question…"
-            style={{
-              fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "#1e293b",
-              background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8,
-              padding: "9px 12px", outline: "none", width: "100%", resize: "vertical", minHeight: 90,
-            }}
-            value={ticketModal.query}
-            onChange={(e) => setTicketModal((p) => ({ ...p, query: e.target.value }))}
-          />
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
-            Attach Document
-            <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", background: "#f1f5f9", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>
-              optional
-            </span>
-          </label>
-          <input
-            type="file"
-            onChange={(e) => setTicketModal((p) => ({ ...p, file: e.target.files?.[0] || null }))}
-            style={{ fontSize: 12.5 }}
-          />
-          {ticketModal.file && (
-            <span style={{ fontSize: 11.5, color: "#64748b" }}>{ticketModal.file.name}</span>
-          )}
-        </div>
-      </div>
-
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
-        <button
-          onClick={() => setTicketModal(null)}
-          style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleTicketSubmit}
-          disabled={ticketModal.submitting}
+        <div
           style={{
-            background: "#dc2626", color: "#fff", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600,
-            padding: "9px 20px", borderRadius: 8, border: "none", cursor: "pointer", opacity: ticketModal.submitting ? 0.6 : 1,
+            position: "fixed",
+            inset: 0,
+            zIndex: 10040,
+            background: "rgba(15,23,42,.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setVerifyRejectModal(null);
           }}
         >
-          {ticketModal.submitting ? "Submitting…" : "Raise Ticket"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-{ticketSolveModal && (
-  <div
-    style={{
-      position: "fixed", inset: 0, zIndex: 10040,
-      background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
-      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-    }}
-    onClick={(e) => { if (e.target === e.currentTarget) setTicketSolveModal(null); }}
-  >
-    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
-      <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Mark Ticket as Solved</div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-          {ticketSolveModal.ticket.task_title}
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 440,
+              boxShadow: "0 24px 64px rgba(0,0,0,.22)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 22px 14px",
+                borderBottom: "1px solid #f1f5f9",
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+                Reject Reschedule Request
+              </div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                {verifyRejectModal.req.tasks?.title ||
+                  `Task #${verifyRejectModal.req.task_id}`}
+              </div>
+            </div>
+            <div
+              style={{
+                padding: "16px 22px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <label
+                style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+              >
+                Reason for Rejection <span style={{ color: "#dc2626" }}>*</span>
+              </label>
+              <textarea
+                rows={3}
+                autoFocus
+                placeholder="Explain why this reschedule is being rejected…"
+                style={{
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  color: "#1e293b",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 8,
+                  padding: "9px 12px",
+                  outline: "none",
+                  width: "100%",
+                  resize: "vertical",
+                  minHeight: 90,
+                }}
+                value={verifyRejectModal.reason}
+                onChange={(e) =>
+                  setVerifyRejectModal((p) => ({
+                    ...p,
+                    reason: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                padding: "12px 22px 18px",
+                borderTop: "1px solid #f1f5f9",
+              }}
+            >
+              <button
+                onClick={() => setVerifyRejectModal(null)}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 18px",
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleVerifyRejectConfirm}
+                disabled={!verifyRejectModal.reason.trim()}
+                style={{
+                  background: verifyRejectModal.reason.trim()
+                    ? "#dc2626"
+                    : "#f1f5f9",
+                  color: verifyRejectModal.reason.trim() ? "#fff" : "#94a3b8",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: verifyRejectModal.reason.trim()
+                    ? "pointer"
+                    : "not-allowed",
+                }}
+              >
+                Confirm Rejection
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-      <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
-  <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
-    Resolution Note
-    <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", background: "#f1f5f9", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>
-      optional
-    </span>
-  </label>
-  <textarea
-    rows={3}
-    placeholder="How was this resolved?"
-    style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "#1e293b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", outline: "none", width: "100%", resize: "vertical", minHeight: 80 }}
-    value={ticketSolveModal.note}
-    onChange={(e) => setTicketSolveModal((p) => ({ ...p, note: e.target.value }))}
-  />
-</div>
-
-<div style={{ padding: "0 22px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
-  <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
-    Attach Resolution Document
-    <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", background: "#f1f5f9", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>
-      optional
-    </span>
-  </label>
-  <input
-    type="file"
-    onChange={(e) => setTicketSolveModal((p) => ({ ...p, file: e.target.files?.[0] || null }))}
-    style={{ fontSize: 12.5 }}
-  />
-  {ticketSolveModal.file && (
-    <span style={{ fontSize: 11.5, color: "#64748b" }}>{ticketSolveModal.file.name}</span>
-  )}
-</div>
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
-        <button onClick={() => setTicketSolveModal(null)} style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}>
-          Cancel
-        </button>
-        <button
-          onClick={handleMarkTicketSolved}
-          disabled={updatingTicketId === ticketSolveModal.ticket.id}
-          style={{ background: "#16a34a", color: "#fff", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 20px", borderRadius: 8, border: "none", cursor: "pointer" }}
+      )}
+      {ticketModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10040,
+            background: "rgba(15,23,42,.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setTicketModal(null);
+          }}
         >
-          Confirm Solved
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 480,
+              boxShadow: "0 24px 64px rgba(0,0,0,.22)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 22px 14px",
+                borderBottom: "1px solid #f1f5f9",
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+                Raise Ticket
+              </div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                {ticketModal.task?.title}
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "18px 22px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 16,
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+                >
+                  Send To <span style={{ color: "#dc2626" }}>*</span>
+                </label>
+                <select
+                  style={{
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontSize: 13.5,
+                    color: "#1e293b",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    padding: "9px 12px",
+                    outline: "none",
+                    width: "100%",
+                    cursor: "pointer",
+                  }}
+                  value={ticketModal.assigned_to}
+                  onChange={(e) =>
+                    setTicketModal((p) => ({
+                      ...p,
+                      assigned_to: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">Select recipient…</option>
+                  {allUsers
+                    .filter((u) => u.username !== user?.user_name)
+                    .map((u) => (
+                      <option key={u.username} value={u.username}>
+                        {u.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+                >
+                  Your Query <span style={{ color: "#dc2626" }}>*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  placeholder="Describe the issue or question…"
+                  style={{
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontSize: 13.5,
+                    color: "#1e293b",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    padding: "9px 12px",
+                    outline: "none",
+                    width: "100%",
+                    resize: "vertical",
+                    minHeight: 90,
+                  }}
+                  value={ticketModal.query}
+                  onChange={(e) =>
+                    setTicketModal((p) => ({ ...p, query: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+                >
+                  Attach Document
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: "#94a3b8",
+                      background: "#f1f5f9",
+                      borderRadius: 4,
+                      padding: "1px 6px",
+                      marginLeft: 6,
+                    }}
+                  >
+                    optional
+                  </span>
+                </label>
+                <input
+                  type="file"
+                  onChange={(e) =>
+                    setTicketModal((p) => ({
+                      ...p,
+                      file: e.target.files?.[0] || null,
+                    }))
+                  }
+                  style={{ fontSize: 12.5 }}
+                />
+                {ticketModal.file && (
+                  <span style={{ fontSize: 11.5, color: "#64748b" }}>
+                    {ticketModal.file.name}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                padding: "12px 22px 18px",
+                borderTop: "1px solid #f1f5f9",
+              }}
+            >
+              <button
+                onClick={() => setTicketModal(null)}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 18px",
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleTicketSubmit}
+                disabled={ticketModal.submitting}
+                style={{
+                  background: "#dc2626",
+                  color: "#fff",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  opacity: ticketModal.submitting ? 0.6 : 1,
+                }}
+              >
+                {ticketModal.submitting ? "Submitting…" : "Raise Ticket"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {ticketSolveModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10040,
+            background: "rgba(15,23,42,.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setTicketSolveModal(null);
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 440,
+              boxShadow: "0 24px 64px rgba(0,0,0,.22)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 22px 14px",
+                borderBottom: "1px solid #f1f5f9",
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+                Mark Ticket as Solved
+              </div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                {ticketSolveModal.ticket.task_title}
+              </div>
+            </div>
+            <div
+              style={{
+                padding: "16px 22px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <label
+                style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+              >
+                Resolution Note
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: "#94a3b8",
+                    background: "#f1f5f9",
+                    borderRadius: 4,
+                    padding: "1px 6px",
+                    marginLeft: 6,
+                  }}
+                >
+                  optional
+                </span>
+              </label>
+              <textarea
+                rows={3}
+                placeholder="How was this resolved?"
+                style={{
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  color: "#1e293b",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 8,
+                  padding: "9px 12px",
+                  outline: "none",
+                  width: "100%",
+                  resize: "vertical",
+                  minHeight: 80,
+                }}
+                value={ticketSolveModal.note}
+                onChange={(e) =>
+                  setTicketSolveModal((p) => ({ ...p, note: e.target.value }))
+                }
+              />
+            </div>
+
+            <div
+              style={{
+                padding: "0 22px 16px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <label
+                style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+              >
+                Attach Resolution Document
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: "#94a3b8",
+                    background: "#f1f5f9",
+                    borderRadius: 4,
+                    padding: "1px 6px",
+                    marginLeft: 6,
+                  }}
+                >
+                  optional
+                </span>
+              </label>
+              <input
+                type="file"
+                onChange={(e) =>
+                  setTicketSolveModal((p) => ({
+                    ...p,
+                    file: e.target.files?.[0] || null,
+                  }))
+                }
+                style={{ fontSize: 12.5 }}
+              />
+              {ticketSolveModal.file && (
+                <span style={{ fontSize: 11.5, color: "#64748b" }}>
+                  {ticketSolveModal.file.name}
+                </span>
+              )}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                padding: "12px 22px 18px",
+                borderTop: "1px solid #f1f5f9",
+              }}
+            >
+              <button
+                onClick={() => setTicketSolveModal(null)}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 18px",
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMarkTicketSolved}
+                disabled={updatingTicketId === ticketSolveModal.ticket.id}
+                style={{
+                  background: "#16a34a",
+                  color: "#fff",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Confirm Solved
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {detailTask && (
         <div
           style={{
@@ -6342,91 +6896,198 @@ return (
         </div>
       )}
       {leaveDetailModal && (
-  <div
-    style={{
-      position: "fixed", inset: 0, zIndex: 10040,
-      background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
-      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-    }}
-    onClick={(e) => { if (e.target === e.currentTarget) setLeaveDetailModal(null); }}
-  >
-    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
-      <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
-            {leaveDetailModal.name || leaveDetailModal.user_name}
-          </div>
-          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-            {leaveDetailModal.leave_type} · {leaveDetailModal.site_name}
-          </div>
-        </div>
-        <button
-          onClick={() => setLeaveDetailModal(null)}
-          style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10040,
+            background: "rgba(15,23,42,.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setLeaveDetailModal(null);
+          }}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
-
-      <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <span className="op-meta-pill">
-            {leaveDetailModal.from_date} → {leaveDetailModal.to_date}
-          </span>
-          <LeaveBadge leave={leaveDetailModal} />
-        </div>
-
-        {leaveDetailModal.reason && (
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>
-              Employee's Reason
-            </div>
-            <p className="lv-reason" style={{ margin: 0 }}>"{leaveDetailModal.reason}"</p>
-          </div>
-        )}
-
-        <ApprovalPips leave={leaveDetailModal} />
-
-        {/* Rejection reasons — array of {slot, by, reason, at} from mergeRejectionReason */}
-        {Array.isArray(leaveDetailModal.rejection_reason) &&
-          leaveDetailModal.rejection_reason.filter((r) => r && typeof r === "object").length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".05em" }}>
-                Rejection Reason{leaveDetailModal.rejection_reason.length > 1 ? "s" : ""}
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 480,
+              boxShadow: "0 24px 64px rgba(0,0,0,.22)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 22px 14px",
+                borderBottom: "1px solid #f1f5f9",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+              }}
+            >
+              <div>
+                <div
+                  style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}
+                >
+                  {leaveDetailModal.name || leaveDetailModal.user_name}
+                </div>
+                <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                  {leaveDetailModal.leave_type} · {leaveDetailModal.site_name}
+                </div>
               </div>
-              {leaveDetailModal.rejection_reason
-                .filter((r) => r && typeof r === "object")
-                .map((r) => {
-                  const roleLabel =
-                    r.slot === "head"
-                      ? leaveDetailModal.head_approver_role || "Head"
-                      : leaveDetailModal.level_approver_role || "Level";
-                  return (
-                    <div key={r.slot} className="lv-rejection">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-                      </svg>
-                      <strong>{roleLabel} rejection</strong> ({r.by}): {r.reason}
-                    </div>
-                  );
-              })}
+              <button
+                onClick={() => setLeaveDetailModal(null)}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  background: "#fff",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#64748b",
+                }}
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
-          )}
-      </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
-        <button
-          onClick={() => setLeaveDetailModal(null)}
-          style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+            <div
+              style={{
+                padding: "16px 22px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <span className="op-meta-pill">
+                  {leaveDetailModal.from_date} → {leaveDetailModal.to_date}
+                </span>
+                <LeaveBadge leave={leaveDetailModal} />
+              </div>
+
+              {leaveDetailModal.reason && (
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#94a3b8",
+                      textTransform: "uppercase",
+                      letterSpacing: ".05em",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Employee's Reason
+                  </div>
+                  <p className="lv-reason" style={{ margin: 0 }}>
+                    "{leaveDetailModal.reason}"
+                  </p>
+                </div>
+              )}
+
+              <ApprovalPips leave={leaveDetailModal} />
+
+              {/* Rejection reasons — array of {slot, by, reason, at} from mergeRejectionReason */}
+              {Array.isArray(leaveDetailModal.rejection_reason) &&
+                leaveDetailModal.rejection_reason.filter(
+                  (r) => r && typeof r === "object",
+                ).length > 0 && (
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#94a3b8",
+                        textTransform: "uppercase",
+                        letterSpacing: ".05em",
+                      }}
+                    >
+                      Rejection Reason
+                      {leaveDetailModal.rejection_reason.length > 1 ? "s" : ""}
+                    </div>
+                    {leaveDetailModal.rejection_reason
+                      .filter((r) => r && typeof r === "object")
+                      .map((r) => {
+                        const roleLabel =
+                          r.slot === "head"
+                            ? leaveDetailModal.head_approver_role || "Head"
+                            : leaveDetailModal.level_approver_role || "Level";
+                        return (
+                          <div key={r.slot} className="lv-rejection">
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="12" y1="8" x2="12" y2="12" />
+                              <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            <strong>{roleLabel} rejection</strong> ({r.by}):{" "}
+                            {r.reason}
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                padding: "12px 22px 18px",
+                borderTop: "1px solid #f1f5f9",
+              }}
+            >
+              <button
+                onClick={() => setLeaveDetailModal(null)}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 18px",
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {rejectTarget && (
         <div
           style={{

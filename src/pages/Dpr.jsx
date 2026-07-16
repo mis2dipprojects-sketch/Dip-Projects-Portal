@@ -483,6 +483,38 @@ border:2px solid transparent;border-radius:12px;color:#6b2d0f;cursor:pointer;fon
 [data-theme="dark"] .pdf-overlay-title {
   color:#fbbf24;
 }
+.mreq-item-list{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+.mreq-staged-row{display:flex;align-items:center;gap:12px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:11px 14px;}
+.mreq-staged-main{flex:1;min-width:0;}
+.mreq-staged-name{font-size:13.5px;font-weight:700;color:var(--ink);}
+.mreq-staged-meta{font-size:12px;color:var(--ink3);margin-top:1px;}
+.mreq-staged-remove{background:none;border:none;color:var(--ink3);cursor:pointer;padding:5px;border-radius:6px;display:flex;align-items:center;justify-content:center;}
+.mreq-staged-remove:hover{color:var(--red);background:#fef2f2;}
+.mreq-rcard{background:var(--card);border:1.5px solid var(--border);border-left:4px solid #d97706;border-radius:8px;padding:14px 16px;margin-bottom:10px;}
+.mreq-rcard.received{border-left-color:var(--green);}
+.mreq-rcard.rejected{border-left-color:var(--red);}
+.mreq-rcard-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px;}
+.mreq-rcard-name{font-size:14px;font-weight:800;color:var(--ink);}
+.mreq-rcard-qty{font-size:12.5px;color:var(--ink2);margin-top:2px;font-weight:600;}
+.mreq-rcard-meta{font-size:11.5px;color:var(--ink3);margin-top:8px;line-height:1.6;}
+.mreq-rcard-meta strong{color:var(--ink2);}
+.mreq-empty{display:flex;flex-direction:column;align-items:center;padding:24px 12px;text-align:center;gap:8px;color:var(--ink3);}
+.mreq-empty-title{font-size:13px;font-weight:700;color:var(--ink2);}
+.mreq-empty-sub{font-size:12px;color:var(--ink3);}
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;}
+.badge-amber{background:#fffbeb;color:#d97706;border:1px solid #fde68a;}
+.badge-red{background:#fef2f2;color:var(--red);border:1px solid #fecaca;}
+.badge-green{background:#f0fdf4;color:var(--green);border:1px solid #bbf7d0;}
+[data-theme="dark"] .mreq-staged-row{background:#252320;border-color:#3a3733;}
+[data-theme="dark"] .mreq-staged-name{color:#f0ede8;}
+[data-theme="dark"] .mreq-rcard{background:#1e1c19;border-color:#3a3733;}
+[data-theme="dark"] .mreq-rcard-name{color:#f0ede8;}
+[data-theme="dark"] .mreq-rcard-qty{color:#c4bdb4;}
+[data-theme="dark"] .mreq-rcard-meta{color:#7a7368;}
+[data-theme="dark"] .mreq-rcard-meta strong{color:#c4bdb4;}
+[data-theme="dark"] .badge-amber{background:#2a1f08;color:#fbbf24;border-color:#4a3210;}
+[data-theme="dark"] .badge-red{background:#2d0a0a;color:#f87171;border-color:#7f1d1d;}
+[data-theme="dark"] .badge-green{background:#052e16;color:#4ade80;border-color:#166534;}
 `;
 
 // ─── PDF CSS (exact match to Google Apps Script style) ───────────────────────
@@ -1302,12 +1334,17 @@ const coverHtml = `
     </div>
   </div>`;
 
+onProgress("Fetching pending materials…");
+  const pendingMaterials = await fetchPendingMaterials(payload.site);
+  const pmHtml = buildPendingMaterialsHtml(pendingMaterials);
+
   const sectionDefs = [
     ["TODAY'S WORK SUMMARY",      buildSummaryHtml(payload.summary)],
     ["MANPOWER REPORT",           buildManpowerHtml(payload.manpower)],
     ["EQUIPMENT ON SITE",         buildEquipmentHtml(payload.equipment)],
     ["CEMENT STOCK",              buildCementHtml(payload)],
     ["CONCRETE CONSUMPTION",      buildConcreteHtml(payload)],
+    ["MATERIAL REQUIREMENT",      pmHtml],
     ["MATERIAL USED / RECEIVED",  buildMaterialHtml(payload.material)],
     ["CUBE TEST RESULTS",         buildCubeHtml(payload.cube)],
     ["SITE VISIT & INSTRUCTIONS", buildVisitorsHtml(payload.visitors)],
@@ -1324,10 +1361,29 @@ const coverHtml = `
   // Render each section
 for (const [title, body] of sectionDefs) {
   if (!body?.trim()) continue;
-  _secNum++;
 
   const isPhotos = title === "WORK PROGRESS PHOTOS";
   const isManpower = title === "MANPOWER REPORT";
+  const isPendingMaterials = title === "MATERIAL REQUIREMENT";
+
+  if (isPendingMaterials) {
+    onProgress("Rendering material requirement…");
+    const pmCanvas = await renderChunk(body);
+    const PX_PER_MM = pmCanvas.width / CONTENT_W;
+    const pmHeightMM = pmCanvas.height / PX_PER_MM;
+    if (cursorY + pmHeightMM > A4_H - MARGIN - 10) {
+      addWatermark(pdf, logoBase64);
+      pdf.addPage();
+      pageNum++;
+      pdf.setFontSize(8); pdf.setTextColor(100);
+      pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
+      cursorY = MARGIN;
+    }
+    await addCanvasToPdf(pmCanvas, "material requirement");
+    continue;
+  }
+
+  _secNum++;
 
 if (isPhotos) {
   const parser = new DOMParser();
@@ -1438,26 +1494,6 @@ if (isPhotos) {
   }
 }
 
-  onProgress("Fetching pending materials…");
-  const pendingMaterials = await fetchPendingMaterials(payload.site);
-  onProgress("Rendering pending materials…");
-  const pmHtml = buildPendingMaterialsHtml(pendingMaterials);
-  const pmCanvas = await renderChunk(pmHtml);
-  // Pre-check: if it won't fit on current page, start a new one so the
-  // urgent section never gets visually split mid-table.
-  {
-    const PX_PER_MM = pmCanvas.width / CONTENT_W;
-    const pmHeightMM = pmCanvas.height / PX_PER_MM;
-    if (cursorY + pmHeightMM > A4_H - MARGIN - 10) {
-      addWatermark(pdf, logoBase64);
-      pdf.addPage();
-      pageNum++;
-      pdf.setFontSize(8); pdf.setTextColor(100);
-      pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
-      cursorY = MARGIN;
-    }
-  }
-  await addCanvasToPdf(pmCanvas, "pending materials");
 
   // Thank you page — always starts on a new page
   addWatermark(pdf, logoBase64);
@@ -1502,7 +1538,19 @@ async function dbInsert(table, payload) {
   const { error } = await supabase.from(table).insert(payload);
   return !error;
 }
-
+async function submitMaterialRequirements(list, site, engineer) {
+  if (!list?.length) return;
+  const payload = list.map(r => ({
+    material_name: r.name,
+    unit_name: r.unit,
+    quantity: Number(r.qty),
+    site_name: site,
+    requested_by: engineer,
+    status: "pending",
+  }));
+  const { error } = await supabase.from("material_requirements").insert(payload);
+  if (error) throw new Error(`Material requirement submission failed: ${error.message}`);
+}
 
 // async function getManpowerTypes(scope, workCat) {
 //   let q = supabase.from("dpr_manpower_types").select("name,scope,work_category").order("name");
@@ -2457,6 +2505,105 @@ const handleNameChange = val => {
   );
 }
 
+function MaterialRequirementSection({ list, setList }) {
+  const [materials, setMaterials] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [name, setName] = useState("");
+  const [qty, setQty] = useState("");
+  const [unit, setUnit] = useState("");
+  const [editIdx, setEditIdx] = useState(null);
+  const [editRow, setEditRow] = useState(null);
+
+  useEffect(() => {
+    dbFetch("dpr_materials").then(setMaterials);
+    dbFetch("dpr_units").then(setUnits);
+  }, []);
+
+  const add = () => {
+    if (!name || !qty || !unit) return;
+    const n = v => (v || "").toString().trim().toLowerCase();
+    const dupIdx = list.findIndex(r => n(r.name) === n(name) && n(r.unit) === n(unit));
+    if (dupIdx >= 0) {
+      setList(p => p.map((r, i) => i === dupIdx ? { ...r, qty: Number(r.qty) + Number(qty) } : r));
+    } else {
+      setList(p => [...p, { id: "mreq_" + Date.now(), name, qty: Number(qty), unit }]);
+    }
+    setName(""); setQty(""); setUnit("");
+  };
+
+  return (
+    <div>
+      <div className="grid3" style={{ marginBottom: 12 }}>
+        <div className="fg">
+          <label className="flabel">Material <span className="req">*</span></label>
+          <SelectWithAdd value={name} onChange={setName} options={materials} placeholder="Select Material"
+            onAdd={async nm => { await dbInsert("dpr_materials", { name: nm }); setMaterials(await dbFetch("dpr_materials")); setName(nm); }} />
+        </div>
+        <div className="fg">
+          <label className="flabel">Quantity <span className="req">*</span></label>
+          <input className="finput" type="number" min="0" step="any" value={qty} onChange={e => setQty(e.target.value)} placeholder="0" />
+        </div>
+        <div className="fg">
+          <label className="flabel">Unit <span className="req">*</span></label>
+          <SelectWithAdd value={unit} onChange={setUnit} options={units} placeholder="Select Unit"
+            onAdd={async nm => { await dbInsert("dpr_units", { name: nm }); setUnits(await dbFetch("dpr_units")); setUnit(nm); }} />
+        </div>
+      </div>
+
+      <button className="btn btn-green btn-sm" onClick={add} disabled={!name || !qty || !unit}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Material
+      </button>
+
+      {list.length > 0 && (
+        <div className="tbl-wrap">
+          <table className="tbl">
+            <thead><tr><th>Material</th><th>Qty</th><th>Unit</th><th></th></tr></thead>
+            <tbody>
+              {list.map((m, i) => (
+                editIdx === i ? (
+                  <tr key={m.id || i} style={{ background: "#fffbf5" }}>
+                    <td><input className="finput" style={{ padding: "5px 8px", fontSize: 12 }} value={editRow.name} onChange={e => setEditRow(p => ({ ...p, name: e.target.value }))} /></td>
+                    <td><input className="finput" type="number" min="0" style={{ padding: "5px 8px", fontSize: 12, width: 80 }} value={editRow.qty} onChange={e => setEditRow(p => ({ ...p, qty: e.target.value }))} /></td>
+                    <td><input className="finput" style={{ padding: "5px 8px", fontSize: 12, width: 80 }} value={editRow.unit} onChange={e => setEditRow(p => ({ ...p, unit: e.target.value }))} /></td>
+                    <td>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button className="btn btn-orange btn-sm" style={{ padding: "5px 10px", fontSize: 11 }}
+                          onClick={() => { setList(p => p.map((r, j) => j === i ? { ...r, ...editRow, qty: Number(editRow.qty) } : r)); setEditIdx(null); setEditRow(null); }}>✓</button>
+                        <button className="btn btn-out btn-sm" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => { setEditIdx(null); setEditRow(null); }}>✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={m.id || i}>
+                    <td>{m.name}</td>
+                    <td>{m.qty}</td>
+                    <td>{m.unit}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button className="btn btn-out btn-sm btn-icon" title="Edit" onClick={() => { setEditIdx(i); setEditRow({ ...m }); }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button className="btn btn-red btn-sm btn-icon" title="Remove" onClick={() => setList(p => p.filter((_, j) => j !== i))}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 function MaterialSection({ list, setList, showDesc=false, label="Material" }) {
   const [materials, setMaterials] = useState([]);
   const [units,     setUnits]     = useState([]);
@@ -2790,6 +2937,7 @@ const autoSaveTimerRef = useRef(null);
   const [concreteOn,    setConcreteOn]    = useState("");
   const [concreteDesc,  setConcreteDesc]  = useState("");
   const [material,      setMaterial]      = useState([]);
+  const [materialReq,   setMaterialReq]   = useState([]);
   const [cube,          setCube]          = useState("");
   const [visitors,      setVisitors]      = useState([{id:"v_init",name:"",instruction:""}]);
   const [customFields,  setCustomFields]  = useState([]);
@@ -2905,15 +3053,15 @@ useEffect(() => {
   })();
 }, [user]);
 
-  const collectPayload = () => ({
-    site, engineer, employeeName:engineer, reportType, date, summary, manpower, equipment,
-    cementAvailable:cementAvail, cementReceived:cementRcvd, cementUsed, cementBalance:String(cementBalance), cementUsedDesc,
-    concreteTheoretical:concreteTh, concreteOnsite:concreteOn, concreteDescription:concreteDesc,
-    material, cube,
-    visitors: visitors.filter(v=>v.name),
-    customFields: customFields.filter(f=>f.title||f.value),
-    photos, planning,
-  });
+const collectPayload = () => ({
+  site, engineer, employeeName:engineer, reportType, date, summary, manpower, equipment,
+  cementAvailable:cementAvail, cementReceived:cementRcvd, cementUsed, cementBalance:String(cementBalance), cementUsedDesc,
+  concreteTheoretical:concreteTh, concreteOnsite:concreteOn, concreteDescription:concreteDesc,
+  material, materialRequirement: materialReq, cube,   // ← added materialRequirement
+  visitors: visitors.filter(v=>v.name),
+  customFields: customFields.filter(f=>f.title||f.value),
+  photos, planning,
+});
 
   const handleSaveDraft = async () => {
     if (!site||!engineer) { showToast("err","Select site and engineer first."); return; }
@@ -2945,6 +3093,7 @@ const handleOpenDraft = () => {
   setConcreteOn(d.concreteOnsite || "");
   setConcreteDesc(d.concreteDescription || "");
   setMaterial(d.material || []);
+  setMaterialReq(d.materialRequirement || []);
   setCube(d.cube || "");
   setVisitors(d.visitors?.length
     ? d.visitors.map((v, i) => ({ ...v, id: "dr_v_" + i }))
@@ -2987,6 +3136,7 @@ const handleOpenDraft = () => {
         site, engineer, report_type:"morning", date, payload,
         pdf_url: null, photo_folder: null, created_at: new Date().toISOString(),
       });
+      
       if (error) throw new Error(`DB insert failed: ${error.message}`);
       setSubmitted(true);
       draftOpenedRef.current = false;
@@ -3016,9 +3166,15 @@ const handleOpenDraft = () => {
         uploadedPhotos.push({...photos[i], supabaseUrl:url, storagePath:path});
       }
       payload.photos = uploadedPhotos;
-      setSubmitStep("pdf");
-      setSubmitDetail("Building document…");
-      const { blob, fileName } = await generateEveningPdf(payload, msg=>setSubmitDetail(msg));
+
+if (materialReq.length) {
+  setSubmitDetail("Submitting material requirements…");
+  await submitMaterialRequirements(materialReq, site, engineer);
+}
+
+setSubmitStep("pdf");
+setSubmitDetail("Building document…");
+const { blob, fileName } = await generateEveningPdf(payload, msg=>setSubmitDetail(msg));
 
       setSubmitStep("pdfup");
       setSubmitDetail(fileName);
@@ -3055,6 +3211,7 @@ const handleOpenDraft = () => {
       setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 
       setPdfUrl(pdfPublicUrl);
+      setMaterialReq([]);
       setSubmitted(true);
       draftOpenedRef.current = false;
     } catch(err) {
@@ -3250,7 +3407,7 @@ const handleWhatsApp = async () => {
     setSubmitted(false); setSummary(""); setManpower([]); setPhotos([]); setPlanning(""); setEquipment([]);
     setMaterial([]); setCementAvail(""); setCementRcvd(""); setCementUsed(""); setCementUsedDesc("");
     setConcreteTh(""); setConcreteOn(""); setConcreteDesc(""); setCube("");
-    setVisitors([{id:"v_init",name:"",instruction:""}]); setCustomFields([]); setPdfUrl(null);
+    setVisitors([{id:"v_init",name:"",instruction:""}]); setCustomFields([]); setPdfUrl(null);setMaterialReq([]);
   };
  
   if (submitted) return (
@@ -3397,23 +3554,27 @@ const handleWhatsApp = async () => {
                 <div className="fg"><label className="flabel">Description</label><textarea className="finput" rows={2} value={concreteDesc} onChange={e=>setConcreteDesc(e.target.value)} placeholder="Describe on-site concrete consumption…"/></div>
               </SectionBlock>
 
-              <SectionBlock title="6. Material Received">
+              <SectionBlock title="6. Material Requirement">
+                <MaterialRequirementSection list={materialReq} setList={setMaterialReq} />
+              </SectionBlock>
+
+              <SectionBlock title="7. Material Received">
                 <MaterialSection list={material} setList={setMaterial}/>
               </SectionBlock>
 
-              <SectionBlock title="7. Cube Test Results">
+              <SectionBlock title="8. Cube Test Results">
                 <textarea className="finput" rows={3} value={cube} onChange={e=>setCube(e.target.value)} placeholder="Enter cube test results…"/>
               </SectionBlock>
 
-              <SectionBlock title="8. Site Visit &amp; Instructions">
+              <SectionBlock title="9. Site Visit &amp; Instructions">
                 <VisitorsSection visitors={visitors} setVisitors={setVisitors}/>
               </SectionBlock>
 
-              <SectionBlock title="9. Additional Custom Fields">
+              <SectionBlock title="10. Additional Custom Fields">
                 <CustomFieldsSection fields={customFields} setFields={setCustomFields}/>
               </SectionBlock>
 
-              <SectionBlock title="10. Work Progress Photos">
+              <SectionBlock title="11. Work Progress Photos">
                 <div className="info-banner info-blue" style={{marginBottom:12}}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   Photos are required for Evening DPR.
@@ -3421,20 +3582,10 @@ const handleWhatsApp = async () => {
                 <PhotosSection photos={photos} setPhotos={setPhotos} onLightbox={openLightbox} showToast={showToast}/>
               </SectionBlock>
 
-              <SectionBlock title="11. Tomorrow's Planning">
+              <SectionBlock title="12. Tomorrow's Planning">
                 <textarea className="finput" rows={4} value={planning} onChange={e=>setPlanning(e.target.value)} placeholder="Plan for tomorrow's activities…"/>
               </SectionBlock>
 
-              <div className="info-banner" style={{
-                background:"#fef2f2", border:"1.5px solid #fecaca", color:"#991b1b",
-                marginTop:6,
-              }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-                Any pending material requirements raised for this site will be pulled in automatically and shown as a highlighted section near the end of the generated PDF — no need to re-enter them here.
-              </div>
             </>)}
 
             <div className="act-row">

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabase";
 import LOGO_URL from "../assets/logo.png";
 import "./Login.css";
+import { defaultPortalFor } from "../access.js";
 
 export default function Login() {
   const navigate = useNavigate();

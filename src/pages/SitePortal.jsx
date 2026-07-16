@@ -62,8 +62,6 @@ const LEAVE_TYPES = [
   "Compensatory Leave",
   "Unpaid Leave",
 ];
-
-
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 const Ico = {
   clock: (
@@ -450,11 +448,11 @@ const NAV = [
       },
       { key: "monthly-report", label: "Monthly Report", icon: Ico.monthly },
       { key: "site-report", label: "Site Visit Report", icon: Ico.site },
-      {
-        key: "material-requirement",
-        label: "Material Requirement",
-        icon: Ico.materialRequirement,
-      },
+      // {
+      //   key: "material-requirement",
+      //   label: "Material Requirement",
+      //   icon: Ico.materialRequirement,
+      // },
       { key: "my-reports", label: "My Reports", icon: Ico.myRpt },
       { key: "manpower-reports", label: "Manpower Report", icon: Ico.manRpt },
     ],
@@ -1965,10 +1963,10 @@ const markLeavesSeen = useCallback(async (u) => {
         return <MonthlyReport />;
       case "site-report":
         return <SiteReport user={user} />;
-      case "material-requirement":
-        return (
-          <MatRequirement user={user} onDotSeen={() => matUnseen.refresh()} />
-        );
+      // case "material-requirement":
+      //   return (
+      //     <MatRequirement user={user} onDotSeen={() => matUnseen.refresh()} />
+      //   );
       case "my-reports":
         return <MyReports user={user} />;
       case "manpower-reports":
@@ -2858,12 +2856,12 @@ const markLeavesSeen = useCallback(async (u) => {
                                 {leaveBadgeCount > 9 ? "9+" : leaveBadgeCount}
                               </span>
                             )}
-                            {c.key === "material-requirement" &&
+                            {/* {c.key === "material-requirement" &&
                               matUnseen.total > 0 && (
                                 <span className="sni-badge">
                                   {matUnseen.total > 9 ? "9+" : matUnseen.total}
                                 </span>
-                              )}
+                              )} */}
                             {c.key === "leave-approvals" &&
                               approvalsPendingCount > 0 && (
                                 <span className="sni-badge">

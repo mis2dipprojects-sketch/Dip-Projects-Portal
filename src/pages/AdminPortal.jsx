@@ -67,6 +67,7 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+
   {
     key: "recurring-tasks",
     label: "All Recurring Tasks",
@@ -215,6 +216,8 @@ const NAV_ITEMS = [
     ),
   },
 ];
+
+
 const REPORTS_NAV = [
   {
     key: "add-drawings",

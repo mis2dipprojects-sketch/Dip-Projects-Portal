@@ -3,6 +3,7 @@ import Navbar from "../components/Navbar";
 import { supabase } from "../supabase";
 import SiteReport from "./Sitereport";
 import Checklists from "./Checklists";
+import "./OfficePortal.css";
 import {
   resolveApprovalChain,
   deriveLeaveStatus,
@@ -191,6 +192,18 @@ const LEAVE_NAV = [
       </svg>
     ),
   },
+   {
+    key: "proxy-request",
+    label: "Leave Approvals",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M19 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
 ];
 const REPORTS_NAV = [
   {
@@ -309,6 +322,17 @@ function buildDownloadUrl(url, filename) {
   if (!url) return url;
   const sep = url.includes("?") ? "&" : "?";
   return `${url}${sep}download=${encodeURIComponent(filename || "report.pdf")}`;
+}
+function isOfficeDoc(url) {
+  return /\.(pptx|ppt|docx|doc|xlsx|xls)(\?|$)/i.test(url || "");
+}
+
+function getViewUrl(url) {
+  if (!url) return url;
+  if (isOfficeDoc(url)) {
+    return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+  }
+  return url; // pdf, images, etc. — browser can render natively
 }
 // ── Filter Bar ─────────────────────────────────────────────────────────────
 function TaskFilterBar({
@@ -583,6 +607,13 @@ function getAdminRejectionReason(leave) {
 }
 // ── Leave status helpers ───────────────────────────────────────────────────
 function computeLeaveStatus(leave) {
+  // Chain-approval leaves (level/head) — trust the derived status column
+  if (leave.level_approver_user_name || leave.head_approver_user_name) {
+    const s = (leave.status || "").toLowerCase();
+    if (s === "approved" || s === "rejected") return s;
+    return "pending";
+  }
+  // Admin-direct leaves (no chain)
   if (leave.admin_approved === false) return "rejected";
   if (leave.admin_approved === true) return "approved";
   return "pending";
@@ -1666,6 +1697,110 @@ function VerifyRequestsTable({ requests, onApprove, onReject, updatingId }) {
     </div>
   );
 }
+function ProxyLeaveTable({ leaves, onApprove, onReject, updatingId, currentUser, onRowClick }) {
+  const fmt = (d) =>
+    d
+      ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
+
+  return (
+    <div className="tt-wrap">
+      <table className="tt-table">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Site</th>
+            <th>Type</th>
+            <th>Dates</th>
+            <th>Reason</th>
+            <th>Approval</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {leaves.map((l) => {
+            const days =
+              l.from_date && l.to_date
+                ? Math.ceil(
+                    (new Date(l.to_date) - new Date(l.from_date)) /
+                      (1000 * 60 * 60 * 24),
+                  ) + 1
+                : null;
+            const isLevelSlot = l.level_approver_user_name === currentUser;
+            const isHeadSlot = l.head_approver_user_name === currentUser;
+            const myState = isHeadSlot ? l.head_approved : l.level_approved;
+            const myTurn = (isLevelSlot || isHeadSlot) && myState === null;
+
+            return (
+              <tr key={l.id} className="tt-row" onClick={() => onRowClick(l)}>
+                <td className="tt-title-cell">
+                  <div className="tt-title">{l.name || l.user_name}</div>
+                  <div className="tt-desc">{l.user_name}</div>
+                </td>
+                <td>{l.site_name || "—"}</td>
+                <td>{l.leave_type}</td>
+                <td>
+                  {fmt(l.from_date)} → {fmt(l.to_date)}
+                  {days && (
+                    <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                      {days} day{days > 1 ? "s" : ""}
+                    </div>
+                  )}
+                </td>
+                <td style={{ maxWidth: 200 }}>
+                  {l.reason ? (
+                    <span style={{ fontSize: 12.5, color: "#64748b" }}>
+                      {l.reason}
+                    </span>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>—</span>
+                  )}
+                </td>
+                <td>
+                  <ApprovalPips leave={l} />
+                </td>
+                <td>
+                  <LeaveBadge leave={l} />
+                </td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  {myTurn ? (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        className="lv-btn-approve"
+                        disabled={updatingId === l.id}
+                        onClick={() => onApprove(l)}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        className="lv-btn-reject"
+                        disabled={updatingId === l.id}
+                        onClick={() => onReject(l)}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  ) : isLevelSlot || isHeadSlot ? (
+                    <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+                      {myState ? "✓ You approved" : "✗ You rejected"}
+                    </span>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>—</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 function MyRescheduleTable({ reschedules }) {
   const fmt = (d) =>
     d
@@ -2086,8 +2221,10 @@ useEffect(() => {
   const [loadingLeaves, setLoadingLeaves] = useState(false);
   const [leaveSubmitting, setLeaveSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
-  const [rejectTarget, setRejectTarget] = useState(null); // { leave, isHead }
-  const [rejectReason, setRejectReason] = useState("");
+const [rejectTarget, setRejectTarget] = useState(null); 
+const [leaveDetailModal, setLeaveDetailModal] = useState(null); 
+const [rejectReason, setRejectReason] = useState("");
+const [updatingProxyId, setUpdatingProxyId] = useState(null);   
   const [siteReports, setSiteReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [reportFilter, setReportFilter] = useState({
@@ -2130,12 +2267,10 @@ useEffect(() => {
 
     // WPR — adjust table/column names to match your schema
     const { data: wprData } = await supabase
-      .from("weekly_reports")
-      .select(
-        "id, site, engineer, week_start, week_end, pdf_url, payload, created_at",
-      )
-      .in("site", sites)
-      .order("created_at", { ascending: false });
+    .from("wpr_reports")
+    .select("id, site_name, engineer_name, created_at, presentation_url, created_at")
+    .in("site_name", sites)
+    .order("created_at", { ascending: false });
 
     const normalized = [
       ...(dprData || [])
@@ -2171,17 +2306,14 @@ useEffect(() => {
         submitted_by_name: r.submitted_by_name,
       })),
       ...(wprData || []).map((r) => ({
-        id: r.id,
-        site: r.site,
-        engineer: r.engineer,
-        report_type: "weekly",
-        date: r.week_start,
-        pdf_url: r.pdf_url,
-        payload: r.payload,
+        id: `wpr-${r.id}`,
+        site: r.site_name,
+        engineer: r.engineer_name,
+        date: r.created_at,
         created_at: r.created_at,
+        pdf_url: r.presentation_url,
+        report_type: "WPR",
         source: "wpr",
-        week_start: r.week_start,
-        week_end: r.week_end,
       })),
     ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
@@ -2760,130 +2892,147 @@ const markTicketsRead = async () => {
       );
     }
   };
-  const handleLeaveSubmit = async () => {
-    if (!leaveForm.leave_type)
-      return showToast("error", "Please select a leave type.");
-    if (!leaveForm.from_date)
-      return showToast("error", "Please select a start date.");
-    if (!leaveForm.to_date)
-      return showToast("error", "Please select an end date.");
-    if (new Date(leaveForm.to_date) < new Date(leaveForm.from_date))
-      return showToast("error", "End date must be after start date.");
+const handleLeaveSubmit = async () => {
+  if (!leaveForm.leave_type)
+    return showToast("error", "Please select a leave type.");
+  if (!leaveForm.from_date)
+    return showToast("error", "Please select a start date.");
+  if (!leaveForm.to_date)
+    return showToast("error", "Please select an end date.");
+  if (new Date(leaveForm.to_date) < new Date(leaveForm.from_date))
+    return showToast("error", "End date must be after start date.");
 
-    const site = user.site_names?.[0] || user.site_name || "";
-    if (!site) return showToast("error", "No site assigned to your account.");
+  const site = user.site_names?.[0] || user.site_name || "";
+  if (!site) return showToast("error", "No site assigned to your account.");
 
-    setLeaveSubmitting(true);
+  setLeaveSubmitting(true);
 
-    const payload = {
-      user_name: user.user_name,
-      name: user.name,
-      site_name: site,
-      leave_type: leaveForm.leave_type,
-      from_date: leaveForm.from_date,
-      to_date: leaveForm.to_date,
-      reason: leaveForm.reason.trim() || null,
-      // No level/head approval chain — goes straight to admin
-      level_approver_user_name: null,
-      level_approver_role: null,
-      level_approved: null,
-      head_approver_user_name: null,
-      head_approver_role: null,
-      head_approved: null,
-      admin_approved: null,
-      status: "Pending",
-    };
-    const { error } = await supabase.from("leaves").insert([payload]);
-    setLeaveSubmitting(false);
-    if (error) {
-      showToast("error", "Failed to submit leave. " + error.message);
-    } else {
-      showToast(
-        "success",
-        "Leave application submitted successfully! Waiting for admin approval.",
-      );
-      setLeaveForm({ leave_type: "", from_date: "", to_date: "", reason: "" });
-      fetchLeaves(user);
-      setActiveTab("my-leaves");
-    }
+  const chain = await resolveApprovalChain(
+    supabase,
+    site,
+    user.role,
+    user.user_name,
+  );
+  const initialLevel = chain.levelApprover ? null : true;
+  const initialHead = chain.autoApproved
+    ? true
+    : chain.headApprover
+      ? null
+      : true;
+
+  const payload = {
+    user_name: user.user_name,
+    name: user.name,
+    site_name: site,
+    leave_type: leaveForm.leave_type,
+    from_date: leaveForm.from_date,
+    to_date: leaveForm.to_date,
+    reason: leaveForm.reason.trim() || null,
+    level_approver_user_name: chain.levelApprover?.username || null,
+    level_approver_role: chain.levelApprover?.role || null,
+    level_approver_name: chain.levelApprover?.name || null,
+    level_approved: initialLevel,
+    head_approver_user_name: chain.headApprover?.username || null,
+    head_approver_role: chain.headApprover?.role || null,
+    head_approver_name: chain.headApprover?.name || null,
+    head_approved: initialHead,
+    admin_approved: null,
+    status: deriveLeaveStatus(initialLevel, initialHead),
   };
 
-  const handleProxyApprove = async (leave) => {
-    const isHeadSlot = leave.head_approver_user_name === user.user_name;
-    const field = isHeadSlot ? "head_approved" : "level_approved";
-    const newLevel = isHeadSlot ? leave.level_approved : true;
-    const newHead = isHeadSlot ? true : leave.head_approved;
+  const { error } = await supabase.from("leaves").insert([payload]);
+  setLeaveSubmitting(false);
+  if (error) {
+    showToast("error", "Failed to submit leave. " + error.message);
+  } else {
+    showToast(
+      "success",
+      chain.autoApproved
+        ? "Leave application submitted and auto-approved!"
+        : "Leave application submitted successfully!",
+    );
+    setLeaveForm({ leave_type: "", from_date: "", to_date: "", reason: "" });
+    fetchLeaves(user);
+    setActiveTab("my-leaves");
+  }
+};
 
-    const { error } = await supabase
-      .from("leaves")
-      .update({ [field]: true, status: deriveLeaveStatus(newLevel, newHead) })
-      .eq("id", leave.id);
-    if (!error) {
-      setProxyLeaves((p) =>
-        p.map((l) =>
-          l.id === leave.id
-            ? {
-                ...l,
-                [field]: true,
-                status: deriveLeaveStatus(newLevel, newHead),
-              }
-            : l,
-        ),
-      );
-      showToast("success", "Leave approved.");
-    } else {
-      showToast("error", "Action failed. " + error.message);
-    }
-  };
+const handleProxyApprove = async (leave) => {
+  setUpdatingProxyId(leave.id); // ← add
+  const isHeadSlot = leave.head_approver_user_name === user.user_name;
+  const field = isHeadSlot ? "head_approved" : "level_approved";
+  const newLevel = isHeadSlot ? leave.level_approved : true;
+  const newHead = isHeadSlot ? true : leave.head_approved;
 
+  const { error } = await supabase
+    .from("leaves")
+    .update({ [field]: true, status: deriveLeaveStatus(newLevel, newHead) })
+    .eq("id", leave.id);
+  setUpdatingProxyId(null); // ← add
+  if (!error) {
+    setProxyLeaves((p) =>
+      p.map((l) =>
+        l.id === leave.id
+          ? { ...l, [field]: true, status: deriveLeaveStatus(newLevel, newHead) }
+          : l,
+      ),
+    );
+    showToast("success", "Leave approved.");
+  } else {
+    showToast("error", "Action failed. " + error.message);
+  }
+};
   const openProxyReject = (leave) => {
     const isHeadSlot = leave.head_approver_user_name === user.user_name;
     setRejectTarget({ leave, isHead: isHeadSlot });
     setRejectReason("");
   };
 
-  const confirmProxyReject = async () => {
-    if (!rejectReason.trim()) return;
-    const { leave, isHead } = rejectTarget;
-    const field = isHead ? "head_approved" : "level_approved";
-    const newLevel = isHead ? leave.level_approved : false;
-    const newHead = isHead ? false : leave.head_approved;
-    const slot = isHead ? "head" : "level";
-    const merged = mergeRejectionReason(
-      leave.rejection_reason,
-      slot,
-      user.user_name,
-      rejectReason.trim(),
+const confirmProxyReject = async () => {
+  if (!rejectReason.trim()) return;
+  const { leave, isHead } = rejectTarget;
+  setUpdatingProxyId(leave.id); // ← add
+  const field = isHead ? "head_approved" : "level_approved";
+  const newLevel = isHead ? leave.level_approved : false;
+  const newHead = isHead ? false : leave.head_approved;
+  const slot = isHead ? "head" : "level";
+  const merged = mergeRejectionReason(
+    leave.rejection_reason,
+    slot,
+    user.user_name,
+    rejectReason.trim(),
+  );
+
+  const { error } = await supabase
+    .from("leaves")
+    .update({
+      [field]: false,
+      status: deriveLeaveStatus(newLevel, newHead),
+      rejection_reason: merged,
+    })
+    .eq("id", leave.id);
+
+  setUpdatingProxyId(null); // ← add
+  if (!error) {
+    setProxyLeaves((p) =>
+      p.map((l) =>
+        l.id === leave.id
+          ? {
+              ...l,
+              [field]: false,
+              status: deriveLeaveStatus(newLevel, newHead),
+              rejection_reason: merged,
+            }
+          : l,
+      ),
     );
+    showToast("success", "Leave rejected.");
+  } else {
+    showToast("error", "Action failed. " + error.message);
+  }
+  setRejectTarget(null);
+};
 
-    const { error } = await supabase
-      .from("leaves")
-      .update({
-        [field]: false,
-        status: deriveLeaveStatus(newLevel, newHead),
-        rejection_reason: merged,
-      })
-      .eq("id", leave.id);
-
-    if (!error) {
-      setProxyLeaves((p) =>
-        p.map((l) =>
-          l.id === leave.id
-            ? {
-                ...l,
-                [field]: false,
-                status: deriveLeaveStatus(newLevel, newHead),
-                rejection_reason: merged,
-              }
-            : l,
-        ),
-      );
-      showToast("success", "Leave rejected.");
-    } else {
-      showToast("error", "Action failed. " + error.message);
-    }
-    setRejectTarget(null);
-  };
   const allTasks = useMemo(() => {
     const map = new Map();
     [...myTasks, ...recurringTasks].forEach((t) => map.set(t.id, t));
@@ -3194,52 +3343,64 @@ const activeItem = [
             </div>
           </>
         );
-
-      case "proxy-request":
-        if (loadingLeaves)
-          return (
-            <div className="op-empty-state">
-              <div className="op-spinner" />
-              <p className="op-empty-text">Loading…</p>
-            </div>
-          );
-        if (!proxyLeaves.length)
-          return (
-            <div className="op-empty-state">
-              <svg
-                width="48"
-                height="48"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ opacity: 0.3 }}
-              >
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-              </svg>
-              <p className="op-empty-text">
-                No leave requests are routed to you for approval yet.
-              </p>
-            </div>
-          );
-        return (
-          <div className="lv-cards-grid">
-            {proxyLeaves.map((l) => (
-              <LeaveCard
-                key={l.id}
-                leave={l}
-                showActions={true}
-                onApprove={handleProxyApprove}
-                onOpenReject={openProxyReject}
-                currentUser={user.user_name}
-              />
-            ))}
-          </div>
-        );
-case "new-tickets":
+        
+        case "proxy-request":
+  if (loadingLeaves)
+    return (
+      <div className="op-empty-state">
+        <div className="op-spinner" />
+        <p className="op-empty-text">Loading…</p>
+      </div>
+    );
+  if (!proxyLeaves.length)
+    return (
+      <div className="op-empty-state">
+        <svg
+          width="48"
+          height="48"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ opacity: 0.3 }}
+        >
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+        </svg>
+        <p className="op-empty-text">
+          No leave requests are routed to you for approval yet.
+        </p>
+      </div>
+    );
+  return (
+    <>
+      <div className="lv-table-only">
+        <ProxyLeaveTable
+          leaves={proxyLeaves}
+          onApprove={handleProxyApprove}
+          onReject={openProxyReject}
+          updatingId={updatingProxyId}
+          currentUser={user.user_name}
+           onRowClick={setLeaveDetailModal}
+        />
+      </div>
+      <div className="lv-cards-only">
+        {proxyLeaves.map((l) => (
+          <LeaveCard
+            key={l.id}
+            leave={l}
+            showActions={true}
+            onApprove={handleProxyApprove}
+            onOpenReject={openProxyReject}
+            currentUser={user.user_name}
+          />
+        ))}
+      </div>
+    </>
+  );
+  case "new-tickets":
   if (loadingNewTickets)
     return (
       <div className="op-empty-state">
@@ -4272,7 +4433,7 @@ return (
                     submitted.
                   </p>
                 </div>
-              )}
+              )}  
 
             {reportTab !== "wpr" ||
             siteReports.filter((r) => r.source === "wpr").length > 0 ? (
@@ -4372,385 +4533,127 @@ return (
                 </div>
 
                 {/* ── Content ── */}
-                {loadingReports ? (
-                  <div className="op-empty-state">
-                    <div className="op-spinner" />
-                    <p className="op-empty-text">Loading reports…</p>
-                  </div>
-                ) : monthFiltered.length === 0 ? (
-                  <div className="op-empty-state">
-                    <svg
-                      width="48"
-                      height="48"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      style={{ opacity: 0.3 }}
-                    >
-                      <path d="M3 3v18h18" />
-                      <path d="M7 16l4-4 4 4 4-4" />
-                    </svg>
-                    <p className="op-empty-text">
-                      No {reportTab.toUpperCase()} reports found
-                      {reportFilter.month ? " for this month" : ""}.
-                    </p>
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 20,
-                    }}
-                  >
-                    {sortedDates.map((date) => (
-                      <div key={date}>
-                        {/* Date header */}
-                        <div
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 800,
-                            letterSpacing: ".08em",
-                            textTransform: "uppercase",
-                            color: "#94a3b8",
-                            marginBottom: 10,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                          }}
-                        >
-                          <span>
-                            {new Date(date + "T00:00:00").toLocaleDateString(
-                              "en-IN",
-                              {
-                                weekday: "long",
-                                day: "numeric",
-                                month: "long",
-                                year: "numeric",
-                              },
-                            )}
-                          </span>
-                          <div
-                            style={{
-                              flex: 1,
-                              height: 1,
-                              background: "#e8edf3",
-                            }}
-                          />
-                          <span>
-                            {grouped[date].length} report
-                            {grouped[date].length !== 1 ? "s" : ""}
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns:
-                              "repeat(auto-fill,minmax(280px,1fr))",
-                            gap: 12,
-                          }}
-                        >
-                          {grouped[date].map((r) => {
-                            // Pick card accent color
-                            const accent =
-                              r.source === "svr"
-                                ? "#16a34a"
-                                : r.source === "wpr"
-                                  ? "#7c3aed"
-                                  : DPR_TYPE_COLOR[r.report_type]?.color ||
-                                    "#2563eb";
+{loadingReports ? (
+  <div className="op-empty-state">
+    <div className="op-spinner" />
+    <p className="op-empty-text">Loading reports…</p>
+  </div>
+) : monthFiltered.length === 0 ? (
+  <div className="op-empty-state">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3 }}>
+      <path d="M3 3v18h18" />
+      <path d="M7 16l4-4 4 4 4-4" />
+    </svg>
+    <p className="op-empty-text">
+      No {reportTab.toUpperCase()} reports found{reportFilter.month ? " for this month" : ""}.
+    </p>
+  </div>
+) : (
+  <div className="tt-wrap">
+    <table className="tt-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Engineer</th>
+          <th>Site</th>
+          <th>Files</th>
+        </tr>
+      </thead>
+      <tbody>
+        {monthFiltered.map((r) => {
+          const accent =
+            r.source === "svr" ? "#16a34a"
+            : r.source === "wpr" ? "#7c3aed"
+            : DPR_TYPE_COLOR[r.report_type]?.color || "#2563eb";
 
-                            const typeBadge =
-                              r.source === "svr"
-                                ? {
-                                    bg: "#f0fdf4",
-                                    color: "#16a34a",
-                                    border: "#bbf7d0",
-                                    label: "Site Visit",
-                                  }
-                                : r.source === "wpr"
-                                  ? {
-                                      bg: "#f5f3ff",
-                                      color: "#7c3aed",
-                                      border: "#e0e7ff",
-                                      label: "Weekly Report",
-                                    }
-                                  : r.report_type === "morning"
-                                    ? {
-                                        bg: "#fffbeb",
-                                        color: "#d97706",
-                                        border: "#fde68a",
-                                        label: "Morning DPR",
-                                      }
-                                    : r.report_type === "evening"
-                                      ? {
-                                          bg: "#eff6ff",
-                                          color: "#2563eb",
-                                          border: "#bfdbfe",
-                                          label: "Evening DPR",
-                                        }
-                                      : {
-                                          bg: "#f8fafc",
-                                          color: "#64748b",
-                                          border: "#e8edf3",
-                                          label: r.report_type || "Report",
-                                        };
+          const typeBadge =
+            r.source === "svr"
+              ? { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0", label: "Site Visit" }
+              : r.source === "wpr"
+                ? { bg: "#f5f3ff", color: "#7c3aed", border: "#e0e7ff", label: "Weekly Report" }
+                : r.report_type === "morning"
+                  ? { bg: "#fffbeb", color: "#d97706", border: "#fde68a", label: "Morning DPR" }
+                  : r.report_type === "evening"
+                    ? { bg: "#eff6ff", color: "#2563eb", border: "#bfdbfe", label: "Evening DPR" }
+                    : { bg: "#f8fafc", color: "#64748b", border: "#e8edf3", label: r.report_type || "Report" };
 
-                            return (
-                              <div
-                                key={r.id}
-                                style={{
-                                  background: "#fff",
-                                  border: "1px solid #e8edf3",
-                                  borderLeft: `4px solid ${accent}`,
-                                  borderRadius: 10,
-                                  padding: "14px 16px",
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  gap: 10,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "flex-start",
-                                    justifyContent: "space-between",
-                                    gap: 8,
-                                  }}
-                                >
-                                  <span
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      fontSize: 11,
-                                      fontWeight: 700,
-                                      padding: "3px 9px",
-                                      borderRadius: 20,
-                                      background: typeBadge.bg,
-                                      color: typeBadge.color,
-                                      border: `1px solid ${typeBadge.border}`,
-                                    }}
-                                  >
-                                    {typeBadge.label}
-                                  </span>
-                                  {r.site && (
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        color: "#94a3b8",
-                                        fontWeight: 600,
-                                        textAlign: "right",
-                                      }}
-                                    >
-                                      {r.site}
-                                    </span>
-                                  )}
-                                </div>
+          const preview = r.source === "svr" ? r.progress_of_work : r.source === "dpr" ? r.payload?.work_done : null;
 
-                                {/* Engineer */}
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 6,
-                                  }}
-                                >
-                                  <svg
-                                    width="13"
-                                    height="13"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="#94a3b8"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                    <circle cx="12" cy="7" r="4" />
-                                  </svg>
-                                  <span
-                                    style={{
-                                      fontSize: 13,
-                                      fontWeight: 600,
-                                      color: "#334155",
-                                    }}
-                                  >
-                                    {r.engineer}
-                                  </span>
-                                </div>
-
-                                {/* WPR: show week range */}
-                                {r.source === "wpr" && r.week_end && (
-                                  <div
-                                    style={{
-                                      fontSize: 11.5,
-                                      color: "#64748b",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 5,
-                                    }}
-                                  >
-                                    <svg
-                                      width="11"
-                                      height="11"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                    >
-                                      <rect
-                                        x="3"
-                                        y="4"
-                                        width="18"
-                                        height="18"
-                                        rx="2"
-                                      />
-                                      <line x1="3" y1="10" x2="21" y2="10" />
-                                    </svg>
-                                    {fmtD(r.week_start)} → {fmtD(r.week_end)}
-                                  </div>
-                                )}
-
-                                {/* SVR: key fields inline */}
-                                {r.source === "svr" && r.progress_of_work && (
-                                  <p
-                                    style={{
-                                      fontSize: 12,
-                                      color: "#64748b",
-                                      lineHeight: 1.5,
-                                      margin: 0,
-                                      display: "-webkit-box",
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: "vertical",
-                                      overflow: "hidden",
-                                    }}
-                                  >
-                                    {r.progress_of_work}
-                                  </p>
-                                )}
-
-                                {/* DPR: payload preview */}
-                                {r.source === "dpr" && r.payload?.work_done && (
-                                  <p
-                                    style={{
-                                      fontSize: 12,
-                                      color: "#64748b",
-                                      lineHeight: 1.5,
-                                      margin: 0,
-                                      display: "-webkit-box",
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: "vertical",
-                                      overflow: "hidden",
-                                    }}
-                                  >
-                                    {r.payload.work_done}
-                                  </p>
-                                )}
-
-                                <div style={{ fontSize: 11, color: "#cbd5e1" }}>
-                                  Submitted{" "}
-                                  {new Date(r.created_at).toLocaleTimeString(
-                                    "en-IN",
-                                    {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                      hour12: true,
-                                    },
-                                  )}
-                                </div>
-
-                                {r.pdf_url ? (
-                                  <div style={{ display: "flex", gap: 8 }}>
-                                    <a
-                                      href={r.pdf_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: 6,
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        color: "#475569",
-                                        background: "#f8fafc",
-                                        border: "1px solid #e2e8f0",
-                                        borderRadius: 7,
-                                        padding: "6px 12px",
-                                        textDecoration: "none",
-                                      }}
-                                    >
-                                      <svg
-                                        width="12"
-                                        height="12"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2.2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                      >
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                        <circle cx="12" cy="12" r="3" />
-                                      </svg>
-                                      View
-                                    </a>
-
-                                    <a
-                                      href={r.pdf_url}
-                                      download
-                                      style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: 6,
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        color: "#2563eb",
-                                        background: "#eff6ff",
-                                        border: "1px solid #bfdbfe",
-                                        borderRadius: 7,
-                                        padding: "6px 12px",
-                                        textDecoration: "none",
-                                      }}
-                                    >
-                                      <svg
-                                        width="12"
-                                        height="12"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2.2"
-                                        strokeLinecap="round"
-                                      >
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                        <polyline points="7 10 12 15 17 10" />
-                                        <line x1="12" y1="15" x2="12" y2="3" />
-                                      </svg>
-                                      Download
-                                    </a>
-                                  </div>
-                                ) : (
-                                  <span
-                                    style={{
-                                      fontSize: 11,
-                                      color: "#94a3b8",
-                                      fontStyle: "italic",
-                                    }}
-                                  >
-                                    No PDF attached
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
+          return (
+            <tr key={r.id} className="tt-row">
+              <td>
+                {fmtD(r.date || r.created_at?.slice(0, 10))}
+                <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                  {new Date(r.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                </div>
+              </td>
+              <td>
+                <span style={{ display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20, background: typeBadge.bg, color: typeBadge.color, border: `1px solid ${typeBadge.border}` }}>
+                  {typeBadge.label}
+                </span>
+                {r.source === "wpr" && r.week_end && (
+                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                    {fmtD(r.week_start)} → {fmtD(r.week_end)}
                   </div>
                 )}
+              </td>
+              <td>{r.engineer || "—"}</td>
+              <td>{r.site || "—"}</td>
+              <td>
+                {r.pdf_url ? (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    
+                    <a  href={getViewUrl(r.pdf_url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        color: "#475569",
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 6,
+                        padding: "4px 10px",
+                        textDecoration: "none",
+                      }}
+                    >
+                      View
+                    </a>
+                    
+                    <a  href={r.pdf_url}
+                      download
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        color: "#2563eb",
+                        background: "#eff6ff",
+                        border: "1px solid #bfdbfe",
+                        borderRadius: 6,
+                        padding: "4px 10px",
+                        textDecoration: "none",
+                      }}
+                    >
+                      Download
+                    </a>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>No file</span>
+                )}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+)}
               </>
             ) : null}
           </div>
@@ -4764,283 +4667,7 @@ return (
 
   return (
     <>
-      <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
-          *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-          .op-root { font-family: 'DM Sans', sans-serif; background: #f4f6f9; min-height: 100vh; color: #1e293b; }
-          .op-body { display: flex; min-height: calc(100vh - 60px); background: #c9d0d4d0; }
 
-          /* ── Filter Bar ── */
-          .tf-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: #c9d0d4d0; border: 1px solid #e8edf3; border-radius: 10px; margin-bottom: 16px; position: fixed; top: 120px; right:50px;z-index: 10; }
-          .tf-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
-          .tf-label { font-size: 12px; font-weight: 600; color: #64748b; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-          .tf-input { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #c9d0d4d0; border-radius: 6px; padding: 5px 9px; height: 32px; outline: none; transition: border .15s; }
-          .tf-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
-          .tf-date { width: 140px; cursor: pointer; }
-          .tf-select { font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: #1e293b; background: #fff; border: 1px solid #c9d0d4d0; border-radius: 6px; padding: 5px 9px; height: 32px; cursor: pointer; outline: none; transition: border .15s; }
-          .tf-select:focus { border-color: #2563eb; }
-          .tf-sep-text { font-size: 12px; color: #94a3b8; }
-          .tf-divider { width: 1px; height: 20px; background: #c9d0d4d0; flex-shrink: 0; }
-          .tf-clear { display: inline-flex; align-items: center; gap: 5px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 5px 11px; height: 32px; cursor: pointer; white-space: nowrap; transition: background .15s; margin-left: auto; }
-          .tf-clear:hover { background: #fee2e2; }
-          .tf-count { font-size: 12px; color: #64748b; margin-bottom: 12px; margin-top: -6px; }
-
-          /* ── Sidebar ── */
-          .op-sidebar { width: 240px; min-width: 240px; background: #fff; border-right: 1px solid #e8edf3; display: flex; flex-direction: column; transition: width .25s cubic-bezier(.4,0,.2,1), min-width .25s, opacity .2s; overflow: hidden; box-shadow: 2px 0 12px rgba(0,0,0,.04); position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; }
-          .op-sidebar.collapsed { width: 0; min-width: 0; opacity: 0; pointer-events: none; }
-          .op-sidebar-header {padding: 20px 20px 12px; border-bottom: 1px solid #f0f4f8; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-          
-          .op-sidebar-close { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #c9d0d4d0; background: #fff; color: #64748b; cursor: pointer; align-items: center; justify-content: center; }
-          .op-sidebar-backdrop { display: none; }
-          .op-nav { padding: 10px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
-          .op-nav-section { font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: #000000; padding: 12px 12px 4px; }
-          .op-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; color: #64748b; font-size: 13.5px; font-weight: 500; white-space: nowrap; border: none; background: transparent; width: 100%; text-align: left; transition: background .15s, color .15s; position: relative; }
-          .op-nav-item:hover  { background: #f1f5f9; color: #1e293b; }
-          .op-nav-item.active { background: #eff6ff; color: #2563eb; }
-          .op-nav-item.active svg { stroke: #2563eb; }
-          .op-nav-icon { flex-shrink: 0; display: flex; align-items: center; }
-          .op-nav-badge { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-
-          /* ── Main ── */
-          .op-main { flex: 1; padding: 28px 32px; overflow: auto; }
-          .op-toggle-btn {  width: 36px; height: 36px; border-radius: 8px; border: 1px solid #c9d0d4d0; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; transition: background .15s; flex-shrink: 0; }
-          .op-toggle-btn:hover { background: #f1f5f9; }
-          .op-page-title { font-size: 18px; font-weight: 600; color: #1e293b; }
-
-          /* ── Profile Card ── */
-          .op-profile-card { background: #fff; border-radius: 14px; padding: 24px 28px;   border-bottom: 4px solid transparent;border-right: 4px solid transparent;background:linear-gradient(white, white) padding-box,linear-gradient(135deg,#3d1200 0%,#7a2e00 50%,#c96a10 100%) border-box;
-          box-shadow: 0 4px 20px rgba(37,99,235,.08); margin-bottom: 28px; display: flex; align-items: center; gap: 20px; }
-          .op-avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg,#dbeafe,#bfdbfe); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; color: #2563eb; flex-shrink: 0; font-family: 'DM Mono', monospace; }
-          .op-profile-info { display: flex; flex-direction: column; gap: 4px; }
-          .op-profile-name { font-size: 17px; font-weight: 600; color: #1e293b; }
-          .op-profile-meta { display: flex; gap: 16px; flex-wrap: wrap; }
-          .op-meta-chip { font-size: 12px; color: #64748b; display: flex; align-items: center; gap: 5px; }
-          .op-meta-chip strong { color: #334155; }
-
-          /* ── Content Card ── */
-          .op-content-card { background: #fff; border-radius: 14px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,.05); min-height: 300px; }
-          .op-content-header {display: flex; align-items: center; gap: 10px;margin-bottom: 20px; padding-bottom: 16px;border-bottom: 1px solid #f1f5f9;flex-wrap: wrap;}
-          .op-content-icon  { width: 36px; height: 36px; border-radius: 8px; background: #eff6ff; display: flex; align-items: center; justify-content: center; color: #2563eb; }
-          .op-content-title { font-size: 15px; font-weight: 600; color: #1e293b; }
-
-          /* ── Task cards ── */
-          .op-task-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(300px,1fr)); gap: 16px; }
-          .op-task-card {
-              background: #fff;
-              border: 1px solid #e8edf3;
-              border-radius: 12px;
-              padding: 18px;
-              display: flex;
-              flex-direction: column;
-              gap: 10px;
-              transition: box-shadow .15s;
-              box-shadow: 0 0px 20px rgb(185, 189, 192);
-          }
-          .op-task-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
-          .op-task-top   { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-          .op-task-title { font-size: 14px; font-weight: 600; color: #1e293b; line-height: 1.4; }
-          .op-task-desc  { font-size: 13px; color: #64748b; line-height: 1.5; }
-          .op-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; text-transform: capitalize; flex-shrink: 0; }
-          .op-badge-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-          .op-task-meta  { display: flex; flex-wrap: wrap; gap: 6px; }
-          .op-meta-pill  { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #64748b; background: #f8fafc; border: 1px solid #e8edf3; border-radius: 6px; padding: 3px 8px; }
-          .op-pill-blue  { color: #2563eb; background: #eff6ff; border-color: #bfdbfe; }
-          .op-task-footer { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
-          .op-status-select { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; border: none; cursor: pointer; outline: none; }
-          .op-saving { font-size: 11px; color: #94a3b8; }
-
-          /* ── Leave Form ── */
-          .lv-form-wrap { display: flex; flex-direction: column; gap: 18px; }
-          .lv-form-info { display: flex; align-items: flex-start; gap: 9px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 13px 16px; font-size: 13px; color: #2563eb; line-height: 1.5; }
-          .lv-form-info svg { flex-shrink: 0; margin-top: 1px; }
-          .lv-form-info strong { color: #1d4ed8; }
-          .lv-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-          .lv-field { display: flex; flex-direction: column; gap: 6px; }
-          .lv-col-2 { grid-column: span 2; }
-          @media (max-width: 620px) { .lv-form-grid { grid-template-columns: 1fr; } .lv-col-2 { grid-column: span 1; } }
-          .lv-label    { font-size: 12.5px; font-weight: 600; color: #475569; display: flex; align-items: center; gap: 6px; }
-          .lv-req      { color: #dc2626; }
-          .lv-optional { font-size: 11px; font-weight: 500; color: #94a3b8; background: #f1f5f9; border-radius: 4px; padding: 1px 6px; }
-          .lv-hint     { font-size: 11.5px; color: #94a3b8; margin-top: -2px; }
-          .lv-input    { font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: #1e293b; background: #f8fafc; border: 1px solid #c9d0d4d0; border-radius: 8px; padding: 9px 12px; outline: none; transition: border .15s, box-shadow .15s; width: 100%; }
-          .lv-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.1); background: #fff; }
-          .lv-select  { cursor: pointer; }
-          .lv-textarea { resize: vertical; min-height: 80px; }
-          .lv-duration-preview { display: flex; align-items: center; gap: 8px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 600; color: #16a34a; }
-          .lv-actions-row { flex-direction: row; justify-content: flex-end; align-items: center; gap: 10px; padding-top: 4px; }
-          .lv-btn-submit { display: inline-flex; align-items: center; gap: 7px; background: #2563eb; color: #fff; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; transition: background .15s; }
-          .lv-btn-submit:hover:not(:disabled)  { background: #1d4ed8; }
-          .lv-btn-submit:disabled { opacity: .6; cursor: not-allowed; }
-          .lv-btn-reset  { display: inline-flex; align-items: center; gap: 7px; background: #f1f5f9; color: #475569; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; padding: 10px 18px; border-radius: 8px; border: 1px solid #c9d0d4d0; cursor: pointer; transition: background .15s; }
-          .lv-btn-reset:hover { background: #c9d0d4d0; }
-
-          /* ── Leave Cards ── */
-          .lv-cards-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(320px,1fr)); gap: 16px; }
-          .lv-card { background: #fff; border: 1px solid #e8edf3; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .15s; }
-          .lv-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
-          .lv-card-top   { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-          .lv-card-title { font-size: 14px; font-weight: 700; color: #1e293b; }
-          .lv-card-sub   { font-size: 12px; color: #94a3b8; margin-top: 2px; }
-          .lv-card-dates { display: flex; flex-wrap: wrap; gap: 6px; }
-          .lv-reason { font-size: 12.5px; color: #64748b; font-style: italic; line-height: 1.5; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #c9d0d4d0; }
-          .lv-proxy-info { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6366f1; background: #f5f3ff; border: 1px solid #e0e7ff; border-radius: 6px; padding: 5px 10px; font-weight: 500; }
-          .lv-rejection  { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 7px 10px; line-height: 1.4; }
-          .lv-actions    { display: flex; gap: 8px; margin-top: 4px; }
-          .lv-btn-approve { display: inline-flex; align-items: center; gap: 6px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 600; padding: 7px 14px; border-radius: 7px; cursor: pointer; transition: background .15s; }
-          .lv-btn-approve:hover { background: #dcfce7; }
-          .lv-btn-reject  { display: inline-flex; align-items: center; gap: 6px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 600; padding: 7px 14px; border-radius: 7px; cursor: pointer; transition: background .15s; }
-          .lv-btn-reject:hover { background: #fee2e2; }
-          .lv-already-responded { font-size: 12px; color: #64748b; font-style: italic; margin-top: 2px; }
-
-          /* ── Shared ── */
-          .op-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; color: #94a3b8; gap: 12px; text-align: center; }
-          .op-empty-text  { font-size: 13.5px; }
-          .op-spinner { width: 32px; height: 32px; border: 3px solid #c9d0d4d0; border-top-color: #2563eb; border-radius: 50%; animation: spin .7s linear infinite; }
-          .op-mini-spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
-          @keyframes spin { to { transform: rotate(360deg); } }
-
-          /* ── Toast ── */
-          .op-toast { position: fixed; bottom: 28px; right: 28px; z-index: 9999; display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 10px; font-size: 13.5px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,.15); animation: slideUp .25s ease; }
-          .op-toast-success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
-          .op-toast-error   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-          @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-
-          @media (max-width: 900px) {
-            .op-main { padding: 22px 22px 28px; }
-            .op-content-card { padding: 22px; border-radius: 12px; }
-            .op-profile-card { padding: 20px 22px; align-items: flex-start; }
-            .op-task-grid, .lv-cards-grid { grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); gap: 14px; }
-            .tf-date { width: 120px; }
-          }
-
-          @media (max-width: 760px) {
-            .op-body { display: block; }
-            .op-sidebar { position: fixed; top: 0; left: 0; z-index: 10020; height: 100vh; width: min(84vw, 300px); min-width: 0; border-right: 1px solid #e8edf3; transform: translateX(0); opacity: 1; box-shadow: 12px 0 34px rgba(15,23,42,.18); transition: transform .22s ease, opacity .18s ease; }
-            .op-sidebar.collapsed { width: min(84vw, 300px); min-width: 0; transform: translateX(-105%); opacity: 0; pointer-events: none; }
-            .op-sidebar-close { display: inline-flex; }
-            .op-sidebar-backdrop { display: block; position: fixed; inset: 0; z-index: 10010; background: rgba(15,23,42,.38); backdrop-filter: blur(2px); border: none; padding: 0; }
-            .op-main { padding: 16px 14px 24px; overflow: visible; }
-           
-            .op-toggle-btn { width: 38px; height: 38px; }
-            .op-profile-card { margin-bottom: 16px; padding: 16px; border-radius: 10px; gap: 12px; align-items: flex-start; }
-            .op-avatar { width: 44px; height: 44px; font-size: 18px; }
-            .op-profile-meta { gap: 8px; }
-            .op-meta-chip { width: 100%; align-items: flex-start; }
-            .op-content-card { padding: 16px; border-radius: 10px; min-height: 240px; }
-            .op-content-header { margin-bottom: 16px; padding-bottom: 12px; }
-            .op-task-grid, .lv-cards-grid { grid-template-columns: 1fr; gap: 12px; }
-            .op-task-card, .lv-card { padding: 16px; border-radius: 10px; }
-            .op-task-top, .lv-card-top { flex-direction: column; }
-            .op-task-footer { align-items: stretch; flex-direction: column; }
-            .op-status-select { width: 100%; padding: 9px 10px; }
-            .lv-form-wrap { gap: 14px; }
-            .lv-form-info { padding: 12px 13px; }
-            .lv-form-grid { grid-template-columns: 1fr; gap: 14px; }
-            .lv-col-2 { grid-column: span 1; }
-            .lv-actions-row { flex-direction: column-reverse; align-items: stretch; }
-            .lv-btn-submit, .lv-btn-reset { width: 100%; justify-content: center; }
-            .lv-actions { flex-direction: column; }
-            .lv-btn-approve, .lv-btn-reject { width: 100%; justify-content: center; padding: 9px 14px; }
-            .op-empty-state { padding: 38px 16px; }
-            .op-toast { left: 14px; right: 14px; bottom: 16px; justify-content: center; }
-            .tf-bar { gap: 6px; padding: 10px 12px; }
-            .tf-divider { display: none; }
-            .tf-date { width: 100%; }
-            .tf-group { width: 100%; }
-            .tf-select { width: 100%; }
-            .tf-clear { width: 100%; justify-content: center; margin-left: 0; }
-          }
-
-          @media (max-width: 380px) {
-            .op-main { padding: 12px 10px 20px; }
-            .op-content-card, .op-profile-card { padding: 14px; }
-            .op-page-title { font-size: 16px; }
-            .op-task-card, .lv-card { padding: 14px; }
-          }
-            .op-header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-
-            .tf-bar-inline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; }
-
-            .tf-mobile-btn { display: none; width: 32px; height: 32px; border-radius: 8px;
-              border: 1px solid #c9d0d4d0; background: #f8fafc; color: #475569; 
-              cursor: pointer; align-items: center; justify-content: center; flex-shrink: 0; }
-            .tf-mobile-btn.active { background: #eff6ff; border-color: #bfdbfe; color: #2563eb; }
-
-            .tf-popup { position: absolute; top: calc(100% + 8px); right: 0; z-index: 200;
-              background: #fff; border: 1px solid #c9d0d4d0; border-radius: 12px;
-              box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 14px; width: 290px; }
-
-            /* On desktop hide mobile btn, on mobile hide inline bar and show btn */
-            @media (max-width: 760px) {
-              .tf-bar-inline { display: none; }
-              .tf-mobile-btn { display: inline-flex; }
-              .tf-popup .tf-bar { flex-direction: column; }
-              .tf-popup .tf-divider { display: none; }
-              .tf-popup .tf-group { width: 100%; }
-              .tf-popup .tf-select, .tf-popup .tf-date { width: 100%; }
-              .tf-popup .tf-clear { width: 100%; justify-content: center; margin-left: 0; }
-            }
-            .op-reschedule-btn {
-              display: inline-flex; align-items: center; gap: 5px;
-              font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
-              color: #7c3aed; background: #f5f3ff; border: 1px solid #e0e7ff;
-              border-radius: 6px; padding: 4px 10px; cursor: pointer;
-              transition: background .15s;
-            }
-            .op-reschedule-btn:hover { background: #c0bcce; }
-            .tt-action-btn {
-  width: 30px; height: 30px; border-radius: 7px;
-  border: 1px solid #e8edf3; background: #f8fafc; color: #64748b;
-  display: inline-flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: background .15s, color .15s;
-}
-.tt-action-btn:hover { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
-
-.tt-action-menu {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 50;
-  background: #fff; border: 1px solid #e8edf3; border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 6px; width: 190px;
-  display: flex; flex-direction: column; gap: 2px;
-}
-.tt-action-item {
-  display: flex; align-items: center; gap: 8px;
-  font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 600;
-  color: #334155; background: transparent; border: none; border-radius: 7px;
-  padding: 8px 10px; text-align: left; cursor: pointer; transition: background .12s;
-}
-.tt-action-item:hover:not(:disabled) { background: #f1f5f9; }
-.tt-action-item:disabled { color: #cbd5e1; cursor: not-allowed; }
-.tt-action-item.tt-action-danger:hover:not(:disabled) { background: #fef2f2; color: #dc2626; }
-.tt-action-item.tt-action-primary:hover:not(:disabled) { background: #fef2f2; color: #2666dc; }
-.tt-action-item.tt-action-success:hover:not(:disabled) { background: #fef2f2; color: #0c9907; }
-            .tt-wrap { overflow-x: auto; border: 1px solid #e8edf3; border-radius: 12px; }
-.tt-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 720px; }
-.tt-table thead th {
-  text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .05em;
-  text-transform: uppercase; color: #94a3b8; background: #f8fafc;
-  padding: 10px 14px; border-bottom: 1px solid #e8edf3; white-space: nowrap;
-}
-.tt-row { cursor: pointer; transition: background .12s; }
-.tt-row:hover { background: #f8fafc; }
-.tt-row td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
-.tt-title-cell { max-width: 260px; }
-.tt-title { font-weight: 600; color: #1e293b; }
-.tt-desc { font-size: 11.5px; color: #94a3b8; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
-@media (max-width: 760px) {
-  .tt-table { font-size: 12px; }
-  .tt-table thead th, .tt-row td { padding: 8px 10px; }
-}
-  .tt-table thead th {
-              background: #b1aeaea1 !important;
-              color: #5a5858 !important;
-            }
-              .lv-table-only { display: block; }
-.lv-cards-only { display: none; }
-@media (max-width: 760px) {
-  .lv-table-only { display: none; }
-  .lv-cards-only { display: grid; grid-template-columns: repeat(auto-fill,minmax(320px,1fr)); gap: 16px; }
-}
-        `}</style>
 
       <div className="op-root">
         <Navbar
@@ -5174,7 +4801,9 @@ return (
               <span className="op-nav-section" style={{ marginTop: 8 }}>
                 Leave
               </span>
-              {LEAVE_NAV.map((item) => (
+              {LEAVE_NAV.filter(
+                (item) => item.key !== "proxy-request" || proxyLeaves.length > 0,
+              ).map((item) => (
                 <button
                   key={item.key}
                   className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
@@ -5185,9 +4814,11 @@ return (
                   {item.key === "my-leaves" && unreadLeavesCount > 0 && (
                     <span className="op-nav-badge">{unreadLeavesCount}</span>
                   )}
+                  {item.key === "proxy-request" && proxyPendingCount > 0 && (
+                    <span className="op-nav-badge">{proxyPendingCount}</span>
+                  )}
                 </button>
               ))}
-
               <span className="op-nav-section" style={{ marginTop: 8 }}>
                 Reports
               </span>
@@ -6710,6 +6341,92 @@ return (
           </div>
         </div>
       )}
+      {leaveDetailModal && (
+  <div
+    style={{
+      position: "fixed", inset: 0, zIndex: 10040,
+      background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+    }}
+    onClick={(e) => { if (e.target === e.currentTarget) setLeaveDetailModal(null); }}
+  >
+    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
+      <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+            {leaveDetailModal.name || leaveDetailModal.user_name}
+          </div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+            {leaveDetailModal.leave_type} · {leaveDetailModal.site_name}
+          </div>
+        </div>
+        <button
+          onClick={() => setLeaveDetailModal(null)}
+          style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <span className="op-meta-pill">
+            {leaveDetailModal.from_date} → {leaveDetailModal.to_date}
+          </span>
+          <LeaveBadge leave={leaveDetailModal} />
+        </div>
+
+        {leaveDetailModal.reason && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>
+              Employee's Reason
+            </div>
+            <p className="lv-reason" style={{ margin: 0 }}>"{leaveDetailModal.reason}"</p>
+          </div>
+        )}
+
+        <ApprovalPips leave={leaveDetailModal} />
+
+        {/* Rejection reasons — array of {slot, by, reason, at} from mergeRejectionReason */}
+        {Array.isArray(leaveDetailModal.rejection_reason) &&
+          leaveDetailModal.rejection_reason.filter((r) => r && typeof r === "object").length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".05em" }}>
+                Rejection Reason{leaveDetailModal.rejection_reason.length > 1 ? "s" : ""}
+              </div>
+              {leaveDetailModal.rejection_reason
+                .filter((r) => r && typeof r === "object")
+                .map((r) => {
+                  const roleLabel =
+                    r.slot === "head"
+                      ? leaveDetailModal.head_approver_role || "Head"
+                      : leaveDetailModal.level_approver_role || "Level";
+                  return (
+                    <div key={r.slot} className="lv-rejection">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      <strong>{roleLabel} rejection</strong> ({r.by}): {r.reason}
+                    </div>
+                  );
+              })}
+            </div>
+          )}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
+        <button
+          onClick={() => setLeaveDetailModal(null)}
+          style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       {rejectTarget && (
         <div
           style={{

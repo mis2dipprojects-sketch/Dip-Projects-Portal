@@ -373,6 +373,7 @@ function SelectWithAdd({ value, onChange, options, placeholder, onAdd }) {
 // ═══════════════════════════════════════════════════════════════════════════
 // MATERIAL REQUIRED
 // ═══════════════════════════════════════════════════════════════════════════
+
 function MaterialRequired({ user, showToast, onSubmitted, userSites, site, setSite }) {
   const [materials, setMaterials] = useState([]);
   const [units,     setUnits]     = useState([]);
@@ -383,7 +384,7 @@ function MaterialRequired({ user, showToast, onSubmitted, userSites, site, setSi
   const [submitting, setSubmitting] = useState(false);
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [lookupsLoading, setLookupsLoading] = useState(true); // ← add
+  const [lookupsLoading, setLookupsLoading] = useState(true);
 
 useEffect(() => {
   setLookupsLoading(true);

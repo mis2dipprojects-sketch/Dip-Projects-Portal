@@ -2874,8 +2874,8 @@
 }
 /* ─── Themed page scrollbar (Firefox) ───────────────────────────────────── */
 html {
-  scrollbar-width: thin;
-  scrollbar-color: #c96a10 #f3e8de;
+  scrollbar-width:thin;
+  scrollbar-color: #c46a169a #f3e8de;
 }
 
 /* ─── Themed page scrollbar (Chrome / Edge / Safari) ────────────────────── */

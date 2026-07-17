@@ -1,11 +1,9 @@
 export const MONTHLY_LEAVE_QUOTA = 4;
-const MONTHLY_LEAVE_DEPARTMENTS = ["site engineering"]; // department-based (any role)
-const MONTHLY_LEAVE_ROLES = ["site engineer"];          // fallback for users missing department
+const MONTHLY_LEAVE_ROLES = ["site engineer", "site incharge", "site coordinator"]; // Site Engineering department roles
 
 export function isMonthlyLeaveRole(user) {
-  const dept = (user?.department || "").trim().toLowerCase();
-  const role = (user?.role || "").trim().toLowerCase();
-  return MONTHLY_LEAVE_DEPARTMENTS.includes(dept) || MONTHLY_LEAVE_ROLES.includes(role);
+  const role = (typeof user === "string" ? user : user?.role || "").trim().toLowerCase();
+  return MONTHLY_LEAVE_ROLES.includes(role);
 }
 function isLeaveApproved(l) {
   if (l.level_approved === false || l.head_approved === false) return false;

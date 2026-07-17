@@ -1280,32 +1280,34 @@ const submit = async () => {
 
   return (
     <div>
-      <div className="info-banner" style={{ marginBottom: 20 }}>
-        {Ico.info}{" "}
-        {chainLoading ? (
-          "Finding your approvers…"
-        ) : chain?.autoApproved ? (
-          "You are the top of the approval chain for this site — your leave will be auto-approved."
-        ) : (
-          <>
-            Your leave will be routed to{" "}
-            {chain?.levelApprover && (
-              <strong>
-                {chain.levelApprover.name || chain.levelApprover.username}
-              </strong>
-            )}
-            {chain?.levelApprover && chain?.headApprover && " and "}
-            {chain?.headApprover && (
-              <strong>
-                {chain.headApprover.name || chain.headApprover.username} (Head)
-              </strong>
-            )}
-            {!chain?.levelApprover &&
-              !chain?.headApprover &&
-              "your project head for approval."}{" "}
-            Both must approve for it to be granted.
-          </>
-        )}
+      <div className="info-banner" style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 8, width: "100%", boxSizing: "border-box" }}>
+        <span style={{ flexShrink: 0, marginTop: 2 }}>{Ico.info}</span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          {chainLoading ? (
+            "Finding your approvers…"
+          ) : chain?.autoApproved ? (
+            "You are the top of the approval chain for this site — your leave will be auto-approved."
+          ) : (
+            <>
+              Your leave will be routed to{" "}
+              {chain?.levelApprover && (
+                <strong>
+                  {chain.levelApprover.name || chain.levelApprover.username}
+                </strong>
+              )}
+              {chain?.levelApprover && chain?.headApprover && " and "}
+              {chain?.headApprover && (
+                <strong>
+                  {chain.headApprover.name || chain.headApprover.username} (Head)
+                </strong>
+              )}
+              {!chain?.levelApprover &&
+                !chain?.headApprover &&
+                "your project head for approval."}{" "}
+              Both must approve for it to be granted.
+            </>
+          )}
+        </span>
       </div>
       {err && (
         <div className="info-banner warn-banner" style={{ marginBottom: 16 }}>

@@ -1,7 +1,7 @@
 
   import { supabase } from "../supabase";
 import { useState, useEffect, useCallback, useRef } from "react";
-
+import { computeMonthlyLeaveBalance, isMonthlyLeaveRole } from "./leaveUtils.js";
 // ─── Config: expected shift times ────────────────────────────────────────────
 const SHIFT_START = "09:00"; // HH:MM — on-time threshold for clock-in
 const SHIFT_END   = "19:00"; // HH:MM — on-time threshold for clock-out
@@ -1131,7 +1131,14 @@ export function CalendarView({ user, supabase }) {
   const [att, setAtt]  = useState([]);
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
+const [monthlyBalance, setMonthlyBalance] = useState(null);
+const monthlyScheme = isMonthlyLeaveRole(user);
 
+useEffect(() => {
+  if (!monthlyScheme) return;
+  const monthStr = `${cur.y}-${pad(cur.m + 1)}`;
+  computeMonthlyLeaveBalance(supabase, user, monthStr).then(setMonthlyBalance);
+}, [cur, user.user_name, monthlyScheme]);
   const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const WDAYS  = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const pad    = n => String(n).padStart(2,"0");
@@ -1231,15 +1238,16 @@ leaves.forEach(lv => {
   return (
     <div>
       {/* Stats */}
-      <div className="stat-row" style={{ gridTemplateColumns:"repeat(4,1fr)" }}>
+      <div className="stat-row" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(64px, 1fr))", gap: 8 }}>
         {[
           ["On Time", counts.present, "#16a34a"],
           ["Late",    counts.late,    "#d97706"],
           ["Absent",  counts.absent,  "#dc2626"],
           ["Leave",   counts.leave,   "#7c3aed"],
-        ].map(([l,v,c]) => (
+          ...(monthlyScheme ? [["Leaves Left", monthlyBalance?.remaining ?? "—", "#0284c7"]] : []),
+        ].map(([l, v, c]) => (
           <div key={l} className="stat-card">
-            <div className="stat-val" style={{ color:c }}>{v}</div>
+            <div className="stat-val" style={{ color: c }}>{v}</div>
             <div className="stat-lbl">{l}</div>
           </div>
         ))}

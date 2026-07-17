@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { ActivityChart, PerformanceScore } from "./ActivityChart";
+import { computeMonthlyLeaveBalance, isMonthlyLeaveRole } from "./leaveUtils.js";
 import "./Profile.css";
 const SUPABASE_URL  = "https://efqfjfthsleymhljswcq.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmcWZqZnRoc2xleW1obGpzd2NxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDY0MjMsImV4cCI6MjA5NTkyMjQyM30.PYMRiKdnhzb6pkvhDB4M4Qdp3nSGhsZpHGuclVqYNMs";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
-
 const fmtD = (d) => d ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
 
 function getInitials(name = "") {
@@ -49,9 +49,10 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
   const [loading, setLoading] = useState(true);
   const [freshRole, setFreshRole] = useState(user?.role || "");
   const [freshName, setFreshName] = useState(user?.name || "");
+  const [freshDepartment, setFreshDepartment] = useState(user?.department || "");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [chartData, setChartData] = useState([]);
-
+const [monthlyBalance, setMonthlyBalance] = useState(null);
   // ── New state ──────────────────────────────────────────────────────────────
   const [streak, setStreak]           = useState({ current: 0, longest: 0 });
   const [bestMonth, setBestMonth]     = useState(null);   // { label, count }
@@ -82,6 +83,7 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
         localStorage.setItem("user", JSON.stringify(updated));
         setFreshRole(freshUser.role || user?.role || "");
         setFreshName(freshUser.name || user?.name || "");
+        setFreshDepartment(freshUser.department || user?.department || ""); 
         user = { ...user, ...updated };
       }
 
@@ -174,7 +176,7 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
         if (run > longest) longest = run;
       });
       setStreak({ current: currentStreak, longest });
-      
+ 
       // ────────────────────────────────────────────────────────────────────────
       // ── BEST MONTH ──────────────────────────────────────────────────────────
       const monthMap = {};
@@ -236,7 +238,11 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
         }))
         .filter(b => b.used > 0 || b.quota <= 15); // show used or common ones
       setLeaveBalance(balance);
-
+      if (isMonthlyLeaveRole(user)) {
+        const thisMonth = new Date().toISOString().slice(0, 7);
+        const mb = await computeMonthlyLeaveBalance(supabase, user, thisMonth);
+        setMonthlyBalance(mb);
+      }
       // ── Chart (6 months) ──
       const months = [];
       for (let i = 5; i >= 0; i--) {
@@ -529,58 +535,31 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
         </div>
       )}
 
-      {/* ── Leave Balance ── */}
-      {!loading && leaveBalance.length > 0 && (
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 800, color: "var(--ink3)", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 10 }}>
-            Leave Balance
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {leaveBalance.map(b => {
-              const pct = Math.round((b.remaining / b.quota) * 100);
-              const c = leaveColor(b.type);
-              return (
-                <div key={b.type} style={{
-                  background: "var(--paper)", border: "1px solid var(--line)",
-                  borderRadius: 12, padding: "12px 16px",
-                  display: "flex", flexDirection: "column", gap: 8
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{b.type}</span>
-                    </div>
-                    <div style={{ display: "flex", align: "center", gap: 6 }}>
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
-                        background: c.bg, border: `1px solid ${c.border}`, color: c.color
-                      }}>
-                        {b.remaining} left
-                      </span>
-                      <span style={{ fontSize: 11, color: "var(--ink3)", fontWeight: 600, alignSelf: "center" }}>
-                        / {b.quota}
-                      </span>
-                    </div>
-                  </div>
-                  {/* Progress bar */}
-                  <div style={{ height: 5, borderRadius: 4, background: "var(--line2)", overflow: "hidden" }}>
-                    <div style={{
-                      height: "100%", borderRadius: 4,
-                      background: pct > 50 ? c.color : pct > 20 ? "#f59e0b" : "#dc2626",
-                      width: `${pct}%`,
-                      transition: "width .4s ease"
-                    }} />
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "var(--ink3)", fontWeight: 600 }}>
-                    <span>{b.used} used</span>
-                    <span>{pct}% remaining</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* ── Monthly Leave Balance (Site Engineer) ── */}
+  {!loading && isMonthlyLeaveRole({ role: freshRole || user?.role, department: freshDepartment || user?.department }) && monthlyBalance && (
+  <div>
+    <div style={{ fontSize: 11, fontWeight: 800, color: "var(--ink3)", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 10 }}>
+      Monthly Leave Balance
+    </div>
+    <div style={{
+      background: monthlyBalance.remaining > 0 ? "#f0fdf4" : "#fef2f2",
+      border: `1px solid ${monthlyBalance.remaining > 0 ? "#bbf7d0" : "#fecaca"}`,
+      borderRadius: 12, padding: "14px 16px",
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+    }}>
+      <div>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink)" }}>Available this month</div>
+        {/* ← REPLACED sub-text goes here */}
+        <div style={{ fontSize: 11, color: "var(--ink3)", marginTop: 2 }}>
+          {monthlyBalance.broughtForward} carried over + {monthlyBalance.quotaPerMonth} this month − {monthlyBalance.thisMonthUsed} used · unused days roll over
         </div>
-      )}
+      </div>
+      <div style={{ fontSize: 28, fontWeight: 800, fontFamily: "var(--mono)", color: monthlyBalance.remaining > 0 ? "#15803d" : "#dc2626" }}>
+        {monthlyBalance.remaining}
+      </div>
+    </div>
+  </div>
+)}
 
       {/* ── Upcoming Leaves ── */}
       {!loading && (

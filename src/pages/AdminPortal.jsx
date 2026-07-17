@@ -3082,6 +3082,57 @@ async function removeSiteFromUser(supabaseClient, username, siteName) {
     .eq("id", userRow.id);
 }
 
+async function syncUserSiteNames(supabaseClient, username, siteName) {
+  if (!username || !siteName) {
+    console.warn("syncUserSiteNames: missing username or siteName", { username, siteName });
+    return { ok: false, reason: "missing_args" };
+  }
+
+  const { data: userRow, error: fetchErr } = await supabaseClient
+    .from("user_details")
+    .select("id, site_name, site_names")
+    .eq("username", username)
+    .maybeSingle(); // ← safer than .single(), won't throw on 0 or >1 rows
+
+  if (fetchErr) {
+    console.error("syncUserSiteNames: fetch failed", fetchErr);
+    return { ok: false, reason: fetchErr.message };
+  }
+  if (!userRow) {
+    console.warn("syncUserSiteNames: no user_details row for username", username);
+    return { ok: false, reason: "user_not_found" };
+  }
+
+  const current = Array.isArray(userRow.site_names)
+    ? userRow.site_names
+    : userRow.site_name
+      ? [userRow.site_name]
+      : [];
+
+  if (current.includes(siteName)) {
+    console.log("syncUserSiteNames: already present, skipping", { username, siteName, current });
+    return { ok: true, reason: "already_present" };
+  }
+
+  const updated = [...current, siteName];
+
+  const { error: updateErr } = await supabaseClient
+    .from("user_details")
+    .update({
+      site_names: updated,
+      site_name: userRow.site_name || siteName,
+    })
+    .eq("id", userRow.id);
+
+  if (updateErr) {
+    console.error("syncUserSiteNames: update failed", updateErr);
+    return { ok: false, reason: updateErr.message };
+  }
+
+  console.log("syncUserSiteNames: success", { username, updated });
+  return { ok: true, updated };
+}
+    
 async function uploadSiteImage(supabaseClient, siteName, file) {
   const bucket = slugify(siteName);
   if (!bucket) throw new Error("Enter a site name before uploading an image.");
@@ -3966,7 +4017,7 @@ const fetchAllTickets = useCallback(async () => {
     });
   };
 
-  const handleSiteSubmit = async () => {
+const handleSiteSubmit = async () => {
     if (!siteForm.site_name.trim())
       return showToast("error", "Site name is required.");
 
@@ -4015,17 +4066,11 @@ const fetchAllTickets = useCallback(async () => {
       if (error)
         return showToast("error", "Failed to update site. " + error.message);
 
-      // Sync user_details.site_names: handle reassignment or rename
-      const oldUser = editingSite.user_name;
-      const oldSite = editingSite.site_name;
-      const newUser = payload.user_name;
-      const newSite = payload.site_name;
-
-      if (oldUser && (oldUser !== newUser || oldSite !== newSite)) {
-        await removeSiteFromUser(supabase, oldUser, oldSite);
-      }
-      if (newUser) {
-        await addSiteToUser(supabase, newUser, newSite);
+      if (payload.user_name) {
+        const syncResult = await syncUserSiteNames(supabase, payload.user_name, payload.site_name);
+        if (!syncResult.ok) {
+          showToast("error", "Site saved, but failed to sync user's site list: " + syncResult.reason);
+        }
       }
 
       showToast("success", "Site updated successfully!");
@@ -4036,12 +4081,14 @@ const fetchAllTickets = useCallback(async () => {
         return showToast("error", "Failed to add site. " + error.message);
 
       if (payload.user_name) {
-        await addSiteToUser(supabase, payload.user_name, payload.site_name);
+        const syncResult = await syncUserSiteNames(supabase, payload.user_name, payload.site_name);
+        if (!syncResult.ok) {
+          showToast("error", "Site saved, but failed to sync user's site list: " + syncResult.reason);
+        }
       }
 
       showToast("success", "Site added successfully!");
     }
-
     setSiteForm({ ...EMPTY_SITE_FORM });
     setEditingSite(null);
     fetchSites();
@@ -4171,12 +4218,16 @@ const handleSiteDelete = async (id) => {
     setActiveTab("add-employee");
   };
 
-  const handleEmpDelete = async (id) => {
-    if (!window.confirm("Delete this employee?")) return;
-    await supabase.from("user").delete().eq("id", id);
-    setEmployees((p) => p.filter((e) => e.id !== id));
-    showToast("success", "Employee deleted.");
-  };
+const handleEmpDelete = async (id) => {
+  if (!window.confirm("Delete this employee?")) return;
+  const { error } = await supabase.from("user_details").delete().eq("id", id);
+  if (error) {
+    showToast("error", "Failed to delete employee. " + error.message);
+    return;
+  }
+  setEmployees((p) => p.filter((e) => e.id !== id));
+  showToast("success", "Employee deleted.");
+};
 
 useEffect(() => {
   if (user) {
@@ -6126,7 +6177,7 @@ const handleLeaveRejectConfirm = async () => {
                   onChange={handleSiteFormChange}
                 >
                   <option value="">Select employee…</option>
-                  {assignableEmployees.map((e) => (
+                  {employees.map((e) => (
                     <option key={e.username} value={e.username}>
                       {e.name}
                     </option>
@@ -6230,21 +6281,21 @@ const handleLeaveRejectConfirm = async () => {
             </div>
             <div className="ap-form-row ap-col-2">
               <div className="ap-field">
-                  <label className="ap-label">Head Name</label>
-                  <select
-                    className="ap-input ap-select"
-                    name="head_name"
-                    value={siteForm.head_name}
-                    onChange={handleSiteFormChange}
-                  >
-                    <option value="">Select…</option>
-                    {assignableEmployees.map((e) => (
-                      <option key={e.username} value={e.name}>
-                        {e.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <label className="ap-label">Head Name</label>
+                <select
+                  className="ap-input ap-select"
+                  name="head_name"
+                  value={siteForm.head_name}
+                  onChange={handleSiteFormChange}
+                >
+                  <option value="">Select…</option>
+                  {employees.map((e) => (
+                    <option key={e.username} value={e.name}>
+                      {e.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="ap-field">
                 <label className="ap-label">Head Contact No.</label>
                 <input
@@ -6266,7 +6317,7 @@ const handleLeaveRejectConfirm = async () => {
                   onChange={handleSiteFormChange}
                 >
                   <option value="">Select…</option>
-                  {assignableEmployees.map((e) => (
+                  {employees.map((e) => (
                     <option key={e.username} value={e.name}>
                       {e.name}
                     </option>
@@ -7282,9 +7333,8 @@ case "solved-ticket": {
           )}
           <aside className={`op-sidebar${sidebarOpen ? "" : " collapsed"}`}>
             <div className="op-sidebar-header">
-              {canSwitchToOffice && (
-                <button
-                  onClick={() => window.location.assign("/office")}
+                {canSwitchToOffice && (
+                  <button onClick={() => window.location.assign("/office")}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     fontSize: 12, fontWeight: 700, color: "#eb2525",

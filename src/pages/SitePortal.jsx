@@ -10,7 +10,9 @@ import Profile from "./Profile";
 import WprGenerator from "./Wprgenerator.jsx";
 import MatRequirement from "./MatRequirement.jsx";
 import { useMaterialUnseenCount } from "./MatRequirement"; // adjust path
+import { canAccessPortal } from "../access.js";
 import "./SitePortal.css";
+import { computeMonthlyLeaveBalance, isMonthlyLeaveRole } from "./leaveUtils.js";
 // ─── Supabase ────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://efqfjfthsleymhljswcq.supabase.co";
 const SUPABASE_ANON =
@@ -441,23 +443,18 @@ const NAV = [
     children: [
       { key: "daily-report", label: "Daily Report", icon: Ico.report },
       { key: "wpr-generator", label: "Weekly Report", icon: Ico.weekly },
-      {
-        key: "weekly-planning",
-        label: "Weekly Planning",
-        icon: Ico.weeklyPlan,
-      },
-      { key: "monthly-report", label: "Monthly Report", icon: Ico.monthly },
+      // {key: "weekly-planning",label: "Weekly Planning",icon: Ico.weeklyPlan,},
+      // { key: "monthly-report", label: "Monthly Report", icon: Ico.monthly },
       { key: "site-report", label: "Site Visit Report", icon: Ico.site },
-      // {
-      //   key: "material-requirement",
-      //   label: "Material Requirement",
-      //   icon: Ico.materialRequirement,
-      // },
+      //{ key: "material-requirement", label: "Material Requirement", icon: Ico.materialRequirement,},
       { key: "my-reports", label: "My Reports", icon: Ico.myRpt },
       { key: "manpower-reports", label: "Manpower Report", icon: Ico.manRpt },
     ],
   },
 ];
+const MDO_PORTAL_NAV={
+
+}
 const REPORT_SUBMISSIONS_ITEM = {
   key: "report-submissions",
   label: "Report Submissions",
@@ -1146,14 +1143,28 @@ function ApplyLeave({ user }) {
   const [chain, setChain] = useState(null);
   const [chainLoading, setChainLoading] = useState(true);
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+const [monthlyBalance, setMonthlyBalance] = useState(null);
+const [balanceLoading, setBalanceLoading] = useState(true);
+const [balanceRefresh, setBalanceRefresh] = useState(0);
+const monthlyScheme = isMonthlyLeaveRole(user);
 
-  // NEW — all sites available to this user, and a selectable current site
-  const userSites = user.site_names?.length
-    ? user.site_names
-    : user.site_name
-      ? [user.site_name]
-      : [];
-  const [site, setSite] = useState(userSites[0] || "");
+useEffect(() => {
+  if (!monthlyScheme) { setBalanceLoading(false); return; }
+  setBalanceLoading(true);
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  computeMonthlyLeaveBalance(supabase, user, thisMonth)
+    .then(setMonthlyBalance)
+    .finally(() => setBalanceLoading(false));
+}, [user.user_name, monthlyScheme, balanceRefresh]);
+  // all sites this user belongs to (for display only)
+  const sites =
+    Array.isArray(user.site_names) && user.site_names.length
+      ? user.site_names
+      : user.site_name
+        ? [user.site_name]
+        : [];
+
+  const site = sites[0] || ""; // still used for approver chain + submission, unchanged
 
   const showToast = (msg, ms = 4500) => {
     setToast(msg);
@@ -1169,8 +1180,7 @@ function ApplyLeave({ user }) {
     resolveApprovalChain(supabase, site, user.role, user.user_name)
       .then(setChain)
       .finally(() => setChainLoading(false));
-  }, [site, user.role, user.user_name]);
-
+  }, [site, user.role, user.user_name]); 
   const days =
     form.from_date &&
     form.to_date &&
@@ -1180,24 +1190,39 @@ function ApplyLeave({ user }) {
         ) + 1
       : null;
 
-  const submit = async () => {
-    const missing = [];
-    if (!form.leave_type) missing.push("Leave Type");
-    if (!form.from_date) missing.push("From Date");
-    if (!form.to_date) missing.push("To Date");
-    if (!form.reason.trim()) missing.push("Reason");
-    if (!site) missing.push("Site");
+const submit = async () => {
+  const missing = [];
+  if (!form.leave_type) missing.push("Leave Type");
+  if (!form.from_date) missing.push("From Date");
+  if (!form.to_date) missing.push("To Date");
+  if (!form.reason.trim()) missing.push("Reason");
+  if (!site) missing.push("Site");
 
-    if (missing.length) {
-      setInvalidFields(missing);
-      showToast(`Please fill: ${missing.join(", ")}`);
-      setErr("");
+  if (missing.length) {
+    setInvalidFields(missing);
+    showToast(`Please fill: ${missing.join(", ")}`);
+    setErr("");
+    return;
+  }
+
+  // NEW — block over-quota applications for monthly-scheme roles
+  if (monthlyScheme && days) {
+    if (balanceLoading) {
+      showToast("Still checking your leave balance — try again in a moment.");
+      return; 
+    }
+    if (monthlyBalance && days > monthlyBalance.remaining) {
+      setErr(
+        `You only have ${monthlyBalance.remaining} leave${monthlyBalance.remaining === 1 ? "" : "s"} available, but this request is for ${days} day${days > 1 ? "s" : ""}. Please shorten the range or apply for Unpaid Leave instead.`
+      );
+      showToast(`Insufficient leave balance: ${monthlyBalance.remaining} available, ${days} requested.`);
       return;
     }
+  }
 
-    setInvalidFields([]);
-    setBusy(true);
-    setErr("");
+  setInvalidFields([]);
+  setBusy(true);
+  setErr("");
 
     const c =
       chain ||
@@ -1229,6 +1254,7 @@ function ApplyLeave({ user }) {
       setErr(error.message);
       return;
     }
+    setBalanceRefresh((p) => p + 1);
     setSubmitted(true);
   };
 
@@ -1288,75 +1314,30 @@ function ApplyLeave({ user }) {
       )}
 
       <div
-  style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}
->
-  <div
-    style={{
-      background: "var(--paper)",
-      border: "1px solid var(--line2)",
-      borderRadius: 9,
-      padding: "8px 14px",
-      fontSize: 12.5,
-    }}
-  >
-    <span style={{ color: "var(--ink3)", fontWeight: 600 }}>
-      Employee:{" "}
-    </span>
-    <strong>{user.name}</strong>
-  </div>
-
-  {userSites.length > 1 ? (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        background: "var(--paper)",
-        border: "1px solid var(--line2)",
-        borderRadius: 9,
-        padding: "6px 10px 6px 14px",
-        fontSize: 12.5,
-      }}
-    >
-      <span style={{ color: "var(--ink3)", fontWeight: 600 }}>Site: </span>
-      <select
-        value={site}
-        onChange={(e) => setSite(e.target.value)}
-        style={{
-          fontFamily: "var(--font)",
-          fontSize: 12.5,
-          fontWeight: 700,
-          color: "var(--ink)",
-          background: "var(--surface)",
-          border: "1px solid var(--line2)",
-          borderRadius: 6,
-          padding: "4px 8px",
-          cursor: "pointer",
-          outline: "none",
-        }}
+        style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}
       >
-        {userSites.map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-      </select>
-    </div>
-  ) : (
-    <div
-      style={{
-        background: "var(--paper)",
-        border: "1px solid var(--line2)",
-        borderRadius: 9,
-        padding: "8px 14px",
-        fontSize: 12.5,
-      }}
-    >
-      <span style={{ color: "var(--ink3)", fontWeight: 600 }}>Site: </span>
-      <strong>{site || "Not Assigned"}</strong>
-    </div>
-  )}
-</div>
+        <div
+          style={{ background: "var(--paper)", border: "1px solid var(--line2)", borderRadius: 9, padding: "8px 14px", fontSize: 12.5,}}>
+          <span style={{ color: "var(--ink3)", fontWeight: 600 }}>
+            Site{sites.length > 1 ? "s" : ""}:{"  "}
+          </span>
+          <strong>{sites.length ? sites.join(", ") : "Not Assigned"}</strong>
+        </div>
+        {monthlyScheme && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          background: balanceLoading ? "var(--paper)" : (monthlyBalance?.remaining > 0 ? "#f0fdf4" : "#fef2f2"),
+          border: `1px solid ${balanceLoading ? "var(--line2)" : (monthlyBalance?.remaining > 0 ? "#bbf7d0" : "#fecaca")}`,
+          borderRadius: 9, padding: "8px 14px", fontSize: 12.5, fontWeight: 700,
+          color: balanceLoading ? "var(--ink3)" : (monthlyBalance?.remaining > 0 ? "var(--green)" : "var(--red)"),
+        }}>
+          {Ico.clock}
+          {balanceLoading
+            ? "Checking leave balance…"
+            : `${monthlyBalance.remaining} leave${monthlyBalance.remaining === 1 ? "" : "s"} available (${monthlyBalance.broughtForward} carried over + ${monthlyBalance.quotaPerMonth} this month − ${monthlyBalance.thisMonthUsed} used)`}
+        </div>
+      )}
+      </div>
 
       <div className="grid2">
         <div className="fgroup col2">
@@ -1623,6 +1604,7 @@ export function mergeRejectionReason(existing, slot, by, reason) {
 // MAIN APP
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function SitePortal() {
+
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("clock-in");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -1633,7 +1615,7 @@ export default function SitePortal() {
   const [leaveBadgeCount, setLeaveBadgeCount] = useState(0);
   const [approvalsPendingCount, setApprovalsPendingCount] = useState(0);
   const [isApprover, setIsApprover] = useState(false);
-
+  const canSwitchToAdmin = canAccessPortal(user, "admin");
   const checkIsApprover = useCallback(async (u) => {
     if (!u?.user_name) return;
     const { count } = await supabase
@@ -1823,7 +1805,7 @@ const markLeavesSeen = useCallback(async (u) => {
       document.body.style.width = "";
     };
   }, [sidebarOpen]);
-  useEffect(() => {
+useEffect(() => {
     const stored = localStorage.getItem("user");
     if (stored) {
       const parsed = JSON.parse(stored);
@@ -1832,7 +1814,7 @@ const markLeavesSeen = useCallback(async (u) => {
       (async () => {
         const { data } = await supabase
           .from("user_details")
-          .select("site_name, site_names")
+          .select("site_name, site_names, department")
           .eq("id", parsed.id)
           .single();
         if (data) {
@@ -1841,6 +1823,7 @@ const markLeavesSeen = useCallback(async (u) => {
             site_name: data.site_name ?? parsed.site_name,
             site_names:
               data.site_names ?? (parsed.site_name ? [parsed.site_name] : []),
+            department: data.department ?? parsed.department,
           };
           setUser(updated);
           localStorage.setItem("user", JSON.stringify(updated)); // keep localStorage fresh
@@ -1848,6 +1831,7 @@ const markLeavesSeen = useCallback(async (u) => {
           checkLeaveUpdates(updated);
           checkApprovalsPending(updated);
           checkIsApprover(updated);
+       
 
           const site = updated.site_names?.[0] || updated.site_name || "";
           if (site) {
@@ -1916,12 +1900,12 @@ const markLeavesSeen = useCallback(async (u) => {
       case "daily-report":
         return <DPR user={user} />;
       // case "weekly-planning":  return <WeeklyReport user={user}/>;
-      case "weekly-planning":
-        return <WeeklyReport user={user} />;
+      // case "weekly-planning":
+      //   return <WeeklyReport user={user} />;
       case "wpr-generator":
         return <WprGenerator user={user} supabase={supabase} />;
-      case "monthly-report":
-        return <MonthlyReport />;
+      // case "monthly-report":
+      //   return <MonthlyReport />;
       case "site-report":
         return <SiteReport user={user} />;
       // case "material-requirement":
@@ -2764,6 +2748,28 @@ const markLeavesSeen = useCallback(async (u) => {
             onTouchMove={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
           >
+            {canSwitchToAdmin && (
+              <div style={{ padding: "14px 14px 0" }}>
+                <button
+                  onClick={() => window.location.assign("/admin")}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    fontSize: 12, fontWeight: 700, color: "#eb2525",
+                    background: "#fef2f2", border: "1px solid #f88a8abe",
+                    borderRadius: 8, padding: "6px 10px", cursor: "pointer",
+                    width: "100%", justifyContent: "center",
+                  }}
+                  title="Switch to Admin view"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M8 3L4 7l4 4" /><path d="M4 7h16" />
+                    <path d="M16 21l4-4-4-4" /><path d="M20 17H4" />
+                  </svg>
+                  Switch to Admin
+                </button>
+              </div>
+            )}
+
             <nav className="snav">
               {NAV.map((n) => {
                 if (!n.section)

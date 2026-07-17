@@ -2212,7 +2212,7 @@ export default function OfficePortal() {
   const [loadingRaisedTickets, setLoadingRaisedTickets] = useState(false);
   const [updatingTicketId, setUpdatingTicketId] = useState(null);
   const mainRef = useRef(null);
-const canSwitchToAdmin = user?.role?.toLowerCase().trim() === "admin";
+  const canSwitchToAdmin = canAccessPortal(user, "admin");
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
     mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });

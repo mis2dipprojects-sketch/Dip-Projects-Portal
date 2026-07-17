@@ -1,9 +1,5 @@
-// src/access.js
-// Central place for "who sees what" — department decides default portal,
-// role decides which menu items are visible inside each portal.
 
 
-// Nav keys as used in AdminPortal.jsx's NAV_ITEMS / REPORTS_NAV / TICKETS_NAV / VERIFICATION_NAV
 const ADMIN_ALL_KEYS = [
   "dashboard", "assign-task", "all-tasks", "recurring-tasks",
   "leave-requests", "reschedule-requests",
@@ -110,6 +106,12 @@ const ROLE_ACCESS = {
 const DEFAULT_ACCESS = { admin: [], office: OFFICE_ALL_KEYS };
 
 export function getAllowedKeys(user, portal) {
+  
+  const department = String(user?.department || "").trim().toLowerCase();
+  if (department === "admin") {
+    return portal === "admin" ? ADMIN_ALL_KEYS : OFFICE_ALL_KEYS;
+  }
+
   const role = String(user?.role || "").trim().toLowerCase();
   const entry = ROLE_ACCESS[role] || DEFAULT_ACCESS;
   const keys = entry[portal];

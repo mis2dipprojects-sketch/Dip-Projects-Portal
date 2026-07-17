@@ -5111,11 +5111,11 @@ function DprForm({ user }) {
               Photos are required for Evening DPR.
             </div>
             <PhotosSection
-              photos={checklistPhotos}
-              setPhotos={setChecklistPhotos}
+              photos={photos}
+              setPhotos={setPhotos}
               onLightbox={openLightbox}
               showToast={showToast}
-              onConvertingChange={setChecklistConverting}
+              onConvertingChange={setPhotosConverting}
             />
           </SectionBlock>
 

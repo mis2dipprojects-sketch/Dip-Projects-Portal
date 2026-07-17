@@ -1146,7 +1146,14 @@ function ApplyLeave({ user }) {
   const [chain, setChain] = useState(null);
   const [chainLoading, setChainLoading] = useState(true);
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
-  const site = user.site_names?.[0] || user.site_name || "";
+
+  // NEW — all sites available to this user, and a selectable current site
+  const userSites = user.site_names?.length
+    ? user.site_names
+    : user.site_name
+      ? [user.site_name]
+      : [];
+  const [site, setSite] = useState(userSites[0] || "");
 
   const showToast = (msg, ms = 4500) => {
     setToast(msg);
@@ -1281,35 +1288,75 @@ function ApplyLeave({ user }) {
       )}
 
       <div
-        style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}
+  style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}
+>
+  <div
+    style={{
+      background: "var(--paper)",
+      border: "1px solid var(--line2)",
+      borderRadius: 9,
+      padding: "8px 14px",
+      fontSize: 12.5,
+    }}
+  >
+    <span style={{ color: "var(--ink3)", fontWeight: 600 }}>
+      Employee:{" "}
+    </span>
+    <strong>{user.name}</strong>
+  </div>
+
+  {userSites.length > 1 ? (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        background: "var(--paper)",
+        border: "1px solid var(--line2)",
+        borderRadius: 9,
+        padding: "6px 10px 6px 14px",
+        fontSize: 12.5,
+      }}
+    >
+      <span style={{ color: "var(--ink3)", fontWeight: 600 }}>Site: </span>
+      <select
+        value={site}
+        onChange={(e) => setSite(e.target.value)}
+        style={{
+          fontFamily: "var(--font)",
+          fontSize: 12.5,
+          fontWeight: 700,
+          color: "var(--ink)",
+          background: "var(--surface)",
+          border: "1px solid var(--line2)",
+          borderRadius: 6,
+          padding: "4px 8px",
+          cursor: "pointer",
+          outline: "none",
+        }}
       >
-        <div
-          style={{
-            background: "var(--paper)",
-            border: "1px solid var(--line2)",
-            borderRadius: 9,
-            padding: "8px 14px",
-            fontSize: 12.5,
-          }}
-        >
-          <span style={{ color: "var(--ink3)", fontWeight: 600 }}>
-            Employee:{" "}
-          </span>
-          <strong>{user.name}</strong>
-        </div>
-        <div
-          style={{
-            background: "var(--paper)",
-            border: "1px solid var(--line2)",
-            borderRadius: 9,
-            padding: "8px 14px",
-            fontSize: 12.5,
-          }}
-        >
-          <span style={{ color: "var(--ink3)", fontWeight: 600 }}>Site: </span>
-          <strong>{site || "Not Assigned"}</strong>
-        </div>
-      </div>
+        {userSites.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+    </div>
+  ) : (
+    <div
+      style={{
+        background: "var(--paper)",
+        border: "1px solid var(--line2)",
+        borderRadius: 9,
+        padding: "8px 14px",
+        fontSize: 12.5,
+      }}
+    >
+      <span style={{ color: "var(--ink3)", fontWeight: 600 }}>Site: </span>
+      <strong>{site || "Not Assigned"}</strong>
+    </div>
+  )}
+</div>
 
       <div className="grid2">
         <div className="fgroup col2">
@@ -1466,93 +1513,7 @@ function ApplyLeave({ user }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // WEEKLY REPORT
 // ═══════════════════════════════════════════════════════════════════════════════
-// function WeeklyReport({ user }) {
-//   const DAYS_FULL = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-//   const [weekFrom, setWeekFrom] = useState("");
-//   const [weekTo,   setWeekTo]   = useState("");
-//   const [site, setSite] = useState(user.site_names?.[0] || user.site_name || "");
-//   const [rows,     setRows]     = useState(DAYS_FULL.map(d=>({day:d,activity:"",target:"",manpower:""})));
-//   const [submitted, setSubmitted] = useState(false);
-//   const [busy, setBusy] = useState(false);
-//   const [err, setErr]   = useState("");
 
-//   const upd = (i,k,v) => setRows(p=>p.map((r,idx)=>idx===i?{...r,[k]:v}:r));
-
-//   const submit = async () => {
-//     if (!weekFrom || !site) { setErr("Week starting date and site are required."); return; }
-//     setBusy(true); setErr("");
-//     const { error } = await supabase.from("reports").insert({
-//       user_id: user.id,
-//       report_type: "weekly",
-//       date: weekFrom,
-//       site,
-//       status: "submitted",
-//       data: { week_from:weekFrom, week_to:weekTo, site, rows },
-//     });
-//     setBusy(false);
-//     if (error) { setErr(error.message); return; }
-//     setSubmitted(true);
-//   };
-
-//   if (submitted) return (
-//     <div className="success-state">
-//       <div className="success-ico">{Ico.check}</div>
-//       <div className="success-title">Weekly Report Submitted!</div>
-//       <div className="success-sub">Report saved for the selected week.</div>
-//       <button className="btn btn-pri" onClick={()=>setSubmitted(false)}>New Report</button>
-//     </div>
-//   );
-
-//   return (
-//     <div>
-//       {err && <div className="info-banner warn-banner" style={{marginBottom:16}}>{Ico.info} {err}</div>}
-//       <div className="grid2" style={{marginBottom:20}}>
-//         <div className="fgroup">
-//           <label className="flabel">Week From <span className="req">*</span></label>
-//           <DateField
-//             value={weekFrom}
-//             onChange={e => setWeekFrom(e.target.value)}
-//           />
-//         </div>
-//         <div className="fgroup">
-//           <label className="flabel">Week To</label>
-//           <DateField
-//             value={weekTo}
-//             min={weekFrom || undefined}
-//             onChange={e => setWeekTo(e.target.value)}
-//           />
-//         </div>
-//         <div className="fgroup col2">
-//           <label className="flabel">Site / Project <span className="req">*</span></label>
-//           <input className="finput" placeholder="Site name…" value={site} onChange={e=>setSite(e.target.value)}/>
-//         </div>
-//       </div>
-//       <div className="tbl-wrap">
-//         <table className="tbl">
-//           <thead>
-//             <tr>
-//               <th>Day</th><th>Planned Activity</th><th>Target / Qty</th><th>Manpower</th>
-//             </tr>
-//           </thead>
-//           <tbody>
-//             {rows.map((r,i)=>(
-//               <tr key={r.day}>
-//                 <td className="day-lbl">{r.day}</td>
-//                 <td><input className="finput" style={{background:"transparent",border:"1.5px solid transparent",padding:"7px 10px"}} placeholder="Activity…" value={r.activity} onChange={e=>upd(i,"activity",e.target.value)}/></td>
-//                 <td><input className="finput" style={{background:"transparent",border:"1.5px solid transparent",padding:"7px 10px"}} placeholder="Target…" value={r.target} onChange={e=>upd(i,"target",e.target.value)}/></td>
-//                 <td><input className="finput" type="number" style={{background:"transparent",border:"1.5px solid transparent",padding:"7px 10px"}} placeholder="0" value={r.manpower} onChange={e=>upd(i,"manpower",e.target.value)}/></td>
-//               </tr>
-//             ))}
-//           </tbody>
-//         </table>
-//       </div>
-//       <div className="act-row">
-//         <button className="btn btn-out">Save Draft</button>
-//         <button className="btn btn-pri" onClick={submit} disabled={busy}>{Ico.send} {busy?"Submitting…":"Submit Report"}</button>
-//       </div>
-//     </div>
-//   );
-// }
 function WeeklyReport() {
   return (
     <div className="empty-state" style={{ padding: "80px 24px" }}>

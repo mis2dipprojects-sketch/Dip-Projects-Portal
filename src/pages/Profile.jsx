@@ -174,7 +174,7 @@ export default function Profile({ user, onLogout, onThemeToggle, isDark }) {
         if (run > longest) longest = run;
       });
       setStreak({ current: currentStreak, longest });
-
+      
       // ────────────────────────────────────────────────────────────────────────
       // ── BEST MONTH ──────────────────────────────────────────────────────────
       const monthMap = {};

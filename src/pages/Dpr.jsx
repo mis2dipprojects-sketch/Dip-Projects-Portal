@@ -1,24 +1,37 @@
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import LOGO_URL from "../assets/logo.png";
-const SUPABASE_URL  = "https://efqfjfthsleymhljswcq.supabase.co";
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmcWZqZnRoc2xleW1obGpzd2NxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDY0MjMsImV4cCI6MjA5NTkyMjQyM30.PYMRiKdnhzb6pkvhDB4M4Qdp3nSGhsZpHGuclVqYNMs";
+const SUPABASE_URL = "https://efqfjfthsleymhljswcq.supabase.co";
+const SUPABASE_ANON =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmcWZqZnRoc2xleW1obGpzd2NxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDY0MjMsImV4cCI6MjA5NTkyMjQyM30.PYMRiKdnhzb6pkvhDB4M4Qdp3nSGhsZpHGuclVqYNMs";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 const todayStr = () => new Date().toISOString().split("T")[0];
-const fmtDate  = d => d ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" }) : "—";
-const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
+const fmtDate = (d) =>
+  d
+    ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
+const cap = (s) =>
+  s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
 
 // NEW — Title Case: capitalises first letter of every word
-const titleCase = s => s
-  ? s.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-  : "";
+const titleCase = (s) =>
+  s
+    ? s.replace(
+        /\w\S*/g,
+        (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(),
+      )
+    : "";
 
 // REPLACE the existing compressImage function with:
 async function compressImage(file) {
   // Convert HEIC/HEIF to JPEG first if needed
-  const isHeic = 
-    file.type === "image/heic" || 
+  const isHeic =
+    file.type === "image/heic" ||
     file.type === "image/heif" ||
     (file.type === "" && /\.(heic|heif)$/i.test(file.name));
 
@@ -30,13 +43,18 @@ async function compressImage(file) {
       if (!window.heic2any) {
         await new Promise((resolve, reject) => {
           const s = document.createElement("script");
-          s.src = "https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js";
+          s.src =
+            "https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js";
           s.onload = resolve;
           s.onerror = reject;
           document.head.appendChild(s);
         });
       }
-      const converted = await window.heic2any({ blob: file, toType: "image/jpeg", quality: 0.85 });
+      const converted = await window.heic2any({
+        blob: file,
+        toType: "image/jpeg",
+        quality: 0.85,
+      });
       sourceFile = Array.isArray(converted) ? converted[0] : converted;
     } catch (e) {
       console.warn("HEIC conversion failed, trying anyway:", e);
@@ -44,17 +62,20 @@ async function compressImage(file) {
     }
   }
 
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const MAX_W = 1200, QUALITY = 0.72;
+        const MAX_W = 1200,
+          QUALITY = 0.72;
         const scale = Math.min(1, MAX_W / img.width);
         const canvas = document.createElement("canvas");
-        canvas.width  = Math.round(img.width  * scale);
+        canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
-        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas
+          .getContext("2d")
+          .drawImage(img, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL("image/jpeg", QUALITY));
       };
       img.onerror = () => resolve(null); // graceful failure
@@ -66,13 +87,15 @@ async function compressImage(file) {
 // ─── Bucket helpers (per-site buckets, auto-created) ─────────────────────────
 function sanitizeBucketName(site) {
   // Supabase bucket names: lowercase letters, numbers, hyphens only, no leading/trailing hyphen
-  return (site || "site")
-    .toString()
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 63) || "site";
+  return (
+    (site || "site")
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 63) || "site"
+  );
 }
 const _bucketEnsuredCache = new Set();
 
@@ -84,17 +107,34 @@ async function ensureBucketExists(bucketName, site) {
   });
 
   if (error) {
-    throw new Error(`Could not provision storage bucket "${bucketName}": ${error.message}`);
+    throw new Error(
+      `Could not provision storage bucket "${bucketName}": ${error.message}`,
+    );
   }
   if (data?.error) {
-    throw new Error(`Could not provision storage bucket "${bucketName}": ${data.error}`);
+    throw new Error(
+      `Could not provision storage bucket "${bucketName}": ${data.error}`,
+    );
   }
 
   _bucketEnsuredCache.add(bucketName);
 }
 function buildSiteDatePath(date) {
   const [year, month, day] = date.split("-");
-  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
   const monthName = monthNames[parseInt(month, 10) - 1];
   const dayFolder = `${day}-${month}-${year}`;
   return `${year}/${monthName}/${dayFolder}`;
@@ -681,7 +721,11 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 `;
 
 function esc(s) {
-  return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 // ─── PDF section builder (only renders if content) ───────────────────────────
@@ -702,33 +746,42 @@ function pdfSection(title, bodyHtml) {
 
 function bulletBlock(txt) {
   if (!txt?.trim()) return "";
-  const lines = txt.split("\n").filter(l => l.trim());
+  const lines = txt.split("\n").filter((l) => l.trim());
   if (!lines.length) return "";
-  return `<div class="bullet-list">${lines.map(l =>
-    `<div class="bullet-item">
+  return `<div class="bullet-list">${lines
+    .map(
+      (l) =>
+        `<div class="bullet-item">
       <span class="bullet-arrow">&#9658;</span>
-      <span class="bullet-text">${esc(l.replace(/^[•\-*]\s*/,"").trim())}</span>
-    </div>`
-  ).join("")}</div>`;
+      <span class="bullet-text">${esc(l.replace(/^[•\-*]\s*/, "").trim())}</span>
+    </div>`,
+    )
+    .join("")}</div>`;
 }
 
 function buildSummaryHtml(summary) {
   if (!summary?.trim()) return "";
-  const lines = summary.replace(/\n{2,}/g, "\n").split("\n").filter(l => l.trim());
+  const lines = summary
+    .replace(/\n{2,}/g, "\n")
+    .split("\n")
+    .filter((l) => l.trim());
   let html = "";
   let currentCat = "";
   let bullets = [];
 
   function flush() {
     if (!currentCat && !bullets.length) return;
-    const bHtml = bullets.map(b =>
-      `<div class="bullet-item">
+    const bHtml = bullets
+      .map(
+        (b) =>
+          `<div class="bullet-item">
         <span class="bullet-arrow">&#9658;</span>
-        <span class="bullet-text">${esc(b.replace(/^[•\-*]\s*/,"").trim())}</span>
-      </div>`
-    ).join("");
+        <span class="bullet-text">${esc(b.replace(/^[•\-*]\s*/, "").trim())}</span>
+      </div>`,
+      )
+      .join("");
     if (currentCat) {
-      html += `<div class="summary-cat">${esc(currentCat.replace(/\*/g,"").trim())}</div>
+      html += `<div class="summary-cat">${esc(currentCat.replace(/\*/g, "").trim())}</div>
                <div class="summary-cat-body">${bHtml}</div>`;
     } else {
       html += `<div class="bullet-list">${bHtml}</div>`;
@@ -736,7 +789,7 @@ function buildSummaryHtml(summary) {
     bullets = [];
   }
 
-  lines.forEach(line => {
+  lines.forEach((line) => {
     const raw = line.trim();
     if (raw.startsWith("*") && raw.endsWith("*") && raw.length > 2) {
       flush();
@@ -753,7 +806,7 @@ function buildManpowerHtml(manpower) {
   if (!manpower?.length) return "";
   const grouped = {};
   let total = 0;
-  manpower.forEach(m => {
+  manpower.forEach((m) => {
     const key = (m.labour || "—") + "|||" + (m.scope || "");
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(m);
@@ -761,7 +814,7 @@ function buildManpowerHtml(manpower) {
   });
 
   let html = "";
-  Object.keys(grouped).forEach(key => {
+  Object.keys(grouped).forEach((key) => {
     const [labourType, scope] = key.split("|||");
     const items = grouped[key];
     html += `<div class="mp-group">
@@ -770,15 +823,21 @@ function buildManpowerHtml(manpower) {
         ${scope ? `<span class="mp-source-tag">Source: ${esc(scope)}</span>` : ""}
       </div>
       <table><thead><tr><th>Category of Work</th><th>Gender</th><th>Skill Level</th><th>Count</th></tr></thead><tbody>`;
-    items.forEach(item => {
-      const gClass = (item.gender||"").toUpperCase() === "FEMALE" ? "badge-f" : "badge-m";
-      const sUp = (item.skill||"").toUpperCase();
-      const sClass = sUp === "SKILLED" ? "badge-sk" : sUp === "SEMISKILLED" ? "badge-ss" : "badge-un";
+    items.forEach((item) => {
+      const gClass =
+        (item.gender || "").toUpperCase() === "FEMALE" ? "badge-f" : "badge-m";
+      const sUp = (item.skill || "").toUpperCase();
+      const sClass =
+        sUp === "SKILLED"
+          ? "badge-sk"
+          : sUp === "SEMISKILLED"
+            ? "badge-ss"
+            : "badge-un";
       html += `<tr>
-        <td class="td-left">${esc(item.category||"—")}</td>
+        <td class="td-left">${esc(item.category || "—")}</td>
         <td>${item.gender ? `<span class="badge ${gClass}">${esc(cap(item.gender))}</span>` : `<span style="color:#64748b;">—</span>`}</td>
-        <td>${item.skill  ? `<span class="badge ${sClass}">${esc(cap(item.skill))}</span>`  : `<span style="color:#64748b;">—</span>`}</td>
-        <td style="font-weight:800;font-size:16px;color:#0f172a;">${item.count||0}</td>
+        <td>${item.skill ? `<span class="badge ${sClass}">${esc(cap(item.skill))}</span>` : `<span style="color:#64748b;">—</span>`}</td>
+        <td style="font-weight:800;font-size:16px;color:#0f172a;">${item.count || 0}</td>
       </tr>`;
     });
     html += `</tbody></table></div>`;
@@ -793,28 +852,31 @@ function buildManpowerHtml(manpower) {
 
 function buildEquipmentHtml(equipment) {
   if (!equipment?.length) return "";
-  const rows = equipment.map(eq => {
-    const srcClass = (eq.source||"").toLowerCase() === "client" ? "badge-m" : "badge-sk";
-    return `<tr>
+  const rows = equipment
+    .map((eq) => {
+      const srcClass =
+        (eq.source || "").toLowerCase() === "client" ? "badge-m" : "badge-sk";
+      return `<tr>
       <td><span class="badge ${srcClass}" style="font-size:13px;font-weight:800;padding:5px 12px;">${esc(cap(eq.source))}</span></td>
       <td class="td-left" style="font-weight:600;color:#0f172a;">${esc(eq.name)}</td>
       <td>${esc(String(eq.qty))}</td>
       <td><span class="unit-tag">${esc(eq.unit)}</span></td>
     </tr>`;
-  }).join("");
+    })
+    .join("");
   return `<table><thead><tr><th>Source</th><th>Equipment</th><th>Quantity</th><th>Unit</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function buildCementHtml(p) {
-  const avail = Number(p.cementAvailable)||0;
-  const rcvd  = Number(p.cementReceived)||0;
-  const used  = Number(p.cementUsed)||0;
-  const bal   = Number(p.cementBalance)||0;
+  const avail = Number(p.cementAvailable) || 0;
+  const rcvd = Number(p.cementReceived) || 0;
+  const used = Number(p.cementUsed) || 0;
+  const bal = Number(p.cementBalance) || 0;
   // Only include rows that have non-zero values
   const rows = [];
   if (avail) rows.push(["On-site Available", avail + " bags", false]);
-  if (rcvd)  rows.push(["New Bags Received",  rcvd  + " bags", false]);
-  if (used)  rows.push(["Cement Used",         used  + " bags", false]);
+  if (rcvd) rows.push(["New Bags Received", rcvd + " bags", false]);
+  if (used) rows.push(["Cement Used", used + " bags", false]);
   rows.push(["Balance", bal + " bags", true]);
   if (!avail && !rcvd && !used && !p.cementUsedDesc) return "";
 
@@ -833,12 +895,17 @@ function buildCementHtml(p) {
 }
 
 function buildConcreteHtml(p) {
-  const theo   = parseFloat(p.concreteTheoretical) || 0;
+  const theo = parseFloat(p.concreteTheoretical) || 0;
   const actual = parseFloat(p.concreteOnsite) || 0;
   if (!theo && !actual) return "";
   const diff = (actual - theo).toFixed(3);
   const sign = parseFloat(diff) >= 0 ? "+" : "";
-  const varColor = parseFloat(diff) > 0 ? "#78350f" : parseFloat(diff) < 0 ? "#991b1b" : "#065f46";
+  const varColor =
+    parseFloat(diff) > 0
+      ? "#78350f"
+      : parseFloat(diff) < 0
+        ? "#991b1b"
+        : "#065f46";
   let html = `<div class="concrete-grid">
     <div class="concrete-cell">
       <div class="concrete-val">${theo.toFixed(3)} m³</div>
@@ -864,14 +931,17 @@ function buildConcreteHtml(p) {
 
 function buildMaterialHtml(list, showDesc = false) {
   if (!list?.length) return "";
-  const rows = list.map(m =>
-    `<tr>
+  const rows = list
+    .map(
+      (m) =>
+        `<tr>
       <td class="td-main">${esc(m.name)}</td>
       <td>${esc(String(m.qty))}</td>
       <td><span class="unit-tag">${esc(m.unit)}</span></td>
-      ${showDesc ? `<td class="td-left" style="color:#475569;">${esc(m.desc||"—")}</td>` : ""}
-    </tr>`
-  ).join("");
+      ${showDesc ? `<td class="td-left" style="color:#475569;">${esc(m.desc || "—")}</td>` : ""}
+    </tr>`,
+    )
+    .join("");
   return `<table><thead><tr><th>Material</th><th>Qty</th><th>Unit</th>${showDesc ? "<th>Description</th>" : ""}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 
@@ -880,42 +950,50 @@ function buildCubeHtml(cube) {
 }
 
 function buildVisitorsHtml(visitors) {
-  const valid = (visitors||[]).filter(v => v.name);
+  const valid = (visitors || []).filter((v) => v.name);
   if (!valid.length) return "";
-  return valid.map(v => `
+  return valid
+    .map(
+      (v) => `
     <div class="visitor-row">
       <div class="visitor-name">👤 ${esc(v.name)}</div>
       ${v.instruction ? `<div class="visitor-instr">${esc(v.instruction)}</div>` : ""}
-    </div>`
-  ).join("");
+    </div>`,
+    )
+    .join("");
 }
 
 function buildPlanningHtml(planning) {
   if (!planning?.trim()) return "";
-  const lines = planning.split("\n").filter(l => l.trim());
+  const lines = planning.split("\n").filter((l) => l.trim());
   if (!lines.length) return "";
   let num = 0;
-  return lines.map(line => {
-    const clean = line.replace(/^\d+[\.\)]\s*|^[•\-*]\s*/,"").trim();
-    if (!clean) return "";
-    num++;
-    return `<div class="plan-item">
+  return lines
+    .map((line) => {
+      const clean = line.replace(/^\d+[\.\)]\s*|^[•\-*]\s*/, "").trim();
+      if (!clean) return "";
+      num++;
+      return `<div class="plan-item">
       <span class="plan-num">${num}</span>
       <span class="plan-text">${esc(clean)}</span>
     </div>`;
-  }).join("");
+    })
+    .join("");
 }
 
 function buildCustomFieldsHtml(fields) {
-  const valid = (fields||[]).filter(f => f.title && f.value);
+  const valid = (fields || []).filter((f) => f.title && f.value);
   if (!valid.length) return "";
-  return valid.map(f =>
-    `<div class="cf-row"><span class="cf-key">${esc(f.title)}</span><span class="cf-val">${esc(f.value)}</span></div>`
-  ).join("");
+  return valid
+    .map(
+      (f) =>
+        `<div class="cf-row"><span class="cf-key">${esc(f.title)}</span><span class="cf-val">${esc(f.value)}</span></div>`,
+    )
+    .join("");
 }
 
 function buildPhotosHtml(photos) {
-  const valid = (photos || []).filter(p => p.supabaseUrl || p.data);
+  const valid = (photos || []).filter((p) => p.supabaseUrl || p.data);
   if (!valid.length) return "";
 
   let html = "";
@@ -990,17 +1068,21 @@ async function fetchPendingMaterials(site) {
 function buildPendingMaterialsHtml(rows) {
   const list = rows || [];
   const rowsHtml = list.length
-    ? list.map(r => `
+    ? list
+        .map(
+          (r) => `
       <tr>
         <td class="pm-mat-name">${esc(r.material_name)}</td>
         <td class="pm-qty">${esc(String(r.quantity))}</td>
         <td><span class="pm-unit">${esc(r.unit_name)}</span></td>
         <td class="td-left">${esc(r.requested_by || "—")}</td>
-        <td class="td-left">${esc(fmtDate((r.created_at || "").slice(0,10)))}</td>
-      </tr>`).join("")
+        <td class="td-left">${esc(fmtDate((r.created_at || "").slice(0, 10)))}</td>
+      </tr>`,
+        )
+        .join("")
     : `<tr><td colspan="5" class="pm-empty">No pending material requests for this site at the time of report generation.</td></tr>`;
 
-return `<div class="pm-section-wrap">
+  return `<div class="pm-section-wrap">
     <div class="pm-header" style="background:linear-gradient(135deg,#7f1d1d,#b91c1c,#dc2626);">
       <div class="pm-header-left">
         <svg class="pm-icon" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -1036,21 +1118,51 @@ function buildEveningPdfHtml(payload, pendingMaterials) {
   const dispDate = fmtDate(payload.date);
 
   let sections = "";
-  sections += pdfSection("TODAY'S WORK SUMMARY",   buildSummaryHtml(payload.summary));
-  sections += pdfSection("MANPOWER REPORT",         buildManpowerHtml(payload.manpower));
-  sections += pdfSection("EQUIPMENT ON SITE",       buildEquipmentHtml(payload.equipment));
-  sections += pdfSection("CEMENT STOCK",            buildCementHtml(payload));
-  sections += pdfSection("CONCRETE CONSUMPTION",    buildConcreteHtml(payload));
-  sections += pdfSection("MATERIAL USED / RECEIVED",buildMaterialHtml(payload.material));
-  sections += pdfSection("CUBE TEST RESULTS",       buildCubeHtml(payload.cube));
-  sections += pdfSection("SITE VISIT & INSTRUCTIONS", buildVisitorsHtml(payload.visitors));
-  sections += pdfSection("ADDITIONAL INFORMATION",  buildCustomFieldsHtml(payload.customFields));
-  sections += pdfSection("WORK PROGRESS PHOTOS",    buildPhotosHtml(payload.photos));
-  sections += pdfSection("TOMORROW'S PLANNING",     buildPlanningHtml(payload.planning));
+  sections += pdfSection(
+    "TODAY'S WORK SUMMARY",
+    buildSummaryHtml(payload.summary),
+  );
+  sections += pdfSection(
+    "MANPOWER REPORT",
+    buildManpowerHtml(payload.manpower),
+  );
+  sections += pdfSection(
+    "EQUIPMENT ON SITE",
+    buildEquipmentHtml(payload.equipment),
+  );
+  sections += pdfSection("CEMENT STOCK", buildCementHtml(payload));
+  sections += pdfSection("CONCRETE CONSUMPTION", buildConcreteHtml(payload));
+  sections += pdfSection(
+    "MATERIAL USED / RECEIVED",
+    buildMaterialHtml(payload.material),
+  );
+  sections += pdfSection("CUBE TEST RESULTS", buildCubeHtml(payload.cube));
+  sections += pdfSection(
+    "SITE VISIT & INSTRUCTIONS",
+    buildVisitorsHtml(payload.visitors),
+  );
+  sections += pdfSection(
+    "ADDITIONAL INFORMATION",
+    buildCustomFieldsHtml(payload.customFields),
+  );
+  sections += pdfSection(
+    "WORK PROGRESS PHOTOS",
+    buildPhotosHtml(payload.photos),
+  );
+  sections += pdfSection(
+    "TOMORROW'S PLANNING",
+    buildPlanningHtml(payload.planning),
+  );
 
   const pendingMaterialsHtml = buildPendingMaterialsHtml(pendingMaterials);
 
-  const genTime = new Date().toLocaleString("en-IN", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
+  const genTime = new Date().toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>${PDF_CSS}</style></head><body>
@@ -1100,27 +1212,50 @@ ${pendingMaterialsHtml}
 // ─── PDF rendering via html2canvas + jsPDF ───────────────────────────────────
 async function loadScript(src) {
   return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
     const s = document.createElement("script");
-    s.src = src; s.onload = resolve; s.onerror = reject;
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
     document.head.appendChild(s);
   });
 }
 async function ensurePdfDeps() {
-  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
-  await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+  await loadScript(
+    "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+  );
+  await loadScript(
+    "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+  );
 }
 
 async function mountHidden(html) {
   const wrap = document.createElement("div");
-  Object.assign(wrap.style, { position:"fixed", top:"0", left:"-9999px", width:"794px", background:"#fff", zIndex:"-1" });
+  Object.assign(wrap.style, {
+    position: "fixed",
+    top: "0",
+    left: "-9999px",
+    width: "794px",
+    background: "#fff",
+    zIndex: "-1",
+  });
   wrap.innerHTML = html;
   document.body.appendChild(wrap);
   const imgs = Array.from(wrap.querySelectorAll("img"));
-  await Promise.all(imgs.map(img =>
-    img.complete ? Promise.resolve() : new Promise(res => { img.onload = res; img.onerror = res; })
-  ));
-  await new Promise(r => setTimeout(r, 300));
+  await Promise.all(
+    imgs.map((img) =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise((res) => {
+            img.onload = res;
+            img.onerror = res;
+          }),
+    ),
+  );
+  await new Promise((r) => setTimeout(r, 300));
   return wrap;
 }
 async function getLogoAsBase64(url) {
@@ -1129,7 +1264,7 @@ async function getLogoAsBase64(url) {
     img.crossOrigin = "anonymous";
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width  = img.naturalWidth  || 200;
+      canvas.width = img.naturalWidth || 200;
       canvas.height = img.naturalHeight || 200;
       canvas.getContext("2d").drawImage(img, 0, 0);
       resolve(canvas.toDataURL("image/png"));
@@ -1141,12 +1276,12 @@ async function getLogoAsBase64(url) {
 let LOGO_BASE64 = null;
 async function getLogoBase64() {
   if (LOGO_BASE64) return LOGO_BASE64;
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const img = new window.Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width  = img.naturalWidth  || 200;
+      canvas.width = img.naturalWidth || 200;
       canvas.height = img.naturalHeight || 200;
       canvas.getContext("2d").drawImage(img, 0, 0);
       LOGO_BASE64 = canvas.toDataURL("image/png");
@@ -1158,85 +1293,88 @@ async function getLogoBase64() {
 }
 
 async function generateEveningPdf(payload, onProgress) {
-  
   await ensurePdfDeps();
   const logoBase64 = await getLogoBase64();
   const { jsPDF } = window.jspdf;
-  const A4_W = 210, A4_H = 297, MARGIN = 10;
+  const A4_W = 210,
+    A4_H = 297,
+    MARGIN = 10;
   const CONTENT_W = A4_W - MARGIN * 2;
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
 
   function addWatermark(pdf, logo) {
-  if (!logo) return;
-  const A4_W = 210, A4_H = 297;
-  const SIZE = 130; // mm
-  const x = (A4_W - SIZE) / 2;
-  const y = (A4_H - SIZE) / 2;
-  pdf.saveGraphicsState();
-  pdf.setGState(new pdf.GState({ opacity: 0.06 }));
-  pdf.addImage(logo, "PNG", x, y, SIZE, SIZE);
-  pdf.restoreGraphicsState();
-}
-
+    if (!logo) return;
+    const A4_W = 210,
+      A4_H = 297;
+    const SIZE = 130; // mm
+    const x = (A4_W - SIZE) / 2;
+    const y = (A4_H - SIZE) / 2;
+    pdf.saveGraphicsState();
+    pdf.setGState(new pdf.GState({ opacity: 0.06 }));
+    pdf.addImage(logo, "PNG", x, y, SIZE, SIZE);
+    pdf.restoreGraphicsState();
+  }
 
   // Build the full HTML but we'll render section by section
   _secNum = 0;
 
   // ── helper: render one HTML chunk, return canvas ──────────────────────────
-async function renderChunk(html) {
-  const wrap = document.createElement("div");
-  Object.assign(wrap.style, {
-    position:   "relative",
-    top:        "0",
-    left:       "-9999px",
-    width:      "794px",
-    background: "#fff",
-    zIndex:     "-1",
-    fontFamily: "'Segoe UI',Arial,sans-serif",
-    overflow:   "hidden",
-    colorScheme: "light", 
-  });
-  wrap.setAttribute("data-theme", "light");
-  wrap.style.position = "fixed"; // keep off-screen
+  async function renderChunk(html) {
+    const wrap = document.createElement("div");
+    Object.assign(wrap.style, {
+      position: "relative",
+      top: "0",
+      left: "-9999px",
+      width: "794px",
+      background: "#fff",
+      zIndex: "-1",
+      fontFamily: "'Segoe UI',Arial,sans-serif",
+      overflow: "hidden",
+      colorScheme: "light",
+    });
+    wrap.setAttribute("data-theme", "light");
+    wrap.style.position = "fixed"; // keep off-screen
 
-  // CSS
-  const style = document.createElement("style");
-  style.textContent = PDF_CSS;
-  wrap.appendChild(style);
+    // CSS
+    const style = document.createElement("style");
+    style.textContent = PDF_CSS;
+    wrap.appendChild(style);
 
+    // Content
+    const inner = document.createElement("div");
+    inner.style.position = "relative";
+    inner.style.zIndex = "1";
+    inner.innerHTML = html;
+    wrap.appendChild(inner);
 
+    document.body.appendChild(wrap);
 
+    // Wait for ALL images including watermark
+    const imgs = Array.from(wrap.querySelectorAll("img"));
+    await Promise.all(
+      imgs.map((img) =>
+        img.complete
+          ? Promise.resolve()
+          : new Promise((res) => {
+              img.onload = res;
+              img.onerror = res;
+            }),
+      ),
+    );
+    await new Promise((r) => setTimeout(r, 150));
 
-  // Content
-  const inner = document.createElement("div");
-  inner.style.position = "relative";
-  inner.style.zIndex   = "1";
-  inner.innerHTML = html;
-  wrap.appendChild(inner);
-
-  document.body.appendChild(wrap);
-
-  // Wait for ALL images including watermark
-  const imgs = Array.from(wrap.querySelectorAll("img"));
-  await Promise.all(imgs.map(img =>
-    img.complete
-      ? Promise.resolve()
-      : new Promise(res => { img.onload = res; img.onerror = res; })
-  ));
-  await new Promise(r => setTimeout(r, 150));
-
-  const canvas = await window.html2canvas(wrap, {
-    scale:           2,
-    useCORS:         true,
-    allowTaint:      true,
-    backgroundColor: "#ffffff",
-    windowWidth:     794,
-    scrollX:         0,
-    scrollY:         0,
-  });
-  document.body.removeChild(wrap);
-  return canvas;
-}
+    const canvas = await window.html2canvas(wrap, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      windowWidth: 794,
+      scrollX: 0,
+      scrollY: 0,
+    });
+    document.body.removeChild(wrap);
+    return canvas;
+  }
 
   // ── helper: add one canvas to PDF, paginating if too tall ─────────────────
   let cursorY = MARGIN; // current Y position on current page
@@ -1258,26 +1396,44 @@ async function renderChunk(html) {
         addWatermark(pdf, logoBase64);
         pdf.addPage();
         pageNum++;
-        pdf.setFontSize(8); pdf.setTextColor(100);
-        pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
+        pdf.setFontSize(8);
+        pdf.setTextColor(100);
+        pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, {
+          align: "center",
+        });
         cursorY = MARGIN;
       }
 
-      const sliceHeightPX = Math.min(canvas.height - srcY,
-        (A4_H - cursorY - MARGIN) * PX_PER_MM);
+      const sliceHeightPX = Math.min(
+        canvas.height - srcY,
+        (A4_H - cursorY - MARGIN) * PX_PER_MM,
+      );
       const sliceHeightMM = sliceHeightPX / PX_PER_MM;
 
       const slice = document.createElement("canvas");
       slice.width = canvas.width;
       slice.height = Math.ceil(sliceHeightPX);
-      slice.getContext("2d").drawImage(
-        canvas, 0, srcY, canvas.width, Math.ceil(sliceHeightPX),
-        0, 0, canvas.width, Math.ceil(sliceHeightPX)
-      );
+      slice
+        .getContext("2d")
+        .drawImage(
+          canvas,
+          0,
+          srcY,
+          canvas.width,
+          Math.ceil(sliceHeightPX),
+          0,
+          0,
+          canvas.width,
+          Math.ceil(sliceHeightPX),
+        );
 
       pdf.addImage(
-        slice.toDataURL("image/jpeg", 0.93), "JPEG",
-        MARGIN, cursorY, CONTENT_W, sliceHeightMM
+        slice.toDataURL("image/jpeg", 0.93),
+        "JPEG",
+        MARGIN,
+        cursorY,
+        CONTENT_W,
+        sliceHeightMM,
       );
 
       cursorY += sliceHeightMM + 4; // 4mm gap between sections
@@ -1288,31 +1444,40 @@ async function renderChunk(html) {
         addWatermark(pdf, logoBase64);
         pdf.addPage();
         pageNum++;
-        pdf.setFontSize(8); pdf.setTextColor(100);
-        pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
+        pdf.setFontSize(8);
+        pdf.setTextColor(100);
+        pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, {
+          align: "center",
+        });
         cursorY = MARGIN;
       }
     }
   }
 
   // ── page footer for page 1 ─────────────────────────────────────────────────
-  pdf.setFontSize(8); pdf.setTextColor(100);
-  pdf.text(`Page 1  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
+  pdf.setFontSize(8);
+  pdf.setTextColor(100);
+  pdf.text(`Page 1  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, {
+    align: "center",
+  });
 
   // ── BUILD SECTIONS ─────────────────────────────────────────────────────────
   const dispDate = fmtDate(payload.date);
-  const genTime  = new Date().toLocaleString("en-IN", {
-    day: "2-digit", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit"
+  const genTime = new Date().toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 
-// Then build coverHtml AFTER, using logoBase64:
-const coverHtml = `
+  // Then build coverHtml AFTER, using logoBase64:
+  const coverHtml = `
   <div class="cover">
     <div class="cover-top-bar">
       <div style="display:flex;align-items:center;gap:14px;">
         <img src="${logoBase64 || ""}"
-  style="width:48px;height:48px;object-fit:contain;flex-shrink:0;${!logoBase64 ? 'display:none' : ''}"
+  style="width:48px;height:48px;object-fit:contain;flex-shrink:0;${!logoBase64 ? "display:none" : ""}"
   crossorigin="anonymous">
         <div>
           <div class="brand-name">DIP Projects</div>
@@ -1334,23 +1499,24 @@ const coverHtml = `
     </div>
   </div>`;
 
-onProgress("Fetching pending materials…");
+  onProgress("Fetching pending materials…");
   const pendingMaterials = await fetchPendingMaterials(payload.site);
   const pmHtml = buildPendingMaterialsHtml(pendingMaterials);
 
   const sectionDefs = [
-    ["TODAY'S WORK SUMMARY",      buildSummaryHtml(payload.summary)],
-    ["MANPOWER REPORT",           buildManpowerHtml(payload.manpower)],
-    ["EQUIPMENT ON SITE",         buildEquipmentHtml(payload.equipment)],
-    ["CEMENT STOCK",              buildCementHtml(payload)],
-    ["CONCRETE CONSUMPTION",      buildConcreteHtml(payload)],
-    ["MATERIAL REQUIREMENT",      pmHtml],
-    ["MATERIAL USED / RECEIVED",  buildMaterialHtml(payload.material)],
-    ["CUBE TEST RESULTS",         buildCubeHtml(payload.cube)],
+    ["TODAY'S WORK SUMMARY", buildSummaryHtml(payload.summary)],
+    ["MANPOWER REPORT", buildManpowerHtml(payload.manpower)],
+    ["EQUIPMENT ON SITE", buildEquipmentHtml(payload.equipment)],
+    ["CEMENT STOCK", buildCementHtml(payload)],
+    ["CONCRETE CONSUMPTION", buildConcreteHtml(payload)],
+    ["MATERIAL REQUIREMENT", pmHtml],
+    ["MATERIAL USED / RECEIVED", buildMaterialHtml(payload.material)],
+    ["CUBE TEST RESULTS", buildCubeHtml(payload.cube)],
     ["SITE VISIT & INSTRUCTIONS", buildVisitorsHtml(payload.visitors)],
-    ["ADDITIONAL INFORMATION",    buildCustomFieldsHtml(payload.customFields)],
-    ["WORK PROGRESS PHOTOS",      buildPhotosHtml(payload.photos)],
-    ["TOMORROW'S PLANNING",       buildPlanningHtml(payload.planning)],
+    ["ADDITIONAL INFORMATION", buildCustomFieldsHtml(payload.customFields)],
+    ["CHECKLIST PHOTOS", buildPhotosHtml(payload.checklistPhotos)], // NEW
+    ["WORK PROGRESS PHOTOS", buildPhotosHtml(payload.photos)],
+    ["TOMORROW'S PLANNING", buildPlanningHtml(payload.planning)],
   ];
 
   // Render cover
@@ -1359,38 +1525,42 @@ onProgress("Fetching pending materials…");
   await addCanvasToPdf(coverCanvas, "cover");
 
   // Render each section
-for (const [title, body] of sectionDefs) {
-  if (!body?.trim()) continue;
+  for (const [title, body] of sectionDefs) {
+    if (!body?.trim()) continue;
 
-  const isPhotos = title === "WORK PROGRESS PHOTOS";
-  const isManpower = title === "MANPOWER REPORT";
-  const isPendingMaterials = title === "MATERIAL REQUIREMENT";
+    const isPhotos =
+      title === "WORK PROGRESS PHOTOS" || title === "CHECKLIST PHOTOS"; // widened
+    const isManpower = title === "MANPOWER REPORT";
+    const isPendingMaterials = title === "MATERIAL REQUIREMENT";
 
-  if (isPendingMaterials) {
-    onProgress("Rendering material requirement…");
-    const pmCanvas = await renderChunk(body);
-    const PX_PER_MM = pmCanvas.width / CONTENT_W;
-    const pmHeightMM = pmCanvas.height / PX_PER_MM;
-    if (cursorY + pmHeightMM > A4_H - MARGIN - 10) {
-      addWatermark(pdf, logoBase64);
-      pdf.addPage();
-      pageNum++;
-      pdf.setFontSize(8); pdf.setTextColor(100);
-      pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
-      cursorY = MARGIN;
+    if (isPendingMaterials) {
+      onProgress("Rendering material requirement…");
+      const pmCanvas = await renderChunk(body);
+      const PX_PER_MM = pmCanvas.width / CONTENT_W;
+      const pmHeightMM = pmCanvas.height / PX_PER_MM;
+      if (cursorY + pmHeightMM > A4_H - MARGIN - 10) {
+        addWatermark(pdf, logoBase64);
+        pdf.addPage();
+        pageNum++;
+        pdf.setFontSize(8);
+        pdf.setTextColor(100);
+        pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, {
+          align: "center",
+        });
+        cursorY = MARGIN;
+      }
+      await addCanvasToPdf(pmCanvas, "material requirement");
+      continue;
     }
-    await addCanvasToPdf(pmCanvas, "material requirement");
-    continue;
-  }
 
-  _secNum++;
+    _secNum++;
 
-if (isPhotos) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(`<div>${body}</div>`, "text/html");
-  const pairs = Array.from(doc.querySelectorAll(".photo-pair"));
+    if (isPhotos) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(`<div>${body}</div>`, "text/html");
+      const pairs = Array.from(doc.querySelectorAll(".photo-pair"));
 
-  const sectionHeaderHtml = `
+      const sectionHeaderHtml = `
     <div class="sec-header" style="border:1.5px solid #cbd5e1;">
       <div class="sec-left">
         <span class="sec-num">${_secNum}</span>
@@ -1398,45 +1568,49 @@ if (isPhotos) {
       </div>
     </div>`;
 
-  for (let pi = 0; pi < pairs.length; pi++) {
-    onProgress(`Rendering photo ${pi * 2 + 1}–${pi * 2 + 2}…`);
+      for (let pi = 0; pi < pairs.length; pi++) {
+        onProgress(`Rendering photo ${pi * 2 + 1}–${pi * 2 + 2}…`);
 
-    const pairBody = `
+        const pairBody = `
       <div style="padding:12px;border:1.5px solid #cbd5e1;border-top:none;background:#f8fafc;">
         ${pairs[pi].outerHTML}
       </div>`;
 
-    // First pair: include section header in same canvas so they're glued together
-    const chunkHtml = pi === 0
-      ? `<div>${sectionHeaderHtml}${pairBody}</div>`
-      : `<div>${pairBody}</div>`;
+        // First pair: include section header in same canvas so they're glued together
+        const chunkHtml =
+          pi === 0
+            ? `<div>${sectionHeaderHtml}${pairBody}</div>`
+            : `<div>${pairBody}</div>`;
 
-    const pairCanvas = await renderChunk(chunkHtml);
+        const pairCanvas = await renderChunk(chunkHtml);
 
-    // Pre-check: if this chunk won't fit, start a new page first
-    const PX_PER_MM = pairCanvas.width / (A4_W - MARGIN * 2);
-    const pairHeightMM = pairCanvas.height / PX_PER_MM;
-    if (cursorY + pairHeightMM > A4_H - MARGIN - 10) {
-      addWatermark(pdf, logoBase64);
-      pdf.addPage();
-      pageNum++;
-      pdf.setFontSize(8); pdf.setTextColor(100);
-      pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
-      cursorY = MARGIN;
-    }
+        // Pre-check: if this chunk won't fit, start a new page first
+        const PX_PER_MM = pairCanvas.width / (A4_W - MARGIN * 2);
+        const pairHeightMM = pairCanvas.height / PX_PER_MM;
+        if (cursorY + pairHeightMM > A4_H - MARGIN - 10) {
+          addWatermark(pdf, logoBase64);
+          pdf.addPage();
+          pageNum++;
+          pdf.setFontSize(8);
+          pdf.setTextColor(100);
+          pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, {
+            align: "center",
+          });
+          cursorY = MARGIN;
+        }
 
-    await addCanvasToPdf(pairCanvas, `photo pair ${pi + 1}`);
-  }
-} else if (isManpower) {
-  // Parse out each manpower group + the trailing total bar, and render/paginate
-  // them as independent chunks — exactly like photo pairs — so a group's
-  // header table is never split across a page boundary.
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(`<div>${body}</div>`, "text/html");
-  const groups = Array.from(doc.querySelectorAll(".mp-group"));
-  const totalBar = doc.querySelector(".mp-total");
+        await addCanvasToPdf(pairCanvas, `photo pair ${pi + 1}`);
+      }
+    } else if (isManpower) {
+      // Parse out each manpower group + the trailing total bar, and render/paginate
+      // them as independent chunks — exactly like photo pairs — so a group's
+      // header table is never split across a page boundary.
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(`<div>${body}</div>`, "text/html");
+      const groups = Array.from(doc.querySelectorAll(".mp-group"));
+      const totalBar = doc.querySelector(".mp-total");
 
-  const sectionHeaderHtml = `
+      const sectionHeaderHtml = `
     <div class="sec-header" style="border:1.5px solid #cbd5e1;">
       <div class="sec-left">
         <span class="sec-num">${_secNum}</span>
@@ -1444,41 +1618,45 @@ if (isPhotos) {
       </div>
     </div>`;
 
-  for (let gi = 0; gi < groups.length; gi++) {
-    onProgress(`Rendering manpower group ${gi + 1} of ${groups.length}…`);
+      for (let gi = 0; gi < groups.length; gi++) {
+        onProgress(`Rendering manpower group ${gi + 1} of ${groups.length}…`);
 
-    const isLastGroup = gi === groups.length - 1;
-    const groupBody = `
+        const isLastGroup = gi === groups.length - 1;
+        const groupBody = `
       <div style="border:1.5px solid #cbd5e1;border-top:none;background:#fff;">
         ${groups[gi].outerHTML}
         ${isLastGroup && totalBar ? totalBar.outerHTML : ""}
       </div>`;
 
-    // First group: glue the section header to it, same as photos
-    const chunkHtml = gi === 0
-      ? `<div>${sectionHeaderHtml}${groupBody}</div>`
-      : `<div>${groupBody}</div>`;
+        // First group: glue the section header to it, same as photos
+        const chunkHtml =
+          gi === 0
+            ? `<div>${sectionHeaderHtml}${groupBody}</div>`
+            : `<div>${groupBody}</div>`;
 
-    const groupCanvas = await renderChunk(chunkHtml);
+        const groupCanvas = await renderChunk(chunkHtml);
 
-    // Pre-check: if this whole group won't fit on the current page,
-    // start a fresh page first rather than slicing mid-group.
-    const PX_PER_MM = groupCanvas.width / (A4_W - MARGIN * 2);
-    const groupHeightMM = groupCanvas.height / PX_PER_MM;
-    if (cursorY + groupHeightMM > A4_H - MARGIN - 10) {
-      addWatermark(pdf, logoBase64);
-      pdf.addPage();
-      pageNum++;
-      pdf.setFontSize(8); pdf.setTextColor(100);
-      pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, { align: "center" });
-      cursorY = MARGIN;
-    }
+        // Pre-check: if this whole group won't fit on the current page,
+        // start a fresh page first rather than slicing mid-group.
+        const PX_PER_MM = groupCanvas.width / (A4_W - MARGIN * 2);
+        const groupHeightMM = groupCanvas.height / PX_PER_MM;
+        if (cursorY + groupHeightMM > A4_H - MARGIN - 10) {
+          addWatermark(pdf, logoBase64);
+          pdf.addPage();
+          pageNum++;
+          pdf.setFontSize(8);
+          pdf.setTextColor(100);
+          pdf.text(`Page ${pageNum}  ·  DIP Projects  ·`, A4_W / 2, A4_H - 5, {
+            align: "center",
+          });
+          cursorY = MARGIN;
+        }
 
-    await addCanvasToPdf(groupCanvas, `manpower group ${gi + 1}`);
-  }
-} else {
-    // ── All other sections: render as one chunk ──────────────────────────────
-    const secHtml = `
+        await addCanvasToPdf(groupCanvas, `manpower group ${gi + 1}`);
+      }
+    } else {
+      // ── All other sections: render as one chunk ──────────────────────────────
+      const secHtml = `
       <div class="section-wrap">
         <div class="sec-header">
           <div class="sec-left">
@@ -1488,22 +1666,21 @@ if (isPhotos) {
         </div>
         <div class="pdf-sec-body">${body}</div>
     </div>`;
-    onProgress(`Rendering: ${title}…`);
-    const canvas = await renderChunk(secHtml);
-    await addCanvasToPdf(canvas, title);
+      onProgress(`Rendering: ${title}…`);
+      const canvas = await renderChunk(secHtml);
+      await addCanvasToPdf(canvas, title);
+    }
   }
-}
-
 
   // Thank you page — always starts on a new page
   addWatermark(pdf, logoBase64);
   pdf.addPage();
   pageNum++;
   onProgress("Building thank you page…");
-const tyHtml = `
+  const tyHtml = `
   <div class="ty-page" style="min-height:900px;">
     <img src="${logoBase64 || ""}" class="ty-logo"
-      style="${!logoBase64 ? 'display:none;' : ''}"
+      style="${!logoBase64 ? "display:none;" : ""}"
       crossorigin="anonymous">
     <div class="ty-line"></div>
     <div class="ty-title">Thank You</div>
@@ -1517,12 +1694,16 @@ const tyHtml = `
   const tyHeightMM = Math.min(tyCanvas.height / PX_PER_MM, A4_H - MARGIN * 2);
   const tyY = (A4_H - tyHeightMM) / 2;
   pdf.addImage(
-    tyCanvas.toDataURL("image/jpeg", 0.93), "JPEG",
-    MARGIN, tyY, CONTENT_W, tyHeightMM
+    tyCanvas.toDataURL("image/jpeg", 0.93),
+    "JPEG",
+    MARGIN,
+    tyY,
+    CONTENT_W,
+    tyHeightMM,
   );
 
   // Save
-const safeSite = (payload.site || "site").replace(/[\s/\\:*?"<>|]/g, "_");
+  const safeSite = (payload.site || "site").replace(/[\s/\\:*?"<>|]/g, "_");
   const fileName = `DPR_Evening_${safeSite}_${payload.date}.pdf`;
   const pdfBlob = pdf.output("blob");
   // ── DO NOT download here — caller will download after all uploads complete ──
@@ -1530,9 +1711,12 @@ const safeSite = (payload.site || "site").replace(/[\s/\\:*?"<>|]/g, "_");
 }
 
 // ─── Supabase helpers ─────────────────────────────────────────────────────────
-async function dbFetch(table, col="name") {
+async function dbFetch(table, col = "name") {
   const { data } = await supabase.from(table).select(col).order(col);
-  return (data||[]).map(r => r[col]).filter(Boolean).map(titleCase);
+  return (data || [])
+    .map((r) => r[col])
+    .filter(Boolean)
+    .map(titleCase);
 }
 async function dbInsert(table, payload) {
   const { error } = await supabase.from(table).insert(payload);
@@ -1540,7 +1724,7 @@ async function dbInsert(table, payload) {
 }
 async function submitMaterialRequirements(list, site, engineer) {
   if (!list?.length) return;
-  const payload = list.map(r => ({
+  const payload = list.map((r) => ({
     material_name: r.name,
     unit_name: r.unit,
     quantity: Number(r.qty),
@@ -1548,8 +1732,11 @@ async function submitMaterialRequirements(list, site, engineer) {
     requested_by: engineer,
     status: "pending",
   }));
-  const { error } = await supabase.from("material_requirements").insert(payload);
-  if (error) throw new Error(`Material requirement submission failed: ${error.message}`);
+  const { error } = await supabase
+    .from("material_requirements")
+    .insert(payload);
+  if (error)
+    throw new Error(`Material requirement submission failed: ${error.message}`);
 }
 
 // async function getManpowerTypes(scope, workCat) {
@@ -1571,7 +1758,7 @@ async function submitMaterialRequirements(list, site, engineer) {
 function resolveScope(rawScope) {
   const s = (rawScope || "").toUpperCase();
   if (s === "CLIENT") return "client";
-  if (s === "PMC")    return "pmc";
+  if (s === "PMC") return "pmc";
   return "contractor"; // everything else → contractor
 }
 
@@ -1583,7 +1770,14 @@ async function getManpowerTypesForScope(rawScope) {
     .select("manpowertype")
     .eq("scope", scope)
     .order("manpowertype");
-  return [...new Set((data || []).map(r => r.manpowertype).filter(Boolean).map(titleCase))];
+  return [
+    ...new Set(
+      (data || [])
+        .map((r) => r.manpowertype)
+        .filter(Boolean)
+        .map(titleCase),
+    ),
+  ];
 }
 
 // REPLACE getManpowerTypesByCategory
@@ -1594,7 +1788,10 @@ async function getManpowerTypesByCategory(category) {
     .select("manpowertype")
     .eq("category", category)
     .order("manpowertype");
-  return (data || []).map(r => r.manpowertype).filter(Boolean).map(titleCase);
+  return (data || [])
+    .map((r) => r.manpowertype)
+    .filter(Boolean)
+    .map(titleCase);
 }
 
 // REPLACE getAllCategories
@@ -1603,7 +1800,10 @@ async function getAllCategories() {
     .from("workcategory")
     .select("category")
     .order("category");
-  return (data || []).map(r => r.category).filter(Boolean).map(titleCase);
+  return (data || [])
+    .map((r) => r.category)
+    .filter(Boolean)
+    .map(titleCase);
 }
 
 // REPLACE getEngineersForSite
@@ -1613,13 +1813,17 @@ async function getEngineersForSite(site) {
     .select("user_details(name)")
     .eq("site_name", site);
   return (data || [])
-    .map(r => r.user_details?.name)
+    .map((r) => r.user_details?.name)
     .filter(Boolean)
     .map(titleCase)
     .sort();
 }
 async function checkExists(table, col, val) {
-  const { data } = await supabase.from(table).select("id").ilike(col,val).limit(1);
+  const { data } = await supabase
+    .from(table)
+    .select("id")
+    .ilike(col, val)
+    .limit(1);
   return data?.length > 0;
 }
 // ── Draft persistence ─────────────────────────────────────────────────────
@@ -1636,8 +1840,13 @@ async function saveDraft(payload) {
   const { error } = await supabase
     .from("dpr_drafts")
     .upsert(
-      { site: payload.site, engineer: payload.engineer, payload, saved_at: new Date().toISOString() },
-      { onConflict: "site,engineer" }
+      {
+        site: payload.site,
+        engineer: payload.engineer,
+        payload,
+        saved_at: new Date().toISOString(),
+      },
+      { onConflict: "site,engineer" },
     );
   if (error) {
     console.error("saveDraft error:", error.message);
@@ -1670,7 +1879,11 @@ async function deleteDraft(site, engineer) {
   if (!site || !engineer) return { ok: true };
   // Delete ALL matching rows, not just one — cleans up any duplicates left
   // behind by a broken upsert from before this fix.
-  const { error } = await supabase.from("dpr_drafts").delete().eq("site", site).eq("engineer", engineer);
+  const { error } = await supabase
+    .from("dpr_drafts")
+    .delete()
+    .eq("site", site)
+    .eq("engineer", engineer);
   if (error) {
     console.error("deleteDraft error:", error.message);
     return { ok: false, error: error.message };
@@ -1684,10 +1897,18 @@ async function uploadPdfToSupabase(blob, fileName, site, date) {
   const datePath = buildSiteDatePath(date);
   const path = `${datePath}/dpr/reports/${fileName}`;
 
-  const { error } = await supabase.storage.from(bucketName).upload(path, blob, { contentType:"application/pdf", upsert:true });
-  if (error) throw new Error(`PDF upload failed: ${error.message} (bucket: ${bucketName}, path: ${path})`);
-  const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(path);
-  if (!urlData?.publicUrl) throw new Error("PDF uploaded but could not get public URL.");
+  const { error } = await supabase.storage
+    .from(bucketName)
+    .upload(path, blob, { contentType: "application/pdf", upsert: true });
+  if (error)
+    throw new Error(
+      `PDF upload failed: ${error.message} (bucket: ${bucketName}, path: ${path})`,
+    );
+  const { data: urlData } = supabase.storage
+    .from(bucketName)
+    .getPublicUrl(path);
+  if (!urlData?.publicUrl)
+    throw new Error("PDF uploaded but could not get public URL.");
   return urlData.publicUrl;
 }
 async function uploadPhotoToSupabase(dataUrl, site, storagePath) {
@@ -1695,44 +1916,101 @@ async function uploadPhotoToSupabase(dataUrl, site, storagePath) {
   await ensureBucketExists(bucketName, site);
 
   const blob = await dataUrlToBlob(dataUrl);
-  const { error } = await supabase.storage.from(bucketName).upload(storagePath, blob, { contentType:"image/jpeg", upsert:true });
-  if (error) throw new Error(`Photo upload failed: ${error.message} (bucket: ${bucketName}, path: ${storagePath})`);
-  const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(storagePath);
-  if (!urlData?.publicUrl) throw new Error(`Photo uploaded but could not get public URL (path: ${storagePath})`);
+  const { error } = await supabase.storage
+    .from(bucketName)
+    .upload(storagePath, blob, { contentType: "image/jpeg", upsert: true });
+  if (error)
+    throw new Error(
+      `Photo upload failed: ${error.message} (bucket: ${bucketName}, path: ${storagePath})`,
+    );
+  const { data: urlData } = supabase.storage
+    .from(bucketName)
+    .getPublicUrl(storagePath);
+  if (!urlData?.publicUrl)
+    throw new Error(
+      `Photo uploaded but could not get public URL (path: ${storagePath})`,
+    );
   return urlData.publicUrl;
 }
 // ─── UI helpers ───────────────────────────────────────────────────────────────
-function Spinner() { return <div className="spinner"/>; }
+function Spinner() {
+  return <div className="spinner" />;
+}
 
-function AddPopup({ title, onSave, onClose, placeholder="Enter name…", extraFields }) {
+function AddPopup({
+  title,
+  onSave,
+  onClose,
+  placeholder = "Enter name…",
+  extraFields,
+}) {
   const [val, setVal] = useState("");
   const [extra, setExtra] = useState({});
   return (
-    <div className="popup-backdrop" onClick={e => e.target===e.currentTarget && onClose()}>
+    <div
+      className="popup-backdrop"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="popup-box">
         <div className="popup-title">{title}</div>
-        <div className="fg" style={{marginBottom:10}}>
+        <div className="fg" style={{ marginBottom: 10 }}>
           <label className="flabel">Name</label>
-          <input className="finput" value={val} onChange={e=>setVal(e.target.value)}
+          <input
+            className="finput"
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
             placeholder={placeholder}
-            onKeyDown={e=>e.key==="Enter"&&val.trim()&&onSave(val.trim(),extra)} autoFocus/>
+            onKeyDown={(e) =>
+              e.key === "Enter" && val.trim() && onSave(val.trim(), extra)
+            }
+            autoFocus
+          />
         </div>
-        {extraFields?.map(f => (
-          <div className="fg" key={f.key} style={{marginBottom:10}}>
-            <label className="flabel">{f.label}{f.required&&<span className="req"> *</span>}</label>
-            {f.type==="select" ? (
-              <select className="finput" value={extra[f.key]||""} onChange={e=>setExtra(p=>({...p,[f.key]:e.target.value}))}>
+        {extraFields?.map((f) => (
+          <div className="fg" key={f.key} style={{ marginBottom: 10 }}>
+            <label className="flabel">
+              {f.label}
+              {f.required && <span className="req"> *</span>}
+            </label>
+            {f.type === "select" ? (
+              <select
+                className="finput"
+                value={extra[f.key] || ""}
+                onChange={(e) =>
+                  setExtra((p) => ({ ...p, [f.key]: e.target.value }))
+                }
+              >
                 <option value="">-- Select --</option>
-                {f.options?.map(o=><option key={o} value={o}>{o}</option>)}
+                {f.options?.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
               </select>
             ) : (
-              <input className="finput" value={extra[f.key]||""} onChange={e=>setExtra(p=>({...p,[f.key]:e.target.value}))} placeholder={f.placeholder||""}/>
+              <input
+                className="finput"
+                value={extra[f.key] || ""}
+                onChange={(e) =>
+                  setExtra((p) => ({ ...p, [f.key]: e.target.value }))
+                }
+                placeholder={f.placeholder || ""}
+              />
             )}
           </div>
         ))}
         <div className="popup-btns">
-          <button className="btn btn-orange" style={{flex:1}} disabled={!val.trim()} onClick={()=>onSave(val.trim(),extra)}>Add</button>
-          <button className="btn btn-out" style={{flex:1}} onClick={onClose}>Cancel</button>
+          <button
+            className="btn btn-orange"
+            style={{ flex: 1 }}
+            disabled={!val.trim()}
+            onClick={() => onSave(val.trim(), extra)}
+          >
+            Add
+          </button>
+          <button className="btn btn-out" style={{ flex: 1 }} onClick={onClose}>
+            Cancel
+          </button>
         </div>
       </div>
     </div>
@@ -1743,24 +2021,38 @@ function SelectWithAdd({ value, onChange, options, placeholder, onAdd }) {
   const [showPopup, setShowPopup] = useState(false);
   return (
     <>
-      <select className="finput" value={value} onChange={e => {
-        if (e.target.value==="__add") setShowPopup(true);
-        else onChange(e.target.value);
-      }}>
+      <select
+        className="finput"
+        value={value}
+        onChange={(e) => {
+          if (e.target.value === "__add") setShowPopup(true);
+          else onChange(e.target.value);
+        }}
+      >
         <option value="">{placeholder}</option>
-        {options.map(o=><option key={o} value={o}>{o}</option>)}
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
         <option value="__add">➕ Add New…</option>
       </select>
       {showPopup && onAdd && (
-        <AddPopup title={`Add New ${placeholder}`} placeholder={`Enter ${placeholder.toLowerCase()}…`}
-          onSave={async name => { await onAdd(name); setShowPopup(false); }}
-          onClose={()=>setShowPopup(false)}/>
+        <AddPopup
+          title={`Add New ${placeholder}`}
+          placeholder={`Enter ${placeholder.toLowerCase()}…`}
+          onSave={async (name) => {
+            await onAdd(name);
+            setShowPopup(false);
+          }}
+          onClose={() => setShowPopup(false)}
+        />
       )}
     </>
   );
 }
 
-function SectionBlock({ title, children, defaultOpen=false }) {
+function SectionBlock({ title, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
   const ref = useRef(null);
 
@@ -1781,23 +2073,40 @@ function SectionBlock({ title, children, defaultOpen=false }) {
     <div className="sec-block" ref={ref}>
       <button className="sec-collapser" onClick={handleToggle}>
         <span>{title}</span>
-        <svg className={`chevron${open?" open":""}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        <svg
+          className={`chevron${open ? " open" : ""}`}
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </button>
       {open && <div className="sec-body">{children}</div>}
     </div>
   );
 }
 
-function AddManpowerTypePopup({ rawScope, categories, onSave, onClose, refreshCategories }) {
-  const [name,        setName]        = useState("");
-  const [category,    setCategory]    = useState("");
-  const [newCat,      setNewCat]      = useState("");
-  const [saving,      setSaving]      = useState(false);
+function AddManpowerTypePopup({
+  rawScope,
+  categories,
+  onSave,
+  onClose,
+  refreshCategories,
+}) {
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
+  const [newCat, setNewCat] = useState("");
+  const [saving, setSaving] = useState(false);
   const isContractor = resolveScope(rawScope) === "contractor";
 
   const showNewCatInput = category === "__newcat";
-  const finalCategory   = showNewCatInput ? newCat.trim() : category;
-  const canSave         = name.trim() && (!showNewCatInput || newCat.trim());
+  const finalCategory = showNewCatInput ? newCat.trim() : category;
+  const canSave = name.trim() && (!showNewCatInput || newCat.trim());
 
   const handleSave = async () => {
     if (!canSave || saving) return;
@@ -1815,12 +2124,14 @@ function AddManpowerTypePopup({ rawScope, categories, onSave, onClose, refreshCa
 
     // Save to manpower table
     const scope = resolveScope(rawScope);
-    await supabase.from("manpower").insert({ scope, manpowertype: name.trim() });
+    await supabase
+      .from("manpower")
+      .insert({ scope, manpowertype: name.trim() });
 
     // If contractor + category chosen, also save to man_type
     if (isContractor && finalCategory) {
       await supabase.from("man_type").insert({
-        category:     finalCategory,
+        category: finalCategory,
         manpowertype: name.trim(),
       });
     }
@@ -1830,38 +2141,49 @@ function AddManpowerTypePopup({ rawScope, categories, onSave, onClose, refreshCa
   };
 
   return (
-    <div className="popup-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div
+      className="popup-backdrop"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="popup-box">
         <div className="popup-title">Add New Manpower Type</div>
 
         {/* Type name */}
         <div className="fg" style={{ marginBottom: 12 }}>
-          <label className="flabel">Type Name <span className="req">*</span></label>
+          <label className="flabel">
+            Type Name <span className="req">*</span>
+          </label>
           <input
             className="finput"
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Mason, Bar Bender…"
             autoFocus
-            onKeyDown={e => e.key === "Enter" && canSave && handleSave()}
+            onKeyDown={(e) => e.key === "Enter" && canSave && handleSave()}
           />
         </div>
 
         {/* Work Category — contractor only */}
         {/* Inside AddManpowerTypePopup — replace the category select block with: */}
-{isContractor && (
-  <div className="fg" style={{ marginBottom: 0 }}>
-    <label className="flabel">Work Category <span className="opt">optional</span></label>
-    <select
-      className="finput"
-      value={category}
-      onChange={e => setCategory(e.target.value)}
-    >
-      <option value="">-- None / General --</option>
-      {categories.map(c => <option key={c} value={c}>{c}</option>)}
-    </select>
-  </div>
-)}
+        {isContractor && (
+          <div className="fg" style={{ marginBottom: 0 }}>
+            <label className="flabel">
+              Work Category <span className="opt">optional</span>
+            </label>
+            <select
+              className="finput"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="">-- None / General --</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="popup-btns" style={{ marginTop: 16 }}>
           <button
             className="btn btn-orange"
@@ -1869,7 +2191,17 @@ function AddManpowerTypePopup({ rawScope, categories, onSave, onClose, refreshCa
             disabled={!canSave || saving}
             onClick={handleSave}
           >
-            {saving ? <><span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} /> Saving…</> : "Add Type"}
+            {saving ? (
+              <>
+                <span
+                  className="spinner"
+                  style={{ width: 13, height: 13, borderWidth: 2 }}
+                />{" "}
+                Saving…
+              </>
+            ) : (
+              "Add Type"
+            )}
           </button>
           <button className="btn btn-out" style={{ flex: 1 }} onClick={onClose}>
             Cancel
@@ -1881,19 +2213,19 @@ function AddManpowerTypePopup({ rawScope, categories, onSave, onClose, refreshCa
 }
 
 function ManpowerSection({ list, setList, showToast }) {
-  const [scopes,       setScopes]       = useState([]);
-  const [categories,   setCategories]   = useState([]);
-  const [allTypes,     setAllTypes]     = useState([]); // all types for current scope
-  const [catTypes,     setCatTypes]     = useState([]); // types filtered by selected category
-  const [scope,        setScope]        = useState("");
-  const [workCat,      setWorkCat]      = useState("");
-  const [mpType,       setMpType]       = useState("");
-  const [gender,       setGender]       = useState("");
-  const [skill,        setSkill]        = useState("");
-  const [count,        setCount]        = useState("");
-  const [skills,       setSkills]       = useState([]);
+  const [scopes, setScopes] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [allTypes, setAllTypes] = useState([]); // all types for current scope
+  const [catTypes, setCatTypes] = useState([]); // types filtered by selected category
+  const [scope, setScope] = useState("");
+  const [workCat, setWorkCat] = useState("");
+  const [mpType, setMpType] = useState("");
+  const [gender, setGender] = useState("");
+  const [skill, setSkill] = useState("");
+  const [count, setCount] = useState("");
+  const [skills, setSkills] = useState([]);
   const [loadingTypes, setLoadingTypes] = useState(false);
-  const [showAddType,  setShowAddType]  = useState(false);
+  const [showAddType, setShowAddType] = useState(false);
   const [showAddCat, setShowAddCat] = useState(false);
   const [editIdx, setEditIdx] = useState(null);
   const [editRow, setEditRow] = useState(null);
@@ -1901,21 +2233,32 @@ function ManpowerSection({ list, setList, showToast }) {
   const isClientOrPMC = ["CLIENT", "PMC"].includes((scope || "").toUpperCase());
 
   // Load scopes list (for the dropdown)
-  useEffect(() => { dbFetch("dpr_scopes").then(setScopes); }, []);
-  useEffect(() => { dbFetch("dpr_skills").then(setSkills); }, []);
+  useEffect(() => {
+    dbFetch("dpr_scopes").then(setScopes);
+  }, []);
+  useEffect(() => {
+    dbFetch("dpr_skills").then(setSkills);
+  }, []);
 
   // Load categories from workcategory table
   const refreshCategories = async () => {
     const cats = await getAllCategories();
     setCategories(cats);
   };
-  useEffect(() => { refreshCategories(); }, []);
+  useEffect(() => {
+    refreshCategories();
+  }, []);
 
   // Load manpower types when scope changes
   useEffect(() => {
-    if (!scope) { setAllTypes([]); setCatTypes([]); setMpType(""); return; }
+    if (!scope) {
+      setAllTypes([]);
+      setCatTypes([]);
+      setMpType("");
+      return;
+    }
     setLoadingTypes(true);
-    getManpowerTypesForScope(scope).then(types => {
+    getManpowerTypesForScope(scope).then((types) => {
       setAllTypes(types);
       setLoadingTypes(false);
     });
@@ -1926,101 +2269,151 @@ function ManpowerSection({ list, setList, showToast }) {
 
   // Filter types by category when workCat changes (contractor only)
   useEffect(() => {
-    if (!workCat || isClientOrPMC) { setCatTypes([]); return; }
+    if (!workCat || isClientOrPMC) {
+      setCatTypes([]);
+      return;
+    }
     getManpowerTypesByCategory(workCat).then(setCatTypes);
   }, [workCat]);
 
   // Displayed types: if category selected → catTypes first, then remaining allTypes
-  const priorityTypes = catTypes.filter(t => allTypes.includes(t));
-  const otherTypes    = allTypes.filter(t => !priorityTypes.includes(t));
+  const priorityTypes = catTypes.filter((t) => allTypes.includes(t));
+  const otherTypes = allTypes.filter((t) => !priorityTypes.includes(t));
 
   const addRow = () => {
-  if (!scope || !mpType || !count) return;
-  const dbScope = resolveScope(scope);
+    if (!scope || !mpType || !count) return;
+    const dbScope = resolveScope(scope);
 
-  // Check for exact duplicate (same scope+type+category+gender+skill)
-  const dupIdx = list.findIndex(r =>
-    r.scope === dbScope &&
-    r.labour === mpType &&
-    (r.category || "—") === (workCat || "—") &&
-    (r.gender || "") === gender &&
-    (r.skill  || "") === skill
-  );
+    // Check for exact duplicate (same scope+type+category+gender+skill)
+    const dupIdx = list.findIndex(
+      (r) =>
+        r.scope === dbScope &&
+        r.labour === mpType &&
+        (r.category || "—") === (workCat || "—") &&
+        (r.gender || "") === gender &&
+        (r.skill || "") === skill,
+    );
 
-  if (dupIdx >= 0) {
-    // Already exists → just add to count
-    setList(p => p.map((r, i) =>
-      i === dupIdx ? { ...r, count: Number(r.count) + Number(count) } : r
-    ));
-  } else {
-    setList(p => [...p, {
-      id:           "tmp_" + Date.now(),
-      scope:        dbScope,
-      displayScope: scope,
-      category:     workCat || "—",
-      labour:       mpType,
-      gender:       gender,
-      skill:        skill,
-      count:        Number(count),
-    }]);
-  }
-  setMpType(""); setGender(""); setSkill(""); setCount("");
-};
+    if (dupIdx >= 0) {
+      // Already exists → just add to count
+      setList((p) =>
+        p.map((r, i) =>
+          i === dupIdx ? { ...r, count: Number(r.count) + Number(count) } : r,
+        ),
+      );
+    } else {
+      setList((p) => [
+        ...p,
+        {
+          id: "tmp_" + Date.now(),
+          scope: dbScope,
+          displayScope: scope,
+          category: workCat || "—",
+          labour: mpType,
+          gender: gender,
+          skill: skill,
+          count: Number(count),
+        },
+      ]);
+    }
+    setMpType("");
+    setGender("");
+    setSkill("");
+    setCount("");
+  };
 
   return (
     <div>
       <div className="grid2" style={{ marginBottom: 12 }}>
-
         {/* Scope */}
         <div className="fg">
-          <label className="flabel">Scope <span className="req">*</span></label>
+          <label className="flabel">
+            Scope <span className="req">*</span>
+          </label>
           <SelectWithAdd
             value={scope}
-            onChange={v => { setScope(v); setMpType(""); setWorkCat(""); }}
+            onChange={(v) => {
+              setScope(v);
+              setMpType("");
+              setWorkCat("");
+            }}
             options={scopes}
             placeholder="Select Scope"
-            onAdd={async name => {
+            onAdd={async (name) => {
               await dbInsert("dpr_scopes", { name: name.toUpperCase() });
               setScopes(await dbFetch("dpr_scopes"));
               setScope(titleCase(name));
-            }}/>
+            }}
+          />
         </div>
 
-{/* Work Category — all scopes */}
-<div className="fg">
-  <label className="flabel">Work Category</label>
-  <select
-    className="finput"
-    value={workCat}
-    onChange={e => {
-      if (e.target.value === "__addcat") {
-        setShowAddCat(true);
-      } else {
-        setWorkCat(e.target.value);
-        setMpType("");
-      }
-    }}
-  >
-    <option value="">-- All Types --</option>
-    {categories.map(c => <option key={c} value={c}>{c}</option>)}
-    <option value="__addcat">➕ Add New Category…</option>
-  </select>
-</div>
+        {/* Work Category — all scopes */}
+        <div className="fg">
+          <label className="flabel">Work Category</label>
+          <select
+            className="finput"
+            value={workCat}
+            onChange={(e) => {
+              if (e.target.value === "__addcat") {
+                setShowAddCat(true);
+              } else {
+                setWorkCat(e.target.value);
+                setMpType("");
+              }
+            }}
+          >
+            <option value="">-- All Types --</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+            <option value="__addcat">➕ Add New Category…</option>
+          </select>
+        </div>
 
         {/* Manpower Type */}
         <div className="fg">
-          <label className="flabel">Manpower Type <span className="req">*</span></label>
-          <select className="finput" value={mpType}
-            onChange={e => { if (e.target.value === "__add") setShowAddType(true); else setMpType(e.target.value); }}>
-            <option value="">{loadingTypes ? "Loading…" : scope ? "Select Type" : "Select scope first"}</option>
+          <label className="flabel">
+            Manpower Type <span className="req">*</span>
+          </label>
+          <select
+            className="finput"
+            value={mpType}
+            onChange={(e) => {
+              if (e.target.value === "__add") setShowAddType(true);
+              else setMpType(e.target.value);
+            }}
+          >
+            <option value="">
+              {loadingTypes
+                ? "Loading…"
+                : scope
+                  ? "Select Type"
+                  : "Select scope first"}
+            </option>
             {priorityTypes.length > 0 && (
               <optgroup label={`── ${workCat.toUpperCase()} ──`}>
-                {priorityTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                {priorityTypes.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
               </optgroup>
             )}
             {otherTypes.length > 0 && (
-              <optgroup label={priorityTypes.length > 0 ? "── OTHER TYPES ──" : "── ALL TYPES ──"}>
-                {otherTypes.map(t => <option key={t} value={t}>{t}</option>)}
+              <optgroup
+                label={
+                  priorityTypes.length > 0
+                    ? "── OTHER TYPES ──"
+                    : "── ALL TYPES ──"
+                }
+              >
+                {otherTypes.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
               </optgroup>
             )}
             {!loadingTypes && <option value="__add">➕ Add New Type…</option>}
@@ -2030,7 +2423,11 @@ function ManpowerSection({ list, setList, showToast }) {
         {/* Gender */}
         <div className="fg">
           <label className="flabel">Gender</label>
-          <select className="finput" value={gender} onChange={e => setGender(e.target.value)}>
+          <select
+            className="finput"
+            value={gender}
+            onChange={(e) => setGender(e.target.value)}
+          >
             <option value="">-- Select --</option>
             <option value="MALE">Male</option>
             <option value="FEMALE">Female</option>
@@ -2040,26 +2437,51 @@ function ManpowerSection({ list, setList, showToast }) {
         {/* Skill */}
         <div className="fg">
           <label className="flabel">Skill</label>
-          <SelectWithAdd value={skill} onChange={setSkill} options={skills} placeholder="Select Skill"
-            onAdd={async name => {
+          <SelectWithAdd
+            value={skill}
+            onChange={setSkill}
+            options={skills}
+            placeholder="Select Skill"
+            onAdd={async (name) => {
               await dbInsert("dpr_skills", { name });
               setSkills(await dbFetch("dpr_skills"));
               setSkill(name);
-            }} />
+            }}
+          />
         </div>
 
         {/* Count */}
         <div className="fg">
-          <label className="flabel">Count <span className="req">*</span></label>
-          <input className="finput" type="number" min="1" value={count}
-            onChange={e => setCount(e.target.value)} placeholder="0" />
+          <label className="flabel">
+            Count <span className="req">*</span>
+          </label>
+          <input
+            className="finput"
+            type="number"
+            min="1"
+            value={count}
+            onChange={(e) => setCount(e.target.value)}
+            placeholder="0"
+          />
         </div>
       </div>
 
-      <button className="btn btn-green btn-sm" onClick={addRow}
-        disabled={!scope || !mpType || !count}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+      <button
+        className="btn btn-green btn-sm"
+        onClick={addRow}
+        disabled={!scope || !mpType || !count}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
         Add Manpower
       </button>
@@ -2079,117 +2501,185 @@ function ManpowerSection({ list, setList, showToast }) {
               </tr>
             </thead>
             <tbody>
-  {list.map((row, i) => (
-    editIdx === i ? (
-      // ── EDIT ROW ──────────────────────────────────────────
-      <tr key={row.id || i} style={{ background: "var(--edit-row-bg, #fffbf5)" }}>
-        <td style={{ fontSize: 12, color: "var(--ink3)", textTransform: "capitalize" }}>
-          {row.displayScope || row.scope}
-        </td>
-        <td>{row.labour}</td>
-        <td>
-          <input
-            className="finput"
-            style={{ padding: "5px 8px", fontSize: 12, minWidth: 100 }}
-            value={editRow.category}
-            onChange={e => setEditRow(p => ({ ...p, category: e.target.value }))}
-          />
-        </td>
-        <td>
-          <select
-            className="finput"
-            style={{ padding: "5px 8px", fontSize: 12 }}
-            value={editRow.gender}
-            onChange={e => setEditRow(p => ({ ...p, gender: e.target.value }))}
-          >
-            <option value="">—</option>
-            <option value="MALE">Male</option>
-            <option value="FEMALE">Female</option>
-          </select>
-        </td>
-        <td>
-          <select
-            className="finput"
-            style={{ padding: "5px 8px", fontSize: 12 }}
-            value={editRow.skill}
-            onChange={e => setEditRow(p => ({ ...p, skill: e.target.value }))}
-          >
-            <option value="">—</option>
-            {skills.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </td>
-        <td>
-          <input
-            className="finput"
-            type="number"
-            min="1"
-            style={{ padding: "5px 8px", fontSize: 12, width: 64 }}
-            value={editRow.count}
-            onChange={e => setEditRow(p => ({ ...p, count: e.target.value }))}
-          />
-        </td>
-        <td>
-          <div style={{ display: "flex", gap: 4 }}>
-            <button
-              className="btn btn-orange btn-sm"
-              style={{ padding: "5px 10px", fontSize: 11 }}
-              onClick={() => {
-                setList(p => p.map((r, j) =>
-                  j === i ? { ...r, ...editRow, count: Number(editRow.count) } : r
-                ));
-                setEditIdx(null); setEditRow(null);
-              }}
-            >✓</button>
-            <button
-              className="btn btn-out btn-sm"
-              style={{ padding: "5px 10px", fontSize: 11 }}
-              onClick={() => { setEditIdx(null); setEditRow(null); }}
-            >✕</button>
-          </div>
-        </td>
-      </tr>
-    ) : (
-      // ── DISPLAY ROW ───────────────────────────────────────
-      <tr key={row.id || i}>
-        <td>{titleCase(row.displayScope || row.scope || "")}</td>
-        <td>{row.labour}</td>
-        <td>{row.category || "—"}</td>
-        <td>{row.gender  || "—"}</td>
-        <td>{row.skill   || "—"}</td>
-        <td style={{ fontWeight: 700 }}>{row.count}</td>
-        <td>
-          <div style={{ display: "flex", gap: 4 }}>
-            <button
-              className="btn btn-out btn-sm btn-icon"
-              title="Edit"
-              onClick={() => { setEditIdx(i); setEditRow({ ...row }); }}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-              </svg>
-            </button>
-            <button
-              className="btn btn-red btn-sm btn-icon"
-              title="Remove"
-              onClick={() => setList(p => p.filter((_, j) => j !== i))}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-              </svg>
-            </button>
-          </div>
-        </td>
-      </tr>
-    )
-  ))}
-  <tr style={{ background: "#f8fafc" }}>
-    <td colSpan={5} style={{ fontWeight: 700, fontSize: 12.5 }}>Total</td>
-    <td colSpan={2} style={{ fontWeight: 800, color: "#1e3a5f" }}>
-      {list.reduce((s, r) => s + Number(r.count), 0)}
-    </td>
-  </tr>
-</tbody>
+              {list.map((row, i) =>
+                editIdx === i ? (
+                  // ── EDIT ROW ──────────────────────────────────────────
+                  <tr
+                    key={row.id || i}
+                    style={{ background: "var(--edit-row-bg, #fffbf5)" }}
+                  >
+                    <td
+                      style={{
+                        fontSize: 12,
+                        color: "var(--ink3)",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {row.displayScope || row.scope}
+                    </td>
+                    <td>{row.labour}</td>
+                    <td>
+                      <input
+                        className="finput"
+                        style={{
+                          padding: "5px 8px",
+                          fontSize: 12,
+                          minWidth: 100,
+                        }}
+                        value={editRow.category}
+                        onChange={(e) =>
+                          setEditRow((p) => ({
+                            ...p,
+                            category: e.target.value,
+                          }))
+                        }
+                      />
+                    </td>
+                    <td>
+                      <select
+                        className="finput"
+                        style={{ padding: "5px 8px", fontSize: 12 }}
+                        value={editRow.gender}
+                        onChange={(e) =>
+                          setEditRow((p) => ({ ...p, gender: e.target.value }))
+                        }
+                      >
+                        <option value="">—</option>
+                        <option value="MALE">Male</option>
+                        <option value="FEMALE">Female</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        className="finput"
+                        style={{ padding: "5px 8px", fontSize: 12 }}
+                        value={editRow.skill}
+                        onChange={(e) =>
+                          setEditRow((p) => ({ ...p, skill: e.target.value }))
+                        }
+                      >
+                        <option value="">—</option>
+                        {skills.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        className="finput"
+                        type="number"
+                        min="1"
+                        style={{ padding: "5px 8px", fontSize: 12, width: 64 }}
+                        value={editRow.count}
+                        onChange={(e) =>
+                          setEditRow((p) => ({ ...p, count: e.target.value }))
+                        }
+                      />
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button
+                          className="btn btn-orange btn-sm"
+                          style={{ padding: "5px 10px", fontSize: 11 }}
+                          onClick={() => {
+                            setList((p) =>
+                              p.map((r, j) =>
+                                j === i
+                                  ? {
+                                      ...r,
+                                      ...editRow,
+                                      count: Number(editRow.count),
+                                    }
+                                  : r,
+                              ),
+                            );
+                            setEditIdx(null);
+                            setEditRow(null);
+                          }}
+                        >
+                          ✓
+                        </button>
+                        <button
+                          className="btn btn-out btn-sm"
+                          style={{ padding: "5px 10px", fontSize: 11 }}
+                          onClick={() => {
+                            setEditIdx(null);
+                            setEditRow(null);
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  // ── DISPLAY ROW ───────────────────────────────────────
+                  <tr key={row.id || i}>
+                    <td>{titleCase(row.displayScope || row.scope || "")}</td>
+                    <td>{row.labour}</td>
+                    <td>{row.category || "—"}</td>
+                    <td>{row.gender || "—"}</td>
+                    <td>{row.skill || "—"}</td>
+                    <td style={{ fontWeight: 700 }}>{row.count}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button
+                          className="btn btn-out btn-sm btn-icon"
+                          title="Edit"
+                          onClick={() => {
+                            setEditIdx(i);
+                            setEditRow({ ...row });
+                          }}
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                          >
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          className="btn btn-red btn-sm btn-icon"
+                          title="Remove"
+                          onClick={() =>
+                            setList((p) => p.filter((_, j) => j !== i))
+                          }
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                          >
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-1 14H6L5 6" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ),
+              )}
+              <tr style={{ background: "#f8fafc" }}>
+                <td colSpan={5} style={{ fontWeight: 700, fontSize: 12.5 }}>
+                  Total
+                </td>
+                <td colSpan={2} style={{ fontWeight: 800, color: "#1e3a5f" }}>
+                  {list.reduce((s, r) => s + Number(r.count), 0)}
+                </td>
+              </tr>
+            </tbody>
           </table>
         </div>
       )}
@@ -2211,26 +2701,27 @@ function ManpowerSection({ list, setList, showToast }) {
             }
             setMpType(name);
           }}
-          onClose={() => setShowAddType(false)} />
+          onClose={() => setShowAddType(false)}
+        />
       )}
       {showAddCat && (
-  <AddCategoryPopup
-    onSave={async (name) => {
-      const { error } = await supabase
-        .from("workcategory")
-        .insert({ category: name.trim() });
-      if (error) {
-        showToast("err", "Category may already exist.");
-      } else {
-        await refreshCategories();
-        setWorkCat(name.trim());
-        setShowAddCat(false);
-        showToast("ok", `Category "${name.trim()}" added!`);
-      }
-    }}
-    onClose={() => setShowAddCat(false)}
-  />
-)}
+        <AddCategoryPopup
+          onSave={async (name) => {
+            const { error } = await supabase
+              .from("workcategory")
+              .insert({ category: name.trim() });
+            if (error) {
+              showToast("err", "Category may already exist.");
+            } else {
+              await refreshCategories();
+              setWorkCat(name.trim());
+              setShowAddCat(false);
+              showToast("ok", `Category "${name.trim()}" added!`);
+            }
+          }}
+          onClose={() => setShowAddCat(false)}
+        />
+      )}
     </div>
   );
 }
@@ -2246,21 +2737,33 @@ function AddCategoryPopup({ onSave, onClose }) {
   };
 
   return (
-    <div className="popup-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div
+      className="popup-backdrop"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="popup-box">
         <div className="popup-title">Add New Work Category</div>
-        <p style={{ fontSize: 12.5, color: "var(--ink3)", marginBottom: 14, lineHeight: 1.5 }}>
+        <p
+          style={{
+            fontSize: 12.5,
+            color: "var(--ink3)",
+            marginBottom: 14,
+            lineHeight: 1.5,
+          }}
+        >
           New categories are saved for future use across all manpower entries.
         </p>
         <div className="fg" style={{ marginBottom: 16 }}>
-          <label className="flabel">Category Name <span className="req">*</span></label>
+          <label className="flabel">
+            Category Name <span className="req">*</span>
+          </label>
           <input
             className="finput"
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Electrical Work, PEB Erection…"
             autoFocus
-            onKeyDown={e => e.key === "Enter" && handleSave()}
+            onKeyDown={(e) => e.key === "Enter" && handleSave()}
           />
         </div>
         <div
@@ -2277,10 +2780,22 @@ function AddCategoryPopup({ onSave, onClose }) {
             alignItems: "flex-start",
           }}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ marginTop: 1, flexShrink: 0 }}>
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            style={{ marginTop: 1, flexShrink: 0 }}
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          This category will also appear in the Work Category dropdown for all future reports.
+          This category will also appear in the Work Category dropdown for all
+          future reports.
         </div>
         <div className="popup-btns">
           <button
@@ -2289,69 +2804,102 @@ function AddCategoryPopup({ onSave, onClose }) {
             disabled={!name.trim() || saving}
             onClick={handleSave}
           >
-            {saving
-              ? <><span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} /> Saving…</>
-              : <>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                  </svg>
-                  Add Category
-                </>
-            }
+            {saving ? (
+              <>
+                <span
+                  className="spinner"
+                  style={{ width: 13, height: 13, borderWidth: 2 }}
+                />{" "}
+                Saving…
+              </>
+            ) : (
+              <>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add Category
+              </>
+            )}
           </button>
-          <button className="btn btn-out" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
+          <button className="btn btn-out" style={{ flex: 1 }} onClick={onClose}>
+            Cancel
+          </button>
         </div>
       </div>
     </div>
   );
 }
 function EquipmentSection({ list, setList }) {
-  const [master,   setMaster]   = useState({ client: [], contractor: [] });
-  const [source,   setSource]   = useState("");
-  const [name,     setName]     = useState("");
-  const [qty,      setQty]      = useState("");
-  const [unit,     setUnit]     = useState("");
-  const [showAdd,  setShowAdd]  = useState(false);
-  const [editIdx,  setEditIdx]  = useState(null);
-  const [editRow,  setEditRow]  = useState(null);
-  const [units,    setUnits]    = useState([]);
+  const [master, setMaster] = useState({ client: [], contractor: [] });
+  const [source, setSource] = useState("");
+  const [name, setName] = useState("");
+  const [qty, setQty] = useState("");
+  const [unit, setUnit] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [editIdx, setEditIdx] = useState(null);
+  const [editRow, setEditRow] = useState(null);
+  const [units, setUnits] = useState([]);
 
   useEffect(() => {
-  supabase.from("dpr_equipment").select("*").order("name").then(({ data }) => {
-    const grp = { client: [], contractor: [] };
-    (data || []).forEach(e => { if (grp[e.source]) grp[e.source].push(e); });
-    setMaster(grp);
-  });
-  dbFetch("dpr_equipment_units").then(setUnits);
-}, []);
+    supabase
+      .from("dpr_equipment")
+      .select("*")
+      .order("name")
+      .then(({ data }) => {
+        const grp = { client: [], contractor: [] };
+        (data || []).forEach((e) => {
+          if (grp[e.source]) grp[e.source].push(e);
+        });
+        setMaster(grp);
+      });
+    dbFetch("dpr_equipment_units").then(setUnits);
+  }, []);
 
   // Equipment names for selected source
-  const srcOpts = source && master[source]
-    ? [...new Set(master[source].map(e => e.name))]
-    : [];
+  const srcOpts =
+    source && master[source]
+      ? [...new Set(master[source].map((e) => e.name))]
+      : [];
 
   // When equipment name changes, auto-fill unit from master
-const handleNameChange = val => {
-  if (val === "__add") { setShowAdd(true); return; }
-  setName(val);
-};
+  const handleNameChange = (val) => {
+    if (val === "__add") {
+      setShowAdd(true);
+      return;
+    }
+    setName(val);
+  };
 
   const add = () => {
     if (!source || !name || !qty || !unit) return;
-    const n = v => (v || "").toString().trim().toLowerCase();
-    const dupIdx = list.findIndex(r =>
-      n(r.source) === n(source) &&
-      n(r.name)   === n(name)   &&
-      n(r.unit)   === n(unit)
+    const n = (v) => (v || "").toString().trim().toLowerCase();
+    const dupIdx = list.findIndex(
+      (r) =>
+        n(r.source) === n(source) &&
+        n(r.name) === n(name) &&
+        n(r.unit) === n(unit),
     );
     if (dupIdx >= 0) {
-      setList(p => p.map((r, i) =>
-        i === dupIdx ? { ...r, qty: Number(r.qty) + Number(qty) } : r
-      ));
+      setList((p) =>
+        p.map((r, i) =>
+          i === dupIdx ? { ...r, qty: Number(r.qty) + Number(qty) } : r,
+        ),
+      );
     } else {
-      setList(p => [...p, { source, name, qty, unit }]);
+      setList((p) => [...p, { source, name, qty, unit }]);
     }
-    setName(""); setQty(""); setUnit("");
+    setName("");
+    setQty("");
+    setUnit("");
   };
 
   return (
@@ -2359,8 +2907,15 @@ const handleNameChange = val => {
       <div className="grid3" style={{ marginBottom: 12 }}>
         <div className="fg">
           <label className="flabel">Source</label>
-          <select className="finput" value={source}
-            onChange={e => { setSource(e.target.value); setName(""); setUnit(""); }}>
+          <select
+            className="finput"
+            value={source}
+            onChange={(e) => {
+              setSource(e.target.value);
+              setName("");
+              setUnit("");
+            }}
+          >
             <option value="">Select Source</option>
             <option value="client">Client</option>
             <option value="contractor">Contractor</option>
@@ -2368,17 +2923,32 @@ const handleNameChange = val => {
         </div>
         <div className="fg">
           <label className="flabel">Equipment</label>
-          <select className="finput" value={name}
-            onChange={e => handleNameChange(e.target.value)}>
-            <option value="">{source ? "Select Equipment" : "Select source first"}</option>
-            {srcOpts.map(n => <option key={n} value={n}>{n}</option>)}
+          <select
+            className="finput"
+            value={name}
+            onChange={(e) => handleNameChange(e.target.value)}
+          >
+            <option value="">
+              {source ? "Select Equipment" : "Select source first"}
+            </option>
+            {srcOpts.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
             <option value="__add">➕ Add New…</option>
           </select>
         </div>
         <div className="fg">
           <label className="flabel">Qty</label>
-          <input className="finput" type="number" min="0" value={qty}
-            onChange={e => setQty(e.target.value)} placeholder="0" />
+          <input
+            className="finput"
+            type="number"
+            min="0"
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            placeholder="0"
+          />
         </div>
         <div className="fg">
           <label className="flabel">Unit</label>
@@ -2387,18 +2957,31 @@ const handleNameChange = val => {
             onChange={setUnit}
             options={units}
             placeholder="Select Unit"
-            onAdd={async nm => {
+            onAdd={async (nm) => {
               await dbInsert("dpr_equipment_units", { name: nm });
               setUnits(await dbFetch("dpr_equipment_units"));
               setUnit(nm);
-            }} />
+            }}
+          />
         </div>
       </div>
 
-      <button className="btn btn-green btn-sm" onClick={add}
-        disabled={!source || !name || !qty || !unit}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+      <button
+        className="btn btn-green btn-sm"
+        onClick={add}
+        disabled={!source || !name || !qty || !unit}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
         Add Equipment
       </button>
@@ -2407,48 +2990,88 @@ const handleNameChange = val => {
         <div className="tbl-wrap">
           <table className="tbl">
             <thead>
-              <tr><th>Source</th><th>Equipment</th><th>Qty</th><th>Unit</th><th></th></tr>
+              <tr>
+                <th>Source</th>
+                <th>Equipment</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th></th>
+              </tr>
             </thead>
             <tbody>
-              {list.map((e, i) => (
+              {list.map((e, i) =>
                 editIdx === i ? (
                   <tr key={i} style={{ background: "#fffbf5" }}>
                     <td>
-                      <select className="finput" style={{ padding: "5px 8px", fontSize: 12 }}
+                      <select
+                        className="finput"
+                        style={{ padding: "5px 8px", fontSize: 12 }}
                         value={editRow.source}
-                        onChange={ev => setEditRow(p => ({ ...p, source: ev.target.value }))}>
+                        onChange={(ev) =>
+                          setEditRow((p) => ({ ...p, source: ev.target.value }))
+                        }
+                      >
                         <option value="client">Client</option>
                         <option value="contractor">Contractor</option>
                       </select>
                     </td>
                     <td>
-                      <input className="finput" style={{ padding: "5px 8px", fontSize: 12 }}
+                      <input
+                        className="finput"
+                        style={{ padding: "5px 8px", fontSize: 12 }}
                         value={editRow.name}
-                        onChange={ev => setEditRow(p => ({ ...p, name: ev.target.value }))} />
+                        onChange={(ev) =>
+                          setEditRow((p) => ({ ...p, name: ev.target.value }))
+                        }
+                      />
                     </td>
                     <td>
-                      <input className="finput" type="number" min="0"
+                      <input
+                        className="finput"
+                        type="number"
+                        min="0"
                         style={{ padding: "5px 8px", fontSize: 12, width: 70 }}
                         value={editRow.qty}
-                        onChange={ev => setEditRow(p => ({ ...p, qty: ev.target.value }))} />
+                        onChange={(ev) =>
+                          setEditRow((p) => ({ ...p, qty: ev.target.value }))
+                        }
+                      />
                     </td>
                     <td>
-                      <input className="finput"
+                      <input
+                        className="finput"
                         style={{ padding: "5px 8px", fontSize: 12, width: 80 }}
                         value={editRow.unit}
-                        onChange={ev => setEditRow(p => ({ ...p, unit: ev.target.value }))} />
+                        onChange={(ev) =>
+                          setEditRow((p) => ({ ...p, unit: ev.target.value }))
+                        }
+                      />
                     </td>
                     <td>
                       <div style={{ display: "flex", gap: 4 }}>
-                        <button className="btn btn-orange btn-sm"
+                        <button
+                          className="btn btn-orange btn-sm"
                           style={{ padding: "5px 10px", fontSize: 11 }}
                           onClick={() => {
-                            setList(p => p.map((r, j) => j === i ? { ...editRow } : r));
-                            setEditIdx(null); setEditRow(null);
-                          }}>✓</button>
-                        <button className="btn btn-out btn-sm"
+                            setList((p) =>
+                              p.map((r, j) => (j === i ? { ...editRow } : r)),
+                            );
+                            setEditIdx(null);
+                            setEditRow(null);
+                          }}
+                        >
+                          ✓
+                        </button>
+                        <button
+                          className="btn btn-out btn-sm"
                           style={{ padding: "5px 10px", fontSize: 11 }}
-                          onClick={() => { setEditIdx(null); setEditRow(null); }}>✕</button>
+                          onClick={() => {
+                            setEditIdx(null);
+                            setEditRow(null);
+                          }}
+                        >
+                          ✕
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -2460,46 +3083,86 @@ const handleNameChange = val => {
                     <td>{e.unit}</td>
                     <td>
                       <div style={{ display: "flex", gap: 4 }}>
-                        <button className="btn btn-out btn-sm btn-icon" title="Edit"
-                          onClick={() => { setEditIdx(i); setEditRow({ ...e }); }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <button
+                          className="btn btn-out btn-sm btn-icon"
+                          title="Edit"
+                          onClick={() => {
+                            setEditIdx(i);
+                            setEditRow({ ...e });
+                          }}
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                          >
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
                         </button>
-                        <button className="btn btn-red btn-sm btn-icon" title="Remove"
-                          onClick={() => setList(p => p.filter((_, j) => j !== i))}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                            <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" />
+                        <button
+                          className="btn btn-red btn-sm btn-icon"
+                          title="Remove"
+                          onClick={() =>
+                            setList((p) => p.filter((_, j) => j !== i))
+                          }
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                          >
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-1 14H6L5 6" />
                           </svg>
                         </button>
                       </div>
                     </td>
                   </tr>
-                )
-              ))}
+                ),
+              )}
             </tbody>
           </table>
         </div>
       )}
 
       {showAdd && (
-        <AddPopup title="Add New Equipment" placeholder="Equipment name"
+        <AddPopup
+          title="Add New Equipment"
+          placeholder="Equipment name"
           extraFields={[
             { key: "unit", label: "Unit", placeholder: "e.g. HRS, TRIP, NOS" },
           ]}
           onSave={async (nm, extra) => {
             if (!source || !extra.unit) return;
-            await dbInsert("dpr_equipment", { name: nm, unit: extra.unit, source });
-            const { data } = await supabase.from("dpr_equipment").select("*").order("name");
+            await dbInsert("dpr_equipment", {
+              name: nm,
+              unit: extra.unit,
+              source,
+            });
+            const { data } = await supabase
+              .from("dpr_equipment")
+              .select("*")
+              .order("name");
             const grp = { client: [], contractor: [] };
-            (data || []).forEach(e => { if (grp[e.source]) grp[e.source].push(e); });
+            (data || []).forEach((e) => {
+              if (grp[e.source]) grp[e.source].push(e);
+            });
             setMaster(grp);
             setName(nm);
             setUnit(extra.unit);
             setShowAdd(false);
           }}
-          onClose={() => setShowAdd(false)} />
+          onClose={() => setShowAdd(false)}
+        />
       )}
     </div>
   );
@@ -2521,56 +3184,178 @@ function MaterialRequirementSection({ list, setList }) {
 
   const add = () => {
     if (!name || !qty || !unit) return;
-    const n = v => (v || "").toString().trim().toLowerCase();
-    const dupIdx = list.findIndex(r => n(r.name) === n(name) && n(r.unit) === n(unit));
+    const n = (v) => (v || "").toString().trim().toLowerCase();
+    const dupIdx = list.findIndex(
+      (r) => n(r.name) === n(name) && n(r.unit) === n(unit),
+    );
     if (dupIdx >= 0) {
-      setList(p => p.map((r, i) => i === dupIdx ? { ...r, qty: Number(r.qty) + Number(qty) } : r));
+      setList((p) =>
+        p.map((r, i) =>
+          i === dupIdx ? { ...r, qty: Number(r.qty) + Number(qty) } : r,
+        ),
+      );
     } else {
-      setList(p => [...p, { id: "mreq_" + Date.now(), name, qty: Number(qty), unit }]);
+      setList((p) => [
+        ...p,
+        { id: "mreq_" + Date.now(), name, qty: Number(qty), unit },
+      ]);
     }
-    setName(""); setQty(""); setUnit("");
+    setName("");
+    setQty("");
+    setUnit("");
   };
 
   return (
     <div>
       <div className="grid3" style={{ marginBottom: 12 }}>
         <div className="fg">
-          <label className="flabel">Material <span className="req">*</span></label>
-          <SelectWithAdd value={name} onChange={setName} options={materials} placeholder="Select Material"
-            onAdd={async nm => { await dbInsert("dpr_materials", { name: nm }); setMaterials(await dbFetch("dpr_materials")); setName(nm); }} />
+          <label className="flabel">
+            Material <span className="req">*</span>
+          </label>
+          <SelectWithAdd
+            value={name}
+            onChange={setName}
+            options={materials}
+            placeholder="Select Material"
+            onAdd={async (nm) => {
+              await dbInsert("dpr_materials", { name: nm });
+              setMaterials(await dbFetch("dpr_materials"));
+              setName(nm);
+            }}
+          />
         </div>
         <div className="fg">
-          <label className="flabel">Quantity <span className="req">*</span></label>
-          <input className="finput" type="number" min="0" step="any" value={qty} onChange={e => setQty(e.target.value)} placeholder="0" />
+          <label className="flabel">
+            Quantity <span className="req">*</span>
+          </label>
+          <input
+            className="finput"
+            type="number"
+            min="0"
+            step="any"
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            placeholder="0"
+          />
         </div>
         <div className="fg">
-          <label className="flabel">Unit <span className="req">*</span></label>
-          <SelectWithAdd value={unit} onChange={setUnit} options={units} placeholder="Select Unit"
-            onAdd={async nm => { await dbInsert("dpr_units", { name: nm }); setUnits(await dbFetch("dpr_units")); setUnit(nm); }} />
+          <label className="flabel">
+            Unit <span className="req">*</span>
+          </label>
+          <SelectWithAdd
+            value={unit}
+            onChange={setUnit}
+            options={units}
+            placeholder="Select Unit"
+            onAdd={async (nm) => {
+              await dbInsert("dpr_units", { name: nm });
+              setUnits(await dbFetch("dpr_units"));
+              setUnit(nm);
+            }}
+          />
         </div>
       </div>
 
-      <button className="btn btn-green btn-sm" onClick={add} disabled={!name || !qty || !unit}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <button
+        className="btn btn-green btn-sm"
+        onClick={add}
+        disabled={!name || !qty || !unit}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
         Add Material
       </button>
 
       {list.length > 0 && (
         <div className="tbl-wrap">
           <table className="tbl">
-            <thead><tr><th>Material</th><th>Qty</th><th>Unit</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th></th>
+              </tr>
+            </thead>
             <tbody>
-              {list.map((m, i) => (
+              {list.map((m, i) =>
                 editIdx === i ? (
                   <tr key={m.id || i} style={{ background: "#fffbf5" }}>
-                    <td><input className="finput" style={{ padding: "5px 8px", fontSize: 12 }} value={editRow.name} onChange={e => setEditRow(p => ({ ...p, name: e.target.value }))} /></td>
-                    <td><input className="finput" type="number" min="0" style={{ padding: "5px 8px", fontSize: 12, width: 80 }} value={editRow.qty} onChange={e => setEditRow(p => ({ ...p, qty: e.target.value }))} /></td>
-                    <td><input className="finput" style={{ padding: "5px 8px", fontSize: 12, width: 80 }} value={editRow.unit} onChange={e => setEditRow(p => ({ ...p, unit: e.target.value }))} /></td>
+                    <td>
+                      <input
+                        className="finput"
+                        style={{ padding: "5px 8px", fontSize: 12 }}
+                        value={editRow.name}
+                        onChange={(e) =>
+                          setEditRow((p) => ({ ...p, name: e.target.value }))
+                        }
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="finput"
+                        type="number"
+                        min="0"
+                        style={{ padding: "5px 8px", fontSize: 12, width: 80 }}
+                        value={editRow.qty}
+                        onChange={(e) =>
+                          setEditRow((p) => ({ ...p, qty: e.target.value }))
+                        }
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="finput"
+                        style={{ padding: "5px 8px", fontSize: 12, width: 80 }}
+                        value={editRow.unit}
+                        onChange={(e) =>
+                          setEditRow((p) => ({ ...p, unit: e.target.value }))
+                        }
+                      />
+                    </td>
                     <td>
                       <div style={{ display: "flex", gap: 4 }}>
-                        <button className="btn btn-orange btn-sm" style={{ padding: "5px 10px", fontSize: 11 }}
-                          onClick={() => { setList(p => p.map((r, j) => j === i ? { ...r, ...editRow, qty: Number(editRow.qty) } : r)); setEditIdx(null); setEditRow(null); }}>✓</button>
-                        <button className="btn btn-out btn-sm" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => { setEditIdx(null); setEditRow(null); }}>✕</button>
+                        <button
+                          className="btn btn-orange btn-sm"
+                          style={{ padding: "5px 10px", fontSize: 11 }}
+                          onClick={() => {
+                            setList((p) =>
+                              p.map((r, j) =>
+                                j === i
+                                  ? {
+                                      ...r,
+                                      ...editRow,
+                                      qty: Number(editRow.qty),
+                                    }
+                                  : r,
+                              ),
+                            );
+                            setEditIdx(null);
+                            setEditRow(null);
+                          }}
+                        >
+                          ✓
+                        </button>
+                        <button
+                          className="btn btn-out btn-sm"
+                          style={{ padding: "5px 10px", fontSize: 11 }}
+                          onClick={() => {
+                            setEditIdx(null);
+                            setEditRow(null);
+                          }}
+                        >
+                          ✕
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -2581,22 +3366,52 @@ function MaterialRequirementSection({ list, setList }) {
                     <td>{m.unit}</td>
                     <td>
                       <div style={{ display: "flex", gap: 4 }}>
-                        <button className="btn btn-out btn-sm btn-icon" title="Edit" onClick={() => { setEditIdx(i); setEditRow({ ...m }); }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        <button
+                          className="btn btn-out btn-sm btn-icon"
+                          title="Edit"
+                          onClick={() => {
+                            setEditIdx(i);
+                            setEditRow({ ...m });
+                          }}
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                          >
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
                         </button>
-                        <button className="btn btn-red btn-sm btn-icon" title="Remove" onClick={() => setList(p => p.filter((_, j) => j !== i))}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                        <button
+                          className="btn btn-red btn-sm btn-icon"
+                          title="Remove"
+                          onClick={() =>
+                            setList((p) => p.filter((_, j) => j !== i))
+                          }
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                          >
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-1 14H6L5 6" />
                           </svg>
                         </button>
                       </div>
                     </td>
                   </tr>
-                )
-              ))}
+                ),
+              )}
             </tbody>
           </table>
         </div>
@@ -2604,105 +3419,217 @@ function MaterialRequirementSection({ list, setList }) {
     </div>
   );
 }
-function MaterialSection({ list, setList, showDesc=false, label="Material" }) {
+function MaterialSection({
+  list,
+  setList,
+  showDesc = false,
+  label = "Material",
+}) {
   const [materials, setMaterials] = useState([]);
-  const [units,     setUnits]     = useState([]);
+  const [units, setUnits] = useState([]);
   const [name, setName] = useState("");
-  const [qty,  setQty]  = useState("");
+  const [qty, setQty] = useState("");
   const [unit, setUnit] = useState("");
   const [desc, setDesc] = useState("");
   const [editIdx, setEditIdx] = useState(null);
   const [editRow, setEditRow] = useState(null);
 
-  useEffect(()=>{ dbFetch("dpr_materials").then(setMaterials); dbFetch("dpr_units").then(setUnits); },[]);
-const add = () => {
-  if (!name || !qty || !unit) return;
-  const n = v => (v || "").toString().trim().toLowerCase();
+  useEffect(() => {
+    dbFetch("dpr_materials").then(setMaterials);
+    dbFetch("dpr_units").then(setUnits);
+  }, []);
+  const add = () => {
+    if (!name || !qty || !unit) return;
+    const n = (v) => (v || "").toString().trim().toLowerCase();
 
-  const dupIdx = list.findIndex(r =>
-    n(r.name) === n(name) &&
-    n(r.unit) === n(unit)
-  );
+    const dupIdx = list.findIndex(
+      (r) => n(r.name) === n(name) && n(r.unit) === n(unit),
+    );
 
-  if (dupIdx >= 0) {
-    setList(p => p.map((r, i) =>
-      i === dupIdx ? { ...r, qty: Number(r.qty) + Number(qty) } : r
-    ));
-  } else {
-    setList(p => [...p, { name, qty, unit, ...(showDesc ? { desc } : {}) }]);
-  }
-  setName(""); setQty(""); setUnit(""); setDesc("");
-};
+    if (dupIdx >= 0) {
+      setList((p) =>
+        p.map((r, i) =>
+          i === dupIdx ? { ...r, qty: Number(r.qty) + Number(qty) } : r,
+        ),
+      );
+    } else {
+      setList((p) => [
+        ...p,
+        { name, qty, unit, ...(showDesc ? { desc } : {}) },
+      ]);
+    }
+    setName("");
+    setQty("");
+    setUnit("");
+    setDesc("");
+  };
 
   return (
     <div>
-      <div className="grid3" style={{marginBottom:12}}>
+      <div className="grid3" style={{ marginBottom: 12 }}>
         <div className="fg">
           <label className="flabel">{label}</label>
-          <SelectWithAdd value={name} onChange={setName} options={materials} placeholder={`Select ${label}`}
-            onAdd={async nm=>{ await dbInsert("dpr_materials",{name:nm}); setMaterials(await dbFetch("dpr_materials")); setName(nm); }}/>
+          <SelectWithAdd
+            value={name}
+            onChange={setName}
+            options={materials}
+            placeholder={`Select ${label}`}
+            onAdd={async (nm) => {
+              await dbInsert("dpr_materials", { name: nm });
+              setMaterials(await dbFetch("dpr_materials"));
+              setName(nm);
+            }}
+          />
         </div>
         <div className="fg">
           <label className="flabel">Quantity</label>
-          <input className="finput" type="number" min="0" value={qty} onChange={e=>setQty(e.target.value)} placeholder="0"/>
+          <input
+            className="finput"
+            type="number"
+            min="0"
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            placeholder="0"
+          />
         </div>
         <div className="fg">
           <label className="flabel">Unit</label>
-          <SelectWithAdd value={unit} onChange={setUnit} options={units} placeholder="Select Unit"
-            onAdd={async nm=>{ await dbInsert("dpr_units",{name:nm}); setUnits(await dbFetch("dpr_units")); setUnit(nm); }}/>
+          <SelectWithAdd
+            value={unit}
+            onChange={setUnit}
+            options={units}
+            placeholder="Select Unit"
+            onAdd={async (nm) => {
+              await dbInsert("dpr_units", { name: nm });
+              setUnits(await dbFetch("dpr_units"));
+              setUnit(nm);
+            }}
+          />
         </div>
         {showDesc && (
           <div className="fg col3">
-            <label className="flabel">Description <span className="opt">optional</span></label>
-            <textarea className="finput" rows={2} value={desc} onChange={e=>setDesc(e.target.value)} placeholder="Describe material requirements…"/>
+            <label className="flabel">
+              Description <span className="opt">optional</span>
+            </label>
+            <textarea
+              className="finput"
+              rows={2}
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              placeholder="Describe material requirements…"
+            />
           </div>
         )}
       </div>
-      <button className="btn btn-green btn-sm" onClick={add} disabled={!name||!qty||!unit}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <button
+        className="btn btn-green btn-sm"
+        onClick={add}
+        disabled={!name || !qty || !unit}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
         Add {label}
       </button>
-      {list.length>0 && (
+      {list.length > 0 && (
         <div className="tbl-wrap">
           <table className="tbl">
-            <thead><tr><th>{label}</th><th>Qty</th><th>Unit</th>{showDesc&&<th>Description</th>}<th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>{label}</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                {showDesc && <th>Description</th>}
+                <th></th>
+              </tr>
+            </thead>
             <tbody>
-              {list.map((m, i) => (
+              {list.map((m, i) =>
                 editIdx === i ? (
                   <tr key={i} style={{ background: "#fffbf5" }}>
                     <td>
-                      <input className="finput" style={{ padding: "5px 8px", fontSize: 12 }}
+                      <input
+                        className="finput"
+                        style={{ padding: "5px 8px", fontSize: 12 }}
                         value={editRow.name}
-                        onChange={ev => setEditRow(p => ({ ...p, name: ev.target.value }))} />
+                        onChange={(ev) =>
+                          setEditRow((p) => ({ ...p, name: ev.target.value }))
+                        }
+                      />
                     </td>
                     <td>
-                      <input className="finput" type="number" min="0"
+                      <input
+                        className="finput"
+                        type="number"
+                        min="0"
                         style={{ padding: "5px 8px", fontSize: 12, width: 80 }}
                         value={editRow.qty}
-                        onChange={ev => setEditRow(p => ({ ...p, qty: ev.target.value }))} />
+                        onChange={(ev) =>
+                          setEditRow((p) => ({ ...p, qty: ev.target.value }))
+                        }
+                      />
                     </td>
                     <td>
-                      <input className="finput" style={{ padding: "5px 8px", fontSize: 12, width: 80 }}
+                      <input
+                        className="finput"
+                        style={{ padding: "5px 8px", fontSize: 12, width: 80 }}
                         value={editRow.unit}
-                        onChange={ev => setEditRow(p => ({ ...p, unit: ev.target.value }))} />
+                        onChange={(ev) =>
+                          setEditRow((p) => ({ ...p, unit: ev.target.value }))
+                        }
+                      />
                     </td>
                     {showDesc && (
                       <td>
-                        <textarea className="finput" rows={2}
-                          style={{ padding: "5px 8px", fontSize: 12, minWidth: 140 }}
+                        <textarea
+                          className="finput"
+                          rows={2}
+                          style={{
+                            padding: "5px 8px",
+                            fontSize: 12,
+                            minWidth: 140,
+                          }}
                           value={editRow.desc || ""}
-                          onChange={ev => setEditRow(p => ({ ...p, desc: ev.target.value }))} />
+                          onChange={(ev) =>
+                            setEditRow((p) => ({ ...p, desc: ev.target.value }))
+                          }
+                        />
                       </td>
                     )}
                     <td>
                       <div style={{ display: "flex", gap: 4 }}>
-                        <button className="btn btn-orange btn-sm" style={{ padding: "5px 10px", fontSize: 11 }}
+                        <button
+                          className="btn btn-orange btn-sm"
+                          style={{ padding: "5px 10px", fontSize: 11 }}
                           onClick={() => {
-                            setList(p => p.map((r, j) => j === i ? { ...editRow } : r));
-                            setEditIdx(null); setEditRow(null);
-                          }}>✓</button>
-                        <button className="btn btn-out btn-sm" style={{ padding: "5px 10px", fontSize: 11 }}
-                          onClick={() => { setEditIdx(null); setEditRow(null); }}>✕</button>
+                            setList((p) =>
+                              p.map((r, j) => (j === i ? { ...editRow } : r)),
+                            );
+                            setEditIdx(null);
+                            setEditRow(null);
+                          }}
+                        >
+                          ✓
+                        </button>
+                        <button
+                          className="btn btn-out btn-sm"
+                          style={{ padding: "5px 10px", fontSize: 11 }}
+                          onClick={() => {
+                            setEditIdx(null);
+                            setEditRow(null);
+                          }}
+                        >
+                          ✕
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -2714,24 +3641,52 @@ const add = () => {
                     {showDesc && <td>{m.desc || "—"}</td>}
                     <td>
                       <div style={{ display: "flex", gap: 4 }}>
-                        <button className="btn btn-out btn-sm btn-icon" title="Edit"
-                          onClick={() => { setEditIdx(i); setEditRow({ ...m }); }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        <button
+                          className="btn btn-out btn-sm btn-icon"
+                          title="Edit"
+                          onClick={() => {
+                            setEditIdx(i);
+                            setEditRow({ ...m });
+                          }}
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                          >
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
                         </button>
-                        <button className="btn btn-red btn-sm btn-icon" title="Remove"
-                          onClick={() => setList(p => p.filter((_, j) => j !== i))}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                        <button
+                          className="btn btn-red btn-sm btn-icon"
+                          title="Remove"
+                          onClick={() =>
+                            setList((p) => p.filter((_, j) => j !== i))
+                          }
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                          >
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-1 14H6L5 6" />
                           </svg>
                         </button>
                       </div>
                     </td>
                   </tr>
-                )
-              ))}
+                ),
+              )}
             </tbody>
           </table>
         </div>
@@ -2741,26 +3696,60 @@ const add = () => {
 }
 
 function VisitorsSection({ visitors, setVisitors }) {
-  const add = ()=>setVisitors(p=>[...p,{id:"v_"+Date.now(),name:"",instruction:""}]);
-  const upd = (id,k,v)=>setVisitors(p=>p.map(x=>x.id===id?{...x,[k]:v}:x));
-  const rem = id=>setVisitors(p=>p.filter(x=>x.id!==id));
+  const add = () =>
+    setVisitors((p) => [
+      ...p,
+      { id: "v_" + Date.now(), name: "", instruction: "" },
+    ]);
+  const upd = (id, k, v) =>
+    setVisitors((p) => p.map((x) => (x.id === id ? { ...x, [k]: v } : x)));
+  const rem = (id) => setVisitors((p) => p.filter((x) => x.id !== id));
   return (
     <div>
-      {visitors.map((v,idx)=>(
+      {visitors.map((v, idx) => (
         <div className="visitor-card" key={v.id}>
           <div className="visitor-card-hdr">
-            <div className="visitor-num">{idx+1}</div>
-            <input className="finput" style={{flex:1, minWidth:0}} value={v.name} onChange={e=>upd(v.id,"name",e.target.value)} placeholder="Visitor name…"/>
-            <button className="btn btn-red btn-sm" onClick={()=>rem(v.id)}>✕</button>
+            <div className="visitor-num">{idx + 1}</div>
+            <input
+              className="finput"
+              style={{ flex: 1, minWidth: 0 }}
+              value={v.name}
+              onChange={(e) => upd(v.id, "name", e.target.value)}
+              placeholder="Visitor name…"
+            />
+            <button className="btn btn-red btn-sm" onClick={() => rem(v.id)}>
+              ✕
+            </button>
           </div>
           <div className="fg">
             <label className="flabel">Instructions / Observations</label>
-            <textarea className="finput" rows={2} value={v.instruction} onChange={e=>upd(v.id,"instruction",e.target.value)} placeholder="Enter instructions or observations…"/>
+            <textarea
+              className="finput"
+              rows={2}
+              value={v.instruction}
+              onChange={(e) => upd(v.id, "instruction", e.target.value)}
+              placeholder="Enter instructions or observations…"
+            />
           </div>
         </div>
       ))}
-      <button className="btn btn-out btn-sm" onClick={add} style={{marginTop:4}}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <button
+        className="btn btn-out btn-sm"
+        onClick={add}
+        style={{ marginTop: 4 }}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
         Add Visitor
       </button>
     </div>
@@ -2768,22 +3757,55 @@ function VisitorsSection({ visitors, setVisitors }) {
 }
 
 function CustomFieldsSection({ fields, setFields }) {
-  const add = ()=>setFields(p=>[...p,{id:"cf_"+Date.now(),title:"",value:""}]);
-  const upd = (id,k,v)=>setFields(p=>p.map(x=>x.id===id?{...x,[k]:v}:x));
-  const rem = id=>setFields(p=>p.filter(x=>x.id!==id));
+  const add = () =>
+    setFields((p) => [...p, { id: "cf_" + Date.now(), title: "", value: "" }]);
+  const upd = (id, k, v) =>
+    setFields((p) => p.map((x) => (x.id === id ? { ...x, [k]: v } : x)));
+  const rem = (id) => setFields((p) => p.filter((x) => x.id !== id));
   return (
     <div>
-      {fields.map(f=>(
+      {fields.map((f) => (
         <div className="custom-field-wrap" key={f.id}>
-          <div className="grid2" style={{marginBottom:10}}>
-            <div className="fg"><label className="flabel">Field Title</label><input className="finput" value={f.title} onChange={e=>upd(f.id,"title",e.target.value)} placeholder="e.g. Remarks"/></div>
-            <div style={{display:"flex",alignItems:"flex-end"}}><button className="btn btn-red btn-sm" onClick={()=>rem(f.id)}>Remove</button></div>
+          <div className="grid2" style={{ marginBottom: 10 }}>
+            <div className="fg">
+              <label className="flabel">Field Title</label>
+              <input
+                className="finput"
+                value={f.title}
+                onChange={(e) => upd(f.id, "title", e.target.value)}
+                placeholder="e.g. Remarks"
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-end" }}>
+              <button className="btn btn-red btn-sm" onClick={() => rem(f.id)}>
+                Remove
+              </button>
+            </div>
           </div>
-          <div className="fg"><label className="flabel">Field Value</label><textarea className="finput" rows={2} value={f.value} onChange={e=>upd(f.id,"value",e.target.value)}/></div>
+          <div className="fg">
+            <label className="flabel">Field Value</label>
+            <textarea
+              className="finput"
+              rows={2}
+              value={f.value}
+              onChange={(e) => upd(f.id, "value", e.target.value)}
+            />
+          </div>
         </div>
       ))}
       <button className="btn btn-out btn-sm" onClick={add}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
         Add Custom Field
       </button>
     </div>
@@ -2792,39 +3814,45 @@ function CustomFieldsSection({ fields, setFields }) {
 
 // REPLACE the entire PhotosSection component with:
 function PhotosSection({ photos, setPhotos, onLightbox, showToast }) {
-    const fileRef = useRef();
-    const [converting, setConverting] = useState(false);
+  const fileRef = useRef();
+  const [converting, setConverting] = useState(false);
 
-    const addFiles = async files => {
-      const validFiles = files.filter(f => {
-        const type = f.type.toLowerCase();
-        const name = f.name.toLowerCase();
-        return (
-          type.startsWith("image/") ||
-          (type === "" && /\.(heic|heif|jpg|jpeg|png|gif|webp|bmp)$/i.test(name))
-        );
-      });
+  const addFiles = async (files) => {
+    const validFiles = files.filter((f) => {
+      const type = f.type.toLowerCase();
+      const name = f.name.toLowerCase();
+      return (
+        type.startsWith("image/") ||
+        (type === "" && /\.(heic|heif|jpg|jpeg|png|gif|webp|bmp)$/i.test(name))
+      );
+    });
 
-      const rejectedCount = files.length - validFiles.length;
-      if (rejectedCount > 0 && showToast) {
-        showToast("err", `${rejectedCount} file${rejectedCount > 1 ? "s were" : " was"} skipped — only image files are allowed.`);
-      }
+    const rejectedCount = files.length - validFiles.length;
+    if (rejectedCount > 0 && showToast) {
+      showToast(
+        "err",
+        `${rejectedCount} file${rejectedCount > 1 ? "s were" : " was"} skipped — only image files are allowed.`,
+      );
+    }
 
-      if (!validFiles.length) return;
-      setConverting(true);
+    if (!validFiles.length) return;
+    setConverting(true);
 
     for (const f of validFiles) {
       try {
         const data = await compressImage(f);
         if (data) {
-          setPhotos(p => [...p, { id: "ph_" + Date.now() + Math.random(), data, caption: "" }]);
+          setPhotos((p) => [
+            ...p,
+            { id: "ph_" + Date.now() + Math.random(), data, caption: "" },
+          ]);
         }
       } catch (e) {
         console.error("Failed to process image:", f.name, e);
       }
     }
     setConverting(false);
-    };
+  };
 
   return (
     <div>
@@ -2834,22 +3862,38 @@ function PhotosSection({ photos, setPhotos, onLightbox, showToast }) {
         accept="image/*,.heic,.heif"
         multiple
         hidden
-        onChange={e => { addFiles(Array.from(e.target.files)); e.target.value = ""; }}
+        onChange={(e) => {
+          addFiles(Array.from(e.target.files));
+          e.target.value = "";
+        }}
       />
       <div className="photo-grid">
-        {photos.map(ph => (
+        {photos.map((ph) => (
           <div className="photo-item" key={ph.id}>
             <img
-              className="photo-thumb" src={ph.data} alt=""
-              style={{ cursor:"zoom-in" }}
+              className="photo-thumb"
+              src={ph.data}
+              alt=""
+              style={{ cursor: "zoom-in" }}
               onClick={() => onLightbox?.(photos, photos.indexOf(ph))}
             />
-            <button className="photo-remove" onClick={() => setPhotos(p => p.filter(x => x.id !== ph.id))}>×</button>
+            <button
+              className="photo-remove"
+              onClick={() => setPhotos((p) => p.filter((x) => x.id !== ph.id))}
+            >
+              ×
+            </button>
             <textarea
               className="photo-caption"
               rows={2}
               value={ph.caption}
-              onChange={e => setPhotos(p => p.map(x => x.id === ph.id ? { ...x, caption: e.target.value } : x))}
+              onChange={(e) =>
+                setPhotos((p) =>
+                  p.map((x) =>
+                    x.id === ph.id ? { ...x, caption: e.target.value } : x,
+                  ),
+                )
+              }
               placeholder="Caption…"
             />
           </div>
@@ -2862,15 +3906,30 @@ function PhotosSection({ photos, setPhotos, onLightbox, showToast }) {
         >
           {converting ? (
             <>
-              <div className="spinner" style={{ width: 18, height: 18, borderTopColor: "var(--orange3)" }} />
+              <div
+                className="spinner"
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderTopColor: "var(--orange3)",
+                }}
+              />
               <span>Converting…</span>
             </>
           ) : (
             <>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
               Add Photos
             </>
@@ -2887,223 +3946,309 @@ function PhotosSection({ photos, setPhotos, onLightbox, showToast }) {
 }
 
 const SUBMIT_STEPS = [
-  { key:"photos", label:"Uploading photos..." },
-  { key:"pdf",    label:"Generating PDF..." },
-  { key:"pdfup",  label:"Uploading PDF..." },
-  { key:"db",     label:"Saving report record..." },
+  { key: "photos", label: "Uploading photos..." },
+  { key: "pdf", label: "Generating PDF..." },
+  { key: "pdfup", label: "Uploading PDF..." },
+  { key: "db", label: "Saving report record..." },
 ];
 
 function SubmitOverlay({ currentStep, detail }) {
-  const idx = SUBMIT_STEPS.findIndex(s=>s.key===currentStep);
+  const idx = SUBMIT_STEPS.findIndex((s) => s.key === currentStep);
   return (
     <div className="pdf-overlay">
-      <div className="spinner" style={{width:44,height:44,borderWidth:4}}/>
+      <div
+        className="spinner"
+        style={{ width: 44, height: 44, borderWidth: 4 }}
+      />
       <div className="pdf-overlay-title">Generating Evening DPR…</div>
-      <div style={{display:"flex",flexDirection:"column",gap:8,width:"100%",maxWidth:340}}>
-        {SUBMIT_STEPS.map((s,i)=>{
-          const cls = i<idx?"step-done":i===idx?"step-active":"step-pending";
-          const icon = i<idx?"✓":i===idx?"⟳":"○";
-          return <div key={s.key} className={`progress-step ${cls}`}><span style={{fontSize:13,minWidth:16}}>{icon}</span><span>{s.label}</span></div>;
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          width: "100%",
+          maxWidth: 340,
+        }}
+      >
+        {SUBMIT_STEPS.map((s, i) => {
+          const cls =
+            i < idx ? "step-done" : i === idx ? "step-active" : "step-pending";
+          const icon = i < idx ? "✓" : i === idx ? "⟳" : "○";
+          return (
+            <div key={s.key} className={`progress-step ${cls}`}>
+              <span style={{ fontSize: 13, minWidth: 16 }}>{icon}</span>
+              <span>{s.label}</span>
+            </div>
+          );
         })}
       </div>
-      {detail && <div style={{fontSize:11,color:"#7a7a7a",fontFamily:"monospace"}}>{detail}</div>}
+      {detail && (
+        <div
+          style={{ fontSize: 11, color: "#7a7a7a", fontFamily: "monospace" }}
+        >
+          {detail}
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── MAIN FORM ────────────────────────────────────────────────────────────────
-function DprForm({user}) {
+function DprForm({ user }) {
   const [reportType, setReportType] = useState("morning");
-  const [date,     setDate]     = useState(todayStr());
+  const [date, setDate] = useState(todayStr());
   const [site, setSite] = useState("");
   const [engineer, setEngineer] = useState("");
   const [userSites, setUserSites] = useState([]);
   const [loadingSites, setLoadingSites] = useState(true);
-  const [sites,    setSites]    = useState([]);
-  const [engineers,setEngineers]= useState([]);
-  const [loadingEng,setLoadingEng]=useState(false);
+  const [sites, setSites] = useState([]);
+  const [engineers, setEngineers] = useState([]);
+  const [loadingEng, setLoadingEng] = useState(false);
   // Add near the top of DprForm, alongside other refs
-const draftOpenedRef = useRef(false);
-const autoSaveTimerRef = useRef(null);
+  const draftOpenedRef = useRef(false);
+  const autoSaveTimerRef = useRef(null);
 
-  const [summary,       setSummary]       = useState("");
-  const [manpower,      setManpower]      = useState([]);
-  const [equipment,     setEquipment]     = useState([]);
-  const [cementAvail,   setCementAvail]   = useState("");
-  const [cementRcvd,    setCementRcvd]    = useState("");
-  const [cementUsed,    setCementUsed]    = useState("");
-  const [cementUsedDesc,setCementUsedDesc]= useState("");
-  const [concreteTh,    setConcreteTh]    = useState("");
-  const [concreteOn,    setConcreteOn]    = useState("");
-  const [concreteDesc,  setConcreteDesc]  = useState("");
-  const [material,      setMaterial]      = useState([]);
-  const [materialReq,   setMaterialReq]   = useState([]);
-  const [cube,          setCube]          = useState("");
-  const [visitors,      setVisitors]      = useState([{id:"v_init",name:"",instruction:""}]);
-  const [customFields,  setCustomFields]  = useState([]);
-  const [photos,        setPhotos]        = useState([]);
-  const [planning,      setPlanning]      = useState("");
+  const [summary, setSummary] = useState("");
+  const [manpower, setManpower] = useState([]);
+  const [equipment, setEquipment] = useState([]);
+  const [cementAvail, setCementAvail] = useState("");
+  const [cementRcvd, setCementRcvd] = useState("");
+  const [cementUsed, setCementUsed] = useState("");
+  const [cementUsedDesc, setCementUsedDesc] = useState("");
+  const [concreteTh, setConcreteTh] = useState("");
+  const [concreteOn, setConcreteOn] = useState("");
+  const [concreteDesc, setConcreteDesc] = useState("");
+  const [material, setMaterial] = useState([]);
+  const [materialReq, setMaterialReq] = useState([]);
+  const [cube, setCube] = useState("");
+  const [visitors, setVisitors] = useState([
+    { id: "v_init", name: "", instruction: "" },
+  ]);
+  const [customFields, setCustomFields] = useState([]);
+  const [photos, setPhotos] = useState([]);
+  const [checklistPhotos, setChecklistPhotos] = useState([]);
+  const [planning, setPlanning] = useState("");
 
-  const [draftInfo,    setDraftInfo]    = useState(null);
+  const [draftInfo, setDraftInfo] = useState(null);
   const [draftCheckStatus, setDraftCheckStatus] = useState("idle"); // idle | checking | found | none | error
-  const [submitting,   setSubmitting]   = useState(false);
-  const [submitStep,   setSubmitStep]   = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitStep, setSubmitStep] = useState("");
   const [submitDetail, setSubmitDetail] = useState("");
-  const [toast,        setToast]        = useState(null);
-  const [submitted,    setSubmitted]    = useState(false);
-  const [pdfUrl,       setPdfUrl]       = useState(null); 
+  const [toast, setToast] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState(null);
   // ── Lightbox ──────────────────────────────────────────────────────────────
   const [lightbox, setLightbox] = useState(null);
   const openLightbox = (photos, idx) => {
-    const filtered = photos.filter(p => p.data || p.supabaseUrl);
+    const filtered = photos.filter((p) => p.data || p.supabaseUrl);
     if (!filtered.length) return;
     setLightbox({ images: filtered, idx: Math.min(idx, filtered.length - 1) });
   };
   const closeLightbox = () => setLightbox(null);
-  const lbPrev = () => setLightbox(p => ({ ...p, idx: (p.idx - 1 + p.images.length) % p.images.length }));
-  const lbNext = () => setLightbox(p => ({ ...p, idx: (p.idx + 1) % p.images.length }));
+  const lbPrev = () =>
+    setLightbox((p) => ({
+      ...p,
+      idx: (p.idx - 1 + p.images.length) % p.images.length,
+    }));
+  const lbNext = () =>
+    setLightbox((p) => ({ ...p, idx: (p.idx + 1) % p.images.length }));
 
-  const cementBalance = Math.max(0,(Number(cementAvail)||0)+(Number(cementRcvd)||0)-(Number(cementUsed)||0));
-useEffect(() => {
+  const cementBalance = Math.max(
+    0,
+    (Number(cementAvail) || 0) +
+      (Number(cementRcvd) || 0) -
+      (Number(cementUsed) || 0),
+  );
+  useEffect(() => {
     const handler = (e) => {
       if (!lightbox) return;
       if (e.key === "ArrowRight") lbNext();
-      if (e.key === "ArrowLeft")  lbPrev();
-      if (e.key === "Escape")     closeLightbox();
+      if (e.key === "ArrowLeft") lbPrev();
+      if (e.key === "Escape") closeLightbox();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [lightbox]);
-  const showToast = (type, msg, dur=5000) => { setToast({type,msg}); setTimeout(()=>setToast(null),dur); };
-
-  useEffect(()=>{ dbFetch("dpr_sites").then(setSites); },[]);
-
-  useEffect(()=>{
-    if (!site) { setEngineers([]); return; }
-    setLoadingEng(true);
-    getEngineersForSite(site).then(list=>{ setEngineers(list); setLoadingEng(false); });
-  },[site]);
+  const showToast = (type, msg, dur = 5000) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), dur);
+  };
 
   useEffect(() => {
-    if (!site || !engineer) { setDraftInfo(null); setDraftCheckStatus("idle"); return; }
+    dbFetch("dpr_sites").then(setSites);
+  }, []);
+
+  useEffect(() => {
+    if (!site) {
+      setEngineers([]);
+      return;
+    }
+    setLoadingEng(true);
+    getEngineersForSite(site).then((list) => {
+      setEngineers(list);
+      setLoadingEng(false);
+    });
+  }, [site]);
+
+  useEffect(() => {
+    if (!site || !engineer) {
+      setDraftInfo(null);
+      setDraftCheckStatus("idle");
+      return;
+    }
     let cancelled = false;
     setDraftCheckStatus("checking");
-    loadDraft(site, engineer).then(res => {
+    loadDraft(site, engineer).then((res) => {
       if (cancelled) return;
-      if (!res.ok) { setDraftInfo(null); setDraftCheckStatus("error"); return; }
+      if (!res.ok) {
+        setDraftInfo(null);
+        setDraftCheckStatus("error");
+        return;
+      }
       setDraftInfo(res.draft);
       setDraftCheckStatus(res.draft ? "found" : "none");
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [site, engineer]);
 
-  
   // Pre-fill from this morning's report — independent of draft lookup above,
   // only relevant once the user is on the evening tab.
   useEffect(() => {
     if (!site || !engineer || reportType !== "evening") return;
-    getLastMorningPayload(site, engineer).then(mp => {
+    getLastMorningPayload(site, engineer).then((mp) => {
       if (!mp) return;
-      if (mp.summary)   setSummary(mp.summary);
+      if (mp.summary) setSummary(mp.summary);
       if (mp.manpower?.length) setManpower(mp.manpower);
       if (mp.equipment?.length) setEquipment(mp.equipment);
       showToast("ok", "Fields pre-filled from today's morning report.");
     });
   }, [site, engineer, reportType]);
 
-useEffect(() => {
-  (async () => {
-    setLoadingSites(true);
-    setEngineer(user?.name || "");
+  useEffect(() => {
+    (async () => {
+      setLoadingSites(true);
+      setEngineer(user?.name || "");
 
-    let sites = [];
+      let sites = [];
 
-    if (user?.id) {
-      // Primary source: fetch site_name and site_names fresh from user_details
-      const { data: udData } = await supabase
-        .from("user_details")
-        .select("site_name, site_names")
-        .eq("id", user.id)
-        .single();
+      if (user?.id) {
+        // Primary source: fetch site_name and site_names fresh from user_details
+        const { data: udData } = await supabase
+          .from("user_details")
+          .select("site_name, site_names")
+          .eq("id", user.id)
+          .single();
 
-      if (udData?.site_names?.length) {
-        // Multi-site array takes priority
-        sites = udData.site_names.filter(Boolean).map(titleCase);
-      } else if (udData?.site_name) {
-        // Single site fallback
-        sites = [titleCase(udData.site_name)];
+        if (udData?.site_names?.length) {
+          // Multi-site array takes priority
+          sites = udData.site_names.filter(Boolean).map(titleCase);
+        } else if (udData?.site_name) {
+          // Single site fallback
+          sites = [titleCase(udData.site_name)];
+        }
       }
-    }
 
-    // Final fallback: use whatever is in localStorage user object
-    if (sites.length === 0) {
-      if (user?.site_names?.length) {
-        sites = user.site_names.filter(Boolean).map(titleCase);
-      } else if (user?.site_name) {
-        sites = [titleCase(user.site_name)];
+      // Final fallback: use whatever is in localStorage user object
+      if (sites.length === 0) {
+        if (user?.site_names?.length) {
+          sites = user.site_names.filter(Boolean).map(titleCase);
+        } else if (user?.site_name) {
+          sites = [titleCase(user.site_name)];
+        }
       }
-    }
 
-    if (sites.length === 1) {
-      setSite(sites[0]);
-    }
+      if (sites.length === 1) {
+        setSite(sites[0]);
+      }
 
-    setUserSites(sites);
-    setLoadingSites(false);
-  })();
-}, [user]);
+      setUserSites(sites);
+      setLoadingSites(false);
+    })();
+  }, [user]);
 
-const collectPayload = () => ({
-  site, engineer, employeeName:engineer, reportType, date, summary, manpower, equipment,
-  cementAvailable:cementAvail, cementReceived:cementRcvd, cementUsed, cementBalance:String(cementBalance), cementUsedDesc,
-  concreteTheoretical:concreteTh, concreteOnsite:concreteOn, concreteDescription:concreteDesc,
-  material, materialRequirement: materialReq, cube,   // ← added materialRequirement
-  visitors: visitors.filter(v=>v.name),
-  customFields: customFields.filter(f=>f.title||f.value),
-  photos, planning,
-});
+  const collectPayload = () => ({
+    site,
+    engineer,
+    employeeName: engineer,
+    reportType,
+    date,
+    summary,
+    manpower,
+    equipment,
+    cementAvailable: cementAvail,
+    cementReceived: cementRcvd,
+    cementUsed,
+    cementBalance: String(cementBalance),
+    cementUsedDesc,
+    concreteTheoretical: concreteTh,
+    concreteOnsite: concreteOn,
+    concreteDescription: concreteDesc,
+    material,
+    materialRequirement: materialReq,
+    cube, // ← added materialRequirement
+    visitors: visitors.filter((v) => v.name),
+    customFields: customFields.filter((f) => f.title || f.value),
+    photos,
+    checklistPhotos,
+    planning,
+  });
 
   const handleSaveDraft = async () => {
-    if (!site||!engineer) { showToast("err","Select site and engineer first."); return; }
+    if (!site || !engineer) {
+      showToast("err", "Select site and engineer first.");
+      return;
+    }
     const res = await saveDraft(collectPayload());
     if (res.ok) {
-      showToast("ok","Draft saved!");
+      showToast("ok", "Draft saved!");
       const loaded = await loadDraft(site, engineer);
       if (loaded.ok) {
         setDraftInfo(loaded.draft);
         setDraftCheckStatus(loaded.draft ? "found" : "none");
       }
     } else {
-      showToast("err", "Failed to save draft: " + (res.error || "unknown error"), 8000);
+      showToast(
+        "err",
+        "Failed to save draft: " + (res.error || "unknown error"),
+        8000,
+      );
     }
   };
 
-const handleOpenDraft = () => {
-  if (!draftInfo) { showToast("err", "No draft available to open."); return; }
-  const d = draftInfo.payload || {};
-  setReportType(d.reportType || "morning");
-  setSummary(d.summary || "");
-  setManpower(d.manpower || []);
-  setEquipment(d.equipment || []);
-  setCementAvail(d.cementAvailable || "");
-  setCementRcvd(d.cementReceived || "");
-  setCementUsed(d.cementUsed || "");
-  setCementUsedDesc(d.cementUsedDesc || "");
-  setConcreteTh(d.concreteTheoretical || "");
-  setConcreteOn(d.concreteOnsite || "");
-  setConcreteDesc(d.concreteDescription || "");
-  setMaterial(d.material || []);
-  setMaterialReq(d.materialRequirement || []);
-  setCube(d.cube || "");
-  setVisitors(d.visitors?.length
-    ? d.visitors.map((v, i) => ({ ...v, id: "dr_v_" + i }))
-    : [{ id: "v_init", name: "", instruction: "" }]);
-  setCustomFields(d.customFields || []);
-  setPhotos(d.photos || []);
-  setPlanning(d.planning || "");
-  draftOpenedRef.current = true;  // ← mark as opened
-  showToast("ok", "Draft restored.");
-};
+  const handleOpenDraft = () => {
+    if (!draftInfo) {
+      showToast("err", "No draft available to open.");
+      return;
+    }
+    const d = draftInfo.payload || {};
+    setReportType(d.reportType || "morning");
+    setSummary(d.summary || "");
+    setManpower(d.manpower || []);
+    setEquipment(d.equipment || []);
+    setCementAvail(d.cementAvailable || "");
+    setCementRcvd(d.cementReceived || "");
+    setCementUsed(d.cementUsed || "");
+    setCementUsedDesc(d.cementUsedDesc || "");
+    setConcreteTh(d.concreteTheoretical || "");
+    setConcreteOn(d.concreteOnsite || "");
+    setConcreteDesc(d.concreteDescription || "");
+    setMaterial(d.material || []);
+    setMaterialReq(d.materialRequirement || []);
+    setCube(d.cube || "");
+    setVisitors(
+      d.visitors?.length
+        ? d.visitors.map((v, i) => ({ ...v, id: "dr_v_" + i }))
+        : [{ id: "v_init", name: "", instruction: "" }],
+    );
+    setCustomFields(d.customFields || []);
+    setPhotos(d.photos || []);
+    setChecklistPhotos(d.checklistPhotos || []);
+    setPlanning(d.planning || "");
+    draftOpenedRef.current = true; // ← mark as opened
+    showToast("ok", "Draft restored.");
+  };
 
   const handleDeleteDraft = async () => {
     if (!window.confirm("Delete draft?")) return;
@@ -3111,21 +4256,29 @@ const handleOpenDraft = () => {
     if (res.ok) {
       setDraftInfo(null);
       setDraftCheckStatus("none");
-      showToast("ok","Draft deleted.");
+      showToast("ok", "Draft deleted.");
     } else {
-      showToast("err", "Failed to delete draft: " + (res.error || "unknown error"), 8000);
+      showToast(
+        "err",
+        "Failed to delete draft: " + (res.error || "unknown error"),
+        8000,
+      );
     }
   };
 
   // Morning report: just save to DB (no PDF)
   const handleMorningSave = async () => {
-    if (!site||!engineer||!summary.trim()) { showToast("err","Site, engineer and work summary are required."); return; }
+    if (!site || !engineer || !summary.trim()) {
+      showToast("err", "Site, engineer and work summary are required.");
+      return;
+    }
     setSubmitting(true);
     draftOpenedRef.current = false;
     const payload = collectPayload();
     try {
       // Delete any existing report with same site+engineer+date+type (override old entry)
-      await supabase.from("dpr_reports")
+      await supabase
+        .from("dpr_reports")
         .delete()
         .eq("site", site)
         .eq("engineer", engineer)
@@ -3133,14 +4286,20 @@ const handleOpenDraft = () => {
         .eq("date", date);
 
       const { error } = await supabase.from("dpr_reports").insert({
-        site, engineer, report_type:"morning", date, payload,
-        pdf_url: null, photo_folder: null, created_at: new Date().toISOString(),
+        site,
+        engineer,
+        report_type: "morning",
+        date,
+        payload,
+        pdf_url: null,
+        photo_folder: null,
+        created_at: new Date().toISOString(),
       });
-      
+
       if (error) throw new Error(`DB insert failed: ${error.message}`);
       setSubmitted(true);
       draftOpenedRef.current = false;
-    } catch(err) {
+    } catch (err) {
       showToast("err", err.message, 10000);
     }
     setSubmitting(false);
@@ -3148,52 +4307,112 @@ const handleOpenDraft = () => {
 
   // Evening DPR: upload photos → generate PDF → upload PDF → save DB
   const handleEveningSubmit = async () => {
-    if (!site||!engineer||!summary.trim()) { showToast("err","Site, engineer and work summary are required."); return; }
-    if (!photos.length) { showToast("err","Please add at least one photo for the Evening DPR."); return; }
+    if (!site || !engineer || !summary.trim()) {
+      showToast("err", "Site, engineer and work summary are required.");
+      return;
+    }
+    if (!photos.length) {
+      showToast("err", "Please add at least one photo for the Evening DPR.");
+      return;
+    }
     setSubmitting(true);
     const payload = collectPayload();
     try {
       const photoFolder = `${buildSiteDatePath(date)}/dpr`;
       const uploadedPhotos = [];
+      const uploadedChecklistPhotos = [];
 
       setSubmitStep("photos");
-      for (let i=0; i<photos.length; i++) {
-        setSubmitDetail(`Photo ${i+1} of ${photos.length}…`);
-        const cap = (photos[i].caption || "").trim().replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
-        const fname = `photo_${i+1}${cap ? "_" + cap : ""}.jpg`;
+      for (let i = 0; i < photos.length; i++) {
+        setSubmitDetail(`Photo ${i + 1} of ${photos.length}…`);
+        const cap = (photos[i].caption || "")
+          .trim()
+          .replace(/[^a-zA-Z0-9_-]/g, "_")
+          .slice(0, 30);
+        const fname = `photo_${i + 1}${cap ? "_" + cap : ""}.jpg`;
         const path = `${photoFolder}/photos/${fname}`;
         const url = await uploadPhotoToSupabase(photos[i].data, site, path);
-        uploadedPhotos.push({...photos[i], supabaseUrl:url, storagePath:path});
+        uploadedPhotos.push({
+          ...photos[i],
+          supabaseUrl: url,
+          storagePath: path,
+        });
       }
       payload.photos = uploadedPhotos;
 
-if (materialReq.length) {
-  setSubmitDetail("Submitting material requirements…");
-  await submitMaterialRequirements(materialReq, site, engineer);
-}
+      for (let i = 0; i < checklistPhotos.length; i++) {
+        setSubmitDetail(
+          `Checklist photo ${i + 1} of ${checklistPhotos.length}…`,
+        );
+        const cap = (checklistPhotos[i].caption || "")
+          .trim()
+          .replace(/[^a-zA-Z0-9_-]/g, "_")
+          .slice(0, 30);
+        const fname = `checklist_${i + 1}${cap ? "_" + cap : ""}.jpg`;
+        const path = `${photoFolder}/checklist/${fname}`;
+        const url = await uploadPhotoToSupabase(
+          checklistPhotos[i].data,
+          site,
+          path,
+        );
+        uploadedChecklistPhotos.push({
+          ...checklistPhotos[i],
+          supabaseUrl: url,
+          storagePath: path,
+        });
+      }
+      payload.checklistPhotos = uploadedChecklistPhotos;
 
-setSubmitStep("pdf");
-setSubmitDetail("Building document…");
-const { blob, fileName } = await generateEveningPdf(payload, msg=>setSubmitDetail(msg));
+      if (materialReq.length) {
+        setSubmitDetail("Submitting material requirements…");
+        await submitMaterialRequirements(materialReq, site, engineer);
+      }
+
+      setSubmitStep("pdf");
+      setSubmitDetail("Building document…");
+      const { blob, fileName } = await generateEveningPdf(payload, (msg) =>
+        setSubmitDetail(msg),
+      );
 
       setSubmitStep("pdfup");
       setSubmitDetail(fileName);
-      const pdfPublicUrl = await uploadPdfToSupabase(blob, fileName, site, date);
+      const pdfPublicUrl = await uploadPdfToSupabase(
+        blob,
+        fileName,
+        site,
+        date,
+      );
 
       setSubmitStep("db");
       setSubmitDetail("Writing to dpr_reports…");
-      const photosForDb = uploadedPhotos.map(p=>({ supabaseUrl:p.supabaseUrl, storagePath:p.storagePath, caption:p.caption||"" }));
-// Delete any existing report with same site+engineer+date+type (override old entry)
-      await supabase.from("dpr_reports")
+      const photosForDb = uploadedPhotos.map((p) => ({
+        supabaseUrl: p.supabaseUrl,
+        storagePath: p.storagePath,
+        caption: p.caption || "",
+      }));
+      const checklistPhotosForDb = uploadedChecklistPhotos.map((p) => ({
+        supabaseUrl: p.supabaseUrl,
+        storagePath: p.storagePath,
+        caption: p.caption || "",
+      }));
+      // Delete any existing report with same site+engineer+date+type (override old entry)
+      await supabase
+        .from("dpr_reports")
         .delete()
         .eq("site", site)
         .eq("engineer", engineer)
         .eq("report_type", "evening")
         .eq("date", date);
-
       const { error: insertErr } = await supabase.from("dpr_reports").insert({
-        site, engineer, report_type:"evening", date,
-        payload: {...payload, photos:photosForDb},
+        site,
+        engineer,
+        report_type: "evening",
+        date,
+        payload: {
+          ...payload,
+          photos: photosForDb,
+          checklistPhotos: checklistPhotosForDb,
+        },
         pdf_url: pdfPublicUrl,
         photo_folder: photoFolder,
         created_at: new Date().toISOString(),
@@ -3214,477 +4433,952 @@ const { blob, fileName } = await generateEveningPdf(payload, msg=>setSubmitDetai
       setMaterialReq([]);
       setSubmitted(true);
       draftOpenedRef.current = false;
-    } catch(err) {
+    } catch (err) {
       console.error(err);
       showToast("err", err.message, 10000);
     }
     setSubmitting(false);
     draftOpenedRef.current = false;
-    setSubmitStep(""); setSubmitDetail("");
+    setSubmitStep("");
+    setSubmitDetail("");
   };
 
-function buildWhatsAppText(payload) {
-  const LINE  = '─'.repeat(20);
-  const RULE  = '━'.repeat(20);
+  function buildWhatsAppText(payload) {
+    const LINE = "─".repeat(20);
+    const RULE = "━".repeat(20);
 
-  let msg = '';
+    let msg = "";
 
-  // ── Header ──────────────────────────────────────────────
-  msg += '🌅 *MORNING REPORT*\n';
-  msg += '🏗️ _DIP Projects · Site Progress Update_\n';
-  msg += `${RULE}\n`;
-  msg += `📍 *Site*      : ${payload.site}\n`;
-  msg += `👷 *Engineer*  : ${payload.employeeName}\n`;
-  msg += `📅 *Date*      : ${fmtDate(payload.date)}\n`;
-  msg += `${RULE}\n`;
+    // ── Header ──────────────────────────────────────────────
+    msg += "🌅 *MORNING REPORT*\n";
+    msg += "🏗️ _DIP Projects · Site Progress Update_\n";
+    msg += `${RULE}\n`;
+    msg += `📍 *Site*      : ${payload.site}\n`;
+    msg += `👷 *Engineer*  : ${payload.employeeName}\n`;
+    msg += `📅 *Date*      : ${fmtDate(payload.date)}\n`;
+    msg += `${RULE}\n`;
 
-  // ── Work summary ────────────────────────────────────────
-  if (payload.summary?.trim()) {
-    msg += '\n📋 *WORK SUMMARY*\n';
-    msg += `${LINE}\n`;
-    payload.summary.split('\n').filter(l => l.trim())
-      .forEach(l => {
-        msg += `${l.replace(/^[•\-]\s*/, '').trim()}\n`;
+    // ── Work summary ────────────────────────────────────────
+    if (payload.summary?.trim()) {
+      msg += "\n📋 *WORK SUMMARY*\n";
+      msg += `${LINE}\n`;
+      payload.summary
+        .split("\n")
+        .filter((l) => l.trim())
+        .forEach((l) => {
+          msg += `${l.replace(/^[•\-]\s*/, "").trim()}\n`;
+        });
+    }
+
+    // ── Manpower ────────────────────────────────────────────
+    if (payload.manpower?.length) {
+      msg += "\n👥 *MANPOWER*\n";
+      msg += `${LINE}\n`;
+
+      let total = 0;
+      const scopeGroups = {};
+      payload.manpower.forEach((mp) => {
+        const scope = (mp.displayScope || mp.scope || "").trim();
+        const labour = (mp.labour || "").trim();
+        const category = (mp.category || "").trim();
+        const gender = (mp.gender || "").trim();
+        const skill = (mp.skill && mp.skill !== "—" ? mp.skill : "").trim();
+        const count = Number(mp.count) || 0;
+        total += count;
+        if (!scopeGroups[scope]) scopeGroups[scope] = {};
+        const labourKey = labour || "—";
+        if (!scopeGroups[scope][labourKey]) scopeGroups[scope][labourKey] = [];
+        scopeGroups[scope][labourKey].push({ category, gender, skill, count });
       });
-  }
 
-  // ── Manpower ────────────────────────────────────────────
-  if (payload.manpower?.length) {
-    msg += '\n👥 *MANPOWER*\n';
-    msg += `${LINE}\n`;
-
-    let total = 0;
-    const scopeGroups = {};
-    payload.manpower.forEach(mp => {
-      const scope    = (mp.displayScope || mp.scope || '').trim();
-      const labour   = (mp.labour   || '').trim();
-      const category = (mp.category || '').trim();
-      const gender   = (mp.gender   || '').trim();
-      const skill    = (mp.skill && mp.skill !== '—' ? mp.skill : '').trim();
-      const count    = Number(mp.count) || 0;
-      total += count;
-      if (!scopeGroups[scope]) scopeGroups[scope] = {};
-      const labourKey = labour || '—';
-      if (!scopeGroups[scope][labourKey]) scopeGroups[scope][labourKey] = [];
-      scopeGroups[scope][labourKey].push({ category, gender, skill, count });
-    });
-
-    Object.keys(scopeGroups).forEach(scope => {
-      msg += `\n🏢 _${scope.toUpperCase()}_\n`;
-      Object.keys(scopeGroups[scope]).forEach(labour => {
-        scopeGroups[scope][labour].forEach(row => {
-          const details = [
-            row.category && row.category !== '—' ? row.category : null,
-            row.gender,
-            row.skill,
-          ].filter(Boolean);
-          const label     = labour && labour !== '—' ? labour : (row.category || 'Workers');
-          const detailStr = details.length ? ` (${details.join(' · ')})` : '';
-          msg += `   ▪ ${label}${detailStr}  →  *${row.count}*\n`;
+      Object.keys(scopeGroups).forEach((scope) => {
+        msg += `\n🏢 _${scope.toUpperCase()}_\n`;
+        Object.keys(scopeGroups[scope]).forEach((labour) => {
+          scopeGroups[scope][labour].forEach((row) => {
+            const details = [
+              row.category && row.category !== "—" ? row.category : null,
+              row.gender,
+              row.skill,
+            ].filter(Boolean);
+            const label =
+              labour && labour !== "—" ? labour : row.category || "Workers";
+            const detailStr = details.length ? ` (${details.join(" · ")})` : "";
+            msg += `   ▪ ${label}${detailStr}  →  *${row.count}*\n`;
+          });
         });
       });
-    });
 
-    msg += `${LINE}\n`;
-    msg += `👥 *Total Manpower* : *${total}*\n`;
-    msg += `${LINE}\n`;
-  }
-
-  // ── Equipment ───────────────────────────────────────────
-  if (payload.equipment?.length) {
-    msg += '\n🚜 *EQUIPMENT ON SITE*\n';
-    msg += `${LINE}\n`;
-
-    const clientEq     = payload.equipment.filter(e => e.source === 'client');
-    const contractorEq = payload.equipment.filter(e => e.source === 'contractor');
-
-    if (clientEq.length) {
-      msg += '\n👔 _CLIENT_\n';
-      clientEq.forEach(e => { msg += `   ▪ ${e.name}  →  *${e.qty} ${e.unit}*\n`; });
+      msg += `${LINE}\n`;
+      msg += `👥 *Total Manpower* : *${total}*\n`;
+      msg += `${LINE}\n`;
     }
-    if (contractorEq.length) {
-      msg += '\n🔨 _CONTRACTOR_\n';
-      contractorEq.forEach(e => { msg += `   ▪ ${e.name}  →  *${e.qty} ${e.unit}*\n`; });
+
+    // ── Equipment ───────────────────────────────────────────
+    if (payload.equipment?.length) {
+      msg += "\n🚜 *EQUIPMENT ON SITE*\n";
+      msg += `${LINE}\n`;
+
+      const clientEq = payload.equipment.filter((e) => e.source === "client");
+      const contractorEq = payload.equipment.filter(
+        (e) => e.source === "contractor",
+      );
+
+      if (clientEq.length) {
+        msg += "\n👔 _CLIENT_\n";
+        clientEq.forEach((e) => {
+          msg += `   ▪ ${e.name}  →  *${e.qty} ${e.unit}*\n`;
+        });
+      }
+      if (contractorEq.length) {
+        msg += "\n🔨 _CONTRACTOR_\n";
+        contractorEq.forEach((e) => {
+          msg += `   ▪ ${e.name}  →  *${e.qty} ${e.unit}*\n`;
+        });
+      }
+      msg += `${LINE}\n`;
     }
-    msg += `${LINE}\n`;
-  }
 
-  // ── Footer ──────────────────────────────────────────────
-  msg += `\n${RULE}\n`;
-  msg += `🕒 _${new Date().toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}_`;
+    // ── Footer ──────────────────────────────────────────────
+    msg += `\n${RULE}\n`;
+    msg += `🕒 _${new Date().toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}_`;
 
-  return msg;
-}
-async function getLastMorningPayload(site, engineer) {
-  const { data } = await supabase
-    .from("dpr_reports")
-    .select("payload")
-    .eq("site", site)
-    .eq("engineer", engineer)
-    .eq("report_type", "morning")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data?.payload || null;
-}
-const handleSharePdfWhatsApp = async () => {
-  if (!pdfUrl) {
-    showToast("err", "Generate the Evening DPR first.");
-    return;
+    return msg;
   }
-
-  try {
-    // Fetch the PDF blob
-    const response = await fetch(pdfUrl);
-    const blob = await response.blob();
-    const safeSite = (site || "site").replace(/[\s/\\:*?"<>|]/g, "_");
-    const fileName = `DPR_Evening_${safeSite}_${date}.pdf`;
-    const file = new File([blob], fileName, { type: "application/pdf" });
-
-    // Use Web Share API if available (mobile browsers)
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        title:  `Evening DPR - ${site} - ${fmtDate(date)}`,
-        text:   `Please find attached the Evening DPR for ${site} dated ${fmtDate(date)}.`,
-        files:  [file],
-      });
-    } else {
-      // Desktop fallback: open WhatsApp Web with a message, user attaches manually
-      showToast("ok", "PDF downloaded. Please attach it manually in WhatsApp.");
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = fileName;
-      a.click();
-      setTimeout(() => {
-        window.open("https://web.whatsapp.com", "_blank");
-      }, 1000);
-    }
-  } catch (err) {
-    if (err.name !== "AbortError") {
-      showToast("err", "Could not share: " + err.message);
-    }
-  }
-};
-const handleWhatsApp = async () => {
-  if (!site || !engineer || !summary.trim()) {
-    showToast("err", "Site, engineer and work summary are required.");
-    return;
-  }
-  setSubmitting(true);
-  const payload = collectPayload();
-  try {
-    // Save to DB first
-    // Delete any existing report with same site+engineer+date+type (override old entry)
-    await supabase.from("dpr_reports")
-      .delete()
+  async function getLastMorningPayload(site, engineer) {
+    const { data } = await supabase
+      .from("dpr_reports")
+      .select("payload")
       .eq("site", site)
       .eq("engineer", engineer)
       .eq("report_type", "morning")
-      .eq("date", date);
-
-    const { error } = await supabase.from("dpr_reports").insert({
-      site, engineer, report_type: "morning", date, payload,
-      pdf_url: null, photo_folder: null, created_at: new Date().toISOString(),
-    });
-    if (error) throw new Error(`DB insert failed: ${error.message}`);
-
-    // Build WhatsApp text and open
-
-    // Build WhatsApp text and open
-    const text = buildWhatsAppText(payload);
-    const encoded = encodeURIComponent(text);
-    window.open(`https://wa.me/?text=${encoded}`, "_blank");
-
-    setSubmitted(true);
-  } catch (err) {
-    showToast("err", err.message, 10000);
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return data?.payload || null;
   }
-  setSubmitting(false);
-};
+  const handleSharePdfWhatsApp = async () => {
+    if (!pdfUrl) {
+      showToast("err", "Generate the Evening DPR first.");
+      return;
+    }
+
+    try {
+      // Fetch the PDF blob
+      const response = await fetch(pdfUrl);
+      const blob = await response.blob();
+      const safeSite = (site || "site").replace(/[\s/\\:*?"<>|]/g, "_");
+      const fileName = `DPR_Evening_${safeSite}_${date}.pdf`;
+      const file = new File([blob], fileName, { type: "application/pdf" });
+
+      // Use Web Share API if available (mobile browsers)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `Evening DPR - ${site} - ${fmtDate(date)}`,
+          text: `Please find attached the Evening DPR for ${site} dated ${fmtDate(date)}.`,
+          files: [file],
+        });
+      } else {
+        // Desktop fallback: open WhatsApp Web with a message, user attaches manually
+        showToast(
+          "ok",
+          "PDF downloaded. Please attach it manually in WhatsApp.",
+        );
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = fileName;
+        a.click();
+        setTimeout(() => {
+          window.open("https://web.whatsapp.com", "_blank");
+        }, 1000);
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        showToast("err", "Could not share: " + err.message);
+      }
+    }
+  };
+  const handleWhatsApp = async () => {
+    if (!site || !engineer || !summary.trim()) {
+      showToast("err", "Site, engineer and work summary are required.");
+      return;
+    }
+    setSubmitting(true);
+    const payload = collectPayload();
+    try {
+      // Save to DB first
+      // Delete any existing report with same site+engineer+date+type (override old entry)
+      await supabase
+        .from("dpr_reports")
+        .delete()
+        .eq("site", site)
+        .eq("engineer", engineer)
+        .eq("report_type", "morning")
+        .eq("date", date);
+
+      const { error } = await supabase.from("dpr_reports").insert({
+        site,
+        engineer,
+        report_type: "morning",
+        date,
+        payload,
+        pdf_url: null,
+        photo_folder: null,
+        created_at: new Date().toISOString(),
+      });
+      if (error) throw new Error(`DB insert failed: ${error.message}`);
+
+      // Build WhatsApp text and open
+
+      // Build WhatsApp text and open
+      const text = buildWhatsAppText(payload);
+      const encoded = encodeURIComponent(text);
+      window.open(`https://wa.me/?text=${encoded}`, "_blank");
+
+      setSubmitted(true);
+    } catch (err) {
+      showToast("err", err.message, 10000);
+    }
+    setSubmitting(false);
+  };
 
   const resetForm = () => {
-    draftOpenedRef.current = false; 
-    setSubmitted(false); setSummary(""); setManpower([]); setPhotos([]); setPlanning(""); setEquipment([]);
-    setMaterial([]); setCementAvail(""); setCementRcvd(""); setCementUsed(""); setCementUsedDesc("");
-    setConcreteTh(""); setConcreteOn(""); setConcreteDesc(""); setCube("");
-    setVisitors([{id:"v_init",name:"",instruction:""}]); setCustomFields([]); setPdfUrl(null);setMaterialReq([]);
+    draftOpenedRef.current = false;
+    setSubmitted(false);
+    setSummary("");
+    setManpower([]);
+    setPhotos([]);
+    setChecklistPhotos([]);
+    setPlanning("");
+    setEquipment([]);
+    setMaterial([]);
+    setCementAvail("");
+    setCementRcvd("");
+    setCementUsed("");
+    setCementUsedDesc("");
+    setConcreteTh("");
+    setConcreteOn("");
+    setConcreteDesc("");
+    setCube("");
+    setVisitors([{ id: "v_init", name: "", instruction: "" }]);
+    setCustomFields([]);
+    setPdfUrl(null);
+    setMaterialReq([]);
   };
- 
-  if (submitted) return (
-    <div className="success-state">
-      <div className="success-ico">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-      </div>
-      <div className="success-title">{reportType==="morning" ? "Morning Report Saved!" : "Evening DPR Generated!"}</div>
-      <div className="success-sub">
-        {reportType==="morning"
-          ? "Morning report saved to database successfully."
-          : "Download a PDF copy of this report or share it instantly via WhatsApp."}
-      </div>
 
-      {pdfUrl && (
-  <>
-    <a className="btn btn-orange" href={pdfUrl} target="_blank" rel="noopener noreferrer">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      Download PDF
-    </a>
+  if (submitted)
+    return (
+      <div className="success-state">
+        <div className="success-ico">
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#16a34a"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </div>
+        <div className="success-title">
+          {reportType === "morning"
+            ? "Morning Report Saved!"
+            : "Evening DPR Generated!"}
+        </div>
+        <div className="success-sub">
+          {reportType === "morning"
+            ? "Morning report saved to database successfully."
+            : "Download a PDF copy of this report or share it instantly via WhatsApp."}
+        </div>
 
-    <button className="btn btn-whatsapp" onClick={handleSharePdfWhatsApp}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-      </svg>
-      Share to WhatsApp
-    </button>
-  </>
-)}
-      <button className="btn btn-out" onClick={resetForm}>Submit Another Report</button>
-    </div>
-  );
+        {pdfUrl && (
+          <>
+            <a
+              className="btn btn-orange"
+              href={pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download PDF
+            </a>
+
+            <button
+              className="btn btn-whatsapp"
+              onClick={handleSharePdfWhatsApp}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+              </svg>
+              Share to WhatsApp
+            </button>
+          </>
+        )}
+        <button className="btn btn-out" onClick={resetForm}>
+          Submit Another Report
+        </button>
+      </div>
+    );
 
   return (
-          <div>
-            {/* Report type toggle — no emojis */}
-            <div className="rtype-row">
-              <button className={`rtype-btn morning${reportType==="morning"?" act":""}`}
-                onClick={()=>setReportType("morning")}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="4"/>
-                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-                </svg>
-                &nbsp;&nbsp;&nbsp;Morning Report
-              </button>
-              <button className={`rtype-btn evening${reportType==="evening"?" act":""}`}
-                onClick={()=>setReportType("evening")}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                </svg>
-                &nbsp;&nbsp;&nbsp;Evening DPR
-              </button>
-            </div>
+    <div>
+      {/* Report type toggle — no emojis */}
+      <div className="rtype-row">
+        <button
+          className={`rtype-btn morning${reportType === "morning" ? " act" : ""}`}
+          onClick={() => setReportType("morning")}
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+          &nbsp;&nbsp;&nbsp;Morning Report
+        </button>
+        <button
+          className={`rtype-btn evening${reportType === "evening" ? " act" : ""}`}
+          onClick={() => setReportType("evening")}
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+          &nbsp;&nbsp;&nbsp;Evening DPR
+        </button>
+      </div>
 
-            <div className="grid3" style={{marginBottom:18}}>
+      <div className="grid3" style={{ marginBottom: 18 }}>
+        <div className="fg">
+          <label className="flabel">
+            Date <span className="req">*</span>
+          </label>
+          <input
+            className="finput"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+
+        <div className="fg">
+          <label className="flabel">
+            Site / Project <span className="req">*</span>
+          </label>
+          {loadingSites ? (
+            <input className="finput" value="Loading…" readOnly />
+          ) : userSites.length > 1 ? (
+            <select
+              className="finput"
+              value={site}
+              onChange={(e) => setSite(e.target.value)}
+            >
+              <option value="">Select Site</option>
+              {userSites.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              className="finput"
+              value={site}
+              readOnly
+              style={{
+                background: "#f0fdf4",
+                color: "#166534",
+                fontWeight: 700,
+              }}
+            />
+          )}
+        </div>
+
+        <div className="fg">
+          <label className="flabel">Engineer</label>
+          <input
+            className="finput"
+            value={engineer}
+            readOnly
+            style={{ background: "#f0fdf4", color: "#166534", fontWeight: 700 }}
+          />
+        </div>
+      </div>
+
+      {draftCheckStatus === "checking" && (
+        <div className="draft-bar">
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 14px",
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: "var(--ink3)",
+              background: "var(--bg)",
+              border: "1.5px solid var(--border)",
+              borderRadius: 7,
+            }}
+          >
+            <div
+              className="spinner"
+              style={{ width: 14, height: 14, borderWidth: 2 }}
+            />
+            Checking for a saved draft…
+          </div>
+        </div>
+      )}
+
+      {draftCheckStatus === "error" && (
+        <div
+          className="info-banner"
+          style={{
+            background: "#fef2f2",
+            border: "1.5px solid #fecaca",
+            color: "var(--red)",
+          }}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          Couldn't check for a saved draft (connection issue). Your work below
+          is safe — try Save Draft again, or refresh once your connection is
+          back.
+        </div>
+      )}
+
+      {draftCheckStatus === "found" && draftInfo && (
+        <div className="draft-bar">
+          <button className="draft-btn draft-open" onClick={handleOpenDraft}>
+            📂 Open Draft{" "}
+            <span style={{ fontWeight: 400, fontSize: 11 }}>
+              (
+              {new Date(draftInfo.saved_at).toLocaleString("en-IN", {
+                day: "2-digit",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+              )
+            </span>
+          </button>
+          <button className="draft-btn draft-del" onClick={handleDeleteDraft}>
+            🗑️ Delete Draft
+          </button>
+        </div>
+      )}
+
+      <SectionBlock title="1. Today's Work Summary" defaultOpen>
+        <textarea
+          className="finput"
+          rows={4}
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          placeholder="Describe completed work activities…"
+        />
+      </SectionBlock>
+
+      <SectionBlock title="2. Manpower Report">
+        <ManpowerSection
+          list={manpower}
+          setList={setManpower}
+          showToast={showToast}
+        />
+      </SectionBlock>
+
+      <SectionBlock title="3. Equipment (Client / Contractor)">
+        <EquipmentSection list={equipment} setList={setEquipment} />
+      </SectionBlock>
+
+      {reportType === "evening" && (
+        <>
+          <SectionBlock title="4. Cement Stock">
+            <div className="cement-row" style={{ marginBottom: 12 }}>
               <div className="fg">
-                <label className="flabel">Date <span className="req">*</span></label>
-                <input className="finput" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
+                <label className="flabel">Available on Site</label>
+                <input
+                  className="finput"
+                  type="number"
+                  value={cementAvail}
+                  onChange={(e) => setCementAvail(e.target.value)}
+                  placeholder="0"
+                />
               </div>
-
               <div className="fg">
-                <label className="flabel">Site / Project <span className="req">*</span></label>
-                {loadingSites ? (
-                  <input className="finput" value="Loading…" readOnly/>
-                ) : userSites.length > 1 ? (
-                  <select className="finput" value={site} onChange={e => setSite(e.target.value)}>
-                    <option value="">Select Site</option>
-                    {userSites.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                ) : (
-                  <input className="finput" value={site} readOnly
-                    style={{background:"#f0fdf4", color:"#166534", fontWeight:700}}/>
+                <label className="flabel">New Received</label>
+                <input
+                  className="finput"
+                  type="number"
+                  value={cementRcvd}
+                  onChange={(e) => setCementRcvd(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="fg">
+                <label className="flabel">Used Today</label>
+                <input
+                  className="finput"
+                  type="number"
+                  value={cementUsed}
+                  onChange={(e) => setCementUsed(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="fg">
+                <label className="flabel">Balance (auto)</label>
+                <input
+                  className="finput"
+                  value={cementBalance}
+                  readOnly
+                  style={{
+                    background: "#f0fdf4",
+                    color: "#166534",
+                    fontWeight: 700,
+                  }}
+                />
+              </div>
+            </div>
+            <div className="fg">
+              <label className="flabel">Usage Description</label>
+              <textarea
+                className="finput"
+                rows={2}
+                value={cementUsedDesc}
+                onChange={(e) => setCementUsedDesc(e.target.value)}
+                placeholder="Describe where cement was used…"
+              />
+            </div>
+          </SectionBlock>
+
+          <SectionBlock title="5. Concrete Consumption">
+            <div className="cement-row" style={{ marginBottom: 12 }}>
+              <div className="fg">
+                <label className="flabel">Theoretical Qty</label>
+                <input
+                  className="finput"
+                  type="number"
+                  value={concreteTh}
+                  onChange={(e) => setConcreteTh(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="fg">
+                <label className="flabel">On-Site Consumption</label>
+                <input
+                  className="finput"
+                  type="number"
+                  value={concreteOn}
+                  onChange={(e) => setConcreteOn(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <div className="fg">
+              <label className="flabel">Description</label>
+              <textarea
+                className="finput"
+                rows={2}
+                value={concreteDesc}
+                onChange={(e) => setConcreteDesc(e.target.value)}
+                placeholder="Describe on-site concrete consumption…"
+              />
+            </div>
+          </SectionBlock>
+
+          <SectionBlock title="6. Material Requirement">
+            <MaterialRequirementSection
+              list={materialReq}
+              setList={setMaterialReq}
+            />
+          </SectionBlock>
+
+          <SectionBlock title="7. Material Received">
+            <MaterialSection list={material} setList={setMaterial} />
+          </SectionBlock>
+
+          <SectionBlock title="8. Cube Test Results">
+            <textarea
+              className="finput"
+              rows={3}
+              value={cube}
+              onChange={(e) => setCube(e.target.value)}
+              placeholder="Enter cube test results…"
+            />
+          </SectionBlock>
+
+          <SectionBlock title="9. Site Visit &amp; Instructions">
+            <VisitorsSection visitors={visitors} setVisitors={setVisitors} />
+          </SectionBlock>
+
+          <SectionBlock title="10. Additional Custom Fields">
+            <CustomFieldsSection
+              fields={customFields}
+              setFields={setCustomFields}
+            />
+          </SectionBlock>
+
+          <SectionBlock title="11. Checklist Photos">
+            <div className="info-banner info-blue" style={{ marginBottom: 12 }}>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              Upload photos for checklist / quality / safety verification items.
+            </div>
+            <PhotosSection
+              photos={checklistPhotos}
+              setPhotos={setChecklistPhotos}
+              onLightbox={openLightbox}
+              showToast={showToast}
+            />
+          </SectionBlock>
+
+          <SectionBlock title="12. Work Progress Photos">
+            <div className="info-banner info-blue" style={{ marginBottom: 12 }}>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              Photos are required for Evening DPR.
+            </div>
+            <PhotosSection
+              photos={photos}
+              setPhotos={setPhotos}
+              onLightbox={openLightbox}
+              showToast={showToast}
+            />
+          </SectionBlock>
+
+          <SectionBlock title="13. Tomorrow's Planning">
+            <textarea
+              className="finput"
+              rows={4}
+              value={planning}
+              onChange={(e) => setPlanning(e.target.value)}
+              placeholder="Plan for tomorrow's activities…"
+            />
+          </SectionBlock>
+        </>
+      )}
+
+      <div className="act-row">
+        {reportType === "morning" ? (
+          <button
+            className="btn btn-whatsapp"
+            onClick={handleWhatsApp}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <>
+                <Spinner /> Saving…
+              </>
+            ) : (
+              <>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                </svg>
+                Send via WhatsApp
+              </>
+            )}
+          </button>
+        ) : (
+          <button
+            className="btn btn-orange"
+            onClick={handleEveningSubmit}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <>
+                <Spinner /> Generating…
+              </>
+            ) : (
+              <>Generate Evening DPR</>
+            )}
+          </button>
+        )}
+        <button
+          className="btn btn-out"
+          onClick={handleSaveDraft}
+          disabled={submitting}
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          >
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+          Save Draft
+        </button>
+      </div>
+
+      {submitting && reportType === "evening" && (
+        <SubmitOverlay currentStep={submitStep} detail={submitDetail} />
+      )}
+      {/* ── Lightbox ── */}
+      {lightbox &&
+        (() => {
+          const img = lightbox.images[lightbox.idx];
+          const src = img.data || img.supabaseUrl;
+          return (
+            <div
+              onClick={closeLightbox}
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 99999,
+                background: "rgba(0,0,0,0.92)",
+                backdropFilter: "blur(10px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <button
+                onClick={closeLightbox}
+                style={{
+                  position: "absolute",
+                  top: 16,
+                  right: 16,
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background: "#dc2626",
+                  border: "none",
+                  color: "#fff",
+                  fontSize: 18,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 2,
+                }}
+              >
+                ✕
+              </button>
+              <div
+                style={{
+                  position: "absolute",
+                  top: 18,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: "rgba(255,255,255,0.1)",
+                  borderRadius: 20,
+                  padding: "4px 14px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#fff",
+                }}
+              >
+                {lightbox.idx + 1} / {lightbox.images.length}
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  lbPrev();
+                }}
+                style={{
+                  position: "absolute",
+                  left: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.15)",
+                  border: "1.5px solid rgba(255,255,255,0.3)",
+                  color: "#fff",
+                  fontSize: 22,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 2,
+                }}
+              >
+                ‹
+              </button>
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  maxWidth: "90vw",
+                  maxHeight: "85vh",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <img
+                  src={src}
+                  alt=""
+                  style={{
+                    maxWidth: "90vw",
+                    maxHeight: "78vh",
+                    objectFit: "contain",
+                    borderRadius: 10,
+                    border: "1.5px solid rgba(200,100,26,0.4)",
+                    boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
+                  }}
+                />
+                {img.caption && (
+                  <div
+                    style={{
+                      background: "rgba(107,45,15,0.2)",
+                      border: "1px solid #c8641a",
+                      borderRadius: 8,
+                      padding: "6px 16px",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#fbbf24",
+                      maxWidth: "80vw",
+                      textAlign: "center",
+                    }}
+                  >
+                    {img.caption}
+                  </div>
                 )}
               </div>
-
-              <div className="fg">
-                <label className="flabel">Engineer</label>
-                <input className="finput" value={engineer} readOnly
-                  style={{background:"#f0fdf4", color:"#166534", fontWeight:700}}/>
-              </div>
-            </div>
-
-            {draftCheckStatus === "checking" && (
-              <div className="draft-bar">
-                <div style={{
-                  flex:1, display:"flex", alignItems:"center", gap:8,
-                  padding:"10px 14px", fontSize:12.5, fontWeight:600,
-                  color:"var(--ink3)", background:"var(--bg)",
-                  border:"1.5px solid var(--border)", borderRadius:7,
-                }}>
-                  <div className="spinner" style={{width:14,height:14,borderWidth:2}}/>
-                  Checking for a saved draft…
-                </div>
-              </div>
-            )}
-
-            {draftCheckStatus === "error" && (
-              <div className="info-banner" style={{background:"#fef2f2", border:"1.5px solid #fecaca", color:"var(--red)"}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                Couldn't check for a saved draft (connection issue). Your work below is safe — try Save Draft again, or refresh once your connection is back.
-              </div>
-            )}
-
-            {draftCheckStatus === "found" && draftInfo && (
-              <div className="draft-bar">
-                <button className="draft-btn draft-open" onClick={handleOpenDraft}>
-                  📂 Open Draft <span style={{fontWeight:400,fontSize:11}}>({new Date(draftInfo.saved_at).toLocaleString("en-IN",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})})</span>
-                </button>
-                <button className="draft-btn draft-del" onClick={handleDeleteDraft}>🗑️ Delete Draft</button>
-              </div>
-            )}
-
-            <SectionBlock title="1. Today's Work Summary" defaultOpen>
-              <textarea className="finput" rows={4} value={summary} onChange={e=>setSummary(e.target.value)} placeholder="Describe completed work activities…"/>
-            </SectionBlock>
-
-            <SectionBlock title="2. Manpower Report">
-              <ManpowerSection list={manpower} setList={setManpower} showToast={showToast}/>
-            </SectionBlock>
-
-            <SectionBlock title="3. Equipment (Client / Contractor)">
-              <EquipmentSection list={equipment} setList={setEquipment}/>
-            </SectionBlock>
-
-            {reportType==="evening" && (<>
-              <SectionBlock title="4. Cement Stock">
-                <div className="cement-row" style={{marginBottom:12}}>
-                  <div className="fg"><label className="flabel">Available on Site</label><input className="finput" type="number" value={cementAvail} onChange={e=>setCementAvail(e.target.value)} placeholder="0"/></div>
-                  <div className="fg"><label className="flabel">New Received</label><input className="finput" type="number" value={cementRcvd} onChange={e=>setCementRcvd(e.target.value)} placeholder="0"/></div>
-                  <div className="fg"><label className="flabel">Used Today</label><input className="finput" type="number" value={cementUsed} onChange={e=>setCementUsed(e.target.value)} placeholder="0"/></div>
-                  <div className="fg"><label className="flabel">Balance (auto)</label><input className="finput" value={cementBalance} readOnly style={{background:"#f0fdf4",color:"#166534",fontWeight:700}}/></div>
-                </div>
-                <div className="fg"><label className="flabel">Usage Description</label><textarea className="finput" rows={2} value={cementUsedDesc} onChange={e=>setCementUsedDesc(e.target.value)} placeholder="Describe where cement was used…"/></div>
-              </SectionBlock>
-
-              <SectionBlock title="5. Concrete Consumption">
-                <div className="cement-row" style={{marginBottom:12}}>
-                  <div className="fg"><label className="flabel">Theoretical Qty</label><input className="finput" type="number" value={concreteTh} onChange={e=>setConcreteTh(e.target.value)} placeholder="0"/></div>
-                  <div className="fg"><label className="flabel">On-Site Consumption</label><input className="finput" type="number" value={concreteOn} onChange={e=>setConcreteOn(e.target.value)} placeholder="0"/></div>
-                </div>
-                <div className="fg"><label className="flabel">Description</label><textarea className="finput" rows={2} value={concreteDesc} onChange={e=>setConcreteDesc(e.target.value)} placeholder="Describe on-site concrete consumption…"/></div>
-              </SectionBlock>
-
-              <SectionBlock title="6. Material Requirement">
-                <MaterialRequirementSection list={materialReq} setList={setMaterialReq} />
-              </SectionBlock>
-
-              <SectionBlock title="7. Material Received">
-                <MaterialSection list={material} setList={setMaterial}/>
-              </SectionBlock>
-
-              <SectionBlock title="8. Cube Test Results">
-                <textarea className="finput" rows={3} value={cube} onChange={e=>setCube(e.target.value)} placeholder="Enter cube test results…"/>
-              </SectionBlock>
-
-              <SectionBlock title="9. Site Visit &amp; Instructions">
-                <VisitorsSection visitors={visitors} setVisitors={setVisitors}/>
-              </SectionBlock>
-
-              <SectionBlock title="10. Additional Custom Fields">
-                <CustomFieldsSection fields={customFields} setFields={setCustomFields}/>
-              </SectionBlock>
-
-              <SectionBlock title="11. Work Progress Photos">
-                <div className="info-banner info-blue" style={{marginBottom:12}}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  Photos are required for Evening DPR.
-                </div>
-                <PhotosSection photos={photos} setPhotos={setPhotos} onLightbox={openLightbox} showToast={showToast}/>
-              </SectionBlock>
-
-              <SectionBlock title="12. Tomorrow's Planning">
-                <textarea className="finput" rows={4} value={planning} onChange={e=>setPlanning(e.target.value)} placeholder="Plan for tomorrow's activities…"/>
-              </SectionBlock>
-
-            </>)}
-
-            <div className="act-row">
-              {reportType === "morning" ? (
-                <button className="btn btn-whatsapp" onClick={handleWhatsApp} disabled={submitting}>
-                  {submitting ? <><Spinner/> Saving…</> : <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                    </svg>
-                    Send via WhatsApp
-                  </>}
-                </button>
-              ) : (
-                <button className="btn btn-orange" onClick={handleEveningSubmit} disabled={submitting}>
-                  {submitting ? <><Spinner/> Generating…</> : <>Generate Evening DPR</>}
-                </button>
-              )}
-              <button className="btn btn-out" onClick={handleSaveDraft} disabled={submitting}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                  <polyline points="17 21 17 13 7 13 7 21"/>
-                  <polyline points="7 3 7 8 15 8"/>
-                </svg>
-                Save Draft
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  lbNext();
+                }}
+                style={{
+                  position: "absolute",
+                  right: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.15)",
+                  border: "1.5px solid rgba(255,255,255,0.3)",
+                  color: "#fff",
+                  fontSize: 22,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  zIndex: 2,
+                }}
+              >
+                ›
               </button>
             </div>
+          );
+        })()}
 
-            {submitting && reportType==="evening" && <SubmitOverlay currentStep={submitStep} detail={submitDetail}/>}
-              {/* ── Lightbox ── */}
-            {lightbox && (() => {
-              const img = lightbox.images[lightbox.idx];
-              const src = img.data || img.supabaseUrl;
-              return (
-                <div onClick={closeLightbox} style={{
-                  position:"fixed", inset:0, zIndex:99999,
-                  background:"rgba(0,0,0,0.92)", backdropFilter:"blur(10px)",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                }}>
-                  <button onClick={closeLightbox} style={{
-                    position:"absolute", top:16, right:16, width:36, height:36,
-                    borderRadius:"50%", background:"#dc2626", border:"none",
-                    color:"#fff", fontSize:18, fontWeight:800, cursor:"pointer",
-                    display:"flex", alignItems:"center", justifyContent:"center", zIndex:2,
-                  }}>✕</button>
-                  <div style={{
-                    position:"absolute", top:18, left:"50%", transform:"translateX(-50%)",
-                    background:"rgba(255,255,255,0.1)", borderRadius:20,
-                    padding:"4px 14px", fontSize:12, fontWeight:700, color:"#fff",
-                  }}>
-                    {lightbox.idx + 1} / {lightbox.images.length}
-                  </div>
-                  <button onClick={e=>{ e.stopPropagation(); lbPrev(); }} style={{
-                    position:"absolute", left:12, top:"50%", transform:"translateY(-50%)",
-                    width:44, height:44, borderRadius:"50%",
-                    background:"rgba(255,255,255,0.15)", border:"1.5px solid rgba(255,255,255,0.3)",
-                    color:"#fff", fontSize:22, cursor:"pointer",
-                    display:"flex", alignItems:"center", justifyContent:"center", zIndex:2,
-                  }}>‹</button>
-                  <div onClick={e=>e.stopPropagation()} style={{
-                    maxWidth:"90vw", maxHeight:"85vh",
-                    display:"flex", flexDirection:"column", alignItems:"center", gap:10,
-                  }}>
-                    <img src={src} alt="" style={{
-                      maxWidth:"90vw", maxHeight:"78vh", objectFit:"contain",
-                      borderRadius:10, border:"1.5px solid rgba(200,100,26,0.4)",
-                      boxShadow:"0 8px 40px rgba(0,0,0,0.6)",
-                    }}/>
-                    {img.caption && (
-                      <div style={{
-                        background:"rgba(107,45,15,0.2)", border:"1px solid #c8641a",
-                        borderRadius:8, padding:"6px 16px", fontSize:13,
-                        fontWeight:600, color:"#fbbf24", maxWidth:"80vw", textAlign:"center",
-                      }}>
-                        {img.caption}
-                      </div>
-                    )}
-                  </div>
-                  <button onClick={e=>{ e.stopPropagation(); lbNext(); }} style={{
-                    position:"absolute", right:12, top:"50%", transform:"translateY(-50%)",
-                    width:44, height:44, borderRadius:"50%",
-                    background:"rgba(255,255,255,0.15)", border:"1.5px solid rgba(255,255,255,0.3)",
-                    color:"#fff", fontSize:22, cursor:"pointer",
-                    display:"flex", alignItems:"center", justifyContent:"center", zIndex:2,
-                  }}>›</button>
-                </div>
-              );
-            })()}
-
-            
-            {toast && (
-              <div className={`dpr-toast ${toast.type==="ok"?"dpr-toast-ok":"dpr-toast-err"}`}>
-                {toast.type==="ok"
-                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>}
-                {toast.msg}
-              </div>
-            )}
-          </div>
-      );
+      {toast && (
+        <div
+          className={`dpr-toast ${toast.type === "ok" ? "dpr-toast-ok" : "dpr-toast-err"}`}
+        >
+          {toast.type === "ok" ? (
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          ) : (
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+            </svg>
+          )}
+          {toast.msg}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function DPR({ user }) {
@@ -3693,9 +5387,7 @@ export default function DPR({ user }) {
       <style>{CSS}</style>
       <div className="dpr-root">
         <div className="dpr-inner">
-
-            <DprForm user={user}/>
-
+          <DprForm user={user} />
         </div>
       </div>
     </>

@@ -1,4 +1,20 @@
 
+
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+  :root{
+    --ink:#0f0d0a;--ink2:#4a4540;--ink3:#9a9289;
+    --paper:#f5f2ee;--surface:#fffefb;
+    --line:#e8e2d8;--line2:#d4ccc0;
+    --amber:#d97706;--amber2:#b45309;--amber-bg:#fffbeb;--amber-line:#fde68a;
+    --red:#dc2626;--green:#16a34a;--blue:#2563eb;
+    --radius:14px;--font:'Sora',sans-serif;--mono:'JetBrains Mono',monospace;
+    --shadow:0 2px 16px rgba(15,13,10,.07);
+  }
+
+  body,#root{background:#c9d0d4d0;font-family:var(--font);color:var(--ink);}
+  
 [data-theme="dark"] {
   --ink:#f0ede8;
   --ink2:#c4bdb4;
@@ -503,20 +519,6 @@
 [data-theme="dark"] .profile-stat-mon  { background: #052e16 !important; border-color: #166534 !important; }
 [data-theme="dark"] .profile-stat-last { background: #1e1c19 !important; border-color: #2e2b27 !important; }
 
-  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
-  :root{
-    --ink:#0f0d0a;--ink2:#4a4540;--ink3:#9a9289;
-    --paper:#f5f2ee;--surface:#fffefb;
-    --line:#e8e2d8;--line2:#d4ccc0;
-    --amber:#d97706;--amber2:#b45309;--amber-bg:#fffbeb;--amber-line:#fde68a;
-    --red:#dc2626;--green:#16a34a;--blue:#2563eb;
-    --radius:14px;--font:'Sora',sans-serif;--mono:'JetBrains Mono',monospace;
-    --shadow:0 2px 16px rgba(15,13,10,.07);
-  }
-
-  body,#root{background:#c9d0d4d0;font-family:var(--font);color:var(--ink);}
 
   /* ── Topbar ── */
   .tb{height:58px;background:var(--ink);display:flex;align-items:center;gap:12px;padding:0 22px;position:sticky;top:0;z-index:100;box-shadow:0 2px 0 rgba(255,255,255,.06);}

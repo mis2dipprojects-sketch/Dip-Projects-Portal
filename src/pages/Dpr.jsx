@@ -3813,9 +3813,10 @@ function CustomFieldsSection({ fields, setFields }) {
 }
 
 // REPLACE the entire PhotosSection component with:
-function PhotosSection({ photos, setPhotos, onLightbox, showToast }) {
+function PhotosSection({ photos, setPhotos, onLightbox, showToast, onConvertingChange }) {
   const fileRef = useRef();
   const [converting, setConverting] = useState(false);
+  const [convertProgress, setConvertProgress] = useState({ done: 0, total: 0 });   // ← this line
 
   const addFiles = async (files) => {
     const validFiles = files.filter((f) => {
@@ -3914,7 +3915,7 @@ function PhotosSection({ photos, setPhotos, onLightbox, showToast }) {
                   borderTopColor: "var(--orange3)",
                 }}
               />
-              <span>Converting…</span>
+              <span>Converting {convertProgress.done}/{convertProgress.total}…</span>
             </>
           ) : (
             <>
@@ -4004,6 +4005,7 @@ function DprForm({ user }) {
   const [sites, setSites] = useState([]);
   const [engineers, setEngineers] = useState([]);
   const [loadingEng, setLoadingEng] = useState(false);
+  
   // Add near the top of DprForm, alongside other refs
   const draftOpenedRef = useRef(false);
   const autoSaveTimerRef = useRef(null);
@@ -4039,6 +4041,9 @@ function DprForm({ user }) {
   const [pdfUrl, setPdfUrl] = useState(null);
   // ── Lightbox ──────────────────────────────────────────────────────────────
   const [lightbox, setLightbox] = useState(null);
+  const [checklistConverting, setChecklistConverting] = useState(false);
+  const [photosConverting, setPhotosConverting] = useState(false);
+  const anyConverting = checklistConverting || photosConverting;
   const openLightbox = (photos, idx) => {
     const filtered = photos.filter((p) => p.data || p.supabaseUrl);
     if (!filtered.length) return;
@@ -5077,13 +5082,14 @@ function DprForm({ user }) {
                 <line x1="12" y1="8" x2="12" y2="12" />
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
-              Upload photos for checklist / quality / safety verification items.
+              Upload photos for checklist.
             </div>
             <PhotosSection
               photos={checklistPhotos}
               setPhotos={setChecklistPhotos}
               onLightbox={openLightbox}
               showToast={showToast}
+              onConvertingChange={setChecklistConverting}
             />
           </SectionBlock>
 
@@ -5105,10 +5111,11 @@ function DprForm({ user }) {
               Photos are required for Evening DPR.
             </div>
             <PhotosSection
-              photos={photos}
-              setPhotos={setPhotos}
+              photos={checklistPhotos}
+              setPhotos={setChecklistPhotos}
               onLightbox={openLightbox}
               showToast={showToast}
+              onConvertingChange={setChecklistConverting}
             />
           </SectionBlock>
 
@@ -5153,12 +5160,14 @@ function DprForm({ user }) {
           <button
             className="btn btn-orange"
             onClick={handleEveningSubmit}
-            disabled={submitting}
+            disabled={submitting || anyConverting}
           >
             {submitting ? (
               <>
                 <Spinner /> Generating…
               </>
+            ) : anyConverting ? (
+              <>Waiting for photos to finish converting…</>
             ) : (
               <>Generate Evening DPR</>
             )}

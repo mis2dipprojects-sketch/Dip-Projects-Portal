@@ -67,8 +67,8 @@ async function compressImage(file) {
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const MAX_W = 1200,
-          QUALITY = 0.72;
+        const MAX_W = 1000,
+          QUALITY = 0.65;
         const scale = Math.min(1, MAX_W / img.width);
         const canvas = document.createElement("canvas");
         canvas.width = Math.round(img.width * scale);
@@ -1364,7 +1364,7 @@ async function generateEveningPdf(payload, onProgress) {
     await new Promise((r) => setTimeout(r, 150));
 
     const canvas = await window.html2canvas(wrap, {
-      scale: 2,
+      scale: 1.5,
       useCORS: true,
       allowTaint: true,
       backgroundColor: "#ffffff",
@@ -1428,7 +1428,7 @@ async function generateEveningPdf(payload, onProgress) {
         );
 
       pdf.addImage(
-        slice.toDataURL("image/jpeg", 0.93),
+        slice.toDataURL("image/jpeg", 0.78),
         "JPEG",
         MARGIN,
         cursorY,
@@ -1694,7 +1694,7 @@ async function generateEveningPdf(payload, onProgress) {
   const tyHeightMM = Math.min(tyCanvas.height / PX_PER_MM, A4_H - MARGIN * 2);
   const tyY = (A4_H - tyHeightMM) / 2;
   pdf.addImage(
-    tyCanvas.toDataURL("image/jpeg", 0.93),
+    tyCanvas.toDataURL("image/jpeg", 0.78),
     "JPEG",
     MARGIN,
     tyY,
@@ -3816,7 +3816,7 @@ function CustomFieldsSection({ fields, setFields }) {
 function PhotosSection({ photos, setPhotos, onLightbox, showToast, onConvertingChange }) {
   const fileRef = useRef();
   const [converting, setConverting] = useState(false);
-  const [convertProgress, setConvertProgress] = useState({ done: 0, total: 0 });   // ← this line
+  const [convertProgress, setConvertProgress] = useState({ done: 0, total: 0 });
 
   const addFiles = async (files) => {
     const validFiles = files.filter((f) => {
@@ -3835,6 +3835,7 @@ function PhotosSection({ photos, setPhotos, onLightbox, showToast, onConvertingC
     if (!validFiles.length) return;
 
     setConverting(true);
+    onConvertingChange?.(true);          // ← tell the parent we've started
     setConvertProgress({ done: 0, total: validFiles.length });
 
     let done = 0;
@@ -3860,6 +3861,7 @@ function PhotosSection({ photos, setPhotos, onLightbox, showToast, onConvertingC
     setPhotos((p) => [...p, ...newPhotos]);
 
     setConverting(false);
+    onConvertingChange?.(false); 
   };
 
   return (
@@ -4330,7 +4332,7 @@ async function uploadBatch(items, uploadFn, concurrency = 4) {
   return results;
 }
   // Evening DPR: upload photos → generate PDF → upload PDF → save DB
-const handleEveningSubmit = async () => {
+  const handleEveningSubmit = async () => {
     if (!site || !engineer || !summary.trim()) {
       showToast("err", "Site, engineer and work summary are required.");
       return;

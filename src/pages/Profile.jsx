@@ -548,7 +548,7 @@ const [monthlyBalance, setMonthlyBalance] = useState(null);
       display: "flex", alignItems: "center", justifyContent: "space-between",
     }}>
       <div>
-        <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink)" }}>Available this month</div>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: "#000000" }}>Available this month</div>
         {/* ← REPLACED sub-text goes here */}
         <div style={{ fontSize: 11, color: "var(--ink3)", marginTop: 2 }}>
           {monthlyBalance.broughtForward} carried over + {monthlyBalance.quotaPerMonth} this month − {monthlyBalance.thisMonthUsed} used · unused days roll over

@@ -75,7 +75,27 @@ const TASK_NAV = [
     ),
   },
 ];
-
+const VERIFIED_TASKS_ITEM = {
+  key: "verified-tasks",
+  label: "Verified Tasks",
+  icon: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    </svg>
+  ),
+};
+const TASK_CORRECTIONS_ITEM = {
+  key: "task-corrections",
+  label: "Task Corrections",
+  icon: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+  ),
+};
 const NEW_TICKETS_ITEM = {
   key: "new-tickets",
   label: "New Tickets",
@@ -840,6 +860,24 @@ function TaskCard({ task, onStatusChange, updating, onReschedule, onClick }) {
       </div>
       {task.description && <p className="op-task-desc">{task.description}</p>}
       <div className="op-task-meta">
+        {task.hours_to_complete && (
+          <span className="op-meta-pill">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v6l4 2" />
+            </svg>
+            {task.hours_to_complete} hrs
+          </span>
+        )}
         {task.due_date && (
           <span className="op-meta-pill">
             <svg
@@ -998,16 +1036,18 @@ function TaskActionMenu({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const canReschedule = task.reschedule_allowed && task.status !== "completed";
+  const isCompleted = task.status === "completed";
+  const canReschedule = task.reschedule_allowed && !isCompleted;
 
   const handleMenuOpen = (e) => {
+    if (isCompleted) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
-    const menuHeight = 140; // approx height of the 3-item menu
+    const menuHeight = 140;
     setMenuPosition({
       top:
         spaceBelow < menuHeight ? rect.top - menuHeight - 4 : rect.bottom + 4,
-      left: rect.right - 190, // align right edge to button, menu is 190px wide
+      left: rect.right - 190,
     });
     setMenuOpen(true);
   };
@@ -1018,7 +1058,13 @@ function TaskActionMenu({
       style={{ position: "relative" }}
       onClick={(e) => e.stopPropagation()}
     >
-      <button className="tt-action-btn" onClick={handleMenuOpen}>
+      <button
+        className="tt-action-btn"
+        onClick={handleMenuOpen}
+        disabled={isCompleted}
+        title={isCompleted ? "Task completed — no actions available" : "Actions"}
+        style={isCompleted ? { opacity: 0.35, cursor: "not-allowed" } : undefined}
+      >
         <svg
           width="16"
           height="16"
@@ -1034,7 +1080,7 @@ function TaskActionMenu({
         </svg>
       </button>
 
-      {menuOpen && (
+      {menuOpen && !isCompleted && (
         <div
           className="tt-action-menu"
           style={{
@@ -1145,6 +1191,7 @@ function TaskTable({
             {showAssignedBy && <th>Assigned To</th>}
             <th>Site</th>
             {showAssignedBy && <th>Given By</th>}
+            <th>Hours to Complete</th>
             <th>Due Date</th>
             <th>Priority</th>
             <th>Status</th>
@@ -1172,6 +1219,10 @@ function TaskTable({
                 {showAssignedBy && <td>{nameFor(task.assigned_to)}</td>}
                 <td>{task.site_name || "—"}</td>
                 {showAssignedBy && <td>{nameFor(task.assigned_by)}</td>}
+                {showAssignedBy && <td>{nameFor(task.assigned_by)}</td>}
+                <td>
+                  {task.hours_to_complete ? `${task.hours_to_complete} hrs` : "—"}
+                </td>
                 <td>
                   {task.due_date
                     ? new Date(task.due_date).toLocaleDateString("en-IN", {
@@ -1203,7 +1254,7 @@ function TaskTable({
                       .replace(/\b\w/g, (c) => c.toUpperCase())}
                   </span>
                 </td>
-                <td>
+                {/* <td>
                   {task.recurrence ? (
                     <span className="op-meta-pill op-pill-blue">
                       {task.recurrence.charAt(0).toUpperCase() +
@@ -1224,7 +1275,8 @@ function TaskTable({
                   ) : (
                     "—"
                   )}
-                </td>
+                </td> */}
+
                 <td>
                   <div style={{ display: "flex", gap: 6 }}>
                     {task.audio_url && (
@@ -1532,6 +1584,180 @@ function NewTicketsTable({ tickets, onSolve, updatingId }) {
                     </span>
                   )}
                 </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function MyVerificationTable({
+  verifications,
+  onRowClick,
+  allTasks,
+  onReschedule,
+  onSendVerification,
+  onRaiseTicket,
+  showAction = false,
+}) {
+  const fmt = (d) =>
+    d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  const statusStyle = {
+    pending: { bg: "#fffbeb", color: "#d97706", border: "#fde68a", label: "Pending" },
+    completed: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0", label: "Verified" },
+    correction_sent: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca", label: "Correction Sent" },
+  };
+
+  return (
+    <div className="tt-wrap">
+      <table className="tt-table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Site</th>
+            <th>Sent To</th>
+            <th>Sent On</th>
+            <th>Your Files</th>
+            <th>Status</th>
+            {showAction && <th>Action</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {verifications.map((v) => {
+            const sc = statusStyle[v.status] || statusStyle.pending;
+            const task = allTasks?.find((t) => t.id === v.task_id);
+            return (
+              <tr key={v.id} className="tt-row" onClick={() => onRowClick?.(v)} style={{ cursor: "pointer" }}>
+                <td className="tt-title-cell">
+                  <div className="tt-title">{v.task_title || "—"}</div>
+                </td>
+                <td>{v.site_name || "—"}</td>
+                <td>{v.verifier_name || v.verifier}</td>
+                <td>{fmt(v.created_at)}</td>
+                <td>
+                  {v.document_urls?.length > 0 ? (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {v.document_urls.map((url, i) => (
+                        
+                        <a  key={i}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ fontSize: 11.5, fontWeight: 600, color: "#2563eb" }}
+                        >
+                          File {i + 1}
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>—</span>
+                  )}
+                </td>
+                <td>
+                  <span
+                    style={{
+                      display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700,
+                      padding: "3px 9px", borderRadius: 20, background: sc.bg, color: sc.color,
+                      border: `1px solid ${sc.border}`,
+                    }}
+                  >
+                    {sc.label}
+                  </span>
+                  {v.status === "correction_sent" && v.correction_note && (
+                    <div style={{ fontSize: 11, color: "#dc2626", marginTop: 4, maxWidth: 240 }}>
+                      {v.correction_note}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                    {v.correction_audio_url && (
+                      
+                        <a href={v.correction_audio_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: "#7c3aed",
+                        }}
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#7c3aed"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                          <line x1="12" y1="19" x2="12" y2="23" />
+                          <line x1="8" y1="23" x2="16" y2="23" />
+                        </svg>
+                        <span>Audio</span>
+                      </a>
+                    )}
+                    {v.correction_document_urls?.map((url, i) => (
+                      
+                        <a key={i}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: "#0369a1",
+                        }}
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#0369a1"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                        <span>Doc {i + 1}</span>
+                      </a>
+                    ))}
+                  </div>
+                  {v.status === "completed" && v.resolved_by && (
+                    <div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 2 }}>
+                      Verified by {v.resolved_by}
+                    </div>
+                  )}
+                </td>
+                {showAction && (
+                  <td onClick={(e) => e.stopPropagation()}>
+                    {task ? (
+                      <TaskActionMenu
+                        task={task}
+                        onReschedule={onReschedule}
+                        onSendVerification={onSendVerification}
+                        onRaiseTicket={onRaiseTicket}
+                      />
+                    ) : (
+                      <span style={{ fontSize: 11.5, color: "#94a3b8" }}>—</span>
+                    )}
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -1897,7 +2123,13 @@ function ProxyLeaveTable({
     </div>
   );
 }
-function MyRescheduleTable({ reschedules }) {
+function MyRescheduleTable({
+  reschedules,
+  allTasks,
+  onReschedule,
+  onSendVerification,
+  onRaiseTicket,
+}) {
   const fmt = (d) =>
     d
       ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
@@ -1924,11 +2156,13 @@ function MyRescheduleTable({ reschedules }) {
             <th>Reason</th>
             <th>Status</th>
             <th>Actioned By</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
           {reschedules.map((req) => {
             const sc = statusStyle[req.status] || statusStyle.pending;
+            const task = allTasks?.find((t) => t.id === req.task_id);
             return (
               <tr key={req.id} className="tt-row">
                 <td className="tt-title-cell">
@@ -1980,6 +2214,18 @@ function MyRescheduleTable({ reschedules }) {
                   )}
                 </td>
                 <td>{req.actioned_by || "—"}</td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  {task ? (
+                    <TaskActionMenu
+                      task={task}
+                      onReschedule={onReschedule}
+                      onSendVerification={onSendVerification}
+                      onRaiseTicket={onRaiseTicket}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 11.5, color: "#94a3b8" }}>—</span>
+                  )}
+                </td>
               </tr>
             );
           })}
@@ -2176,6 +2422,11 @@ export default function OfficePortal() {
   const [myReschedules, setMyReschedules] = useState([]);
   const [loadingReschedules, setLoadingReschedules] = useState(false);
 
+  const [verifyModal, setVerifyModal] = useState(null); // { task, verifier, files: [], submitting }
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [myVerifications, setMyVerifications] = useState([]);
+const [loadingMyVerifications, setLoadingMyVerifications] = useState(false);
+const [myVerificationDetail, setMyVerificationDetail] = useState(null);
   const [detailTask, setDetailTask] = useState(null); // for task detail popup
   const [reportTab, setReportTab] = useState("dpr");
 
@@ -2240,7 +2491,17 @@ export default function OfficePortal() {
     if (!error) setRaisedTickets(data || []);
     setLoadingRaisedTickets(false);
   }, []);
-
+const fetchMyVerifications = useCallback(async (u) => {
+  if (!u) return;
+  setLoadingMyVerifications(true);
+  const { data, error } = await supabase
+    .from("task_verifications")
+    .select("*")
+    .eq("sent_by", u.user_name)
+    .order("created_at", { ascending: false });
+  if (!error) setMyVerifications(data || []);
+  setLoadingMyVerifications(false);
+}, []);
   const fetchVerifyRequests = useCallback(async (u) => {
     if (!u) return;
     setLoadingVerifyRequests(true);
@@ -2263,6 +2524,24 @@ export default function OfficePortal() {
         if (!error && data) setAllUsers(data);
       });
   }, []);
+
+  useEffect(() => {
+  supabase
+    .from("user_details")
+    .select("username, name, department")
+    .then(({ data, error }) => {
+      if (!error && data) {
+        setAdminUsers(
+          data.filter(
+            (u) =>
+              String(u.department || "")
+                .trim()
+                .toLowerCase() === "admin",
+          ),
+        );
+      }
+    });
+}, []);
 
   useEffect(() => {
     supabase
@@ -2532,37 +2811,100 @@ export default function OfficePortal() {
     setLoadingLeaves(false);
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      fetchTasks(user);
-      fetchLeaves(user);
-      fetchMyReschedules(user);
-      fetchSiteReports(user);
-      fetchMySvrReports(user);
-      fetchVerifyRequests(user);
-      fetchNewTickets(user); // ← add
-      fetchRaisedTickets(user); // ← add
-    }
-  }, [
-    user,
-    fetchTasks,
-    fetchLeaves,
-    fetchMyReschedules,
-    fetchSiteReports,
-    fetchMySvrReports,
-    fetchVerifyRequests,
-    fetchNewTickets,
-    fetchRaisedTickets,
-  ]);
+useEffect(() => {
+  if (user) {
+    fetchTasks(user);
+    fetchLeaves(user);
+    fetchMyReschedules(user);
+    fetchSiteReports(user);
+    fetchMySvrReports(user);
+    fetchVerifyRequests(user);
+    fetchNewTickets(user);
+    fetchRaisedTickets(user);
+    fetchMyVerifications(user); // ← add
+  }
+}, [
+  user,
+  fetchTasks,
+  fetchLeaves,
+  fetchMyReschedules,
+  fetchSiteReports,
+  fetchMySvrReports,
+  fetchVerifyRequests,
+  fetchNewTickets,
+  fetchRaisedTickets,
+  fetchMyVerifications, // ← add
+]);
 
   const showToast = (type, msg) => {
     setToast({ type, msg });
     setTimeout(() => setToast(null), 3500);
   };
-  const handleSendVerification = async (task) => {
-    showToast("success", `"${task.title}" sent for verification.`);
-    // TODO: wire this to your actual verification workflow / backend update
-  };
+const handleSendVerification = (task) => {
+  setVerifyModal({ task, verifier: "", files: [], submitting: false });
+};
+
+const handleVerifySubmit = async () => {
+  if (!verifyModal.verifier)
+    return showToast("error", "Please select who should verify this task.");
+
+  setVerifyModal((p) => ({ ...p, submitting: true }));
+
+  // Ensure bucket exists
+  const { error: bucketErr } = await supabase.storage.createBucket(
+    "task-verification-docs",
+    { public: true },
+  );
+  if (bucketErr && !/already exists/i.test(bucketErr.message || "")) {
+    setVerifyModal((p) => ({ ...p, submitting: false }));
+    return showToast(
+      "error",
+      "Could not create storage bucket: " + bucketErr.message,
+    );
+  }
+
+  const documentUrls = [];
+  for (const file of verifyModal.files) {
+    const path = `${user.user_name}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+    const { error: uploadErr } = await supabase.storage
+      .from("task-verification-docs")
+      .upload(path, file);
+    if (uploadErr) {
+      setVerifyModal((p) => ({ ...p, submitting: false }));
+      return showToast("error", "File upload failed: " + uploadErr.message);
+    }
+    const { data: pub } = supabase.storage
+      .from("task-verification-docs")
+      .getPublicUrl(path);
+    if (pub?.publicUrl) documentUrls.push(pub.publicUrl);
+  }
+
+  const recipient = adminUsers.find((u) => u.username === verifyModal.verifier);
+
+  const { error } = await supabase.from("task_verifications").insert([
+    {
+      task_id: verifyModal.task?.id || null,
+      task_title: verifyModal.task?.title || null,
+      site_name: verifyModal.task?.site_name || null,
+      sent_by: user.user_name,
+      sent_by_name: user.name,
+      verifier: verifyModal.verifier,
+      verifier_name: recipient?.name || verifyModal.verifier,
+      document_urls: documentUrls,
+      status: "pending",
+    },
+  ]);
+
+  setVerifyModal((p) => ({ ...p, submitting: false }));
+
+  if (error) {
+    showToast("error", "Failed to send for verification: " + error.message);
+  } else {
+    showToast("success", `"${verifyModal.task.title}" sent for verification.`);
+    setVerifyModal(null);
+    fetchMyVerifications(user); // ← add
+  }
+};
   const handleVerifyAction = async (req, approved) => {
     if (!approved) {
       setVerifyRejectModal({ req, reason: "" });
@@ -2725,14 +3067,15 @@ export default function OfficePortal() {
     setTicketSolveModal(null);
     showToast("success", "Ticket marked as solved.");
   };
-  const handleNavClick = (key) => {
-    setActiveTab(key);
-    if (typeof window !== "undefined" && window.innerWidth <= 760)
-      setSidebarOpen(false);
-    if (key === "my-reschedules") markReschedulesRead();
-    if (key === "my-leaves") markLeavesRead();
-    if (key === "solved-tickets") markTicketsRead(); // ← add
-  };
+const handleNavClick = (key) => {
+  setActiveTab(key);
+  if (typeof window !== "undefined" && window.innerWidth <= 760)
+    setSidebarOpen(false);
+  if (key === "my-reschedules") markReschedulesRead();
+  if (key === "my-leaves") markLeavesRead();
+  if (key === "solved-tickets") markTicketsRead();
+  if (key === "task-corrections") markCorrectionsRead(); // ← add
+};
   const spawnNextRecurringInstance = async (task, nextDue) => {
     const { data: newTask, error: insertErr } = await supabase
       .from("tasks")
@@ -2781,52 +3124,41 @@ export default function OfficePortal() {
     return { error: null, task: newTask };
   };
 
-  const handleChecklistConfirm = async () => {
-    if (!checkpoints.every((cp) => checkedItems[cp.id]))
-      return showToast("error", "Please tick all checklist items first.");
+const handleChecklistConfirm = async () => {
+  if (!checkpoints.every((cp) => checkedItems[cp.id]))
+    return showToast("error", "Please tick all checklist items first.");
 
-    const task = checklistModal;
-    const taskId = task.id;
-    setChecklistModal(null);
-    setUpdatingId(taskId);
+  const task = checklistModal;
+  const taskId = task.id;
+  setChecklistModal(null);
+  setUpdatingId(taskId);
+  // Checklist done → move to in_progress (not completed).
+  // Final completion only happens once admin verifies.
+  const { error } = await supabase
+    .from("tasks")
+    .update({ status: "in_progress" })
+    .eq("id", taskId);
 
-    const { error } = await supabase
-      .from("tasks")
-      .update({ status: "completed" })
-      .eq("id", taskId);
-    if (!error) {
-      const patch = (list) =>
-        list.map((t) => (t.id === taskId ? { ...t, status: "completed" } : t));
-      setMyTasks((p) => patch(p));
-      setRecurringTasks((p) => patch(p));
+  setUpdatingId(null);
 
-      // Spawn next recurring instance if applicable
-      if (isRecurringTask(task)) {
-        const nextDue = getNextDueDate(task.due_date, task.recurrence);
-        const { task: newTask } = await spawnNextRecurringInstance(
-          task,
-          nextDue,
-        );
+  if (error) {
+    showToast("error", "Failed: " + error.message);
+    return;
+  }
 
-          if (newTask) {
-          if (isTodayOrPast(newTask.due_date)) {
-            setRecurringTasks((p) => [...p, newTask]);
-          }
-          showToast(
-            "success",
-            `Completed! Next instance due ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
-          );
-        } else {
-          showToast("success", "Task marked as completed!");
-        }
-      } else {
-        showToast("success", "Task marked as completed!");
-      }
-    } else {
-      showToast("error", "Failed: " + error.message);
-    }
-    setUpdatingId(null);
-  };
+  const patch = (list) =>
+    list.map((t) => (t.id === taskId ? { ...t, status: "in_progress" } : t));
+  setMyTasks((p) => patch(p));
+  setRecurringTasks((p) => patch(p));
+
+  showToast(
+    "success",
+    "Checklist completed! Now send this task for verification so an admin can confirm it.",
+  );
+
+  // Prompt them straight into the verification flow.
+  handleSendVerification({ ...task, status: "in_progress" });
+};
   const getNextDueDate = (currentDue, recurrence) => {
     const base = currentDue ? new Date(currentDue + "T00:00:00") : new Date();
     switch ((recurrence || "").toLowerCase()) {
@@ -2846,46 +3178,31 @@ export default function OfficePortal() {
   };
 
 const handleStatusChange = async (taskId, newStatus, e) => {
-    e?.stopPropagation();
-    const task = [...myTasks, ...recurringTasks].find((t) => t.id === taskId);
+  e?.stopPropagation();
 
-    setUpdatingId(taskId);
-    const { error } = await supabase
-      .from("tasks")
-      .update({ status: newStatus })
-      .eq("id", taskId);
+  if (newStatus === "completed") {
+    return showToast(
+      "error",
+      "Tasks can only be marked completed after admin verification. Please use 'Send for Verification' instead.",
+    );
+  }
 
-    if (!error) {
-      const patch = (list) =>
-        list.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
-      setMyTasks((p) => patch(p));
-      setRecurringTasks((p) => patch(p));
+  const task = [...myTasks, ...recurringTasks].find((t) => t.id === taskId);
 
-      // ── If a recurring task is completed, spawn the next instance ──
-      if (newStatus === "completed" && isRecurringTask(task)) {
-        const nextDue = getNextDueDate(task.due_date, task.recurrence);
-        const { task: newTask, error: insertErr } =
-          await spawnNextRecurringInstance(task, nextDue);
+  setUpdatingId(taskId);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ status: newStatus })
+    .eq("id", taskId);
 
-        if (newTask) {
-          // Keep it hidden until its own due date actually arrives
-          if (isTodayOrPast(newTask.due_date)) {
-            setRecurringTasks((p) => [...p, newTask]);
-          }
-          showToast(
-            "success",
-            `Task completed! Next instance due ${new Date(nextDue + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
-          );
-        } else {
-          showToast("success", "Task marked complete.");
-          if (insertErr)
-            console.error("Failed to spawn next instance:", insertErr.message);
-        }
-      }
-    }
-    setUpdatingId(null);
-  };
-
+  if (!error) {
+    const patch = (list) =>
+      list.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
+    setMyTasks((p) => patch(p));
+    setRecurringTasks((p) => patch(p));
+  }
+  setUpdatingId(null);
+};
   const markTicketsRead = async () => {
     const unreadIds = raisedTickets
       .filter((t) => t.status === "solved" && t.raised_by_read !== true)
@@ -2905,6 +3222,30 @@ const handleStatusChange = async (taskId, newStatus, e) => {
       );
     }
   };
+  const markCorrectionsRead = async () => {
+  const unreadIds = myVerifications
+    .filter(
+      (v) =>
+        v.status === "correction_sent" &&
+        v.correction_read !== true &&
+        latestVerificationByTask.get(v.task_id)?.id === v.id,
+    )
+    .map((v) => v.id);
+  if (!unreadIds.length) return;
+
+  const { error } = await supabase
+    .from("task_verifications")
+    .update({ correction_read: true })
+    .in("id", unreadIds);
+
+  if (!error) {
+    setMyVerifications((prev) =>
+      prev.map((v) =>
+        unreadIds.includes(v.id) ? { ...v, correction_read: true } : v,
+      ),
+    );
+  }
+};
   const markReschedulesRead = async () => {
     const unreadIds = myReschedules
       .filter(
@@ -3141,7 +3482,17 @@ const handleStatusChange = async (taskId, newStatus, e) => {
     }
     setRejectTarget(null);
   };
-
+const latestVerificationByTask = useMemo(() => {
+  const map = new Map();
+  myVerifications.forEach((v) => {
+    if (!v.task_id) return;
+    const existing = map.get(v.task_id);
+    if (!existing || new Date(v.created_at) > new Date(existing.created_at)) {
+      map.set(v.task_id, v);
+    }
+  });
+  return map;
+}, [myVerifications]);
   const allTasks = useMemo(() => {
     const map = new Map();
     [...myTasks, ...recurringTasks].forEach((t) => map.set(t.id, t));
@@ -3167,6 +3518,8 @@ const handleStatusChange = async (taskId, newStatus, e) => {
     VERIFY_REQUESTS_ITEM,
     NEW_TICKETS_ITEM,
     ...TICKETS_NAV,
+      VERIFIED_TASKS_ITEM,      // ← add
+  TASK_CORRECTIONS_ITEM,    // ← add
   ].find((n) => n.key === activeTab);
 
   const proxyPendingCount = proxyLeaves.filter(
@@ -3190,31 +3543,33 @@ const handleStatusChange = async (taskId, newStatus, e) => {
   const renderContent = () => {
     switch (activeTab) {
       case "my-tasks": {
-        return (
-          <TaskList
-            tasks={myTasks}
-            loading={loadingTasks}
-            onStatusChange={handleStatusChange}
-            updatingId={updatingId}
-            emptyText="No tasks assigned to you yet."
-            filters={myTaskFilters}
-            onFilterChange={makeFilterChange(setMyTaskFilters)}
-            onFilterClear={makeFilterClear(setMyTaskFilters)}
-            showRecurrence={false}
-            allTasks={myTasks}
-            userMap={userMap}
-            onReschedule={(task) => {
-              setRescheduleTask(task);
-              setRescheduleForm({
-                requested_date: "",
-                reason: "",
-                verify_with: "",
-              });
-            }}
-            onDetailClick={(task) => setDetailTask(task)}
-          />
-        );
-      }
+      return (
+        <TaskList
+          tasks={myTasks}
+          loading={loadingTasks}
+          onStatusChange={handleStatusChange}
+          updatingId={updatingId}
+          emptyText="No tasks assigned to you yet."
+          filters={myTaskFilters}
+          onFilterChange={makeFilterChange(setMyTaskFilters)}
+          onFilterClear={makeFilterClear(setMyTaskFilters)}
+          showRecurrence={false}
+          allTasks={myTasks}
+          userMap={userMap}
+          onSendVerification={handleSendVerification}
+          onRaiseTicket={handleRaiseTicket}
+          onReschedule={(task) => {
+            setRescheduleTask(task);
+            setRescheduleForm({
+              requested_date: "",
+              reason: "",
+              verify_with: "",
+            });
+          }}
+          onDetailClick={(task) => setDetailTask(task)}
+        />
+      );
+    }
 
       case "recurring-tasks":
         return (
@@ -3569,6 +3924,58 @@ const handleStatusChange = async (taskId, newStatus, e) => {
           );
         return <RaisedTicketsTable tickets={solved} />;
       }
+      case "verified-tasks": {
+        const verified = myVerifications.filter((v) => v.status === "completed");
+        if (loadingMyVerifications)
+          return (
+            <div className="op-empty-state">
+              <div className="op-spinner" />
+              <p className="op-empty-text">Loading…</p>
+            </div>
+          );
+        if (!verified.length)
+          return (
+            <div className="op-empty-state">
+              <p className="op-empty-text">No verified tasks yet.</p>
+            </div>
+          );
+      return <MyVerificationTable verifications={verified} onRowClick={setMyVerificationDetail} />;
+      }
+
+      case "task-corrections": {
+  const corrections = myVerifications.filter(
+    (v) =>
+      v.status === "correction_sent" &&
+      latestVerificationByTask.get(v.task_id)?.id === v.id,
+  );
+  if (loadingMyVerifications)
+    return (
+      <div className="op-empty-state">
+        <div className="op-spinner" />
+        <p className="op-empty-text">Loading…</p>
+      </div>
+    );
+  if (!corrections.length)
+    return (
+      <div className="op-empty-state">
+        <p className="op-empty-text">No corrections sent back to you.</p>
+      </div>
+    );
+  return (
+    <MyVerificationTable
+      verifications={corrections}
+      onRowClick={setMyVerificationDetail}
+      allTasks={allTasks}
+      showAction={true}
+      onReschedule={(task) => {
+        setRescheduleTask(task);
+        setRescheduleForm({ requested_date: "", reason: "", verify_with: "" });
+      }}
+      onSendVerification={handleSendVerification}
+      onRaiseTicket={handleRaiseTicket}
+    />
+  );
+}
       case "verify-requests": {
         const fmtDate = (d) =>
           d
@@ -3916,10 +4323,20 @@ const handleStatusChange = async (taskId, newStatus, e) => {
               </p>
             </div>
           );
+
         return (
           <>
             <div className="lv-table-only">
-              <MyRescheduleTable reschedules={myReschedules} />
+              <MyRescheduleTable
+                reschedules={myReschedules}
+                allTasks={allTasks}
+                onReschedule={(task) => {
+                  setRescheduleTask(task);
+                  setRescheduleForm({ requested_date: "", reason: "", verify_with: "" });
+                }}
+                onSendVerification={handleSendVerification}
+                onRaiseTicket={handleRaiseTicket}
+              />
             </div>
             <div className="lv-cards-only">
               {myReschedules.map((req) => {
@@ -5020,6 +5437,7 @@ const handleStatusChange = async (taskId, newStatus, e) => {
               <span className="op-nav-section" style={{ marginTop: 8 }}>
                 Tickets
               </span>
+
               {filterNav(TICKETS_NAV, user, "office").map((item) => (
                 <button
                   key={item.key}
@@ -5044,6 +5462,36 @@ const handleStatusChange = async (taskId, newStatus, e) => {
                     )}
                 </button>
               ))}
+              {myVerifications.length > 0 && (
+                <>
+                  <span className="op-nav-section" style={{ marginTop: 8 }}>
+                    Verification
+                  </span>
+                  <button
+                    className={`op-nav-item${activeTab === "verified-tasks" ? " active" : ""}`}
+                    onClick={() => handleNavClick("verified-tasks")}
+                  >
+                    <span className="op-nav-icon">{VERIFIED_TASKS_ITEM.icon}</span>
+                    {VERIFIED_TASKS_ITEM.label}
+                  </button>
+                  <button
+                      className={`op-nav-item${activeTab === "task-corrections" ? " active" : ""}`}
+                      onClick={() => handleNavClick("task-corrections")}
+                    >
+                      <span className="op-nav-icon">{TASK_CORRECTIONS_ITEM.icon}</span>
+                      {TASK_CORRECTIONS_ITEM.label}
+                      {(() => {
+                        const unread = myVerifications.filter(
+                          (v) =>
+                            v.status === "correction_sent" &&
+                            v.correction_read !== true &&
+                            latestVerificationByTask.get(v.task_id)?.id === v.id,
+                        ).length;
+                        return unread > 0 ? <span className="op-nav-badge">{unread}</span> : null;
+                      })()}
+                    </button>
+                </>
+              )} 
               <span className="op-nav-section" style={{ marginTop: 8 }}>
                 Leave
               </span>
@@ -5885,6 +6333,229 @@ const handleStatusChange = async (taskId, newStatus, e) => {
         </div>
       )}
 
+      {verifyModal && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 10040,
+      background: "rgba(15,23,42,.5)",
+      backdropFilter: "blur(4px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 20,
+    }}
+    onClick={(e) => {
+      if (e.target === e.currentTarget) setVerifyModal(null);
+    }}
+  >
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 16,
+        width: "100%",
+        maxWidth: 480,
+        boxShadow: "0 24px 64px rgba(0,0,0,.22)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          padding: "18px 22px 14px",
+          borderBottom: "1px solid #f1f5f9",
+        }}
+      >
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+          Send for Verification
+        </div>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+          {verifyModal.task?.title}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "18px 22px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+            Send To <span style={{ color: "#dc2626" }}>*</span>
+          </label>
+          <select
+            style={{
+              fontFamily: "'DM Sans',sans-serif",
+              fontSize: 13.5,
+              color: "#1e293b",
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              padding: "9px 12px",
+              outline: "none",
+              width: "100%",
+              cursor: "pointer",
+            }}
+            value={verifyModal.verifier}
+            onChange={(e) =>
+              setVerifyModal((p) => ({ ...p, verifier: e.target.value }))
+            }
+          >
+            <option value="">Select admin…</option>
+            {adminUsers.map((u) => (
+              <option key={u.username} value={u.username}>
+                {u.name}
+              </option>
+            ))}
+          </select>
+          {adminUsers.length === 0 && (
+            <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+              No Admin department users found.
+            </span>
+          )}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+            Attach Documents
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: "#94a3b8",
+                background: "#f1f5f9",
+                borderRadius: 4,
+                padding: "1px 6px",
+                marginLeft: 6,
+              }}
+            >
+              optional, multiple allowed
+            </span>
+          </label>
+          <input
+            type="file"
+            multiple
+            onChange={(e) => {
+              const newFiles = Array.from(e.target.files || []);
+              setVerifyModal((p) => ({
+                ...p,
+                files: [...p.files, ...newFiles],
+              }));
+              e.target.value = "";
+            }}
+            style={{ fontSize: 12.5 }}
+          />
+          {verifyModal.files.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 5,
+                marginTop: 4,
+              }}
+            >
+              {verifyModal.files.map((f, i) => (
+                <div
+                  key={`${f.name}-${i}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    fontSize: 12,
+                    color: "#475569",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 6,
+                    padding: "5px 10px",
+                  }}
+                >
+                  <span
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {f.name}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setVerifyModal((p) => ({
+                        ...p,
+                        files: p.files.filter((_, idx) => idx !== i),
+                      }))
+                    }
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "#dc2626",
+                      fontWeight: 700,
+                      padding: "0 2px",
+                      flexShrink: 0,
+                      marginLeft: 8,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 10,
+          padding: "12px 22px 18px",
+          borderTop: "1px solid #f1f5f9",
+        }}
+      >
+        <button
+          onClick={() => setVerifyModal(null)}
+          style={{
+            background: "#f1f5f9",
+            color: "#475569",
+            fontFamily: "'DM Sans',sans-serif",
+            fontSize: 13.5,
+            fontWeight: 600,
+            padding: "9px 18px",
+            borderRadius: 8,
+            border: "1px solid #e2e8f0",
+            cursor: "pointer",
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleVerifySubmit}
+          disabled={verifyModal.submitting}
+          style={{
+            background: "#16a34a",
+            color: "#fff",
+            fontFamily: "'DM Sans',sans-serif",
+            fontSize: 13.5,
+            fontWeight: 600,
+            padding: "9px 20px",
+            borderRadius: 8,
+            border: "none",
+            cursor: "pointer",
+            opacity: verifyModal.submitting ? 0.6 : 1,
+          }}
+        >
+          {verifyModal.submitting ? "Sending…" : "Send for Verification"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
       {ticketSolveModal && (
         <div
           style={{
@@ -6296,6 +6967,12 @@ const handleStatusChange = async (taskId, newStatus, e) => {
                     value: detailTask.assigned_by || "—",
                   },
                   {
+                    label: "Hours to Complete",
+                    value: detailTask.hours_to_complete
+                      ? `${detailTask.hours_to_complete} hrs`
+                      : "—",
+                  },
+                  {
                     label: "Due Date",
                     value: detailTask.due_date
                       ? new Date(detailTask.due_date).toLocaleDateString(
@@ -6520,6 +7197,182 @@ const handleStatusChange = async (taskId, newStatus, e) => {
           </div>
         </div>
       )}
+      {myVerificationDetail && (
+  <div
+    style={{ position: "fixed", inset: 0, zIndex: 10030, background: "rgba(15,23,42,.45)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+    onClick={(e) => { if (e.target === e.currentTarget) setMyVerificationDetail(null); }}
+  >
+    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 540, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.2)" }}>
+      {(() => {
+        const v = myVerificationDetail;
+        const statusStyle = {
+          pending: { bg: "#fffbeb", color: "#d97706", label: "Pending" },
+          completed: { bg: "#f0fdf4", color: "#16a34a", label: "Verified" },
+          correction_sent: { bg: "#fef2f2", color: "#dc2626", label: "Correction Sent" },
+        };
+        const sc = statusStyle[v.status] || statusStyle.pending;
+        return (
+          <>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9", position: "sticky", top: 0, background: "#fff", zIndex: 1, borderRadius: "16px 16px 0 0" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>{v.task_title || "—"}</div>
+                {v.site_name && <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 3 }}>{v.site_name}</div>}
+              </div>
+              <button onClick={() => setMyVerificationDetail(null)} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+
+            <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 20, background: sc.bg, color: sc.color, width: "fit-content" }}>
+                {sc.label}
+              </span>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {[
+                  { label: "Sent To", value: v.verifier_name || v.verifier },
+                  { label: "Sent On", value: v.created_at ? new Date(v.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—" },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 8, padding: "10px 12px" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 10, padding: "14px 16px" }}>
+               
+                <div style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 10, padding: "14px 16px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 8 }}>Your Submitted Files</div>
+                {v.document_urls?.length > 0 ? (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {v.document_urls.map((url, i) => (
+                      
+                      <a  key={i}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          color: "#475569",
+                          background: "#fff",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 7,
+                          padding: "6px 12px",
+                          textDecoration: "none",
+                        }}
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#475569"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                        <span>File {i + 1}</span>
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+              <span style={{ fontSize: 12.5, color: "#94a3b8", fontStyle: "italic" }}>No files attached</span>
+            )}
+          </div>
+
+            {v.status === "correction_sent" && (
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "14px 16px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#dc2626", marginBottom: 8 }}>Admin's Correction</div>
+                {v.correction_note && <p style={{ fontSize: 13.5, color: "#475569", lineHeight: 1.6, margin: "0 0 10px" }}>{v.correction_note}</p>}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {v.correction_audio_url && (
+                    
+                    <a  href={v.correction_audio_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        color: "#7c3aed",
+                      }}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#7c3aed"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                        <line x1="12" y1="19" x2="12" y2="23" />
+                        <line x1="8" y1="23" x2="16" y2="23" />
+                      </svg>
+                      <span>Correction Audio</span>
+                    </a>
+                  )}
+                  {v.correction_document_urls?.map((url, i) => (
+                    
+                    <a  key={i}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        color: "#0369a1",
+                      }}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#0369a1"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                      </svg>
+                      <span>Doc {i + 1}</span>
+                    </a>
+                  ))}
+                </div>
+                {v.resolved_by && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>by {v.resolved_by}</div>}
+              </div>
+            )}
+              </div>
+
+
+              {v.status === "completed" && v.resolved_by && (
+                <div style={{ fontSize: 12.5, color: "#16a34a", fontWeight: 600 }}>✓ Verified by {v.resolved_by}</div>
+              )}
+            </div>
+          </>
+        );
+      })()}
+    </div>
+  </div>
+)}
 
       {checklistModal && (
         <div

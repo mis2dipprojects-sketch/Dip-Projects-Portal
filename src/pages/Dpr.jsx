@@ -86,7 +86,7 @@ async function compressImage(file) {
 }
 // ─── Bucket helpers (per-site buckets, auto-created) ─────────────────────────
 function sanitizeBucketName(site) {
-  // Supabase bucket names: lowercase letters, numbers, hyphens only, no leading/trailing hyphen
+  
   return (
     (site || "site")
       .toString()

@@ -1304,7 +1304,6 @@ const submit = async () => {
               {!chain?.levelApprover &&
                 !chain?.headApprover &&
                 "your project head for approval."}{" "}
-              Both must approve for it to be granted.
             </>
           )}
         </span>
@@ -1658,21 +1657,29 @@ export default function SitePortal() {
     return "pending";
   };
 
-  const seenKey = (u) => `leaveSeen_${u?.user_name || "anon"}`;
+const getSeenLeaveStatuses = async (u) => {
+  if (!u?.user_name) return {};
+  const { data, error } = await supabase
+    .from("leave_seen_status")
+    .select("snapshot")
+    .eq("user_name", u.user_name)
+    .maybeSingle();
+  if (error || !data) return {};
+  return data.snapshot || {};
+};
 
-  const getSeenLeaveStatuses = (u) => {
-    try {
-      return JSON.parse(localStorage.getItem(seenKey(u)) || "{}");
-    } catch {
-      return {};
-    }
-  };
-  const setSeenLeaveStatuses = (u, map) => {
-    localStorage.setItem(seenKey(u), JSON.stringify(map));
-  };
+const setSeenLeaveStatuses = async (u, map) => {
+  if (!u?.user_name) return;
+  await supabase
+    .from("leave_seen_status")
+    .upsert(
+      { user_name: u.user_name, snapshot: map, updated_at: new Date().toISOString() },
+      { onConflict: "user_name" }
+    );
+};
 
   // Compares live leave rows against the last-seen snapshot and counts changes
-  const checkLeaveUpdates = useCallback(async (u) => {
+const checkLeaveUpdates = useCallback(async (u) => {
   if (!u?.user_name) return;
   const { data } = await supabase
     .from("leaves")
@@ -1680,7 +1687,7 @@ export default function SitePortal() {
     .eq("user_name", u.user_name);
   if (!data) return;
 
-  const seen = getSeenLeaveStatuses(u);
+  const seen = await getSeenLeaveStatuses(u); // ← was sync
   let count = 0;
   data.forEach(l => {
     const key = leaveStatusKey(l);
@@ -1697,13 +1704,15 @@ const markLeavesSeen = useCallback(async (u) => {
   if (!u?.user_name) return;
   const { data } = await supabase
     .from("leaves")
-    .select("id, level_approved, head_approved")   // ← was: "id, status, proxy_approved"
+    .select("id, level_approved, head_approved")
     .eq("user_name", u.user_name);
   const snapshot = {};
   (data || []).forEach(l => { snapshot[l.id] = leaveStatusKey(l); });
-  setSeenLeaveStatuses(u, snapshot);
+  await setSeenLeaveStatuses(u, snapshot); // ← was sync
   setLeaveBadgeCount(0);
 }, []);
+
+
   const [reportFilter, setReportFilter] = useState({
     type: "",
     site: "",

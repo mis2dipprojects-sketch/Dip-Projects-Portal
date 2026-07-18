@@ -4,7 +4,7 @@ const MONTHLY_LEAVE_ROLES = ["site engineer", "site incharge", "site coordinator
 export function isMonthlyLeaveRole(user) {
   const role = (typeof user === "string" ? user : user?.role || "").trim().toLowerCase();
   return MONTHLY_LEAVE_ROLES.includes(role);
-}
+}   
 function isLeaveApproved(l) {
   if (l.level_approved === false || l.head_approved === false) return false;
   return l.level_approved === true && l.head_approved === true;

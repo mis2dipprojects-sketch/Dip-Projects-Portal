@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback,useRef } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Navbar from "../components/Navbar";
 import { supabase } from "../supabase";
 import { useRecurringTasks } from "../hooks/useRecurringTasks";
@@ -8,7 +8,7 @@ import "./AdminPortal.css";
 import { canAccessPortal, filterNav } from "../access.js"; // adjust path to where access.js lives
 import {
   TaskForm as TaskFormWithCheckpoints,
-  EMPTY_FORM,
+  EMPTY_FORM,AudioRecorder,
 } from "./Taskformwithcheckpoints.jsx";
 
 const NAV_ITEMS = [
@@ -113,7 +113,7 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
-  
+
   {
     key: "reschedule-requests",
     label: "Reschedule Requests",
@@ -520,7 +520,7 @@ function buildAnchor(form) {
 }
 
 function anchorDescription(recurrence, anchor) {
-  if (recurrence === "daily") return "every day";   // ← add this line
+  if (recurrence === "daily") return "every day"; // ← add this line
   if (!anchor) return null;
   switch (recurrence) {
     case "weekly":
@@ -535,7 +535,7 @@ function anchorDescription(recurrence, anchor) {
       return null;
   }
 }
-    
+
 const APPROVAL_SLOT_LABELS = {
   level: "Level Approver",
   head: "Site Head",
@@ -697,40 +697,42 @@ function applyTaskFilters(tasks, filters) {
   });
 }
 
-function getNextDueDate(task) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const anchor = task.recurrence_anchor;
-  const rec = task.recurrence;
-
-  switch (rec) {
-    case "daily": {
-      const d = new Date(today);
-      return d;
-    }
-    case "weekly": {
-      const targetDay = parseInt(anchor, 10); // 0–6
-      const d = new Date(today);
-      const diff = (targetDay - d.getDay() + 7) % 7;
-      d.setDate(d.getDate() + (diff === 0 ? 7 : diff));
-      return d;
-    }
-    case "monthly": {
-      const day = parseInt(anchor, 10);
-      const d = new Date(today.getFullYear(), today.getMonth(), day);
-      if (d <= today) d.setMonth(d.getMonth() + 1);
-      return d;
-    }
-    case "yearly": {
-      if (!anchor) return null;
-      const [mm, dd] = anchor.split("-").map(Number);
-      const d = new Date(today.getFullYear(), mm - 1, dd);
-      if (d <= today) d.setFullYear(d.getFullYear() + 1);
-      return d;
-    }
-      default:
-      return null;
+function getNextDueDate(currentDue, recurrence) {
+  const base = currentDue ? new Date(currentDue + "T00:00:00") : new Date();
+  switch ((recurrence || "").toLowerCase()) {
+    case "daily": base.setDate(base.getDate() + 1); break;
+    case "weekly": base.setDate(base.getDate() + 7); break;
+    case "monthly": base.setMonth(base.getMonth() + 1); break;
+    default: base.setDate(base.getDate() + 1);
   }
+  return base.toISOString().split("T")[0];
+}
+
+async function spawnNextRecurringInstance(task, nextDue) {
+  const { data: newTask, error } = await supabase
+    .from("tasks")
+    .insert([{
+      title: task.title,
+      description: task.description || null,
+      assigned_to: task.assigned_to,
+      assigned_by: task.assigned_by || null,
+      site_name: task.site_name || null,
+      priority: task.priority || "medium",
+      status: "pending",
+      is_recurring: true,
+      recurrence: task.recurrence,
+      due_date: nextDue,
+      audio_url: task.audio_url || null,
+      document_url: task.document_url || null,
+      has_checkpoints: task.has_checkpoints || false,
+      reschedule_allowed: task.reschedule_allowed || false,
+      parent_task_id: task.parent_task_id || task.id,
+      recurrence_anchor: task.recurrence_anchor || task.due_date || nextDue,
+      last_generated_date: nextDue,
+    }])
+    .select()
+    .single();
+  return { error, task: newTask };
 }
 
 function toDateStr(d) {
@@ -740,7 +742,6 @@ function toDateStr(d) {
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
-
 
 function formatNextDue(date) {
   if (!date) return "—";
@@ -1157,7 +1158,15 @@ function SubmissionFilterBar({
 
   return <div className="tf-bar tf-bar-fixed">{fields}</div>;
 }
-function LeaveFilterBar({ filters, onChange, onClear, leaves, inline, mobileOpen, onMobileToggle }) {
+function LeaveFilterBar({
+  filters,
+  onChange,
+  onClear,
+  leaves,
+  inline,
+  mobileOpen,
+  onMobileToggle,
+}) {
   const isActive = Object.values(filters).some((v) => v !== "");
   const names = [
     ...new Set(leaves.map((l) => l.name || l.user_name).filter(Boolean)),
@@ -1174,7 +1183,9 @@ function LeaveFilterBar({ filters, onChange, onClear, leaves, inline, mobileOpen
         >
           <option value="">All names</option>
           {names.map((n) => (
-            <option key={n} value={n}>{n}</option>
+            <option key={n} value={n}>
+              {n}
+            </option>
           ))}
         </select>
       </div>
@@ -1200,7 +1211,15 @@ function LeaveFilterBar({ filters, onChange, onClear, leaves, inline, mobileOpen
       </div>
       {isActive && (
         <button className="tf-clear" onClick={onClear}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -1214,12 +1233,22 @@ function LeaveFilterBar({ filters, onChange, onClear, leaves, inline, mobileOpen
     return (
       <>
         <div className="tf-bar-inline">{fields}</div>
-        <div style={{ position: "relative", marginLeft: "auto", flexShrink: 0 }}>
+        <div
+          style={{ position: "relative", marginLeft: "auto", flexShrink: 0 }}
+        >
           <button
             className={`tf-mobile-btn${mobileOpen ? " Active" : ""}`}
             onClick={onMobileToggle}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            >
               <line x1="4" y1="6" x2="20" y2="6" />
               <line x1="8" y1="12" x2="16" y2="12" />
               <line x1="11" y1="18" x2="13" y2="18" />
@@ -1228,7 +1257,9 @@ function LeaveFilterBar({ filters, onChange, onClear, leaves, inline, mobileOpen
           </button>
           {mobileOpen && (
             <div className="tf-popup">
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{fields}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {fields}
+              </div>
             </div>
           )}
         </div>
@@ -1238,27 +1269,48 @@ function LeaveFilterBar({ filters, onChange, onClear, leaves, inline, mobileOpen
 
   return <div className="tf-bar tf-bar-fixed">{fields}</div>;
 }
-function RescheduleFilterBar({ filters, onChange, onClear, reschedules, userMap, inline, mobileOpen, onMobileToggle }) {
+function RescheduleFilterBar({
+  filters,
+  onChange,
+  onClear,
+  reschedules,
+  userMap,
+  inline,
+  mobileOpen,
+  onMobileToggle,
+}) {
   const isActive = Object.values(filters).some((v) => v !== "");
   const names = [
-    ...new Set(reschedules.map((r) => nameFor(userMap, r.requested_by)).filter(Boolean)),
+    ...new Set(
+      reschedules.map((r) => nameFor(userMap, r.requested_by)).filter(Boolean),
+    ),
   ].sort();
 
   const fields = (
     <>
       <div className="tf-group">
         <span className="tf-label">Name</span>
-        <select className="tf-select" value={filters.name} onChange={(e) => onChange("name", e.target.value)}>
+        <select
+          className="tf-select"
+          value={filters.name}
+          onChange={(e) => onChange("name", e.target.value)}
+        >
           <option value="">All names</option>
           {names.map((n) => (
-            <option key={n} value={n}>{n}</option>
+            <option key={n} value={n}>
+              {n}
+            </option>
           ))}
         </select>
       </div>
       <div className="tf-divider" />
       <div className="tf-group">
         <span className="tf-label">Status</span>
-        <select className="tf-select" value={filters.status} onChange={(e) => onChange("status", e.target.value)}>
+        <select
+          className="tf-select"
+          value={filters.status}
+          onChange={(e) => onChange("status", e.target.value)}
+        >
           <option value="">All statuses</option>
           <option value="pending">Pending</option>
           <option value="approved">Approved</option>
@@ -1267,7 +1319,15 @@ function RescheduleFilterBar({ filters, onChange, onClear, reschedules, userMap,
       </div>
       {isActive && (
         <button className="tf-clear" onClick={onClear}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          >
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -1281,9 +1341,22 @@ function RescheduleFilterBar({ filters, onChange, onClear, reschedules, userMap,
     return (
       <>
         <div className="tf-bar-inline">{fields}</div>
-        <div style={{ position: "relative", marginLeft: "auto", flexShrink: 0 }}>
-          <button className={`tf-mobile-btn${mobileOpen ? " Active" : ""}`} onClick={onMobileToggle}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+        <div
+          style={{ position: "relative", marginLeft: "auto", flexShrink: 0 }}
+        >
+          <button
+            className={`tf-mobile-btn${mobileOpen ? " Active" : ""}`}
+            onClick={onMobileToggle}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            >
               <line x1="4" y1="6" x2="20" y2="6" />
               <line x1="8" y1="12" x2="16" y2="12" />
               <line x1="11" y1="18" x2="13" y2="18" />
@@ -1292,7 +1365,9 @@ function RescheduleFilterBar({ filters, onChange, onClear, reschedules, userMap,
           </button>
           {mobileOpen && (
             <div className="tf-popup">
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{fields}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {fields}
+              </div>
             </div>
           )}
         </div>
@@ -1622,6 +1697,9 @@ function TaskRow({ task, onDelete, userMap, onClick }) {
         <span className="ap-badge" style={{ background: s.bg, color: s.color }}>
           {task.status?.replace("_", " ")}
         </span>
+      </td>
+      <td className="ap-td">
+        {task.hours_to_complete ? `${task.hours_to_complete} hrs` : "—"}
       </td>
       <td className="ap-td">
         {task.due_date
@@ -2136,6 +2214,14 @@ function TaskCard({ task, onDelete, onOpenDetail }) {
               <strong>{task.site_name || "Not assigned"}</strong>
             </div>
             <div>
+              <span>Hours to Complete</span>
+              <strong>
+                {task.hours_to_complete
+                  ? `${task.hours_to_complete} hrs`
+                  : "Not set"}
+              </strong>
+            </div>
+            <div>
               <span>Due Date</span>
               <strong>
                 {task.due_date
@@ -2332,6 +2418,274 @@ function LeaveStatusBadge({ leave }) {
   );
 }
 
+function VerificationCard({
+  verification,
+  task,
+  userMap,
+  onComplete,
+  onCorrect,
+  updatingId,
+}) {
+  const isPending = verification.status === "pending";
+  const isCompleted = verification.status === "completed";
+  const isCorrection = verification.status === "correction_sent";
+
+  const p = task
+    ? PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium
+    : null;
+  const s = task ? STATUS_STYLES[task.status] || STATUS_STYLES.pending : null;
+
+  const statusColor = isCompleted
+    ? "#16a34a"
+    : isCorrection
+      ? "#dc2626"
+      : "#f59e0b";
+
+  return (
+    <div className="ap-leave-card" style={{ borderLeftColor: statusColor }}>
+      <div className="ap-leave-card-top">
+        <div>
+          <div className="ap-leave-title">
+            {task?.title || verification.task_title || "Untitled task"}
+          </div>
+          <div className="ap-leave-sub">
+            Sent by{" "}
+            <strong>{verification.sent_by_name || verification.sent_by}</strong>
+            {verification.site_name ? ` · ${verification.site_name}` : ""}
+          </div>
+        </div>
+        <span
+          className="ap-leave-status"
+          style={{
+            background: isCompleted
+              ? "#f0fdf4"
+              : isCorrection
+                ? "#fef2f2"
+                : "#fffbeb",
+            color: statusColor,
+            borderColor: isCompleted
+              ? "#bbf7d0"
+              : isCorrection
+                ? "#fecaca"
+                : "#fde68a",
+          }}
+        >
+          {isCompleted
+            ? "Completed"
+            : isCorrection
+              ? "Correction Sent"
+              : "Pending"}
+        </span>
+      </div>
+
+      {task && (
+        <>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              margin: "8px 0",
+            }}
+          >
+            {p && (
+              <span
+                className="ap-badge"
+                style={{ background: p.bg, color: p.color }}
+              >
+                <span className="ap-badge-dot" style={{ background: p.dot }} />
+                {task.priority}
+              </span>
+            )}
+            {s && (
+              <span
+                className="ap-badge"
+                style={{ background: s.bg, color: s.color }}
+              >
+                {task.status?.replace("_", " ")}
+              </span>
+            )}
+            {task.hours_to_complete && (
+              <span className="ap-pill-blue">{task.hours_to_complete} hrs</span>
+            )}
+          </div>
+
+          <div className="ap-leave-meta">
+            <span>Assigned to: {nameFor(userMap, task.assigned_to)}</span>
+            {task.due_date && (
+              <span>
+                Due:{" "}
+                {new Date(task.due_date).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            )}
+          </div>
+
+          {task.description && (
+            <p className="ap-leave-reason">{task.description}</p>
+          )}
+
+          {(task.audio_url || task.document_url) && (
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                marginTop: 6,
+              }}
+            >
+              {task.audio_url && (
+                <a
+                  href={task.audio_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    color: "#7c3aed",
+                    background: "#f5f3ff",
+                    border: "1px solid #ddd6fe",
+                    borderRadius: 6,
+                    padding: "3px 9px",
+                    textDecoration: "none",
+                  }}
+                >
+                  🎵 Original audio
+                </a>
+              )}
+              {task.document_url && (
+                <a
+                  href={task.document_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    color: "#0369a1",
+                    background: "#f0f9ff",
+                    border: "1px solid #bae6fd",
+                    borderRadius: 6,
+                    padding: "3px 9px",
+                    textDecoration: "none",
+                  }}
+                >
+                  📄 Original document
+                </a>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {verification.document_urls?.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#94a3b8",
+              marginBottom: 4,
+            }}
+          >
+            VERIFICATION ATTACHMENTS
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {verification.document_urls.map((url, i) => (
+              <a
+                key={i}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  color: "#475569",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 6,
+                  padding: "3px 9px",
+                  textDecoration: "none",
+                }}
+              >
+                File {i + 1}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {isCorrection && (
+        <div className="lv-rejection" style={{ marginTop: 8 }}>
+          <strong>Correction sent:</strong> {verification.correction_note}
+          {(verification.correction_audio_url ||
+            verification.correction_document_urls?.length > 0) && (
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                flexWrap: "wrap",
+                marginTop: 6,
+              }}
+            >
+              {verification.correction_audio_url && (
+                <a
+                  href={verification.correction_audio_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 11, fontWeight: 600, color: "#7c3aed" }}
+                >
+                  🎵 Correction audio
+                </a>
+              )}
+              {verification.correction_document_urls?.map((url, i) => (
+                <a
+                  key={i}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 11, fontWeight: 600, color: "#2563eb" }}
+                >
+                  📄 Correction doc {i + 1}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {isPending ? (
+        <div className="ap-leave-actions">
+          <button
+            className="ap-btn-approve"
+            disabled={updatingId === verification.id}
+            onClick={() => onComplete(verification)}
+          >
+            Mark Completed
+          </button>
+          <button
+            className="ap-btn-reject"
+            disabled={updatingId === verification.id}
+            onClick={() => onCorrect(verification)}
+          >
+            Send Correction
+          </button>
+          {updatingId === verification.id && (
+            <span className="ap-saving">saving...</span>
+          )}
+        </div>
+      ) : (
+        <div className="ap-leave-done">
+          {isCompleted ? "✓ Marked completed" : "✗ Correction sent back"} by{" "}
+          {verification.resolved_by}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LeaveRequestCard({ leave, onAction, updating, roleByName }) {
   const status = computeLeaveStatus(leave);
   const days = getLeaveDays(leave);
@@ -2417,8 +2771,22 @@ function LeaveRequestCard({ leave, onAction, updating, roleByName }) {
       </div>
       {leave.rejection_reason && (
         <div className="lv-rejection">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <strong>Rejected:</strong> {formatAuditEntries(leave.rejection_reason, roleByName)}
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <strong>Rejected:</strong>{" "}
+          {formatAuditEntries(leave.rejection_reason, roleByName)}
         </div>
       )}
       {canAct ? (
@@ -3084,10 +3452,57 @@ async function removeSiteFromUser(supabaseClient, username, siteName) {
     })
     .eq("id", userRow.id);
 }
+function findUsernameByEmployeeName(employeesList, name) {
+  if (!name) return null;
+  const match = employeesList.find((e) => e.name === name);
+  return match?.username || null;
+}
 
+async function syncAllSiteUsers(
+  supabaseClient,
+  payload,
+  employeesList,
+  onError,
+) {
+  const usernamesToSync = new Set();
+  if (payload.user_name) usernamesToSync.add(payload.user_name);
+
+  const headUsername = findUsernameByEmployeeName(
+    employeesList,
+    payload.head_name,
+  );
+  if (headUsername) usernamesToSync.add(headUsername);
+
+  const coordinatorUsername = findUsernameByEmployeeName(
+    employeesList,
+    payload.coordinator_name,
+  );
+  if (coordinatorUsername) usernamesToSync.add(coordinatorUsername);
+
+  const pcUsername = findUsernameByEmployeeName(employeesList, payload.pc_name);
+  if (pcUsername) usernamesToSync.add(pcUsername);
+
+  console.log("syncAllSiteUsers: usernames to sync", [...usernamesToSync]);
+
+  for (const uname of usernamesToSync) {
+    const syncResult = await syncUserSiteNames(
+      supabaseClient,
+      uname,
+      payload.site_name,
+    );
+    if (!syncResult.ok && syncResult.reason !== "already_present") {
+      onError?.(
+        `Site saved, but failed to sync "${uname}"'s site list: ${syncResult.reason}`,
+      );
+    }
+  }
+}
 async function syncUserSiteNames(supabaseClient, username, siteName) {
   if (!username || !siteName) {
-    console.warn("syncUserSiteNames: missing username or siteName", { username, siteName });
+    console.warn("syncUserSiteNames: missing username or siteName", {
+      username,
+      siteName,
+    });
     return { ok: false, reason: "missing_args" };
   }
 
@@ -3102,7 +3517,10 @@ async function syncUserSiteNames(supabaseClient, username, siteName) {
     return { ok: false, reason: fetchErr.message };
   }
   if (!userRow) {
-    console.warn("syncUserSiteNames: no user_details row for username", username);
+    console.warn(
+      "syncUserSiteNames: no user_details row for username",
+      username,
+    );
     return { ok: false, reason: "user_not_found" };
   }
 
@@ -3113,7 +3531,11 @@ async function syncUserSiteNames(supabaseClient, username, siteName) {
       : [];
 
   if (current.includes(siteName)) {
-    console.log("syncUserSiteNames: already present, skipping", { username, siteName, current });
+    console.log("syncUserSiteNames: already present, skipping", {
+      username,
+      siteName,
+      current,
+    });
     return { ok: true, reason: "already_present" };
   }
 
@@ -3135,7 +3557,7 @@ async function syncUserSiteNames(supabaseClient, username, siteName) {
   console.log("syncUserSiteNames: success", { username, updated });
   return { ok: true, updated };
 }
-    
+
 async function uploadSiteImage(supabaseClient, siteName, file) {
   const bucket = slugify(siteName);
   if (!bucket) throw new Error("Enter a site name before uploading an image.");
@@ -3214,7 +3636,8 @@ function LeaveRow({ leave, onAction, updating, roleByName }) {
             {leave.admin_approved === false && (
               <span className="ap-approval-pill no">Admin: Rejected</span>
             )}
-            {(leave.admin_approved === null || leave.admin_approved === undefined) && (
+            {(leave.admin_approved === null ||
+              leave.admin_approved === undefined) && (
               <span className="ap-approval-pill">Admin: Pending</span>
             )}
           </>
@@ -3223,12 +3646,23 @@ function LeaveRow({ leave, onAction, updating, roleByName }) {
       <td className="ap-td">
         <span
           className="ap-leave-status"
-          style={{ background: style.bg, color: style.color, borderColor: style.border }}
+          style={{
+            background: style.bg,
+            color: style.color,
+            borderColor: style.border,
+          }}
         >
           {status.charAt(0).toUpperCase() + status.slice(1)}
         </span>
         {leave.rejection_reason && (
-          <div style={{ fontSize: 11, color: "#dc2626", marginTop: 4, maxWidth: 180 }}>
+          <div
+            style={{
+              fontSize: 11,
+              color: "#dc2626",
+              marginTop: 4,
+              maxWidth: 180,
+            }}
+          >
             {formatAuditEntries(leave.rejection_reason, roleByName)}
           </div>
         )}
@@ -3252,14 +3686,20 @@ function LeaveRow({ leave, onAction, updating, roleByName }) {
             >
               Reject
             </button>
-            {updating === leave.id && <span className="ap-saving">saving…</span>}
+            {updating === leave.id && (
+              <span className="ap-saving">saving…</span>
+            )}
           </div>
         ) : managedByHead ? (
-          <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>
+          <span
+            style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}
+          >
             Managed by site head
           </span>
         ) : (
-          <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>
+          <span
+            style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}
+          >
             Actioned
           </span>
         )}
@@ -3336,19 +3776,27 @@ function RescheduleRow({ req, onAction, updating, userMap }) {
             </button>
             {updating === req.id && <span className="ap-saving">saving…</span>}
           </div>
-         ) : (
-          <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>
+        ) : (
+          <span
+            style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}
+          >
             {req.status === "approved"
               ? `Approved by ${nameFor(userMap, req.actioned_by)}`
               : `Rejected by ${nameFor(userMap, req.actioned_by)}`}
           </span>
-        )}  
+        )}
       </td>
     </tr>
   );
 }
 
-function RescheduleRequestCard({ req, onAction, updating, roleByName, userMap }) {
+function RescheduleRequestCard({
+  req,
+  onAction,
+  updating,
+  roleByName,
+  userMap,
+}) {
   const ss = RESCHED_STATUS_STYLES[req.status] || RESCHED_STATUS_STYLES.pending;
   const fmtDate = (d) =>
     d
@@ -3375,7 +3823,9 @@ function RescheduleRequestCard({ req, onAction, updating, roleByName, userMap })
     >
       <div className="ap-leave-card-top">
         <div>
-          <div className="ap-leave-title">{nameFor(userMap, req.requested_by)}</div>
+          <div className="ap-leave-title">
+            {nameFor(userMap, req.requested_by)}
+          </div>
           <div className="ap-leave-sub">
             Task: <strong>{taskTitle}</strong>
             {siteName && ` · ${siteName}`}
@@ -3478,9 +3928,258 @@ function RescheduleRequestCard({ req, onAction, updating, roleByName, userMap })
     </div>
   );
 }
-function AdminTicketsTable({ tickets, onSolve, updatingId, showAction = true }) {
+
+function VerificationTable({ verifications, allTasks, userMap, onComplete, onCorrect, updatingId, showAction = true, onRowClick }) {
   const fmt = (d) =>
-    d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+    d
+      ? new Date(d).toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
+  const statusStyle = {
+    pending: { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
+    completed: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
+    correction_sent: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca" },
+  };
+  const statusLabel = {
+    pending: "Pending",
+    completed: "Completed",
+    correction_sent: "Correction Sent",
+  };
+  const taskFor = (v) => allTasks.find((t) => t.id === v.task_id);
+
+  return (
+    <div className="ap-table-wrap">
+      <table className="ap-table">
+        <thead>
+          <tr>
+            {[
+              "Task",
+              "Site",
+              "Sent By",
+              "Assigned To",
+              "Priority",
+              "Attachments",
+              "Sent On",
+              "Status",
+              showAction ? "Action" : null,
+            ]
+              .filter(Boolean)
+              .map((h) => (
+                <th key={h} className="ap-th">
+                  {h}
+                </th>
+              ))}
+          </tr>
+        </thead>
+        <tbody>
+          {verifications.map((v) => {
+            const task = taskFor(v);
+            const sc = statusStyle[v.status] || statusStyle.pending;
+            const p = task
+              ? PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium
+              : null;
+            return (
+              <tr
+                key={v.id}
+                className="ap-tr"
+                onClick={() => onRowClick?.(v, task)}
+                style={{ cursor: "pointer" }}
+              >
+                <td className="ap-td ap-td-title">
+                  {task?.title || v.task_title || "—"}
+                </td>
+                <td className="ap-td">
+                  {task?.site_name || v.site_name || "—"}
+                </td>
+                <td className="ap-td">{v.sent_by_name || v.sent_by}</td>
+                <td className="ap-td">
+                  {task ? nameFor(userMap, task.assigned_to) : "—"}
+                </td>
+                <td className="ap-td">
+                  {p ? (
+                    <span
+                      className="ap-badge"
+                      style={{ background: p.bg, color: p.color }}
+                    >
+                      <span
+                        className="ap-badge-dot"
+                        style={{ background: p.dot }}
+                      />
+                      {task.priority}
+                    </span>
+                  ) : (
+                    <span style={{ color: "#94a3b8" }}>—</span>
+                  )}
+                </td>
+                <td className="ap-td">
+  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    {/* Files the employee submitted with this verification */}
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      {v.document_urls?.length > 0 ? (
+        v.document_urls.map((url, i) => (
+          
+          <a  key={i}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: 11, fontWeight: 600, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: "2px 8px", textDecoration: "none" }}
+          >
+            📎 File {i + 1}
+          </a>
+        ))
+      ) : (
+        <span style={{ color: "#94a3b8", fontSize: 11.5 }}>No files</span>
+      )}
+    </div>
+
+    {/* Admin's correction attachments — only relevant when a correction was sent */}
+    {v.status === "correction_sent" && (v.correction_audio_url || v.correction_document_urls?.length > 0) && (
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", paddingTop: 4, borderTop: "1px dashed #e2e8f0" }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#dc2626", width: "100%" }}>ADMIN CORRECTION</span>
+        {v.correction_audio_url && (
+          
+          <a  href={v.correction_audio_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: 11, fontWeight: 600, color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 6, padding: "2px 8px", textDecoration: "none" }}
+          >
+            🎵 Audio
+          </a>
+        )}
+        {v.correction_document_urls?.map((url, i) => (
+          
+          <a  key={i}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: 11, fontWeight: 600, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 6, padding: "2px 8px", textDecoration: "none" }}
+          >
+            📄 Doc {i + 1}
+          </a>
+        ))}
+      </div>
+    )}
+  </div>
+</td>
+                <td className="ap-td">{fmt(v.created_at)}</td>
+                <td className="ap-td">
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "3px 9px",
+                      borderRadius: 20,
+                      background: sc.bg,
+                      color: sc.color,
+                      border: `1px solid ${sc.border}`,
+                    }}
+                  >
+                    {statusLabel[v.status] || v.status}
+                  </span>
+                  {v.status === "correction_sent" && v.correction_note && (
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "#dc2626",
+                        marginTop: 4,
+                        maxWidth: 220,
+                      }}
+                    >
+                      {v.correction_note}
+                    </div>
+                  )}
+                  {v.status !== "pending" && v.resolved_by && (
+                    <div
+                      style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 2 }}
+                    >
+                      by {v.resolved_by}
+                    </div>
+                  )}
+                </td>
+                  {showAction && (
+                    <td className="ap-td" onClick={(e) => e.stopPropagation()}>
+                      {v.status === "pending" ? (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button
+                            className="ap-btn-approve"
+                            disabled={updatingId === v.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onComplete(v);
+                            }}
+                            style={{ padding: "5px 10px", fontSize: 11.5 }}
+                          >
+                            Complete
+                          </button>
+                          <button
+                            className="ap-btn-reject"
+                            disabled={updatingId === v.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCorrect(v);
+                            }}
+                            style={{ padding: "5px 10px", fontSize: 11.5 }}
+                          >
+                            Correct
+                          </button>
+                        </div>
+                      ) : (
+                      <span
+                        style={{
+                          fontSize: 11.5,
+                          color: "#94a3b8",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        {v.status === "completed" ? "✓ Done" : "✗ Sent back"}
+                      </span>
+                    )}
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {/* Mobile fallback — reuse the existing card layout */}
+      <div className="ap-task-mobile-grid">
+        {verifications.map((v) => (
+        <VerificationCard
+          key={v.id}
+          verification={v}
+          task={taskFor(v)}
+          userMap={userMap}
+          onComplete={onComplete}
+          onCorrect={onCorrect}
+          updatingId={updatingId}
+          onClick={() => onRowClick?.(v, taskFor(v))}
+        />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminTicketsTable({
+  tickets,
+  onSolve,
+  updatingId,
+  showAction = true,
+}) {
+  const fmt = (d) =>
+    d
+      ? new Date(d).toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "—";
   const statusStyle = {
     open: { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
     solved: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0" },
@@ -3491,10 +4190,22 @@ function AdminTicketsTable({ tickets, onSolve, updatingId, showAction = true }) 
       <table className="ap-table">
         <thead>
           <tr>
-            {["Task", "Raised By", "Sent To", "Site", "Query", "Attachment", "Raised On", "Status", showAction ? "Action" : null]
+            {[
+              "Task",
+              "Raised By",
+              "Sent To",
+              "Site",
+              "Query",
+              "Attachment",
+              "Raised On",
+              "Status",
+              showAction ? "Action" : null,
+            ]
               .filter(Boolean)
               .map((h) => (
-                <th key={h} className="ap-th">{h}</th>
+                <th key={h} className="ap-th">
+                  {h}
+                </th>
               ))}
           </tr>
         </thead>
@@ -3508,45 +4219,79 @@ function AdminTicketsTable({ tickets, onSolve, updatingId, showAction = true }) 
                 <td className="ap-td">{t.assigned_to_name || t.assigned_to}</td>
                 <td className="ap-td">{t.site_name || "—"}</td>
                 <td className="ap-td" style={{ maxWidth: 220 }}>
-                  <span style={{ fontSize: 12.5, color: "#64748b" }}>{t.query}</span>
+                  <span style={{ fontSize: 12.5, color: "#64748b" }}>
+                    {t.query}
+                  </span>
                 </td>
                 <td className="ap-td">
                   {t.document_url ? (
-                    <a href={t.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}>
+                    <a
+                      href={t.document_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: 12,
+                        color: "#2563eb",
+                        fontWeight: 600,
+                      }}
+                    >
                       View file
                     </a>
                   ) : (
                     <span style={{ color: "#94a3b8" }}>—</span>
                   )}
                 </td>
-                
+
                 <td className="ap-td">{fmt(t.created_at)}</td>
                 <td className="ap-td">
                   <span
                     style={{
-                      display: "inline-flex", alignItems: "center", fontSize: 11, fontWeight: 700,
-                      padding: "3px 9px", borderRadius: 20, background: sc.bg, color: sc.color,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "3px 9px",
+                      borderRadius: 20,
+                      background: sc.bg,
+                      color: sc.color,
                       border: `1px solid ${sc.border}`,
                     }}
                   >
                     {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
                   </span>
-                 {t.status === "solved" && t.resolution_note && (
-                  <div style={{ fontSize: 11, color: "#16a34a", marginTop: 4, maxWidth: 200 }}>{t.resolution_note}</div>
-                )}
-                {t.status === "solved" && t.resolution_document_url && (
-  
-                  <a  href={t.resolution_document_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}
-                  >
-                    View resolution file
-                  </a>
-                )}
-                {t.status === "solved" && t.resolved_by && (
-                  <div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 2 }}>by {t.resolved_by}</div>
-                )}
+                  {t.status === "solved" && t.resolution_note && (
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "#16a34a",
+                        marginTop: 4,
+                        maxWidth: 200,
+                      }}
+                    >
+                      {t.resolution_note}
+                    </div>
+                  )}
+                  {t.status === "solved" && t.resolution_document_url && (
+                    <a
+                      href={t.resolution_document_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: 12,
+                        color: "#2563eb",
+                        fontWeight: 600,
+                      }}
+                    >
+                      View resolution file
+                    </a>
+                  )}
+                  {t.status === "solved" && t.resolved_by && (
+                    <div
+                      style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 2 }}
+                    >
+                      by {t.resolved_by}
+                    </div>
+                  )}
                 </td>
                 {showAction && (
                   <td className="ap-td">
@@ -3560,7 +4305,15 @@ function AdminTicketsTable({ tickets, onSolve, updatingId, showAction = true }) 
                         Mark Solved
                       </button>
                     ) : (
-                      <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>✓ Solved</span>
+                      <span
+                        style={{
+                          fontSize: 11.5,
+                          color: "#94a3b8",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        ✓ Solved
+                      </span>
                     )}
                   </td>
                 )}
@@ -3577,15 +4330,23 @@ function AdminTicketsTable({ tickets, onSolve, updatingId, showAction = true }) 
             <div key={t.id} className="ap-task-card-mobile">
               <div className="ap-task-card-head">
                 <div>
-                  <div className="ap-task-card-title">{t.task_title || "—"}</div>
+                  <div className="ap-task-card-title">
+                    {t.task_title || "—"}
+                  </div>
                   <div className="ap-task-card-sub">
-                    {t.raised_by_name || t.raised_by} → {t.assigned_to_name || t.assigned_to}
+                    {t.raised_by_name || t.raised_by} →{" "}
+                    {t.assigned_to_name || t.assigned_to}
                   </div>
                 </div>
                 <span
                   style={{
-                    fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20,
-                    background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: "3px 9px",
+                    borderRadius: 20,
+                    background: sc.bg,
+                    color: sc.color,
+                    border: `1px solid ${sc.border}`,
                   }}
                 >
                   {t.status.charAt(0).toUpperCase() + t.status.slice(1)}
@@ -3593,7 +4354,12 @@ function AdminTicketsTable({ tickets, onSolve, updatingId, showAction = true }) 
               </div>
               <div style={{ fontSize: 12.5, color: "#64748b" }}>{t.query}</div>
               {t.document_url && (
-                <a href={t.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}>
+                <a
+                  href={t.document_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 12, color: "#2563eb", fontWeight: 600 }}
+                >
                   View attachment
                 </a>
               )}
@@ -3631,20 +4397,25 @@ export default function AdminPortal() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [rejectModal, setRejectModal] = useState(null);
 
+  const [pendingVerifications, setPendingVerifications] = useState([]);
+  const [loadingVerifications, setLoadingVerifications] = useState(false);
+  const [updatingVerificationId, setUpdatingVerificationId] = useState(null);
+  const [correctionModal, setCorrectionModal] = useState(null); // { verification, note, audioFile, docFiles, submitting }
+
   const [allTickets, setAllTickets] = useState([]);
-const [loadingTickets, setLoadingTickets] = useState(false);
-const [ticketSolveModal, setTicketSolveModal] = useState(null); // { ticket, note }
-const [updatingTicketId, setUpdatingTicketId] = useState(null);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [ticketSolveModal, setTicketSolveModal] = useState(null); // { ticket, note }
+  const [updatingTicketId, setUpdatingTicketId] = useState(null);
   const [leaveRejectModal, setLeaveRejectModal] = useState(null); // { leave, reason }
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null); // holds employee object when editing
   const mainRef = useRef(null);
 
-useEffect(() => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
-  mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-}, [activeTab]);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeTab]);
   const [empForm, setEmpForm] = useState({
     name: "",
     username: "",
@@ -3655,13 +4426,22 @@ useEffect(() => {
     site_names: [],
     status: "Active",
   });
+  const [showEmpPassword, setShowEmpPassword] = useState(false);
   const [empSubmitting, setEmpSubmitting] = useState(false);
   const [mySvrReports, setMySvrReports] = useState([]);
   const [loadingSvrReports, setLoadingSvrReports] = useState(false);
-  const [rescheduleFilters, setRescheduleFilters] = useState({ name: "", status: "" });
-const [rescheduleMobileFilterOpen, setRescheduleMobileFilterOpen] = useState(false);
-const [leaveFilters, setLeaveFilters] = useState({ name: "", dateFrom: "", dateTo: "" });
-const [leaveMobileFilterOpen, setLeaveMobileFilterOpen] = useState(false);
+  const [rescheduleFilters, setRescheduleFilters] = useState({
+    name: "",
+    status: "",
+  });
+  const [rescheduleMobileFilterOpen, setRescheduleMobileFilterOpen] =
+    useState(false);
+  const [leaveFilters, setLeaveFilters] = useState({
+    name: "",
+    dateFrom: "",
+    dateTo: "",
+  });
+  const [leaveMobileFilterOpen, setLeaveMobileFilterOpen] = useState(false);
   const [submissionMobileFilterOpen, setSubmissionMobileFilterOpen] =
     useState(false);
   const [employeeFilters, setEmployeeFilters] = useState({
@@ -3774,9 +4554,9 @@ const [leaveMobileFilterOpen, setLeaveMobileFilterOpen] = useState(false);
     client_name: "",
     head_name: "",
     site_image_url: "",
-    incharge_name: "",
+    coordinator_name: "",
     head_contact_no: "",
-    incharge_contact_no: "",
+    coordinator_contact_no: "",
     pc_name: "",
     pc_contact_no: "",
     status: "Active",
@@ -3826,57 +4606,69 @@ const [leaveMobileFilterOpen, setLeaveMobileFilterOpen] = useState(false);
     (map, e) => ({ ...map, [e.name]: e.role }),
     {},
   );
-  const filteredEmployees = employees.filter((emp) => {
-    if (employeeFilters.name && emp.name !== employeeFilters.name) return false;
-    if (employeeFilters.site) {
-      const empSites = emp.site_names?.length
-        ? emp.site_names
-        : emp.site_name
-          ? [emp.site_name]
-          : [];
-      if (!empSites.includes(employeeFilters.site)) return false;
-    }
-    return true;
-  });
+  const filteredEmployees = employees
+    .filter((emp) => {
+      if (employeeFilters.name && emp.name !== employeeFilters.name)
+        return false;
+      if (employeeFilters.site) {
+        const empSites = emp.site_names?.length
+          ? emp.site_names
+          : emp.site_name
+            ? [emp.site_name]
+            : [];
+        if (!empSites.includes(employeeFilters.site)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
   const [userMap, setUserMap] = useState({});
-    useEffect(() => {
-      supabase
-        .from("user_details")
-        .select("username, name")
-        .then(({ data, error }) => {
-          if (!error && data) {
-            const map = {};
-            data.forEach((u) => {
-              map[u.username] = u.name;
-            });
-            setUserMap(map);
-          }
-        }); 
-    }, []);
-const filteredReschedules = allReschedules.filter((r) => {
-  if (rescheduleFilters.name && nameFor(userMap, r.requested_by) !== rescheduleFilters.name) return false;
-  if (rescheduleFilters.status && r.status !== rescheduleFilters.status) return false;
-  return true;
-});
-const filteredLeaves = allLeaves.filter((l) => {
-  if (leaveFilters.name && (l.name || l.user_name) !== leaveFilters.name) return false;
-  if (leaveFilters.dateTo && l.from_date && l.from_date > leaveFilters.dateTo) return false;
-  if (leaveFilters.dateFrom && l.to_date && l.to_date < leaveFilters.dateFrom) return false;
-  return true;
-});
-  const filteredSites = sites.filter((site) => {
-    if (siteFiltersState.site && site.site_name !== siteFiltersState.site)
-      return false;
+  useEffect(() => {
+    supabase
+      .from("user_details")
+      .select("username, name")
+      .then(({ data, error }) => {
+        if (!error && data) {
+          const map = {};
+          data.forEach((u) => {
+            map[u.username] = u.name;
+          });
+          setUserMap(map);
+        }
+      });
+  }, []);
+  const filteredReschedules = allReschedules.filter((r) => {
     if (
-      siteFiltersState.assignedUser &&
-      site.user_name !== siteFiltersState.assignedUser
+      rescheduleFilters.name &&
+      nameFor(userMap, r.requested_by) !== rescheduleFilters.name
     )
       return false;
+    if (rescheduleFilters.status && r.status !== rescheduleFilters.status)
+      return false;
     return true;
   });
-  const assignableEmployees = employees.filter((e) =>
-    ["site engineer", "engineer office"].includes(normalizeText(e.department)),
-  );
+  const filteredLeaves = allLeaves.filter((l) => {
+    if (leaveFilters.name && (l.name || l.user_name) !== leaveFilters.name)
+      return false;
+    if (leaveFilters.dateTo && l.from_date && l.from_date > leaveFilters.dateTo)
+      return false;
+    if (leaveFilters.dateFrom && l.to_date && l.to_date < leaveFilters.dateFrom)
+      return false;
+    return true;
+  });
+  const filteredSites = sites
+    .filter((site) => {
+      if (siteFiltersState.site && site.site_name !== siteFiltersState.site)
+        return false;
+      if (
+        siteFiltersState.assignedUser &&
+        site.user_name !== siteFiltersState.assignedUser
+      )
+        return false;
+      return true;
+    })
+    .sort((a, b) => (a.site_name || "").localeCompare(b.site_name || ""));
+  const assignableEmployees = employees;
   const EMPTY_RECURRING_FILTERS = {
     dueSoon: false,
     site: "",
@@ -3886,14 +4678,21 @@ const filteredLeaves = allLeaves.filter((l) => {
   const [recurringFilters, setRecurringFilters] = useState({
     ...EMPTY_RECURRING_FILTERS,
   });
-
-
+const [verificationDetail, setVerificationDetail] = useState(null);
   const [detailTask, setDetailTask] = useState(null);
   useEffect(() => {
     const s = localStorage.getItem("user");
     if (s) setUser(JSON.parse(s));
   }, []);
-
+  const fetchPendingVerifications = useCallback(async () => {
+    setLoadingVerifications(true);
+    const { data, error } = await supabase
+      .from("task_verifications")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (!error) setPendingVerifications(data || []);
+    setLoadingVerifications(false);
+  }, []);
   const fetchAllTasks = useCallback(async () => {
     setLoadingTasks(true);
     const { data } = await supabase
@@ -3904,25 +4703,25 @@ const filteredLeaves = allLeaves.filter((l) => {
     setLoadingTasks(false);
   }, []);
 
-const fetchAllTickets = useCallback(async () => {
-  setLoadingTickets(true);
-  const { data, error } = await supabase
-    .from("tickets")
-    .select("*")
-    .order("created_at", { ascending: false });
-  if (!error) setAllTickets(data || []);
-  setLoadingTickets(false);
-}, []);
+  const fetchAllTickets = useCallback(async () => {
+    setLoadingTickets(true);
+    const { data, error } = await supabase
+      .from("tickets")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (!error) setAllTickets(data || []);
+    setLoadingTickets(false);
+  }, []);
   const fetchAllReschedules = useCallback(async () => {
-  setLoadingReschedules(true);
-  const { data } = await supabase
-    .from("reschedule_requests")
-    .select("*, tasks(title, site_name)")
-    .is("verify_with", null)          // ← only requests with no specific verifier
-    .order("created_at", { ascending: false });
-  setAllReschedules(data || []);
-  setLoadingReschedules(false);
-}, []);
+    setLoadingReschedules(true);
+    const { data } = await supabase
+      .from("reschedule_requests")
+      .select("*, tasks(title, site_name)")
+      .is("verify_with", null) // ← only requests with no specific verifier
+      .order("created_at", { ascending: false });
+    setAllReschedules(data || []);
+    setLoadingReschedules(false);
+  }, []);
 
   const fetchAllLeaves = useCallback(async () => {
     setLoadingLeaves(true);
@@ -4020,7 +4819,7 @@ const fetchAllTickets = useCallback(async () => {
     });
   };
 
-const handleSiteSubmit = async () => {
+  const handleSiteSubmit = async () => {
     if (!siteForm.site_name.trim())
       return showToast("error", "Site name is required.");
 
@@ -4052,9 +4851,9 @@ const handleSiteSubmit = async () => {
       client_name: siteForm.client_name.trim() || null,
       head_name: siteForm.head_name.trim() || null,
       site_image_url,
-      incharge_name: siteForm.incharge_name.trim() || null,
+      coordinator_name: siteForm.coordinator_name.trim() || null,
       head_contact_no: siteForm.head_contact_no.trim() || null,
-      incharge_contact_no: siteForm.incharge_contact_no.trim() || null,
+      coordinator_contact_no: siteForm.coordinator_contact_no.trim() || null,
       pc_name: siteForm.pc_name.trim() || null,
       pc_contact_no: siteForm.pc_contact_no.trim() || null,
       status: toTitleCase(siteForm.status) || "Active",
@@ -4070,9 +4869,17 @@ const handleSiteSubmit = async () => {
         return showToast("error", "Failed to update site. " + error.message);
 
       if (payload.user_name) {
-        const syncResult = await syncUserSiteNames(supabase, payload.user_name, payload.site_name);
+        const syncResult = await syncUserSiteNames(
+          supabase,
+          payload.user_name,
+          payload.site_name,
+        );
         if (!syncResult.ok) {
-          showToast("error", "Site saved, but failed to sync user's site list: " + syncResult.reason);
+          showToast(
+            "error",
+            "Site saved, but failed to sync user's site list: " +
+              syncResult.reason,
+          );
         }
       }
 
@@ -4080,21 +4887,16 @@ const handleSiteSubmit = async () => {
     } else {
       const { error } = await supabase.from("site_details").insert([payload]);
       setSiteSubmitting(false);
-      if (error)
-        return showToast("error", "Failed to add site. " + error.message);
+      await syncAllSiteUsers(supabase, payload, employees, (msg) =>
+        showToast("error", msg),
+      );
 
-      if (payload.user_name) {
-        const syncResult = await syncUserSiteNames(supabase, payload.user_name, payload.site_name);
-        if (!syncResult.ok) {
-          showToast("error", "Site saved, but failed to sync user's site list: " + syncResult.reason);
-        }
-      }
-
-      showToast("success", "Site added successfully!");
+      showToast("success", "Site updated successfully!");
     }
     setSiteForm({ ...EMPTY_SITE_FORM });
     setEditingSite(null);
     fetchSites();
+    fetchEmployees();
     setActiveTab("manage-sites");
   };
 
@@ -4110,9 +4912,9 @@ const handleSiteSubmit = async () => {
       client_name: site.client_name || "",
       head_name: site.head_name || "",
       site_image_url: site.site_image_url || "",
-      incharge_name: site.incharge_name || "",
+      coordinator_name: site.coordinator_name || "",
       head_contact_no: site.head_contact_no || "",
-      incharge_contact_no: site.incharge_contact_no || "",
+      coordinator_contact_no: site.coordinator_contact_no || "",
       pc_name: site.pc_name || "",
       pc_contact_no: site.pc_contact_no || "",
       status: site.status || "Active",
@@ -4120,16 +4922,18 @@ const handleSiteSubmit = async () => {
     setActiveTab("add-site");
   };
 
-const handleSiteDelete = async (id) => {
-  if (!window.confirm("Delete this site?")) return;
-  const site = sites.find((s) => s.id === id);
-  await supabase.from("site_details").delete().eq("id", id);
-  if (site?.user_name) {
-    await removeSiteFromUser(supabase, site.user_name, site.site_name);
-  }
-  setSites((p) => p.filter((s) => s.id !== id));
-  showToast("success", "Site deleted.");
-};
+  const handleSiteDelete = async (id) => {
+    if (!window.confirm("Delete this site?")) return;
+    const site = sites.find((s) => s.id === id);
+    await supabase.from("site_details").delete().eq("id", id);
+    if (site?.user_name) {
+      await removeSiteFromUser(supabase, site.user_name, site.site_name);
+    }
+    setSites((p) => p.filter((s) => s.id !== id));
+    fetchEmployees();
+    showToast("success", "Site deleted.");
+  };
+
   const fetchEmployees = useCallback(async () => {
     setLoadingEmployees(true);
     const { data } = await supabase
@@ -4221,39 +5025,41 @@ const handleSiteDelete = async (id) => {
     setActiveTab("add-employee");
   };
 
-const handleEmpDelete = async (id) => {
-  if (!window.confirm("Delete this employee?")) return;
-  const { error } = await supabase.from("user_details").delete().eq("id", id);
-  if (error) {
-    showToast("error", "Failed to delete employee. " + error.message);
-    return;
-  }
-  setEmployees((p) => p.filter((e) => e.id !== id));
-  showToast("success", "Employee deleted.");
-};
+  const handleEmpDelete = async (id) => {
+    if (!window.confirm("Delete this employee?")) return;
+    const { error } = await supabase.from("user_details").delete().eq("id", id);
+    if (error) {
+      showToast("error", "Failed to delete employee. " + error.message);
+      return;
+    }
+    setEmployees((p) => p.filter((e) => e.id !== id));
+    showToast("success", "Employee deleted.");
+  };
 
-useEffect(() => {
-  if (user) {
-    fetchAllTasks();
-    fetchAllLeaves();
-    fetchEmployees();
-    fetchAllReschedules();
-    fetchSites();
-    fetchMySvrReports(user);
-    fetchAllReportSubmissions(user);
-    fetchAllTickets(); // ← add
-  }
-}, [
-  user,
-  fetchAllTasks,
-  fetchAllLeaves,
-  fetchEmployees,
-  fetchAllReschedules,
-  fetchSites,
-  fetchMySvrReports,
-  fetchAllReportSubmissions,
-  fetchAllTickets, // ← add
-]);
+  useEffect(() => {
+    if (user) {
+      fetchAllTasks();
+      fetchAllLeaves();
+      fetchEmployees();
+      fetchAllReschedules();
+      fetchSites();
+      fetchMySvrReports(user);
+      fetchAllReportSubmissions(user);
+      fetchAllTickets();
+      fetchPendingVerifications(); // ← add
+    }
+  }, [
+    user,
+    fetchAllTasks,
+    fetchAllLeaves,
+    fetchEmployees,
+    fetchAllReschedules,
+    fetchSites,
+    fetchMySvrReports,
+    fetchAllReportSubmissions,
+    fetchAllTickets,
+    fetchPendingVerifications, // ← add
+  ]);
 
   useRecurringTasks(user, fetchAllTasks);
 
@@ -4302,10 +5108,13 @@ useEffect(() => {
     if (form.is_recurring && !form.recurrence)
       return showToast("error", "Please select a recurrence pattern.");
 
-   const anchor = form.is_recurring ? buildAnchor(form) : null;
+    const anchor = form.is_recurring ? buildAnchor(form) : null;
     const computedDueDate = form.is_recurring
       ? toDateStr(
-          getNextDueDate({ recurrence: form.recurrence, recurrence_anchor: anchor }),
+          getNextDueDate({
+            recurrence: form.recurrence,
+            recurrence_anchor: anchor,
+          }),
         )
       : form.due_date || null;
     setSubmitting(true);
@@ -4361,6 +5170,9 @@ useEffect(() => {
       last_generated_date: null,
       parent_task_id: null,
       reschedule_allowed: form.reschedule_allowed || false,
+      hours_to_complete: form.hours_to_complete
+        ? parseFloat(form.hours_to_complete)
+        : null,
       audio_url,
       document_url,
     };
@@ -4391,7 +5203,6 @@ useEffect(() => {
       "success",
       `Task "${form.title}" assigned${desc ? ` — repeats ${desc}` : ""}!`,
     );
-    setForm({ ...EMPTY_FORM });
     fetchAllTasks();
     return true;
   };
@@ -4467,85 +5278,223 @@ useEffect(() => {
     showToast("success", "Reschedule rejected.");
   };
 
-  const handleLeaveAction = async (leave, approved) => {
-  if (!approved) {
-    setLeaveRejectModal({ leave, reason: "" });
-    return;
-  }
-  setUpdatingLeaveId(leave.id);
+  const handleMarkVerificationCompleted = async (verification) => {
+  setUpdatingVerificationId(verification.id);
   const payload = {
-    admin_approved: true,
-    approved_by: user.user_name,
-    rejection_reason: null,
-    status: "Approved",
-  };
-  const { error } = await supabase.from("leaves").update(payload).eq("id", leave.id);
-  setUpdatingLeaveId(null);
-  if (error) {
-    showToast("error", "Failed to update leave. " + error.message);
-    return;
-  }
-  setAllLeaves((prev) => prev.map((item) => (item.id === leave.id ? { ...item, ...payload } : item)));
-  showToast("success", "Leave approved.");
-};
-
-const handleMarkTicketSolved = async () => {
-  if (!ticketSolveModal) return;
-  const ticket = ticketSolveModal.ticket;
-  const note = ticketSolveModal.note.trim();
-
-  setUpdatingTicketId(ticket.id);
-
-  let resolution_document_url = null;
-  if (ticketSolveModal.file) {
-    const file = ticketSolveModal.file;
-    const path = `${user.user_name}/resolved_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-    const { error: uploadErr } = await supabase.storage
-      .from("ticket-raised")
-      .upload(path, file);
-    if (uploadErr) {
-      setUpdatingTicketId(null);
-      return showToast("error", "File upload failed: " + uploadErr.message);
-    }
-    const { data: pub } = supabase.storage.from("ticket-raised").getPublicUrl(path);
-    resolution_document_url = pub?.publicUrl || null;
-  }
-
-  const payload = {
-    status: "solved",
-    resolution_note: note || null,
-    resolution_document_url,
+    status: "completed",
     resolved_by: user.user_name,
     resolved_at: new Date().toISOString(),
   };
-  const { error } = await supabase.from("tickets").update(payload).eq("id", ticket.id);
-  setUpdatingTicketId(null);
-  if (error) return showToast("error", "Failed: " + error.message);
-  setAllTickets((prev) => prev.map((t) => (t.id === ticket.id ? { ...t, ...payload } : t)));
-  setTicketSolveModal(null);
-  showToast("success", "Ticket marked as solved.");
-};
-const handleLeaveRejectConfirm = async () => {
-  if (!leaveRejectModal.reason.trim()) return;
-  const leave = leaveRejectModal.leave;
-  const reason = leaveRejectModal.reason.trim();
-  setLeaveRejectModal(null);
-  setUpdatingLeaveId(leave.id);
-  const payload = {
-    admin_approved: false,
-    approved_by: null,
-    rejection_reason: reason,
-    status: "Rejected",
-  };
-  const { error } = await supabase.from("leaves").update(payload).eq("id", leave.id);
-  setUpdatingLeaveId(null);
-  if (error) {
-    showToast("error", "Failed to reject leave. " + error.message);
-    return;
+  const { error } = await supabase
+    .from("task_verifications")
+    .update(payload)
+    .eq("id", verification.id);
+
+  if (!error && verification.task_id) {
+    const task = allTasks.find((t) => t.id === verification.task_id);
+
+    await supabase
+      .from("tasks")
+      .update({ status: "completed" })
+      .eq("id", verification.task_id);
+
+    // If it's a recurring task, spawn the next instance now.
+    if (task?.is_recurring && task.recurrence) {
+      const nextDue = getNextDueDate(task.due_date, task.recurrence);
+      await spawnNextRecurringInstance(task, nextDue);
+    }
+
+    fetchAllTasks();
   }
-  setAllLeaves((prev) => prev.map((item) => (item.id === leave.id ? { ...item, ...payload } : item)));
-  showToast("success", "Leave rejected.");
+
+  setUpdatingVerificationId(null);
+  if (error)
+    return showToast("error", "Failed to mark completed: " + error.message);
+
+  setPendingVerifications((prev) =>
+    prev.map((v) => (v.id === verification.id ? { ...v, ...payload } : v)),
+  );
+  showToast("success", "Task marked as completed.");
 };
+
+  const openCorrectionModal = (verification) => {
+    setCorrectionModal({
+      verification,
+      note: "",
+      audioFile: null,
+      docFiles: [],
+      submitting: false,
+    });
+  };
+
+  const handleCorrectionSubmit = async () => {
+    if (!correctionModal.note.trim())
+      return showToast("error", "Please write a correction note.");
+
+    setCorrectionModal((p) => ({ ...p, submitting: true }));
+
+    let audio_url = null;
+    if (correctionModal.audioFile) {
+      const file = correctionModal.audioFile;
+      const path = `${user.user_name}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { error: upErr } = await supabase.storage
+        .from("task-verification-docs")
+        .upload(path, file);
+      if (upErr) {
+        setCorrectionModal((p) => ({ ...p, submitting: false }));
+        return showToast("error", "Audio upload failed: " + upErr.message);
+      }
+      const { data: pub } = supabase.storage
+        .from("task-verification-docs")
+        .getPublicUrl(path);
+      audio_url = pub?.publicUrl || null;
+    }
+
+    const documentUrls = [];
+    for (const file of correctionModal.docFiles) {
+      const path = `${user.user_name}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { error: upErr } = await supabase.storage
+        .from("task-verification-docs")
+        .upload(path, file);
+      if (upErr) {
+        setCorrectionModal((p) => ({ ...p, submitting: false }));
+        return showToast("error", "Document upload failed: " + upErr.message);
+      }
+      const { data: pub } = supabase.storage
+        .from("task-verification-docs")
+        .getPublicUrl(path);
+      if (pub?.publicUrl) documentUrls.push(pub.publicUrl);
+    }
+
+    const payload = {
+      status: "correction_sent",
+      correction_note: correctionModal.note.trim(),
+      correction_audio_url: audio_url,
+      correction_document_urls: documentUrls,
+      resolved_by: user.user_name,
+      resolved_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("task_verifications")
+      .update(payload)
+      .eq("id", correctionModal.verification.id);
+
+    setCorrectionModal((p) => (p ? { ...p, submitting: false } : p));
+    if (error)
+      return showToast("error", "Failed to send correction: " + error.message);
+
+    setPendingVerifications((prev) =>
+      prev.map((v) =>
+        v.id === correctionModal.verification.id ? { ...v, ...payload } : v,
+      ),
+    );
+    showToast(
+      "success",
+      `Correction sent to ${correctionModal.verification.sent_by_name || correctionModal.verification.sent_by}.`,
+    );
+    setCorrectionModal(null);
+  };
+  const handleLeaveAction = async (leave, approved) => {
+    if (!approved) {
+      setLeaveRejectModal({ leave, reason: "" });
+      return;
+    }
+    setUpdatingLeaveId(leave.id);
+    const payload = {
+      admin_approved: true,
+      approved_by: user.user_name,
+      rejection_reason: null,
+      status: "Approved",
+    };
+    const { error } = await supabase
+      .from("leaves")
+      .update(payload)
+      .eq("id", leave.id);
+    setUpdatingLeaveId(null);
+    if (error) {
+      showToast("error", "Failed to update leave. " + error.message);
+      return;
+    }
+    setAllLeaves((prev) =>
+      prev.map((item) =>
+        item.id === leave.id ? { ...item, ...payload } : item,
+      ),
+    );
+    showToast("success", "Leave approved.");
+  };
+
+  const handleMarkTicketSolved = async () => {
+    if (!ticketSolveModal) return;
+    const ticket = ticketSolveModal.ticket;
+    const note = ticketSolveModal.note.trim();
+
+    setUpdatingTicketId(ticket.id);
+
+    let resolution_document_url = null;
+    if (ticketSolveModal.file) {
+      const file = ticketSolveModal.file;
+      const path = `${user.user_name}/resolved_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { error: uploadErr } = await supabase.storage
+        .from("ticket-raised")
+        .upload(path, file);
+      if (uploadErr) {
+        setUpdatingTicketId(null);
+        return showToast("error", "File upload failed: " + uploadErr.message);
+      }
+      const { data: pub } = supabase.storage
+        .from("ticket-raised")
+        .getPublicUrl(path);
+      resolution_document_url = pub?.publicUrl || null;
+    }
+
+    const payload = {
+      status: "solved",
+      resolution_note: note || null,
+      resolution_document_url,
+      resolved_by: user.user_name,
+      resolved_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("tickets")
+      .update(payload)
+      .eq("id", ticket.id);
+    setUpdatingTicketId(null);
+    if (error) return showToast("error", "Failed: " + error.message);
+    setAllTickets((prev) =>
+      prev.map((t) => (t.id === ticket.id ? { ...t, ...payload } : t)),
+    );
+    setTicketSolveModal(null);
+    showToast("success", "Ticket marked as solved.");
+  };
+  const handleLeaveRejectConfirm = async () => {
+    if (!leaveRejectModal.reason.trim()) return;
+    const leave = leaveRejectModal.leave;
+    const reason = leaveRejectModal.reason.trim();
+    setLeaveRejectModal(null);
+    setUpdatingLeaveId(leave.id);
+    const payload = {
+      admin_approved: false,
+      approved_by: null,
+      rejection_reason: reason,
+      status: "Rejected",
+    };
+    const { error } = await supabase
+      .from("leaves")
+      .update(payload)
+      .eq("id", leave.id);
+    setUpdatingLeaveId(null);
+    if (error) {
+      showToast("error", "Failed to reject leave. " + error.message);
+      return;
+    }
+    setAllLeaves((prev) =>
+      prev.map((item) =>
+        item.id === leave.id ? { ...item, ...payload } : item,
+      ),
+    );
+    showToast("success", "Leave rejected.");
+  };
 
   if (!user)
     return (
@@ -4581,7 +5530,17 @@ const handleLeaveRejectConfirm = async () => {
     (r) => r.status === "pending",
   ).length;
   const recentLeaves = allLeaves.slice(0, 4);
+  const verificationsPending = pendingVerifications.filter(
+    (v) => v.status === "pending",
+  );
+  const verificationsCompleted = pendingVerifications.filter(
+    (v) => v.status === "completed",
+  );
+  const verificationsCorrection = pendingVerifications.filter(
+    (v) => v.status === "correction_sent",
+  );
 
+  const taskForVerification = (v) => allTasks.find((t) => t.id === v.task_id);
   // Filtered tasks for the all-tasks tab
   const baseAllTasks = showRecurringInAllTasks
     ? allTasks
@@ -4909,6 +5868,7 @@ const handleLeaveRejectConfirm = async () => {
                           "Priority",
                           "Status",
                           "Due Date",
+                          "Hours",
                           "Schedule",
                           "",
                         ].map((h) => (
@@ -5537,7 +6497,7 @@ const handleLeaveRejectConfirm = async () => {
             )}
           </>
         );
-       case "leave-requests":
+      case "leave-requests":
         return loadingLeaves ? (
           <div className="op-empty-state">
             <div className="op-spinner" />
@@ -5566,27 +6526,29 @@ const handleLeaveRejectConfirm = async () => {
         ) : (
           <>
             <div className="ap-leave-summary ap-leave-summary-tight">
-  <div style={{ background: "#eff6ff", borderColor: "#bfdbfe" }}>
-    <span>Total</span>
-    <strong style={{ color: "#2563eb" }}>{leaveTotal}</strong>
-  </div>
-  <div style={{ background: "#fffbeb", borderColor: "#fde68a" }}>
-    <span>Pending</span>
-    <strong style={{ color: "#d97706" }}>{leavePending}</strong>
-  </div>
-  <div style={{ background: "#fef2f2", borderColor: "#fecaca" }}>
-    <span>Admin Action</span>
-    <strong style={{ color: "#dc2626" }}>{leavePendingForAdmin}</strong>
-  </div>
-  <div style={{ background: "#f0fdf4", borderColor: "#bbf7d0" }}>
-    <span>Approved</span>
-    <strong style={{ color: "#16a34a" }}>{leaveApproved}</strong>
-  </div>
-  <div style={{ background: "#fef2f2", borderColor: "#fecaca" }}>
-    <span>Rejected</span>
-    <strong style={{ color: "#dc2626" }}>{leaveRejected}</strong>
-  </div>
-</div>
+              <div style={{ background: "#eff6ff", borderColor: "#bfdbfe" }}>
+                <span>Total</span>
+                <strong style={{ color: "#2563eb" }}>{leaveTotal}</strong>
+              </div>
+              <div style={{ background: "#fffbeb", borderColor: "#fde68a" }}>
+                <span>Pending</span>
+                <strong style={{ color: "#d97706" }}>{leavePending}</strong>
+              </div>
+              <div style={{ background: "#fef2f2", borderColor: "#fecaca" }}>
+                <span>Admin Action</span>
+                <strong style={{ color: "#dc2626" }}>
+                  {leavePendingForAdmin}
+                </strong>
+              </div>
+              <div style={{ background: "#f0fdf4", borderColor: "#bbf7d0" }}>
+                <span>Approved</span>
+                <strong style={{ color: "#16a34a" }}>{leaveApproved}</strong>
+              </div>
+              <div style={{ background: "#fef2f2", borderColor: "#fecaca" }}>
+                <span>Rejected</span>
+                <strong style={{ color: "#dc2626" }}>{leaveRejected}</strong>
+              </div>
+            </div>
             {filteredLeaves.length === 0 ? (
               <div className="op-empty-state">
                 <svg
@@ -5605,13 +6567,25 @@ const handleLeaveRejectConfirm = async () => {
                   <line x1="8" y1="2" x2="8" y2="6" />
                   <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
-                <p className="op-empty-text">No leave requests match the current filters.</p>
+                <p className="op-empty-text">
+                  No leave requests match the current filters.
+                </p>
                 <button
                   className="tf-clear"
                   style={{ marginTop: 4 }}
-                  onClick={() => setLeaveFilters({ name: "", dateFrom: "", dateTo: "" })}
+                  onClick={() =>
+                    setLeaveFilters({ name: "", dateFrom: "", dateTo: "" })
+                  }
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  >
                     <line x1="18" y1="6" x2="6" y2="18" />
                     <line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
@@ -5624,8 +6598,19 @@ const handleLeaveRejectConfirm = async () => {
                   <table className="ap-table">
                     <thead>
                       <tr>
-                        {["Employee", "Site", "Type", "Dates", "Reason", "Approval", "Status", "Action"].map((h) => (
-                          <th key={h} className="ap-th">{h}</th>
+                        {[
+                          "Employee",
+                          "Site",
+                          "Type",
+                          "Dates",
+                          "Reason",
+                          "Approval",
+                          "Status",
+                          "Action",
+                        ].map((h) => (
+                          <th key={h} className="ap-th">
+                            {h}
+                          </th>
                         ))}
                       </tr>
                     </thead>
@@ -5658,7 +6643,7 @@ const handleLeaveRejectConfirm = async () => {
               </>
             )}
           </>
-        );   
+        );
       case "add-employee":
         return (
           <div className="ap-form-grid">
@@ -5695,15 +6680,71 @@ const handleLeaveRejectConfirm = async () => {
                 <label className="ap-label">
                   Password <span className="ap-req">*</span>
                 </label>
-                <input
-                  className="ap-input"
-                  type="password"
-                  name="password"
-                  autoComplete="new-password"
-                  value={empForm.password}
-                  onChange={handleEmpFormChange}
-                  placeholder="••••••••"
-                />
+                <div style={{ position: "relative" }}>
+                  <input
+                    className="ap-input"
+                    type={showEmpPassword ? "text" : "password"}
+                    name="password"
+                    autoComplete="new-password"
+                    value={empForm.password}
+                    onChange={handleEmpFormChange}
+                    placeholder="••••••••"
+                    style={{ paddingRight: 38, width: "100%" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEmpPassword((v) => !v)}
+                    tabIndex={-1}
+                    style={{
+                      position: "absolute",
+                      right: 8,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 4,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#94a3b8",
+                    }}
+                    title={showEmpPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showEmpPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showEmpPassword ? (
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    ) : (
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
               <div className="ap-field">
                 <label className="ap-label">
@@ -6312,11 +7353,11 @@ const handleLeaveRejectConfirm = async () => {
             </div>
             <div className="ap-form-row ap-col-2">
               <div className="ap-field">
-                <label className="ap-label">Incharge Name</label>
+                <label className="ap-label">Co-ordinator Name</label>
                 <select
                   className="ap-input ap-select"
-                  name="incharge_name"
-                  value={siteForm.incharge_name}
+                  name="coordinator_name"
+                  value={siteForm.coordinator_name}
                   onChange={handleSiteFormChange}
                 >
                   <option value="">Select…</option>
@@ -6328,16 +7369,16 @@ const handleLeaveRejectConfirm = async () => {
                 </select>
               </div>
               <div className="ap-field">
-                <label className="ap-label">Incharge Contact No.</label>
+                <label className="ap-label">Co-ordinator Contact No.</label>
                 <input
                   className="ap-input"
-                  name="incharge_contact_no"
-                  value={siteForm.incharge_contact_no}
+                  name="coordinator_contact_no"
+                  value={siteForm.coordinator_contact_no}
                   onChange={handleSiteFormChange}
                   placeholder="e.g. 9876543210"
                 />
               </div>
-            </div> 
+            </div>
             <div className="ap-form-row ap-col-2">
               <div className="ap-field">
                 <label className="ap-label">PC Name</label>
@@ -6762,7 +7803,9 @@ const handleLeaveRejectConfirm = async () => {
             <div className="ap-leave-summary ap-leave-summary-tight">
               <div style={{ background: "#eff6ff", borderColor: "#bfdbfe" }}>
                 <span>Total</span>
-                <strong style={{ color: "#2563eb" }}>{allReschedules.length}</strong>
+                <strong style={{ color: "#2563eb" }}>
+                  {allReschedules.length}
+                </strong>
               </div>
               <div style={{ background: "#fffbeb", borderColor: "#fde68a" }}>
                 <span>Pending</span>
@@ -6801,37 +7844,36 @@ const handleLeaveRejectConfirm = async () => {
                     ))}
                   </tr>
                 </thead>
-               {/* Desktop table */}
-                  <tbody>
-                    {filteredReschedules.map((req) => (
-                      <RescheduleRow
-                        key={req.id}
-                        req={req}
-                        onAction={handleRescheduleAction}
-                        updating={updatingRescheduleId}
-                        userMap={userMap}
-                      />
-                    ))}
-                  </tbody>
+                {/* Desktop table */}
+                <tbody>
+                  {filteredReschedules.map((req) => (
+                    <RescheduleRow
+                      key={req.id}
+                      req={req}
+                      onAction={handleRescheduleAction}
+                      updating={updatingRescheduleId}
+                      userMap={userMap}
+                    />
+                  ))}
+                </tbody>
               </table>
             </div>
-{/* Mobile cards */}
-<div className="ap-task-mobile-grid">
-  {filteredReschedules.map((req) => (
-    <RescheduleRequestCard
-      key={req.id}
-      req={req}
-      onAction={handleRescheduleAction}
-      updating={updatingRescheduleId}
-      roleByName={roleByName}
-      userMap={userMap}
-    />
-  ))}
-</div>
-          
+            {/* Mobile cards */}
+            <div className="ap-task-mobile-grid">
+              {filteredReschedules.map((req) => (
+                <RescheduleRequestCard
+                  key={req.id}
+                  req={req}
+                  onAction={handleRescheduleAction}
+                  updating={updatingRescheduleId}
+                  roleByName={roleByName}
+                  userMap={userMap}
+                />
+              ))}
+            </div>
           </>
         );
-        case "site-report":
+      case "site-report":
         return <SiteReport user={user} />;
 
       case "my-reports":
@@ -7242,40 +8284,99 @@ const handleLeaveRejectConfirm = async () => {
         );
       }
       case "new-tickets": {
-  const openTickets = allTickets.filter((t) => t.status === "open");
-  return loadingTickets ? (
-    <div className="op-empty-state">
-      <div className="op-spinner" />
-      <p className="op-empty-text">Loading tickets…</p>
-    </div>
-  ) : openTickets.length === 0 ? (
-    <div className="op-empty-state">
-      <p className="op-empty-text">No open tickets.</p>
-    </div>
-  ) : (
-    <AdminTicketsTable
-      tickets={openTickets}
-      updatingId={updatingTicketId}
-      onSolve={(t) => setTicketSolveModal({ ticket: t, note: "", file: null })}
-    />
-  );
-}
+        const openTickets = allTickets.filter((t) => t.status === "open");
+        return loadingTickets ? (
+          <div className="op-empty-state">
+            <div className="op-spinner" />
+            <p className="op-empty-text">Loading tickets…</p>
+          </div>
+        ) : openTickets.length === 0 ? (
+          <div className="op-empty-state">
+            <p className="op-empty-text">No open tickets.</p>
+          </div>
+        ) : (
+          <AdminTicketsTable
+            tickets={openTickets}
+            updatingId={updatingTicketId}
+            onSolve={(t) =>
+              setTicketSolveModal({ ticket: t, note: "", file: null })
+            }
+          />
+        );
+      }
 
-case "solved-ticket": {
-  const solvedTickets = allTickets.filter((t) => t.status === "solved");
-  return loadingTickets ? (
-    <div className="op-empty-state">
-      <div className="op-spinner" />
-      <p className="op-empty-text">Loading tickets…</p>
-    </div>
-  ) : solvedTickets.length === 0 ? (
-    <div className="op-empty-state">
-      <p className="op-empty-text">No solved tickets yet.</p>
-    </div>
-  ) : (
-    <AdminTicketsTable tickets={solvedTickets} showAction={false} />
-  );
-}
+      case "solved-ticket": {
+        const solvedTickets = allTickets.filter((t) => t.status === "solved");
+        return loadingTickets ? (
+          <div className="op-empty-state">
+            <div className="op-spinner" />
+            <p className="op-empty-text">Loading tickets…</p>
+          </div>
+        ) : solvedTickets.length === 0 ? (
+          <div className="op-empty-state">
+            <p className="op-empty-text">No solved tickets yet.</p>
+          </div>
+        ) : (
+          <AdminTicketsTable tickets={solvedTickets} showAction={false} />
+        );
+      }
+
+      case "pending-verification":
+        return loadingVerifications ? (
+          <div className="op-empty-state">
+            <div className="op-spinner" />
+            <p className="op-empty-text">Loading verification requests…</p>
+          </div>
+        ) : verificationsPending.length === 0 ? (
+          <div className="op-empty-state">
+            <p className="op-empty-text">No tasks pending verification.</p>
+          </div>
+        ) : (
+          <VerificationTable
+            verifications={verificationsPending}
+            allTasks={allTasks}
+            userMap={userMap}
+            onComplete={handleMarkVerificationCompleted}
+            onCorrect={openCorrectionModal}
+            updatingId={updatingVerificationId}
+            onRowClick={(v, task) => setVerificationDetail({ v, task })}
+          />
+        );
+
+      case "approved-verification":
+        return verificationsCompleted.length === 0 ? (
+          <div className="op-empty-state">
+            <p className="op-empty-text">No completed verifications yet.</p>
+          </div>
+        ) : (
+          <VerificationTable
+            verifications={verificationsCompleted}
+            allTasks={allTasks}
+            userMap={userMap}
+            onComplete={handleMarkVerificationCompleted}
+            onCorrect={openCorrectionModal}
+            updatingId={updatingVerificationId}
+            showAction={false}
+          />
+        );
+
+      case "rejected-verification":
+        return verificationsCorrection.length === 0 ? (
+          <div className="op-empty-state">
+            <p className="op-empty-text">No corrections sent yet.</p>
+          </div>
+        ) : (
+          <VerificationTable
+            verifications={verificationsCorrection}
+            allTasks={allTasks}
+            userMap={userMap}
+            onComplete={handleMarkVerificationCompleted}
+            onCorrect={openCorrectionModal}
+            updatingId={updatingVerificationId}
+            showAction={false}
+          />
+        );
+
       default:
         return null;
     }
@@ -7283,8 +8384,6 @@ case "solved-ticket": {
 
   return (
     <>
-
-
       <div className="op-root">
         <Navbar
           onMenuToggle={() => setSidebarOpen((p) => !p)}
@@ -7336,19 +8435,38 @@ case "solved-ticket": {
           )}
           <aside className={`op-sidebar${sidebarOpen ? "" : " collapsed"}`}>
             <div className="op-sidebar-header">
-                {canSwitchToOffice && (
-                  <button onClick={() => window.location.assign("/office")}
+              {canSwitchToOffice && (
+                <button
+                  onClick={() => window.location.assign("/office")}
                   style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    fontSize: 12, fontWeight: 700, color: "#eb2525",
-                    background: "#fef2f2", border: "1px solid #f88a8abe",
-                    borderRadius: 8, padding: "6px 10px", cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#eb2525",
+                    background: "#fef2f2",
+                    border: "1px solid #f88a8abe",
+                    borderRadius: 8,
+                    padding: "6px 10px",
+                    cursor: "pointer",
                   }}
                   title="Switch to Office view"
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M8 3L4 7l4 4" /><path d="M4 7h16" />
-                    <path d="M16 21l4-4-4-4" /><path d="M20 17H4" />
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M8 3L4 7l4 4" />
+                    <path d="M4 7h16" />
+                    <path d="M16 21l4-4-4-4" />
+                    <path d="M20 17H4" />
                   </svg>
                   Switch to Office
                 </button>
@@ -7402,6 +8520,12 @@ case "solved-ticket": {
                 >
                   <span className="op-nav-icon">{item.icon}</span>
                   {item.label}
+                  {item.key === "pending-verification" &&
+                    verificationsPending.length > 0 && (
+                      <span className="op-nav-badge">
+                        {verificationsPending.length}
+                      </span>
+                    )}
                 </button>
               ))}
               <span className="op-nav-section">Ticket Raised</span>
@@ -7413,11 +8537,13 @@ case "solved-ticket": {
                 >
                   <span className="op-nav-icon">{item.icon}</span>
                   {item.label}
-                  {item.key === "new-tickets" && allTickets.filter((t) => t.status === "open").length > 0 && (
-                    <span className="op-nav-badge">
-                      {allTickets.filter((t) => t.status === "open").length}
-                    </span>
-                  )}
+                  {item.key === "new-tickets" &&
+                    allTickets.filter((t) => t.status === "open").length >
+                      0 && (
+                      <span className="op-nav-badge">
+                        {allTickets.filter((t) => t.status === "open").length}
+                      </span>
+                    )}
                 </button>
               ))}
               <span className="op-nav-section">Employee Management</span>
@@ -7603,26 +8729,36 @@ case "solved-ticket": {
                 {activeTab === "reschedule-requests" && (
                   <RescheduleFilterBar
                     filters={rescheduleFilters}
-                    onChange={(key, val) => setRescheduleFilters((prev) => ({ ...prev, [key]: val }))}
-                    onClear={() => setRescheduleFilters({ name: "", status: "" })}
+                    onChange={(key, val) =>
+                      setRescheduleFilters((prev) => ({ ...prev, [key]: val }))
+                    }
+                    onClear={() =>
+                      setRescheduleFilters({ name: "", status: "" })
+                    }
                     reschedules={allReschedules}
                     userMap={userMap}
                     inline={true}
                     mobileOpen={rescheduleMobileFilterOpen}
-                    onMobileToggle={() => setRescheduleMobileFilterOpen((p) => !p)}
+                    onMobileToggle={() =>
+                      setRescheduleMobileFilterOpen((p) => !p)
+                    }
                   />
                 )}
                 {activeTab === "leave-requests" && (
-                    <LeaveFilterBar
-                      filters={leaveFilters}
-                      onChange={(key, val) => setLeaveFilters((prev) => ({ ...prev, [key]: val }))}
-                      onClear={() => setLeaveFilters({ name: "", dateFrom: "", dateTo: "" })}
-                      leaves={allLeaves}
-                      inline={true}
-                      mobileOpen={leaveMobileFilterOpen}
-                      onMobileToggle={() => setLeaveMobileFilterOpen((p) => !p)}
-                    />
-                  )}
+                  <LeaveFilterBar
+                    filters={leaveFilters}
+                    onChange={(key, val) =>
+                      setLeaveFilters((prev) => ({ ...prev, [key]: val }))
+                    }
+                    onClear={() =>
+                      setLeaveFilters({ name: "", dateFrom: "", dateTo: "" })
+                    }
+                    leaves={allLeaves}
+                    inline={true}
+                    mobileOpen={leaveMobileFilterOpen}
+                    onMobileToggle={() => setLeaveMobileFilterOpen((p) => !p)}
+                  />
+                )}
                 {activeTab === "manage-employees" && (
                   <EmployeeFilterBar
                     filters={employeeFilters}
@@ -7939,6 +9075,12 @@ case "solved-ticket": {
                   },
                   { label: "Site", value: detailTask.site_name || "—" },
                   {
+                    label: "Hours to Complete",
+                    value: detailTask.hours_to_complete
+                      ? `${detailTask.hours_to_complete} hrs`
+                      : "—",
+                  },
+                  {
                     label: "Due Date",
                     value: detailTask.due_date
                       ? new Date(detailTask.due_date).toLocaleDateString(
@@ -8091,6 +9233,113 @@ case "solved-ticket": {
           </div>
         </div>
       )}
+      {verificationDetail && (
+  <div
+    style={{
+      position: "fixed", inset: 0, zIndex: 10030,
+      background: "rgba(15,23,42,.45)", backdropFilter: "blur(3px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+    }}
+    onClick={(e) => { if (e.target === e.currentTarget) setVerificationDetail(null); }}
+  >
+    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.2)" }}>
+      {(() => {
+        const { v, task } = verificationDetail;
+        const statusStyle = {
+          pending: { bg: "#fffbeb", color: "#d97706", label: "Pending" },
+          completed: { bg: "#f0fdf4", color: "#16a34a", label: "Completed" },
+          correction_sent: { bg: "#fef2f2", color: "#dc2626", label: "Correction Sent" },
+        };
+        const sc = statusStyle[v.status] || statusStyle.pending;
+        return (
+          <>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9", position: "sticky", top: 0, background: "#fff", zIndex: 1, borderRadius: "16px 16px 0 0" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>{task?.title || v.task_title}</div>
+                {(task?.site_name || v.site_name) && (
+                  <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 3 }}>{task?.site_name || v.site_name}</div>
+                )}
+              </div>
+              <button onClick={() => setVerificationDetail(null)} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+
+            <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 20, background: sc.bg, color: sc.color, width: "fit-content" }}>
+                {sc.label}
+              </span>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {[
+                  { label: "Sent By", value: v.sent_by_name || v.sent_by },
+                  { label: "Assigned To", value: task ? nameFor(userMap, task.assigned_to) : "—" },
+                  { label: "Priority", value: task?.priority || "—" },
+                  { label: "Sent On", value: v.created_at ? new Date(v.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—" },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 8, padding: "10px 12px" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {task?.description && (
+                <div style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 10, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 8 }}>Task Description</div>
+                  <p style={{ fontSize: 13.5, color: "#475569", lineHeight: 1.6, margin: 0 }}>{task.description}</p>
+                </div>
+              )}
+
+              <div style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 10, padding: "14px 16px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 8 }}>Files Submitted for Verification</div>
+                {v.document_urls?.length > 0 ? (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {v.document_urls.map((url, i) => (
+                      <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: "#475569", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 7, padding: "6px 12px", textDecoration: "none" }}>
+                        📎 File {i + 1}
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 12.5, color: "#94a3b8", fontStyle: "italic" }}>No files attached</span>
+                )}
+              </div>
+
+              {(task?.audio_url || task?.document_url) && (
+                <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#2563eb", marginBottom: 10 }}>Original Task Attachments</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {task.audio_url && <a href={task.audio_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: "#7c3aed" }}>🎵 Audio</a>}
+                    {task.document_url && <a href={task.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: "#0369a1" }}>📄 Document</a>}
+                  </div>
+                </div>
+              )}
+
+              {v.status === "correction_sent" && (
+                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#dc2626", marginBottom: 8 }}>Correction Sent</div>
+                  {v.correction_note && <p style={{ fontSize: 13.5, color: "#475569", lineHeight: 1.6, margin: "0 0 10px" }}>{v.correction_note}</p>}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {v.correction_audio_url && <a href={v.correction_audio_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: "#7c3aed" }}>🎵 Correction Audio</a>}
+                    {v.correction_document_urls?.map((url, i) => (
+                      <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: "#0369a1" }}>📄 Doc {i + 1}</a>
+                    ))}
+                  </div>
+                  {v.resolved_by && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>by {v.resolved_by}</div>}
+                </div>
+              )}
+
+              {v.status === "completed" && v.resolved_by && (
+                <div style={{ fontSize: 12.5, color: "#16a34a", fontWeight: 600 }}>✓ Verified by {v.resolved_by}</div>
+              )}
+            </div>
+          </>
+        );
+      })()}
+    </div>
+  </div>
+)}
       {rejectModal && (
         <div
           style={{
@@ -8374,65 +9623,414 @@ case "solved-ticket": {
         </div>
       )}
       {ticketSolveModal && (
-  <div
-    style={{
-      position: "fixed", inset: 0, zIndex: 10040,
-      background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
-      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-    }}
-    onClick={(e) => { if (e.target === e.currentTarget) setTicketSolveModal(null); }}
-  >
-    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 440, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
-      <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Mark Ticket as Solved</div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-          {ticketSolveModal.ticket.task_title}
-        </div>
-      </div>
-      <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
-  <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
-    Resolution Note
-    <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", background: "#f1f5f9", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>
-      optional
-    </span>
-  </label>
-  <textarea
-    rows={3}
-    placeholder="How was this resolved?"
-    style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, color: "#1e293b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px 12px", outline: "none", width: "100%", resize: "vertical", minHeight: 80 }}
-    value={ticketSolveModal.note}
-    onChange={(e) => setTicketSolveModal((p) => ({ ...p, note: e.target.value }))}
-  />
-  <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569", marginTop: 8 }}>
-    Attach Resolution Document
-    <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", background: "#f1f5f9", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>
-      optional
-    </span>
-  </label>
-  <input
-    type="file"
-    onChange={(e) => setTicketSolveModal((p) => ({ ...p, file: e.target.files?.[0] || null }))}
-    style={{ fontSize: 12.5 }}
-  />
-  {ticketSolveModal.file && (
-    <span style={{ fontSize: 11.5, color: "#64748b" }}>{ticketSolveModal.file.name}</span>
-  )}
-</div>
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
-        <button onClick={() => setTicketSolveModal(null)} style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}>
-          Cancel
-        </button>
-        <button
-          onClick={handleMarkTicketSolved}
-          disabled={updatingTicketId === ticketSolveModal.ticket.id}
-          style={{ background: "#16a34a", color: "#fff", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 20px", borderRadius: 8, border: "none", cursor: "pointer" }}
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10040,
+            background: "rgba(15,23,42,.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setTicketSolveModal(null);
+          }}
         >
-          Confirm Solved
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 440,
+              boxShadow: "0 24px 64px rgba(0,0,0,.22)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 22px 14px",
+                borderBottom: "1px solid #f1f5f9",
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+                Mark Ticket as Solved
+              </div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                {ticketSolveModal.ticket.task_title}
+              </div>
+            </div>
+            <div
+              style={{
+                padding: "16px 22px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <label
+                style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+              >
+                Resolution Note
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: "#94a3b8",
+                    background: "#f1f5f9",
+                    borderRadius: 4,
+                    padding: "1px 6px",
+                    marginLeft: 6,
+                  }}
+                >
+                  optional
+                </span>
+              </label>
+              <textarea
+                rows={3}
+                placeholder="How was this resolved?"
+                style={{
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  color: "#1e293b",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 8,
+                  padding: "9px 12px",
+                  outline: "none",
+                  width: "100%",
+                  resize: "vertical",
+                  minHeight: 80,
+                }}
+                value={ticketSolveModal.note}
+                onChange={(e) =>
+                  setTicketSolveModal((p) => ({ ...p, note: e.target.value }))
+                }
+              />
+              <label
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: "#475569",
+                  marginTop: 8,
+                }}
+              >
+                Attach Resolution Document
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: "#94a3b8",
+                    background: "#f1f5f9",
+                    borderRadius: 4,
+                    padding: "1px 6px",
+                    marginLeft: 6,
+                  }}
+                >
+                  optional
+                </span>
+              </label>
+              <input
+                type="file"
+                onChange={(e) =>
+                  setTicketSolveModal((p) => ({
+                    ...p,
+                    file: e.target.files?.[0] || null,
+                  }))
+                }
+                style={{ fontSize: 12.5 }}
+              />
+              {ticketSolveModal.file && (
+                <span style={{ fontSize: 11.5, color: "#64748b" }}>
+                  {ticketSolveModal.file.name}
+                </span>
+              )}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                padding: "12px 22px 18px",
+                borderTop: "1px solid #f1f5f9",
+              }}
+            >
+              <button
+                onClick={() => setTicketSolveModal(null)}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 18px",
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMarkTicketSolved}
+                disabled={updatingTicketId === ticketSolveModal.ticket.id}
+                style={{
+                  background: "#16a34a",
+                  color: "#fff",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Confirm Solved
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {correctionModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10040,
+            background: "rgba(15,23,42,.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setCorrectionModal(null);
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 480,
+              boxShadow: "0 24px 64px rgba(0,0,0,.22)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 22px 14px",
+                borderBottom: "1px solid #f1f5f9",
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+                Send Correction
+              </div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                To{" "}
+                {correctionModal.verification.sent_by_name ||
+                  correctionModal.verification.sent_by}
+                {" · "}
+                {correctionModal.verification.task_title}
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: "16px 22px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 16,
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+                >
+                  Correction Note <span style={{ color: "#dc2626" }}>*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  autoFocus
+                  placeholder="Explain what needs to be corrected…"
+                  style={{
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontSize: 13.5,
+                    color: "#1e293b",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    padding: "9px 12px",
+                    outline: "none",
+                    width: "100%",
+                    resize: "vertical",
+                    minHeight: 90,
+                  }}
+                  value={correctionModal.note}
+                  onChange={(e) =>
+                    setCorrectionModal((p) => ({ ...p, note: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+                  Audio Note
+                  <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", background: "#f1f5f9", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>
+                    optional
+                  </span>
+                </label>
+                <AudioRecorder
+                  onRecorded={(file) => setCorrectionModal((p) => ({ ...p, audioFile: file }))}
+                />
+                <span style={{ fontSize: 11.5, color: "#94a3b8" }}>Record a voice note explaining the correction.</span>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                  style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+                >
+                  Attach Documents
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: "#94a3b8",
+                      background: "#f1f5f9",
+                      borderRadius: 4,
+                      padding: "1px 6px",
+                      marginLeft: 6,
+                    }}
+                  >
+                    optional, multiple allowed
+                  </span>
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    const newFiles = Array.from(e.target.files || []);
+                    setCorrectionModal((p) => ({
+                      ...p,
+                      docFiles: [...p.docFiles, ...newFiles],
+                    }));
+                    e.target.value = "";
+                  }}
+                  style={{ fontSize: 12.5 }}
+                />
+                {correctionModal.docFiles.length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 5,
+                      marginTop: 4,
+                    }}
+                  >
+                    {correctionModal.docFiles.map((f, i) => (
+                      <div
+                        key={`${f.name}-${i}`}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          fontSize: 12,
+                          color: "#475569",
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 6,
+                          padding: "5px 10px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {f.name}
+                        </span>
+                        <button
+                          onClick={() =>
+                            setCorrectionModal((p) => ({
+                              ...p,
+                              docFiles: p.docFiles.filter(
+                                (_, idx) => idx !== i,
+                              ),
+                            }))
+                          }
+                          style={{
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            color: "#dc2626",
+                            fontWeight: 700,
+                            padding: "0 2px",
+                            flexShrink: 0,
+                            marginLeft: 8,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                padding: "12px 22px 18px",
+                borderTop: "1px solid #f1f5f9",
+              }}
+            >
+              <button
+                onClick={() => setCorrectionModal(null)}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 18px",
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCorrectionSubmit}
+                disabled={correctionModal.submitting}
+                style={{
+                  background: "#dc2626",
+                  color: "#fff",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  opacity: correctionModal.submitting ? 0.6 : 1,
+                }}
+              >
+                {correctionModal.submitting ? "Sending…" : "Send Correction"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

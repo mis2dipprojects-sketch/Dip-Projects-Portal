@@ -10,7 +10,7 @@ export const EMPTY_FORM = {
   title: "", description: "", assigned_to: "", site_name: "", priority: "medium",
   due_date: "", status: "pending", is_recurring: false, recurrence: "",
   anchor_weekday: "1", anchor_day: "1", anchor_month: "1", anchor_month_day: "1",
-  reschedule_allowed: false, enable_checkpoints: false,_audioFile: null, _docFile: null,
+  reschedule_allowed: false, enable_checkpoints: false,_audioFile: null, _docFile: null,hours_to_complete: "",
 };
 
 function daysInMonth(month) {
@@ -202,7 +202,7 @@ export function CheckpointManager({ taskTitle, onCountChange }) {
   );
 }
 
-function AudioRecorder({ onRecorded }) {
+export function AudioRecorder({ onRecorded }) {
   const [state, setState]         = useState("idle");    // idle | recording | recorded
   const [seconds, setSeconds]     = useState(0);
   const [audioURL, setAudioURL]   = useState(null);
@@ -300,13 +300,8 @@ function AudioRecorder({ onRecorded }) {
 }
 
 // ── TaskForm (drop-in replacement) ────────────────────────────────────────────
-// Accepts same props as before: form, handleFormChange, setForm, handleSubmit, submitting, onSuccess
-// NEW: reads/writes form.enable_checkpoints (bool)
 export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submitting, onSuccess, employees = [], sites = [] }) {
-  const [cpCount, setCpCount] = useState(0);
-
-  // extend EMPTY_FORM to include enable_checkpoints — call this in AdminPortal
-  // const EMPTY_FORM = { ..., enable_checkpoints: false }
+  const [cpCount, setCpCount] = useState(0);  
 
   const liveAnchor    = form.is_recurring ? buildAnchor(form) : null;
   const anchorPreview = form.is_recurring && form.recurrence ? anchorDescription(form.recurrence, liveAnchor) : null;
@@ -389,19 +384,16 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
         <div className="ap-form-row ap-col-3">
           <div className="ap-field">
             <label className="ap-label">Site Name</label>
-            <select
-              className="ap-input ap-select"
-              name="site_name"
-              value={form.site_name}
-              onChange={handleFormChange}
-            >
-              <option value="">Select site…</option>
-              {sites.map((s) => (
+            <select className="ap-input ap-select" name="site_name" value={form.site_name} onChange={handleFormChange}>
+            <option value="">Select site…</option>
+            {[...sites]
+              .sort((a, b) => (a.site_name || "").localeCompare(b.site_name || ""))
+              .map((s) => (
                 <option key={s.id} value={s.site_name}>
                   {s.site_name}
                 </option>
               ))}
-            </select>
+          </select>
           </div>
           <div className="ap-field">
             <label className="ap-label">Priority</label>
@@ -420,7 +412,38 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
             </select>
           </div>
         </div>
-
+        
+        <div className="ap-form-row ap-col-2">
+        <div className="ap-field">
+          <label className="ap-label">
+            Hours to Complete
+            <span
+              className="ap-optional"
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: "#94a3b8",
+                background: "#f1f5f9",
+                borderRadius: 4,
+                padding: "1px 6px",
+                marginLeft: 6,
+              }}
+            >
+              optional
+            </span>
+          </label>
+          <input
+            className="ap-input"
+            type="number"
+            min="0"
+            step="0.5"
+            name="hours_to_complete"
+            value={form.hours_to_complete}
+            onChange={handleFormChange}
+            placeholder="e.g. 4"
+          />
+        </div>
+      </div>
         {/* ── Due Date + Recurring toggle ── */}
         <div className="ap-form-row ap-col-2">
           <div className="ap-field">
@@ -448,11 +471,11 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
               <div className="ap-field">
                 <label className="ap-label">Recurrence Pattern <span className="ap-req">*</span></label>
                 <div className="ap-recurrence-pills">
-                  {["daily","weekly","monthly","yearly"].map(r => (
-                    <button key={r} type="button" className={`ap-rpill${form.recurrence===r?" active":""}`} onClick={() => setForm(p=>({...p,recurrence:r}))}>
-                      {r.charAt(0).toUpperCase()+r.slice(1)}
-                    </button>
-                  ))}
+                {["daily","weekly","monthly","yearly"].map(r => (
+                  <button key={r} type="button" className={`ap-rpill${form.recurrence===r?" Active":""}`} onClick={() => setForm(p=>({...p,recurrence:r}))}>
+                    {r.charAt(0).toUpperCase()+r.slice(1)}
+                  </button>
+                ))}
                 </div>
               </div>
             </div>
@@ -617,7 +640,7 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
       onMouseEnter={e=>e.currentTarget.style.borderColor="#dc2626"}
       onMouseLeave={e=>e.currentTarget.style.borderColor="#e2e8f0"}
     >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2574e2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
       <span style={{flex:1,fontSize:13,color: form._docFile ? "#16a34a" : "#94a3b8",fontWeight: form._docFile ? 600 : 400}}>
         {form._docFile ? `✓ ${form._docFile.name}` : "Click to attach document…"}
       </span>

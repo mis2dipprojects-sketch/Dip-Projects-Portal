@@ -1344,7 +1344,6 @@ function TaskList({
           updating={updatingId}
           onReschedule={onReschedule}
           onClick={onDetailClick}
-          showAssignedBy={showAssignedBy}
           showRecurrence={showRecurrence}
           userMap={userMap}
           onSendVerification={onSendVerification} // ← add
@@ -3201,7 +3200,6 @@ const handleStatusChange = async (taskId, newStatus, e) => {
             filters={myTaskFilters}
             onFilterChange={makeFilterChange(setMyTaskFilters)}
             onFilterClear={makeFilterClear(setMyTaskFilters)}
-            showAssignedBy={false}
             showRecurrence={false}
             allTasks={myTasks}
             userMap={userMap}
@@ -3229,7 +3227,6 @@ const handleStatusChange = async (taskId, newStatus, e) => {
             filters={recurringFilters}
             onFilterChange={makeFilterChange(setRecurringFilters)}
             onFilterClear={makeFilterClear(setRecurringFilters)}
-            showAssignedBy={false}
             allTasks={recurringTasks}
             onSendVerification={handleSendVerification}
             onRaiseTicket={handleRaiseTicket}
@@ -5128,10 +5125,6 @@ const handleStatusChange = async (taskId, newStatus, e) => {
                         taskList={
                           activeTab === "my-tasks" ? myTasks : recurringTasks
                         }
-                        showAssignedBy={
-                          activeTab === "my-tasks" &&
-                          user?.role?.toLowerCase().trim() === "admin"
-                        }
                       />
                     </div>
 
@@ -5183,10 +5176,6 @@ const handleStatusChange = async (taskId, newStatus, e) => {
                               activeTab === "my-tasks"
                                 ? myTasks
                                 : recurringTasks
-                            }
-                            showAssignedBy={
-                              activeTab === "my-tasks" &&
-                              user?.role?.toLowerCase().trim() === "admin"
                             }
                           />
                         </div>

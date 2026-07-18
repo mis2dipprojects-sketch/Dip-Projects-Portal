@@ -399,6 +399,7 @@ useEffect(() => {
     dbFetch("dpr_units").then(setUnits);
   }, []);
 
+  
   const loadHistory = useCallback(async () => {
     if (!site) { setLoadingHistory(false); return; }
     setLoadingHistory(true);

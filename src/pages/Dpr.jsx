@@ -3830,28 +3830,35 @@ function PhotosSection({ photos, setPhotos, onLightbox, showToast, onConvertingC
 
     const rejectedCount = files.length - validFiles.length;
     if (rejectedCount > 0 && showToast) {
-      showToast(
-        "err",
-        `${rejectedCount} file${rejectedCount > 1 ? "s were" : " was"} skipped — only image files are allowed.`,
-      );
+      showToast("err", `${rejectedCount} file${rejectedCount > 1 ? "s were" : " was"} skipped — only image files are allowed.`);
     }
-
     if (!validFiles.length) return;
-    setConverting(true);
 
-    for (const f of validFiles) {
-      try {
-        const data = await compressImage(f);
-        if (data) {
-          setPhotos((p) => [
-            ...p,
-            { id: "ph_" + Date.now() + Math.random(), data, caption: "" },
-          ]);
+    setConverting(true);
+    setConvertProgress({ done: 0, total: validFiles.length });
+
+    let done = 0;
+    const results = await Promise.all(
+      validFiles.map(async (f) => {
+        try {
+          const data = await compressImage(f);
+          done++;
+          setConvertProgress({ done, total: validFiles.length });
+          return data;
+        } catch (e) {
+          console.error("Failed to process image:", f.name, e);
+          done++;
+          setConvertProgress({ done, total: validFiles.length });
+          return null;
         }
-      } catch (e) {
-        console.error("Failed to process image:", f.name, e);
-      }
-    }
+      })
+    );
+
+    const newPhotos = results
+      .filter(Boolean)
+      .map((data) => ({ id: "ph_" + Date.now() + Math.random(), data, caption: "" }));
+    setPhotos((p) => [...p, ...newPhotos]);
+
     setConverting(false);
   };
 
@@ -4309,9 +4316,21 @@ function DprForm({ user }) {
     }
     setSubmitting(false);
   };
-
+async function uploadBatch(items, uploadFn, concurrency = 4) {
+  const results = new Array(items.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const idx = cursor++;
+      results[idx] = await uploadFn(items[idx], idx);
+    }
+  }
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, worker);
+  await Promise.all(workers);
+  return results;
+}
   // Evening DPR: upload photos → generate PDF → upload PDF → save DB
-  const handleEveningSubmit = async () => {
+const handleEveningSubmit = async () => {
     if (!site || !engineer || !summary.trim()) {
       showToast("err", "Site, engineer and work summary are required.");
       return;
@@ -4324,48 +4343,26 @@ function DprForm({ user }) {
     const payload = collectPayload();
     try {
       const photoFolder = `${buildSiteDatePath(date)}/dpr`;
-      const uploadedPhotos = [];
-      const uploadedChecklistPhotos = [];
 
       setSubmitStep("photos");
-      for (let i = 0; i < photos.length; i++) {
-        setSubmitDetail(`Photo ${i + 1} of ${photos.length}…`);
-        const cap = (photos[i].caption || "")
-          .trim()
-          .replace(/[^a-zA-Z0-9_-]/g, "_")
-          .slice(0, 30);
+      setSubmitDetail(`Uploading ${photos.length} photos…`);
+      const uploadedPhotos = await uploadBatch(photos, async (ph, i) => {
+        const cap = (ph.caption || "").trim().replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
         const fname = `photo_${i + 1}${cap ? "_" + cap : ""}.jpg`;
         const path = `${photoFolder}/photos/${fname}`;
-        const url = await uploadPhotoToSupabase(photos[i].data, site, path);
-        uploadedPhotos.push({
-          ...photos[i],
-          supabaseUrl: url,
-          storagePath: path,
-        });
-      }
+        const url = await uploadPhotoToSupabase(ph.data, site, path);
+        return { ...ph, supabaseUrl: url, storagePath: path };
+      });
       payload.photos = uploadedPhotos;
 
-      for (let i = 0; i < checklistPhotos.length; i++) {
-        setSubmitDetail(
-          `Checklist photo ${i + 1} of ${checklistPhotos.length}…`,
-        );
-        const cap = (checklistPhotos[i].caption || "")
-          .trim()
-          .replace(/[^a-zA-Z0-9_-]/g, "_")
-          .slice(0, 30);
+      setSubmitDetail(`Uploading ${checklistPhotos.length} checklist photos…`);
+      const uploadedChecklistPhotos = await uploadBatch(checklistPhotos, async (ph, i) => {
+        const cap = (ph.caption || "").trim().replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
         const fname = `checklist_${i + 1}${cap ? "_" + cap : ""}.jpg`;
         const path = `${photoFolder}/checklist/${fname}`;
-        const url = await uploadPhotoToSupabase(
-          checklistPhotos[i].data,
-          site,
-          path,
-        );
-        uploadedChecklistPhotos.push({
-          ...checklistPhotos[i],
-          supabaseUrl: url,
-          storagePath: path,
-        });
-      }
+        const url = await uploadPhotoToSupabase(ph.data, site, path);
+        return { ...ph, supabaseUrl: url, storagePath: path };
+      });
       payload.checklistPhotos = uploadedChecklistPhotos;
 
       if (materialReq.length) {
@@ -4381,12 +4378,7 @@ function DprForm({ user }) {
 
       setSubmitStep("pdfup");
       setSubmitDetail(fileName);
-      const pdfPublicUrl = await uploadPdfToSupabase(
-        blob,
-        fileName,
-        site,
-        date,
-      );
+      const pdfPublicUrl = await uploadPdfToSupabase(blob, fileName, site, date);
 
       setSubmitStep("db");
       setSubmitDetail("Writing to dpr_reports…");
@@ -4400,7 +4392,7 @@ function DprForm({ user }) {
         storagePath: p.storagePath,
         caption: p.caption || "",
       }));
-      // Delete any existing report with same site+engineer+date+type (override old entry)
+
       await supabase
         .from("dpr_reports")
         .delete()
@@ -4408,6 +4400,7 @@ function DprForm({ user }) {
         .eq("engineer", engineer)
         .eq("report_type", "evening")
         .eq("date", date);
+
       const { error: insertErr } = await supabase.from("dpr_reports").insert({
         site,
         engineer,
@@ -4424,7 +4417,6 @@ function DprForm({ user }) {
       });
       if (insertErr) throw new Error(`DB insert failed: ${insertErr.message}`);
 
-      // ── Download PDF only after ALL steps complete ──
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = fileName;
@@ -5156,7 +5148,7 @@ function DprForm({ user }) {
               </>
             )}
           </button>
-        ) : (
+        ) : ( 
           <button
             className="btn btn-orange"
             onClick={handleEveningSubmit}

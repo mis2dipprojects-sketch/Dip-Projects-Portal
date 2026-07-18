@@ -4,6 +4,7 @@ import { supabase } from "../supabase";
 import { useRecurringTasks } from "../hooks/useRecurringTasks";
 import SiteReport from "./Sitereport";
 import "./AdminPortal.css";
+
 import { canAccessPortal, filterNav } from "../access.js"; // adjust path to where access.js lives
 import {
   TaskForm as TaskFormWithCheckpoints,
@@ -519,6 +520,7 @@ function buildAnchor(form) {
 }
 
 function anchorDescription(recurrence, anchor) {
+  if (recurrence === "daily") return "every day";   // ← add this line
   if (!anchor) return null;
   switch (recurrence) {
     case "weekly":
@@ -533,6 +535,7 @@ function anchorDescription(recurrence, anchor) {
       return null;
   }
 }
+    
 const APPROVAL_SLOT_LABELS = {
   level: "Level Approver",
   head: "Site Head",

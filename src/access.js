@@ -97,6 +97,15 @@ const ROLE_ACCESS = {
       "site-report", "my-reports",
     ],
   },
+  "junior estimator": {
+  admin: [],
+  office: [
+    "my-tasks", "recurring-tasks", "my-reschedules",
+    "raised-tickets", "solved-tickets",       // ← add
+    "apply-leave", "my-leaves",
+    "site-report", "my-reports", "checklists", // ← add
+  ],
+},
   client: {
     admin: [],
     office: ["site-report", "my-reports"],

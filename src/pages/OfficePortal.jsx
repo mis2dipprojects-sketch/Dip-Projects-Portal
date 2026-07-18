@@ -1767,7 +1767,7 @@ function MyVerificationTable({
   );
 }
 
-function RaisedTicketsTable({ tickets }) {
+function RaisedTicketsTable({ tickets, onRowClick }) {
   const fmt = (d) =>
     d
       ? new Date(d).toLocaleDateString("en-IN", {
@@ -1800,7 +1800,15 @@ function RaisedTicketsTable({ tickets }) {
           {tickets.map((t) => {
             const sc = statusStyle[t.status] || statusStyle.open;
             return (
-              <tr key={t.id} className="tt-row">
+             <tr
+              key={t.id}
+              className="tt-row"
+              onClick={() => {
+                console.log("row clicked", t);
+                onRowClick?.(t);
+              }}
+              style={{ cursor: "pointer" }}
+            >
                 <td className="tt-title-cell">
                   <div className="tt-title">{t.task_title || "—"}</div>
                 </td>
@@ -1811,10 +1819,10 @@ function RaisedTicketsTable({ tickets }) {
                     {t.query}
                   </span>
                 </td>
-                <td>
+                <td onClick={(e) => e.stopPropagation()}>
                   {t.document_url ? (
-                    <a
-                      href={t.document_url}
+                    
+                    <a  href={t.document_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
@@ -1831,7 +1839,6 @@ function RaisedTicketsTable({ tickets }) {
                 </td>
                 <td>{fmt(t.created_at)}</td>
 
-                {/* ── Status badge (its own column, was missing before) ── */}
                 <td>
                   <span
                     style={{
@@ -1850,8 +1857,7 @@ function RaisedTicketsTable({ tickets }) {
                   </span>
                 </td>
 
-                {/* ── Resolution (note + file link only) ── */}
-                <td>
+                <td onClick={(e) => e.stopPropagation()}>
                   {t.status === "solved" ? (
                     <div
                       style={{
@@ -1866,8 +1872,8 @@ function RaisedTicketsTable({ tickets }) {
                         </span>
                       )}
                       {t.resolution_document_url ? (
-                        <a
-                          href={t.resolution_document_url}
+                        
+                        <a  href={t.resolution_document_url}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{
@@ -2427,6 +2433,8 @@ export default function OfficePortal() {
   const [myVerifications, setMyVerifications] = useState([]);
 const [loadingMyVerifications, setLoadingMyVerifications] = useState(false);
 const [myVerificationDetail, setMyVerificationDetail] = useState(null);
+const [ticketDetail, setTicketDetail] = useState(null);
+
   const [detailTask, setDetailTask] = useState(null); // for task detail popup
   const [reportTab, setReportTab] = useState("dpr");
 
@@ -3888,42 +3896,44 @@ const latestVerificationByTask = useMemo(() => {
         );
 
       case "raised-tickets":
-        if (loadingRaisedTickets)
-          return (
-            <div className="op-empty-state">
-              <div className="op-spinner" />
-              <p className="op-empty-text">Loading…</p>
-            </div>
-          );
-        if (!raisedTickets.length)
-          return (
-            <div className="op-empty-state">
-              <p className="op-empty-text">
-                You haven't raised any tickets yet.
-              </p>
-            </div>
-          );
-        return <RaisedTicketsTable tickets={raisedTickets} />;
+  if (loadingRaisedTickets)
+    return (
+      <div className="op-empty-state">
+        <div className="op-spinner" />
+        <p className="op-empty-text">Loading…</p>
+      </div>
+    );
+  if (!raisedTickets.length)
+    return (
+      <div className="op-empty-state">
+        <p className="op-empty-text">
+          You haven't raised any tickets yet.
+        </p>
+      </div>
+    );
+  return (
+    <RaisedTicketsTable tickets={raisedTickets} onRowClick={setTicketDetail} />
+  );
 
       case "solved-tickets": {
-        const solved = raisedTickets.filter((t) => t.status === "solved");
-        if (loadingRaisedTickets)
-          return (
-            <div className="op-empty-state">
-              <div className="op-spinner" />
-              <p className="op-empty-text">Loading…</p>
-            </div>
-          );
-        if (!solved.length)
-          return (
-            <div className="op-empty-state">
-              <p className="op-empty-text">
-                None of your raised tickets have been solved yet.
-              </p>
-            </div>
-          );
-        return <RaisedTicketsTable tickets={solved} />;
-      }
+  const solved = raisedTickets.filter((t) => t.status === "solved");
+  if (loadingRaisedTickets)
+    return (
+      <div className="op-empty-state">
+        <div className="op-spinner" />
+        <p className="op-empty-text">Loading…</p>
+      </div>
+    );
+  if (!solved.length)
+    return (
+      <div className="op-empty-state">
+        <p className="op-empty-text">
+          None of your raised tickets have been solved yet.
+        </p>
+      </div>
+    );
+  return <RaisedTicketsTable tickets={solved} onRowClick={setTicketDetail} />;
+}
       case "verified-tasks": {
         const verified = myVerifications.filter((v) => v.status === "completed");
         if (loadingMyVerifications)
@@ -6211,6 +6221,7 @@ const latestVerificationByTask = useMemo(() => {
                   <option value="">Select recipient…</option>
                   {allUsers
                     .filter((u) => u.username !== user?.user_name)
+                    .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
                     .map((u) => (
                       <option key={u.username} value={u.username}>
                         {u.name}
@@ -7198,27 +7209,207 @@ const latestVerificationByTask = useMemo(() => {
         </div>
       )}
       {myVerificationDetail && (
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 10030, background: "rgba(15,23,42,.45)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+            onClick={(e) => { if (e.target === e.currentTarget) setMyVerificationDetail(null); }}
+          >
+            <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 540, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.2)" }}>
+              {(() => {
+                const v = myVerificationDetail;
+                const statusStyle = {
+                  pending: { bg: "#fffbeb", color: "#d97706", label: "Pending" },
+                  completed: { bg: "#f0fdf4", color: "#16a34a", label: "Verified" },
+                  correction_sent: { bg: "#fef2f2", color: "#dc2626", label: "Correction Sent" },
+                };
+                const sc = statusStyle[v.status] || statusStyle.pending;
+                return (
+                  <>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9", position: "sticky", top: 0, background: "#fff", zIndex: 1, borderRadius: "16px 16px 0 0" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>{v.task_title || "—"}</div>
+                        {v.site_name && <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 3 }}>{v.site_name}</div>}
+                      </div>
+                      <button onClick={() => setMyVerificationDetail(null)} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", flexShrink: 0 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                      </button>
+                    </div>
+
+                    <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 20, background: sc.bg, color: sc.color, width: "fit-content" }}>
+                        {sc.label}
+                      </span>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                        {[
+                          { label: "Sent To", value: v.verifier_name || v.verifier },
+                          { label: "Sent On", value: v.created_at ? new Date(v.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—" },
+                        ].map(({ label, value }) => (
+                          <div key={label} style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 8, padding: "10px 12px" }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 4 }}>{label}</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>{value}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 10, padding: "14px 16px" }}>
+                      
+                        <div style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 10, padding: "14px 16px" }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 8 }}>Your Submitted Files</div>
+                        {v.document_urls?.length > 0 ? (
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            {v.document_urls.map((url, i) => (
+                              
+                              <a  key={i}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  fontSize: 12.5,
+                                  fontWeight: 600,
+                                  color: "#475569",
+                                  background: "#fff",
+                                  border: "1px solid #e2e8f0",
+                                  borderRadius: 7,
+                                  padding: "6px 12px",
+                                  textDecoration: "none",
+                                }}
+                              >
+                                <svg
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="#475569"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                                <span>File {i + 1}</span>
+                              </a>
+                            ))}
+                          </div>
+                        ) : (
+                      <span style={{ fontSize: 12.5, color: "#94a3b8", fontStyle: "italic" }}>No files attached</span>
+                    )}
+                  </div>
+
+                    {v.status === "correction_sent" && (
+                      <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "14px 16px" }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#dc2626", marginBottom: 8 }}>Admin's Correction</div>
+                        {v.correction_note && <p style={{ fontSize: 13.5, color: "#475569", lineHeight: 1.6, margin: "0 0 10px" }}>{v.correction_note}</p>}
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {v.correction_audio_url && (
+                            
+                            <a  href={v.correction_audio_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                color: "#7c3aed",
+                              }}
+                            > 
+                            
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#7c3aed"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                <line x1="12" y1="19" x2="12" y2="23" />
+                                <line x1="8" y1="23" x2="16" y2="23" />
+                              </svg>
+                              <span>Correction Audio</span>
+                            </a>
+                          )}
+                          {v.correction_document_urls?.map((url, i) => (
+                            
+                            <a  key={i}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                color: "#0369a1",
+                              }}
+                            >
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#0369a1"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                              </svg>
+                              <span>Doc {i + 1}</span>
+                            </a>
+                          ))}
+                        </div>
+                        {v.resolved_by && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>by {v.resolved_by}</div>}
+                      </div>
+                    )}
+                      </div>
+
+
+                      {v.status === "completed" && v.resolved_by && (
+                        <div style={{ fontSize: 12.5, color: "#16a34a", fontWeight: 600 }}>✓ Verified by {v.resolved_by}</div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+{ticketDetail && (
   <div
-    style={{ position: "fixed", inset: 0, zIndex: 10030, background: "rgba(15,23,42,.45)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-    onClick={(e) => { if (e.target === e.currentTarget) setMyVerificationDetail(null); }}
+    style={{
+      position: "fixed", inset: 0, zIndex: 10030,
+      background: "rgba(15,23,42,.45)", backdropFilter: "blur(3px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+    }}
+    onClick={(e) => { if (e.target === e.currentTarget) setTicketDetail(null); }}
   >
-    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 540, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.2)" }}>
+    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 520, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.2)" }}>
       {(() => {
-        const v = myVerificationDetail;
+        const t = ticketDetail;
         const statusStyle = {
-          pending: { bg: "#fffbeb", color: "#d97706", label: "Pending" },
-          completed: { bg: "#f0fdf4", color: "#16a34a", label: "Verified" },
-          correction_sent: { bg: "#fef2f2", color: "#dc2626", label: "Correction Sent" },
+          open: { bg: "#fffbeb", color: "#d97706", label: "Open" },
+          solved: { bg: "#f0fdf4", color: "#16a34a", label: "Solved" },
         };
-        const sc = statusStyle[v.status] || statusStyle.pending;
+        const sc = statusStyle[t.status] || statusStyle.open;
         return (
           <>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9", position: "sticky", top: 0, background: "#fff", zIndex: 1, borderRadius: "16px 16px 0 0" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>{v.task_title || "—"}</div>
-                {v.site_name && <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 3 }}>{v.site_name}</div>}
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>{t.task_title || "—"}</div>
+                {t.site_name && <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 3 }}>{t.site_name}</div>}
               </div>
-              <button onClick={() => setMyVerificationDetail(null)} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", flexShrink: 0 }}>
+              <button onClick={() => setTicketDetail(null)} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", flexShrink: 0 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
             </div>
@@ -7230,8 +7421,8 @@ const latestVerificationByTask = useMemo(() => {
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 {[
-                  { label: "Sent To", value: v.verifier_name || v.verifier },
-                  { label: "Sent On", value: v.created_at ? new Date(v.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—" },
+                  { label: "Sent To", value: t.assigned_to_name || t.assigned_to },
+                  { label: "Raised On", value: t.created_at ? new Date(t.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—" },
                 ].map(({ label, value }) => (
                   <div key={label} style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 8, padding: "10px 12px" }}>
                     <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 4 }}>{label}</div>
@@ -7240,131 +7431,51 @@ const latestVerificationByTask = useMemo(() => {
                 ))}
               </div>
 
-              <div style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 10, padding: "14px 16px" }}>
-               
+              {t.query && (
                 <div style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 10, padding: "14px 16px" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 8 }}>Your Submitted Files</div>
-                {v.document_urls?.length > 0 ? (
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {v.document_urls.map((url, i) => (
-                      
-                      <a  key={i}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          fontSize: 12.5,
-                          fontWeight: 600,
-                          color: "#475569",
-                          background: "#fff",
-                          border: "1px solid #e2e8f0",
-                          borderRadius: 7,
-                          padding: "6px 12px",
-                          textDecoration: "none",
-                        }}
-                      >
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="#475569"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                          <polyline points="14 2 14 8 20 8" />
-                        </svg>
-                        <span>File {i + 1}</span>
-                      </a>
-                    ))}
-                  </div>
-                ) : (
-              <span style={{ fontSize: 12.5, color: "#94a3b8", fontStyle: "italic" }}>No files attached</span>
-            )}
-          </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 8 }}>Query</div>
+                  <p style={{ fontSize: 13.5, color: "#475569", lineHeight: 1.6, margin: 0 }}>{t.query}</p>
+                </div>
+              )}
 
-            {v.status === "correction_sent" && (
-              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "14px 16px" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#dc2626", marginBottom: 8 }}>Admin's Correction</div>
-                {v.correction_note && <p style={{ fontSize: 13.5, color: "#475569", lineHeight: 1.6, margin: "0 0 10px" }}>{v.correction_note}</p>}
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {v.correction_audio_url && (
+              {t.document_url && (
+                <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#2563eb", marginBottom: 10 }}>Attachment</div>
+                  
+                  <a  href={t.document_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#2563eb" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <span>View file</span>
+                  </a>
+                </div>
+              )}
+
+              {t.status === "solved" && (
+                <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "14px 16px" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#16a34a", marginBottom: 8 }}>Resolution</div>
+                  {t.resolution_note && <p style={{ fontSize: 13.5, color: "#475569", lineHeight: 1.6, margin: "0 0 10px" }}>{t.resolution_note}</p>}
+                  {t.resolution_document_url && (
                     
-                    <a  href={v.correction_audio_url}
+                    <a  href={t.resolution_document_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 12.5,
-                        fontWeight: 600,
-                        color: "#7c3aed",
-                      }}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: "#2563eb" }}
                     >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#7c3aed"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                        <line x1="12" y1="19" x2="12" y2="23" />
-                        <line x1="8" y1="23" x2="16" y2="23" />
-                      </svg>
-                      <span>Correction Audio</span>
-                    </a>
-                  )}
-                  {v.correction_document_urls?.map((url, i) => (
-                    
-                    <a  key={i}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 12.5,
-                        fontWeight: 600,
-                        color: "#0369a1",
-                      }}
-                    >
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#0369a1"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                         <polyline points="14 2 14 8 20 8" />
                       </svg>
-                      <span>Doc {i + 1}</span>
+                      <span>View resolution file</span>
                     </a>
-                  ))}
+                  )}
+                  {t.resolved_by && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>Resolved by {t.resolved_by}</div>}
                 </div>
-                {v.resolved_by && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>by {v.resolved_by}</div>}
-              </div>
-            )}
-              </div>
-
-
-              {v.status === "completed" && v.resolved_by && (
-                <div style={{ fontSize: 12.5, color: "#16a34a", fontWeight: 600 }}>✓ Verified by {v.resolved_by}</div>
               )}
             </div>
           </>
@@ -7373,7 +7484,6 @@ const latestVerificationByTask = useMemo(() => {
     </div>
   </div>
 )}
-
       {checklistModal && (
         <div
           style={{

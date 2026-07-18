@@ -2538,11 +2538,14 @@ function VerificationCard({
               }}
             >
               {task.audio_url && (
-                <a
-                  href={task.audio_url}
+                
+                <a  href={task.audio_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
                     fontSize: 11.5,
                     fontWeight: 600,
                     color: "#7c3aed",
@@ -2553,15 +2556,24 @@ function VerificationCard({
                     textDecoration: "none",
                   }}
                 >
-                  🎵 Original audio
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                    <line x1="8" y1="23" x2="16" y2="23" />
+                  </svg>
+                  <span>Original audio</span>
                 </a>
               )}
               {task.document_url && (
-                <a
-                  href={task.document_url}
+                
+                <a  href={task.document_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
                     fontSize: 11.5,
                     fontWeight: 600,
                     color: "#0369a1",
@@ -2572,7 +2584,11 @@ function VerificationCard({
                     textDecoration: "none",
                   }}
                 >
-                  📄 Original document
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0369a1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  <span>Original document</span>
                 </a>
               )}
             </div>
@@ -2582,24 +2598,20 @@ function VerificationCard({
 
       {verification.document_urls?.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: "#94a3b8",
-              marginBottom: 4,
-            }}
-          >
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 4 }}>
             VERIFICATION ATTACHMENTS
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {verification.document_urls.map((url, i) => (
-              <a
-                key={i}
+              
+              <a  key={i}
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
                   fontSize: 11.5,
                   fontWeight: 600,
                   color: "#475569",
@@ -2610,7 +2622,11 @@ function VerificationCard({
                   textDecoration: "none",
                 }}
               >
-                File {i + 1}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <span>File {i + 1}</span>
               </a>
             ))}
           </div>
@@ -2631,31 +2647,40 @@ function VerificationCard({
               }}
             >
               {verification.correction_audio_url && (
-                <a
-                  href={verification.correction_audio_url}
+                
+                <a  href={verification.correction_audio_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ fontSize: 11, fontWeight: 600, color: "#7c3aed" }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#7c3aed" }}
                 >
-                  🎵 Correction audio
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                    <line x1="8" y1="23" x2="16" y2="23" />
+                  </svg>
+                  <span>Correction audio</span>
                 </a>
               )}
               {verification.correction_document_urls?.map((url, i) => (
-                <a
-                  key={i}
+                
+                <a  key={i}
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ fontSize: 11, fontWeight: 600, color: "#2563eb" }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#2563eb" }}
                 >
-                  📄 Correction doc {i + 1}
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  <span>Correction doc {i + 1}</span>
                 </a>
               ))}
             </div>
           )}
         </div>
       )}
-
       {isPending ? (
         <div className="ap-leave-actions">
           <button
@@ -4014,7 +4039,7 @@ function VerificationTable({ verifications, allTasks, userMap, onComplete, onCor
                     <span style={{ color: "#94a3b8" }}>—</span>
                   )}
                 </td>
-                <td className="ap-td">
+                <td className="ap-td" onClick={(e) => e.stopPropagation()}>
   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
     {/* Files the employee submitted with this verification */}
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -4025,9 +4050,25 @@ function VerificationTable({ verifications, allTasks, userMap, onComplete, onCor
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ fontSize: 11, fontWeight: 600, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 6, padding: "2px 8px", textDecoration: "none" }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#475569",
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: 6,
+              padding: "2px 8px",
+              textDecoration: "none",
+            }}
           >
-            📎 File {i + 1}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            <span>File {i + 1}</span>
           </a>
         ))
       ) : (
@@ -4044,9 +4085,27 @@ function VerificationTable({ verifications, allTasks, userMap, onComplete, onCor
           <a  href={v.correction_audio_url}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ fontSize: 11, fontWeight: 600, color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 6, padding: "2px 8px", textDecoration: "none" }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#7c3aed",
+              background: "#f5f3ff",
+              border: "1px solid #ddd6fe",
+              borderRadius: 6,
+              padding: "2px 8px",
+              textDecoration: "none",
+            }}
           >
-            🎵 Audio
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="23" />
+              <line x1="8" y1="23" x2="16" y2="23" />
+            </svg>
+            <span>Audio</span>
           </a>
         )}
         {v.correction_document_urls?.map((url, i) => (
@@ -4055,9 +4114,25 @@ function VerificationTable({ verifications, allTasks, userMap, onComplete, onCor
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ fontSize: 11, fontWeight: 600, color: "#0369a1", background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 6, padding: "2px 8px", textDecoration: "none" }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#0369a1",
+              background: "#f0f9ff",
+              border: "1px solid #bae6fd",
+              borderRadius: 6,
+              padding: "2px 8px",
+              textDecoration: "none",
+            }}
           >
-            📄 Doc {i + 1}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0369a1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            <span>Doc {i + 1}</span>
           </a>
         ))}
       </div>

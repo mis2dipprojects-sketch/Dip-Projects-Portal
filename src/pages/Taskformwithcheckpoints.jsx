@@ -203,7 +203,7 @@ export function CheckpointManager({ taskTitle, onCountChange }) {
 }
 
 export function AudioRecorder({ onRecorded }) {
-  const [state, setState]         = useState("idle");    // idle | recording | recorded
+  const [state, setState]         = useState("idle");
   const [seconds, setSeconds]     = useState(0);
   const [audioURL, setAudioURL]   = useState(null);
   const [audioFile, setAudioFile] = useState(null);

@@ -1821,7 +1821,7 @@ function RaisedTicketsTable({ tickets, onRowClick }) {
                 </td>
                 <td onClick={(e) => e.stopPropagation()}>
                   {t.document_url ? (
-                    
+
                     <a  href={t.document_url}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -2858,19 +2858,8 @@ const handleVerifySubmit = async () => {
 
   setVerifyModal((p) => ({ ...p, submitting: true }));
 
-  // Ensure bucket exists
-  const { error: bucketErr } = await supabase.storage.createBucket(
-    "task-verification-docs",
-    { public: true },
-  );
-  if (bucketErr && !/already exists/i.test(bucketErr.message || "")) {
-    setVerifyModal((p) => ({ ...p, submitting: false }));
-    return showToast(
-      "error",
-      "Could not create storage bucket: " + bucketErr.message,
-    );
-  }
-
+  // Bucket already exists (created via dashboard) — the anon key can't
+  // create buckets, so calling createBucket here always 400s. Just upload.
   const documentUrls = [];
   for (const file of verifyModal.files) {
     const path = `${user.user_name}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
@@ -2886,6 +2875,7 @@ const handleVerifySubmit = async () => {
       .getPublicUrl(path);
     if (pub?.publicUrl) documentUrls.push(pub.publicUrl);
   }
+  // ...rest unchanged
 
   const recipient = adminUsers.find((u) => u.username === verifyModal.verifier);
 

@@ -2419,14 +2419,10 @@ function LeaveStatusBadge({ leave }) {
 }
 
 function VerificationCard({
-  verification,
-  task,
-  userMap,
-  onComplete,
-  onCorrect,
-  updatingId,
+  verification, task, userMap, onComplete, onCorrect, updatingId, currentUser,
 }) {
   const isPending = verification.status === "pending";
+  const canAct = isPending && verification.verifier === currentUser;
   const isCompleted = verification.status === "completed";
   const isCorrection = verification.status === "correction_sent";
 
@@ -2682,31 +2678,29 @@ function VerificationCard({
         </div>
       )}
       {isPending ? (
-        <div className="ap-leave-actions">
-          <button
-            className="ap-btn-approve"
-            disabled={updatingId === verification.id}
-            onClick={() => onComplete(verification)}
-          >
-            Mark Completed
-          </button>
-          <button
-            className="ap-btn-reject"
-            disabled={updatingId === verification.id}
-            onClick={() => onCorrect(verification)}
-          >
-            Send Correction
-          </button>
-          {updatingId === verification.id && (
-            <span className="ap-saving">saving...</span>
-          )}
-        </div>
-      ) : (
-        <div className="ap-leave-done">
-          {isCompleted ? "✓ Marked completed" : "✗ Correction sent back"} by{" "}
-          {verification.resolved_by}
-        </div>
-      )}
+  canAct ? (
+    <div className="ap-leave-actions">
+      <button className="ap-btn-approve" disabled={updatingId === verification.id}
+        onClick={() => onComplete(verification)}>
+        Mark Completed
+      </button>
+      <button className="ap-btn-reject" disabled={updatingId === verification.id}
+        onClick={() => onCorrect(verification)}>
+        Send Correction
+      </button>
+      {updatingId === verification.id && <span className="ap-saving">saving...</span>}
+    </div>
+  ) : (
+    <div className="ap-leave-done">
+      Waiting on {verification.verifier_name || verification.verifier} to review this.
+    </div>
+  )
+) : (
+  <div className="ap-leave-done">
+    {isCompleted ? "✓ Marked completed" : "✗ Correction sent back"} by{" "}
+    {verification.resolved_by}
+  </div>
+)}
     </div>
   );
 }
@@ -3954,7 +3948,7 @@ function RescheduleRequestCard({
   );
 }
 
-function VerificationTable({ verifications, allTasks, userMap, onComplete, onCorrect, updatingId, showAction = true, onRowClick }) {
+function VerificationTable({ verifications, allTasks, userMap, onComplete, onCorrect, updatingId, showAction = true, onRowClick, currentUser }) {
   const fmt = (d) =>
     d
       ? new Date(d).toLocaleDateString("en-IN", {
@@ -4177,45 +4171,34 @@ function VerificationTable({ verifications, allTasks, userMap, onComplete, onCor
                   )}
                 </td>
                   {showAction && (
-                    <td className="ap-td" onClick={(e) => e.stopPropagation()}>
-                      {v.status === "pending" ? (
-                        <div style={{ display: "flex", gap: 6 }}>
-                          <button
-                            className="ap-btn-approve"
-                            disabled={updatingId === v.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onComplete(v);
-                            }}
-                            style={{ padding: "5px 10px", fontSize: 11.5 }}
-                          >
-                            Complete
-                          </button>
-                          <button
-                            className="ap-btn-reject"
-                            disabled={updatingId === v.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onCorrect(v);
-                            }}
-                            style={{ padding: "5px 10px", fontSize: 11.5 }}
-                          >
-                            Correct
-                          </button>
-                        </div>
-                      ) : (
-                      <span
-                        style={{
-                          fontSize: 11.5,
-                          color: "#94a3b8",
-                          fontStyle: "italic",
-                        }}
-                      >
-                        {v.status === "completed" ? "✓ Done" : "✗ Sent back"}
-                      </span>
-                    )}
-                  </td>
-                )}
+  <td className="ap-td" onClick={(e) => e.stopPropagation()}>
+    {v.status === "pending" ? (
+      v.verifier === currentUser ? (
+        <div style={{ display: "flex", gap: 6 }}>
+          <button className="ap-btn-approve" disabled={updatingId === v.id}
+            onClick={(e) => { e.stopPropagation(); onComplete(v); }}
+            style={{ padding: "5px 10px", fontSize: 11.5 }}>
+            Complete
+          </button>
+          <button className="ap-btn-reject" disabled={updatingId === v.id}
+            onClick={(e) => { e.stopPropagation(); onCorrect(v); }}
+            style={{ padding: "5px 10px", fontSize: 11.5 }}>
+            Correct
+          </button>
+        </div>
+      ) : (
+        <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}
+          title="Only the admin this task was sent to can action it">
+          Assigned to {v.verifier_name || v.verifier}
+        </span>
+      )
+    ) : (
+      <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>
+        {v.status === "completed" ? "✓ Done" : "✗ Sent back"}
+      </span>
+    )}
+  </td>
+)}
               </tr>
             );
           })}
@@ -4224,19 +4207,20 @@ function VerificationTable({ verifications, allTasks, userMap, onComplete, onCor
 
       {/* Mobile fallback — reuse the existing card layout */}
       <div className="ap-task-mobile-grid">
-        {verifications.map((v) => (
-        <VerificationCard
-          key={v.id}
-          verification={v}
-          task={taskFor(v)}
-          userMap={userMap}
-          onComplete={onComplete}
-          onCorrect={onCorrect}
-          updatingId={updatingId}
-          onClick={() => onRowClick?.(v, taskFor(v))}
-        />
-        ))}
-      </div>
+          {verifications.map((v) => (
+            <VerificationCard
+              key={v.id}
+              verification={v}
+              task={taskFor(v)}
+              userMap={userMap}
+              onComplete={onComplete}
+              onCorrect={onCorrect}
+              updatingId={updatingId}
+              onClick={() => onRowClick?.(v, taskFor(v))}
+              currentUser={currentUser}
+            />
+          ))}
+        </div>
     </div>
   );
 }
@@ -5354,6 +5338,8 @@ const [verificationDetail, setVerificationDetail] = useState(null);
   };
 
   const handleMarkVerificationCompleted = async (verification) => {
+      if (verification.verifier !== user.user_name)
+    return showToast("error", "Only the assigned admin can complete this task.");
   setUpdatingVerificationId(verification.id);
   const payload = {
     status: "completed",
@@ -5392,15 +5378,11 @@ const [verificationDetail, setVerificationDetail] = useState(null);
   showToast("success", "Task marked as completed.");
 };
 
-  const openCorrectionModal = (verification) => {
-    setCorrectionModal({
-      verification,
-      note: "",
-      audioFile: null,
-      docFiles: [],
-      submitting: false,
-    });
-  };
+const openCorrectionModal = (verification) => {
+  if (verification.verifier !== user.user_name)
+    return showToast("error", "Only the assigned admin can send a correction.");
+  setCorrectionModal({ verification, note: "", audioFile: null, docFiles: [], submitting: false });
+};
 
   const handleCorrectionSubmit = async () => {
     if (!correctionModal.note.trim())
@@ -8415,6 +8397,7 @@ const [verificationDetail, setVerificationDetail] = useState(null);
             onCorrect={openCorrectionModal}
             updatingId={updatingVerificationId}
             onRowClick={(v, task) => setVerificationDetail({ v, task })}
+            currentUser={user.user_name}
           />
         );
 

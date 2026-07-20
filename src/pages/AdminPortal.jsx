@@ -742,20 +742,37 @@ function toDateStr(d) {
 
 function formatNextDue(date) {
   if (!date) return "—";
+
+  const dueDate = date instanceof Date ? date : new Date(date);
+
+  if (isNaN(dueDate)) return "—";
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const diff = Math.round((date - today) / (1000 * 60 * 60 * 24));
-  const label = date.toLocaleDateString("en-IN", {
+  dueDate.setHours(0, 0, 0, 0);
+
+  const diff = Math.round((dueDate - today) / (1000 * 60 * 60 * 24));
+
+  const label = dueDate.toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
+
   if (diff === 0)
     return { label, badge: "Today", color: "#dc2626", bg: "#fef2f2" };
+
   if (diff === 1)
     return { label, badge: "Tomorrow", color: "#d97706", bg: "#fffbeb" };
-  if (diff <= 7)
-    return { label, badge: `In ${diff} days`, color: "#2563eb", bg: "#eff6ff" };
+
+  if (diff <= 7 && diff > 1)
+    return {
+      label,
+      badge: `In ${diff} days`,
+      color: "#2563eb",
+      bg: "#eff6ff",
+    };
+
   return { label, badge: null };
 }
 function EmployeeFilterBar({
@@ -5178,15 +5195,10 @@ const handleNavClick = (key) => {
       return showToast("error", "Please select a recurrence pattern.");
 
     const anchor = form.is_recurring ? buildAnchor(form) : null;
-    const computedDueDate = form.is_recurring
-      ? toDateStr(
-          getNextDueDate({
-            recurrence: form.recurrence,
-            recurrence_anchor: anchor,
-          }),
-        )
-      : form.due_date || null;
-    setSubmitting(true);
+          const computedDueDate = form.is_recurring
+          ? getNextDueDate(null, form.recurrence)   // ← fixed: returns a date string directly
+          : form.due_date || null;
+            setSubmitting(true);
 
     // Upload audio if provided
     let audio_url = null;
@@ -5693,8 +5705,9 @@ const activeItem = [
     )
       return false;
     if (recurringFilters.dueSoon) {
-      const next = getNextDueDate(t);
-      if (!next) return false;
+      const nextDateStr = getNextDueDate(t.due_date, t.recurrence);  // ← fixed
+      if (!nextDateStr) return false;
+      const next = new Date(nextDateStr + "T00:00:00");
       const diff = Math.round(
         (next - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24),
       );
@@ -6400,7 +6413,7 @@ const activeItem = [
                     </thead>
                     <tbody>
                       {filteredRecurring.map((task) => {
-                        const nextDate = getNextDueDate(task);
+                        const nextDate = getNextDueDate(task.due_date, task.recurrence);  // ← fixed
                         const next = formatNextDue(nextDate);
                         const p =
                           PRIORITY_STYLES[task.priority] ||
@@ -6573,7 +6586,7 @@ const activeItem = [
                 <div className="ap-task-mobile-grid">
                   <div className="ap-task-mobile-grid">
                     {filteredRecurring.map((task) => {
-                      const nextDate = getNextDueDate(task);
+                      const nextDate = getNextDueDate(task.due_date, task.recurrence);  // ← fixed
                       const next = formatNextDue(nextDate);
                       const p =
                         PRIORITY_STYLES[task.priority] ||

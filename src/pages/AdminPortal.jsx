@@ -6,10 +6,7 @@ import SiteReport from "./Sitereport";
 import "./AdminPortal.css";
 
 import { canAccessPortal, filterNav } from "../access.js"; // adjust path to where access.js lives
-import {
-  TaskForm as TaskFormWithCheckpoints,
-  EMPTY_FORM,AudioRecorder,
-} from "./Taskformwithcheckpoints.jsx";
+import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM,AudioRecorder,} from "./Taskformwithcheckpoints.jsx";
 
 const NAV_ITEMS = [
   {
@@ -4444,32 +4441,39 @@ export default function AdminPortal() {
   const [allReschedules, setAllReschedules] = useState([]);
   const [loadingReschedules, setLoadingReschedules] = useState(false);
   const [updatingRescheduleId, setUpdatingRescheduleId] = useState(null);
-  const [recurringMobileFilterOpen, setRecurringMobileFilterOpen] =
-    useState(false);
+  const [recurringMobileFilterOpen, setRecurringMobileFilterOpen] = useState(false);
   const [showRecurringInAllTasks, setShowRecurringInAllTasks] = useState(false);
   const [user, setUser] = useState(null);
   const canSwitchToOffice = canAccessPortal(user, "office");
-  const [sidebarOpen, setSidebarOpen] = useState(() =>
-    typeof window === "undefined" ? true : window.innerWidth > 760,
-  );
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === "undefined" ? true : window.innerWidth > 760,);
+
   const [activeTab, setActiveTab] = useState("dashboard");
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [rejectModal, setRejectModal] = useState(null);
 
+  const [overdueRescheduleModal, setOverdueRescheduleModal] = useState(null); 
+  const [updatingOverdueId, setUpdatingOverdueId] = useState(null);
+  const [overdueTasksSeen, setOverdueTasksSeen] = useState(false);
+
   const [pendingVerifications, setPendingVerifications] = useState([]);
   const [loadingVerifications, setLoadingVerifications] = useState(false);
   const [updatingVerificationId, setUpdatingVerificationId] = useState(null);
-  const [correctionModal, setCorrectionModal] = useState(null); // { verification, note, audioFile, docFiles, submitting }
+  const [correctionModal, setCorrectionModal] = useState(null); 
 
   const [allTickets, setAllTickets] = useState([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
-  const [ticketSolveModal, setTicketSolveModal] = useState(null); // { ticket, note }
+  const [ticketSolveModal, setTicketSolveModal] = useState(null); 
   const [updatingTicketId, setUpdatingTicketId] = useState(null);
-  const [leaveRejectModal, setLeaveRejectModal] = useState(null); // { leave, reason }
+  const [leaveRejectModal, setLeaveRejectModal] = useState(null); 
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState(null); // holds employee object when editing
+  const [editingEmployee, setEditingEmployee] = useState(null); 
   const mainRef = useRef(null);
+
+  const [seenOverdueIds, setSeenOverdueIds] = useState(() => {
+  try {return JSON.parse(localStorage.getItem("seenOverdueTaskIds") || "[]");} 
+  catch {return [];}
+  });
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -5127,10 +5131,16 @@ const [verificationDetail, setVerificationDetail] = useState(null);
     setTimeout(() => setToast(null), 3500);
   };
 
-  const handleNavClick = (key) => {
-    setActiveTab(key);
-    if (key === "my-reports") fetchMySvrReports(user);
-    if (key === "report-submissions") fetchAllReportSubmissions(user);
+const handleNavClick = (key) => {
+  setActiveTab(key);
+  if (key === "my-reports") fetchMySvrReports(user);
+  if (key === "report-submissions") fetchAllReportSubmissions(user);
+  if (key === "overdue-tasks") {
+    const ids = overdueTasks.map((t) => t.id);
+    setSeenOverdueIds(ids);
+    localStorage.setItem("seenOverdueTaskIds", JSON.stringify(ids));
+  }
+
     if (key === "add-employee") {
       setEditingEmployee(null);
       setEmpForm({
@@ -5265,6 +5275,27 @@ const [verificationDetail, setVerificationDetail] = useState(null);
     fetchAllTasks();
     return true;
   };
+
+  const handleOverdueRescheduleSubmit = async () => {
+  if (!overdueRescheduleModal?.newDate)
+    return showToast("error", "Please pick a new due date.");
+  const { task, newDate } = overdueRescheduleModal;
+  setUpdatingOverdueId(task.id);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ due_date: newDate })
+    .eq("id", task.id);
+  setUpdatingOverdueId(null);
+  if (error) return showToast("error", "Failed to reschedule: " + error.message);
+  setAllTasks((prev) =>
+    prev.map((t) => (t.id === task.id ? { ...t, due_date: newDate } : t)),
+  );
+  showToast(
+    "success",
+    `Due date updated to ${new Date(newDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
+  );
+  setOverdueRescheduleModal(null);
+};
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this task?")) return;
@@ -5560,7 +5591,7 @@ const openCorrectionModal = (verification) => {
       </h2>
     );
 
-  const activeItem = [
+const activeItem = [
     ...NAV_ITEMS,
     ...REPORTS_NAV,
     ...VERIFICATION_NAV,
@@ -5570,6 +5601,15 @@ const openCorrectionModal = (verification) => {
   const pending = allTasks.filter((t) => t.status === "pending").length;
   const inProgress = allTasks.filter((t) => t.status === "in_progress").length;
   const completed = allTasks.filter((t) => t.status === "completed").length;
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const overdueTasks = allTasks.filter(
+    (t) => t.due_date && t.due_date < todayStr && t.status !== "completed",
+  );
+  const unseenOverdueCount = overdueTasks.filter(
+    (t) => !seenOverdueIds.includes(t.id),
+  ).length;
+
   const leaveTotal = allLeaves.length;
   const leavePending = allLeaves.filter(
     (l) => computeLeaveStatus(l) === "pending",
@@ -8434,6 +8474,250 @@ const openCorrectionModal = (verification) => {
             showAction={false}
           />
         );
+        
+        case "overdue-tasks":
+  return overdueTasks.length === 0 ? (
+    <div className="op-empty-state">
+      <svg
+        width="48"
+        height="48"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ opacity: 0.3 }}
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+      <p className="op-empty-text">
+        No overdue tasks. Everything is on schedule.
+      </p>
+    </div>
+  ) : (
+    <>
+      <p className="tf-count">
+        {overdueTasks.length} task{overdueTasks.length !== 1 ? "s" : ""} past
+        due and not yet completed
+      </p>
+
+      <div className="ap-table-wrap">
+        <table className="ap-table">
+          <thead>
+            <tr>
+              {[
+                "Title",
+                "Assigned To",
+                "Site",
+                "Given By",
+                "Priority",
+                "Status",
+                "Hours",
+                "Due Date",
+                "Overdue By",
+                "Files",
+                "Action",
+              ].map((h) => (
+                <th key={h} className="ap-th">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {overdueTasks.map((t) => {
+              const p = PRIORITY_STYLES[t.priority] || PRIORITY_STYLES.medium;
+              const s = STATUS_STYLES[t.status] || STATUS_STYLES.pending;
+              const daysOverdue = Math.floor(
+                (new Date(todayStr) - new Date(t.due_date)) / 86400000,
+              );
+              return (
+                <tr key={t.id} className="ap-tr">
+                  <td className="ap-td ap-td-title">
+                    {t.title}
+                    {t.description && (
+                      <div
+                        style={{
+                          fontSize: 11.5,
+                          color: "#94a3b8",
+                          marginTop: 2,
+                        }}
+                      >
+                        {t.description}
+                      </div>
+                    )}
+                  </td>
+                  <td className="ap-td">{nameFor(userMap, t.assigned_to)}</td>
+                  <td className="ap-td">{t.site_name || "—"}</td>
+                  <td className="ap-td">{nameFor(userMap, t.assigned_by)}</td>
+                  <td className="ap-td">
+                    <span
+                      className="ap-badge"
+                      style={{ background: p.bg, color: p.color }}
+                    >
+                      <span
+                        className="ap-badge-dot"
+                        style={{ background: p.dot }}
+                      />
+                      {t.priority}
+                    </span>
+                  </td>
+                  <td className="ap-td">
+                    <span
+                      className="ap-badge"
+                      style={{ background: s.bg, color: s.color }}
+                    >
+                      {t.status?.replace("_", " ")}
+                    </span>
+                  </td>
+                  <td className="ap-td">
+                    {t.hours_to_complete ? `${t.hours_to_complete} hrs` : "—"}
+                  </td>
+                  <td className="ap-td" style={{ color: "#dc2626", fontWeight: 600 }}>
+                    {new Date(t.due_date).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </td>
+                  <td className="ap-td">
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "2px 8px",
+                        borderRadius: 20,
+                        background: "#fef2f2",
+                        color: "#dc2626",
+                      }}
+                    >
+                      {daysOverdue} day{daysOverdue !== 1 ? "s" : ""}
+                    </span>
+                  </td>
+                  <td className="ap-td">
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {t.audio_url && (
+                        
+                        <a  href={t.audio_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Audio instruction"
+                          style={{ color: "#7c3aed" }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                          </svg>
+                        </a>
+                      )}
+                      {t.document_url && (
+                        
+                        <a  href={t.document_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Document"
+                          style={{ color: "#2563eb" }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                          </svg>
+                        </a>
+                      )}
+                      {!t.audio_url && !t.document_url && (
+                        <span style={{ color: "#94a3b8" }}>—</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="ap-td">
+                    <button
+                      className="ap-btn-approve"
+                      style={{ padding: "5px 10px", fontSize: 11.5 }}
+                      onClick={() =>
+                        setOverdueRescheduleModal({ task: t, newDate: t.due_date })
+                      }
+                    >
+                      Reschedule
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="ap-task-mobile-grid">
+        {overdueTasks.map((t) => {
+          const daysOverdue = Math.floor(
+            (new Date(todayStr) - new Date(t.due_date)) / 86400000,
+          );
+          return (
+            <div key={t.id} className="ap-task-card-mobile">
+              <div className="ap-task-card-head">
+                <div>
+                  <div className="ap-task-card-title">{t.title}</div>
+                  <div className="ap-task-card-sub">
+                    {nameFor(userMap, t.assigned_to)} ·{" "}
+                    {t.site_name || "No site"}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: 20,
+                    background: "#fef2f2",
+                    color: "#dc2626",
+                    flexShrink: 0,
+                  }}
+                >
+                  {daysOverdue}d overdue
+                </span>
+              </div>
+              <div className="ap-task-card-meta">
+                <div>
+                  <span>Priority</span>
+                  <strong>{t.priority}</strong>
+                </div>
+                <div>
+                  <span>Status</span>
+                  <strong>{t.status?.replace("_", " ")}</strong>
+                </div>
+                <div>
+                  <span>Due Date</span>
+                  <strong style={{ color: "#dc2626" }}>
+                    {new Date(t.due_date).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </strong>
+                </div>
+                <div>
+                  <span>Given By</span>
+                  <strong>{nameFor(userMap, t.assigned_by)}</strong>
+                </div>
+              </div>
+              <button
+                className="ap-btn-approve"
+                style={{ width: "100%" }}
+                onClick={() =>
+                  setOverdueRescheduleModal({ task: t, newDate: t.due_date })
+                }
+              >
+                Reschedule Due Date
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
 
       default:
         return null;
@@ -8570,22 +8854,25 @@ const openCorrectionModal = (verification) => {
                 </button>
               ))}
               <span className="op-nav-section">Task Verification</span>
-              {filterNav(VERIFICATION_NAV, user, "admin").map((item) => (
-                <button
-                  key={item.key}
-                  className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
-                  onClick={() => handleNavClick(item.key)}
-                >
-                  <span className="op-nav-icon">{item.icon}</span>
-                  {item.label}
-                  {item.key === "pending-verification" &&
-                    verificationsPending.length > 0 && (
-                      <span className="op-nav-badge">
-                        {verificationsPending.length}
-                      </span>
-                    )}
-                </button>
-              ))}
+                {filterNav(VERIFICATION_NAV, user, "admin").map((item) => (
+                  <button
+                    key={item.key}
+                    className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
+                    onClick={() => handleNavClick(item.key)}
+                  >
+                    <span className="op-nav-icon">{item.icon}</span>
+                    {item.label}
+                    {item.key === "pending-verification" &&
+                      verificationsPending.length > 0 && (
+                        <span className="op-nav-badge">
+                          {verificationsPending.length}
+                        </span>
+                      )}
+                    {item.key === "overdue-tasks" && unseenOverdueCount > 0 && (
+                      <span className="op-nav-badge">{unseenOverdueCount}</span>
+                    )} 
+                  </button>
+                ))}
               <span className="op-nav-section">Ticket Raised</span>
               {filterNav(TICKETS_NAV, user, "admin").map((item) => (
                 <button
@@ -10089,6 +10376,123 @@ const openCorrectionModal = (verification) => {
           </div>
         </div>
       )}
+      {overdueRescheduleModal && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 10040,
+      background: "rgba(15,23,42,.5)",
+      backdropFilter: "blur(4px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 20,
+    }}
+    onClick={(e) => {
+      if (e.target === e.currentTarget) setOverdueRescheduleModal(null);
+    }}
+  >
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 16,
+        width: "100%",
+        maxWidth: 420,
+        boxShadow: "0 24px 64px rgba(0,0,0,.22)",
+        overflow: "hidden",
+      }}
+    >
+      <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+          Reschedule Overdue Task
+        </div>
+        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+          {overdueRescheduleModal.task.title}
+        </div>
+      </div>
+
+      <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
+        <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+          New Due Date <span style={{ color: "#dc2626" }}>*</span>
+        </label>
+        <input
+          type="date"
+          style={{
+            fontFamily: "'DM Sans',sans-serif",
+            fontSize: 13.5,
+            color: "#1e293b",
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            borderRadius: 8,
+            padding: "9px 12px",
+            outline: "none",
+            width: "100%",
+          }}
+          value={overdueRescheduleModal.newDate}
+          min={new Date().toISOString().split("T")[0]}
+          onChange={(e) =>
+            setOverdueRescheduleModal((p) => ({ ...p, newDate: e.target.value }))
+          }
+        />
+        <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+          Current due date:{" "}
+          {new Date(overdueRescheduleModal.task.due_date).toLocaleDateString(
+            "en-IN",
+            { day: "numeric", month: "short", year: "numeric" },
+          )}
+        </span>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 10,
+          padding: "12px 22px 18px",
+          borderTop: "1px solid #f1f5f9",
+        }}
+      >
+        <button
+          onClick={() => setOverdueRescheduleModal(null)}
+          style={{
+            background: "#f1f5f9",
+            color: "#475569",
+            fontFamily: "'DM Sans',sans-serif",
+            fontSize: 13.5,
+            fontWeight: 600,
+            padding: "9px 18px",
+            borderRadius: 8,
+            border: "1px solid #e2e8f0",
+            cursor: "pointer",
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleOverdueRescheduleSubmit}
+          disabled={updatingOverdueId === overdueRescheduleModal.task.id}
+          style={{
+            background: "#2563eb",
+            color: "#fff",
+            fontFamily: "'DM Sans',sans-serif",
+            fontSize: 13.5,
+            fontWeight: 600,
+            padding: "9px 20px",
+            borderRadius: 8,
+            border: "none",
+            cursor: "pointer",
+            opacity: updatingOverdueId === overdueRescheduleModal.task.id ? 0.6 : 1,
+          }}
+        >
+          {updatingOverdueId === overdueRescheduleModal.task.id
+            ? "Saving…"
+            : "Update Due Date"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </>
   );
 }

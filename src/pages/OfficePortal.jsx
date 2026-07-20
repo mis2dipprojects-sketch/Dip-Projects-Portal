@@ -2875,7 +2875,6 @@ const handleVerifySubmit = async () => {
       .getPublicUrl(path);
     if (pub?.publicUrl) documentUrls.push(pub.publicUrl);
   }
-  // ...rest unchanged
 
   const recipient = adminUsers.find((u) => u.username === verifyModal.verifier);
 

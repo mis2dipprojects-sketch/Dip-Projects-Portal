@@ -774,7 +774,7 @@ function formatNextDue(date) {
     };
 
   return { label, badge: null };
-}
+} 
 function EmployeeFilterBar({
   filters,
   onChange,

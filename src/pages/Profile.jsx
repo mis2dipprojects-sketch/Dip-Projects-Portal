@@ -300,7 +300,7 @@ const [monthlyBalance, setMonthlyBalance] = useState(null);
 
   const initials = getInitials(freshName || user?.name || "");
   const bgColor  = avatarColor(freshName || user?.name || "");
-
+  
   // ── Streak badge colour ──────────────────────────────────────────────────
   const streakColor =
     streak.current >= 14 ? "#15803d" :

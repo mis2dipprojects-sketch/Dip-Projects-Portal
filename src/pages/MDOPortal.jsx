@@ -1,110 +1,1060 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 import Navbar from "../components/Navbar";
+import "./SitePortal.css"; // reuse finput / btn / card classes for a consistent look
 
-export default function MDOPortal() {
+// jsPDF + autotable are used purely client-side to generate the two report
+// PDFs in the exact layout you supplied. Install with:
+//   npm install jspdf jspdf-autotable
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
-  const [user, setUser] =
-    useState(null);
+// ─── Supabase ────────────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://efqfjfthsleymhljswcq.supabase.co";
+const SUPABASE_ANON =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVmcWZqZnRoc2xleW1obGpzd2NxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNDY0MjMsImV4cCI6MjA5NTkyMjQyM30.PYMRiKdnhzb6pkvhDB4M4Qdp3nSGhsZpHGuclVqYNMs";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  useEffect(() => {
+// ─── Config ────────────────────────────────────────────────────────────────
+// Attendance is considered "late" if clock-in happens after this time.
+// Only used as a fallback if the `attendance` table doesn't already store
+// an `is_late` boolean (it's used first if present).
+const LATE_CUTOFF_HOUR = 9;
+const LATE_CUTOFF_MIN = 30;
 
-    const storedUser =
-      localStorage.getItem("user");
+const MONTHS_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 
-    if (storedUser) {
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const pad = (n) => String(n).padStart(2, "0");
+const todayISO = () => toISODateLocal(new Date());
 
-      const parsedUser =
-        JSON.parse(storedUser);
+function fmtDDMMYYYY(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso + "T00:00:00");
+  return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+}
+function fmtDMonYYYY(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso + "T00:00:00");
+  return `${pad(d.getDate())}-${MONTHS_SHORT[d.getMonth()]}-${d.getFullYear()}`;
+}
+// any timezone ahead of UTC (like IST).
+function toISODateLocal(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
-      console.log(
-        "Portal User:",
-        parsedUser
-      );
-
-      setUser(parsedUser);
-    }
-
-  }, []);
-
-  if (!user) {
-    return <h2>Loading...</h2>;
+// Inclusive list of ISO date strings between from and to
+function dateRange(from, to) {
+  const out = [];
+  if (!from || !to) return out;
+  let cur = new Date(from + "T00:00:00");
+  const end = new Date(to + "T00:00:00");
+  while (cur <= end) {
+    out.push(toISODateLocal(cur));
+    cur.setDate(cur.getDate() + 1);
   }
+  return out;
+}
+
+function Loading() {
+  return (
+    <div className="loading">
+      <div className="spinner" />
+      <span>Loading…</span>
+    </div>
+  );
+}
+
+const Ico = {
+  attendance: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </svg>
+  ),
+  dpr: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
+  ),
+  dl: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  ),
+apply: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="12" y1="14" x2="12" y2="18" />
+      <line x1="10" y1="16" x2="14" y2="16" />
+    </svg>
+  ),
+  leave: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="9" y1="13" x2="15" y2="13" />
+      <line x1="9" y1="17" x2="13" y2="17" />
+    </svg>
+  ),
+  check: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  ),
+  send: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M22 2L11 13" /><path d="M22 2L15 22l-4-9-9-4 20-7z" />
+    </svg>
+  ),
+  info: (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
+  ),
+  plus: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  ),
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DATA FETCHERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function fetchAttendanceSummary(sites, from, to) {
+  if (!sites.length || !from || !to) return [];
+
+  // attendance rows don't store site_name (SitePortal's clock-in insert
+  // never sets it) — resolve relevant usernames via user_details instead.
+  const { data: users, error: userErr } = await supabase
+    .from("user_details")
+    .select("username, name, site_names")
+    .overlaps("site_names", sites);
+
+  if (userErr) throw userErr;
+
+  const usernames = [...new Set((users || []).map((u) => u.username))];
+  if (!usernames.length) return [];
+
+  const nameByUsername = {};
+  (users || []).forEach((u) => { nameByUsername[u.username] = u.name; });
+
+  const { data, error } = await supabase
+    .from("attendance")
+    .select("user_name, name, date, clock_in, clock_out, clock_in_status")
+    .in("user_name", usernames)
+    .gte("date", from)
+    .lte("date", to);
+
+  if (error) throw error;
+
+  const byUser = new Map();
+  (data || []).forEach((r) => {
+    const key = r.user_name;
+    if (!byUser.has(key)) {
+      byUser.set(key, {
+        name: r.name || nameByUsername[key] || key,
+        clockIn: 0,
+        clockOut: 0,
+        late: 0,
+      });
+    }
+    const bucket = byUser.get(key);
+    if (r.clock_in) bucket.clockIn += 1;
+    if (r.clock_out) bucket.clockOut += 1;
+    if (r.clock_in_status === "late") bucket.late += 1;
+  });
+
+  return [...byUser.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Resolve engineer name(s) for each site directly from user_details.
+// A "site" is considered assigned to a user if it appears anywhere in
+// that user's site_names array. Only these roles count as the engineer
+// of record for a site.
+const ENGINEER_ROLES = ["Site Engineer", "Site Incharge", "Site Coordinator"];
+
+async function resolveEngineers(sites) {
+  if (!sites.length) return {};
+
+  const { data, error } = await supabase
+    .from("user_details")
+    .select("name, role, site_names")
+    .overlaps("site_names", sites)   // only fetch users relevant to these sites
+    .in("role", ENGINEER_ROLES);
+
+  if (error) throw error;
+
+  const map = {};
+  sites.forEach((site) => {
+    const names = (data || [])
+      .filter((u) => Array.isArray(u.site_names) && u.site_names.includes(site))
+      .map((u) => u.name)
+      .filter(Boolean);
+
+    const unique = [...new Set(names)];
+    map[site] = unique.length ? unique.join(", ") : "—";
+  });
+
+  return map;
+}
+
+// DPR sheet: one row per site (deduped), DONE/PEND for each day in range.
+async function fetchDprSheet(sites, from, to) {
+  const uniqueSites = [...new Set(sites)];
+  if (!uniqueSites.length || !from || !to) return { rows: [], dates: [] };
+
+  const dates = dateRange(from, to);
+
+  const { data, error } = await supabase
+    .from("dpr_reports")
+    .select("site, engineer, report_type, date")
+    .in("site", uniqueSites)
+    .gte("date", from)
+    .lte("date", to)
+    .neq("report_type", "morning");
+
+  if (error) throw error;
+
+  const submitted = new Set();
+  const submittedEngineersBySite = new Map(); // site -> Set(engineer names)
+
+  (data || []).forEach((r) => {
+    submitted.add(`${r.site}__${r.date}`);
+    if (r.engineer && r.engineer.trim()) {
+      if (!submittedEngineersBySite.has(r.site)) {
+        submittedEngineersBySite.set(r.site, new Set());
+      }
+      submittedEngineersBySite.get(r.site).add(r.engineer.trim());
+    }
+  });
+
+  // Only sites with NO submissions at all in range need the user_details fallback
+  const sitesNeedingFallback = uniqueSites.filter((s) => !submittedEngineersBySite.has(s));
+  const fallbackEngineers = sitesNeedingFallback.length
+    ? await resolveEngineers(sitesNeedingFallback)
+    : {};
+
+  const rows = uniqueSites.map((site, i) => {
+    const submittedNames = submittedEngineersBySite.get(site);
+    const engineer = submittedNames
+      ? [...submittedNames].join(", ")
+      : fallbackEngineers[site] || "—";
+
+    return {
+      srNo: i + 1,
+      site,
+      engineer,
+      days: dates.map((d) => (submitted.has(`${site}__${d}`) ? "DONE" : "PEND")),
+    };
+  });
+
+  return { rows, dates };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PDF EXPORT (matches the layout of the two reference PDFs)
+// ═══════════════════════════════════════════════════════════════════════════
+// Draws the two-tone title/subtitle bars seen in the reference PDFs and
+// returns the Y position where the table should start.
+function drawReportHeader(doc, title, subtitle) {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 14;
+  const barWidth = pageWidth - margin * 2;
+
+  // Title bar — dark navy
+  doc.setFillColor(30, 58, 95);
+  doc.rect(margin, 12, barWidth, 12, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(13);
+  doc.setFont(undefined, "bold");
+  doc.text(title, pageWidth / 2, 20, { align: "center" });
+
+  // Subtitle bar — lighter blue
+  doc.setFillColor(69, 102, 143);
+  doc.rect(margin, 24, barWidth, 9, "F");
+  doc.setFontSize(10);
+  doc.setFont(undefined, "normal");
+  doc.text(subtitle, pageWidth / 2, 30, { align: "center" });
+
+  doc.setTextColor(0, 0, 0); // reset for table body
+  return 24 + 9 + 4;
+}
+
+function downloadAttendancePdf(rows, from, to) {
+  const doc = new jsPDF();
+  const startY = drawReportHeader(
+    doc,
+    "Attendance Summary",
+    `${fmtDDMMYYYY(from)} to ${fmtDDMMYYYY(to)}`
+  );
+
+  autoTable(doc, {
+    startY,
+    head: [["Name", "Clock In", "Clock Out", "Late Count"]],
+    body: rows.map((r) => [r.name.toUpperCase(), r.clockIn, r.clockOut, r.late]),
+    styles: { fontSize: 9, halign: "center", cellPadding: 4 },
+    headStyles: { fillColor: [240, 217, 196], textColor: [40, 40, 40], fontStyle: "bold" },
+    bodyStyles: { textColor: [30, 30, 30] },
+    alternateRowStyles: { fillColor: [234, 242, 251] },
+    columnStyles: { 0: { halign: "left", fontStyle: "bold" } },
+    didParseCell: (data) => {
+      if (data.section === "body" && data.column.index === 3) {
+        const val = Number(data.cell.raw);
+        data.cell.styles.textColor = val > 0 ? [220, 38, 38] : [22, 163, 74];
+        data.cell.styles.fontStyle = "bold";
+      }
+    },
+  });
+
+  doc.save(`Attendance_${from}_to_${to}.pdf`);
+}
+
+// Simple vector check/cross so we're not dependent on Helvetica having
+// glyphs for ✓ / ✗ (it doesn't reliably across environments).
+function drawCheck(doc, x, y, size, color) {
+  doc.setDrawColor(...color);
+  doc.setLineWidth(0.6);
+  doc.line(x, y + size * 0.55, x + size * 0.35, y + size * 0.9);
+  doc.line(x + size * 0.35, y + size * 0.9, x + size, y);
+}
+function drawCross(doc, x, y, size, color) {
+  doc.setDrawColor(...color);
+  doc.setLineWidth(0.6);
+  doc.line(x, y, x + size, y + size);
+  doc.line(x + size, y, x, y + size);
+}
+
+function downloadDprPdf(rows, dates, from, to) {
+  const doc = new jsPDF({ orientation: dates.length > 6 ? "landscape" : "portrait" });
+  const startY = drawReportHeader(
+    doc,
+    "DPR SHEET",
+    `Period: ${fmtDMonYYYY(from)}  to  ${fmtDMonYYYY(to)}`
+  );
+
+  const useIcons = dates.length > 7; // switch DONE/PEND text -> ✓/✗ glyphs
+
+  const dayHead = dates.map((d) => {
+    const dt = new Date(d + "T00:00:00");
+    return `${pad(dt.getDate())}\n${MONTHS_SHORT[dt.getMonth()]}`;
+  });
+
+  autoTable(doc, {
+    startY,
+    head: [["SR NO", "SITE NAME", "ENGINEER NAME", ...dayHead]],
+    body: rows.map((r) => [r.srNo, r.site.toUpperCase(), r.engineer, ...r.days]),
+    styles: { fontSize: useIcons ? 7 : 8, halign: "center", cellPadding: useIcons ? 1.5 : 3 },
+    headStyles: { fillColor: [30, 58, 95], textColor: [255, 255, 255], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [234, 242, 251] },
+    columnStyles: {
+      0: { cellWidth: useIcons ? 8 : "auto" },
+      1: { halign: "left", fontStyle: "bold", cellWidth: useIcons ? 32 : "auto" },
+      2: { halign: "left", cellWidth: useIcons ? 30 : "auto" },
+    },
+
+    // Suppress the default DONE/PEND text draw for day columns when
+    // useIcons is on — we'll draw the glyph ourselves in didDrawCell.
+    willDrawCell: (data) => {
+      if (useIcons && data.section === "body" && data.column.index >= 3) {
+        data.cell.text = [];
+      }
+    },
+
+    didDrawCell: (data) => {
+      if (useIcons && data.section === "body" && data.column.index >= 3) {
+        const isDone = data.cell.raw === "DONE";
+        const size = 2.6;
+        const cx = data.cell.x + data.cell.width / 2 - size / 2;
+        const cy = data.cell.y + data.cell.height / 2 - size / 2;
+        if (isDone) drawCheck(doc, cx, cy, size, [22, 163, 74]);
+        else drawCross(doc, cx, cy, size, [220, 38, 38]);
+      }
+    },
+
+    // Keep the colored DONE/PEND text only when NOT using icons (<=7 days)
+    didParseCell: (data) => {
+      if (!useIcons && data.section === "body" && data.column.index >= 3) {
+        if (data.cell.raw === "DONE") {
+          data.cell.styles.textColor = [22, 163, 74];
+          data.cell.styles.fontStyle = "bold";
+        }
+        if (data.cell.raw === "PEND") {
+          data.cell.styles.textColor = [220, 38, 38];
+          data.cell.styles.fontStyle = "bold";
+        }
+      }
+    },
+  });
+
+  doc.save(`DPR_Sheet_${from}_to_${to}.pdf`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DATE RANGE FILTER (shared control)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function RangeFilter({ from, to, setFrom, setTo, onGenerate, busy }) {
+  return (
+    <div className="grid2" style={{ marginBottom: 20 }}>
+      <div className="fgroup">
+        <label className="flabel">From Date <span className="req">*</span></label>
+        <input
+          type="date"
+          className="finput"
+          value={from}
+          max={to || todayISO()}
+          onChange={(e) => setFrom(e.target.value)}
+        />
+      </div>
+      <div className="fgroup">
+        <label className="flabel">To Date <span className="req">*</span></label>
+        <input
+          type="date"
+          className="finput"
+          value={to}
+          min={from}
+          max={todayISO()}
+          onChange={(e) => setTo(e.target.value)}
+        />
+      </div>
+      <div className="col2 act-row" style={{ marginTop: 0 }}>
+        <button className="btn btn-pri" disabled={!from || !to || busy} onClick={onGenerate}>
+          {busy ? "Generating…" : "Generate Report"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ATTENDANCE REPORT SCREEN
+// ═══════════════════════════════════════════════════════════════════════════
+
+function AttendanceReport({ sites }) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [rows, setRows] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const generate = async () => {
+    setBusy(true);
+    setErr("");
+    try {
+      const data = await fetchAttendanceSummary(sites, from, to);
+      setRows(data);
+    } catch (e) {
+      setErr(e.message || "Failed to load attendance.");
+      setRows(null);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div>
+      <RangeFilter from={from} to={to} setFrom={setFrom} setTo={setTo} onGenerate={generate} busy={busy} />
+      {err && <div className="info-banner warn-banner" style={{ marginBottom: 16 }}>{err}</div>}
 
-      <Navbar />
+      {rows && (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontSize: 13, color: "var(--ink2)" }}>
+              {rows.length} employee{rows.length !== 1 ? "s" : ""} · {fmtDDMMYYYY(from)} to {fmtDDMMYYYY(to)}
+            </div>
+            <button className="btn btn-out" onClick={() => downloadAttendancePdf(rows, from, to)} disabled={!rows.length}>
+              {Ico.dl} Download PDF
+            </button>
+          </div>
 
-      <div
-        style={{
-          maxWidth: "900px",
-          margin: "40px auto",
-          padding: "24px"
-        }}
-      >
+          {rows.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-title">No attendance records</div>
+              <div className="empty-sub">No clock-in/out data for this date range across your sites.</div>
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid var(--line)" }}>
+                    <th style={{ textAlign: "left", padding: "8px 10px" }}>Name</th>
+                    <th style={{ textAlign: "center", padding: "8px 10px" }}>Clock In</th>
+                    <th style={{ textAlign: "center", padding: "8px 10px" }}>Clock Out</th>
+                    <th style={{ textAlign: "center", padding: "8px 10px" }}>Late Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.name} style={{ borderBottom: "1px solid var(--line)" }}>
+                      <td style={{ padding: "8px 10px", fontWeight: 600 }}>{r.name}</td>
+                      <td style={{ padding: "8px 10px", textAlign: "center" }}>{r.clockIn}</td>
+                      <td style={{ padding: "8px 10px", textAlign: "center" }}>{r.clockOut}</td>
+                      <td style={{ padding: "8px 10px", textAlign: "center" }}>{r.late}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
-        <h1>
-          MDO Office Portal
-        </h1>
+// ═══════════════════════════════════════════════════════════════════════════
+// DPR SHEET SCREEN
+// ═══════════════════════════════════════════════════════════════════════════
 
-        <div
-          style={{
-            background: "#fff",
-            padding: "24px",
-            borderRadius: "16px",
-            borderTop: "6px solid #f47b20",
-            boxShadow: "0 10px 30px rgba(244,123,32,0.15)"
-          }}
-        >
+function DprSheetReport({ sites }) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [result, setResult] = useState(null); // { rows, dates }
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
 
-          <h2>
-            {user.name}
-          </h2>
+  const generate = async () => {
+    setBusy(true);
+    setErr("");
+    try {
+      const data = await fetchDprSheet(sites, from, to);
+      setResult(data);
+    } catch (e) {
+      setErr(e.message || "Failed to load DPR sheet.");
+      setResult(null);
+    } finally {
+      setBusy(false);
+    }
+  };
 
-          <p>
-            <strong>
-              Username:
-            </strong>
-            {" "}
-            {user.user_name}
-          </p>
+  return (
+    <div>
+      <RangeFilter from={from} to={to} setFrom={setFrom} setTo={setTo} onGenerate={generate} busy={busy} />
+      {err && <div className="info-banner warn-banner" style={{ marginBottom: 16 }}>{err}</div>}
 
-          <p>
-            <strong>
-              Department:
-            </strong>
-            {" "}
-            {user.role}
-          </p>
+      {result && (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontSize: 13, color: "var(--ink2)" }}>
+              {result.rows.length} site{result.rows.length !== 1 ? "s" : ""} · Period: {fmtDMonYYYY(from)} to {fmtDMonYYYY(to)}
+            </div>
+            <button
+              className="btn btn-out"
+              onClick={() => downloadDprPdf(result.rows, result.dates, from, to)}
+              disabled={!result.rows.length}
+            >
+              {Ico.dl} Download PDF
+            </button>
+          </div>
 
-          <p>
-            <strong>
-              Designation:
-            </strong>
-            {" "}
-            {user.designation}
-          </p>
+          {result.rows.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-title">No sites found</div>
+              <div className="empty-sub">No sites are assigned to your account.</div>
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid var(--line)" }}>
+                    <th style={{ padding: "8px 6px" }}>SR NO</th>
+                    <th style={{ textAlign: "left", padding: "8px 10px" }}>SITE NAME</th>
+                    <th style={{ textAlign: "left", padding: "8px 10px" }}>ENGINEER NAME</th>
+                    {result.dates.map((d) => {
+                      const dt = new Date(d + "T00:00:00");
+                      return (
+                        <th key={d} style={{ padding: "8px 6px", textAlign: "center", whiteSpace: "nowrap" }}>
+                          {pad(dt.getDate())}<br />{MONTHS_SHORT[dt.getMonth()]}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.rows.map((r) => (
+                    <tr key={r.site} style={{ borderBottom: "1px solid var(--line)" }}>
+                      <td style={{ padding: "8px 6px", textAlign: "center" }}>{r.srNo}</td>
+                      <td style={{ padding: "8px 10px", fontWeight: 600 }}>{r.site}</td>
+                      <td style={{ padding: "8px 10px" }}>{r.engineer}</td>
+                      {r.days.map((status, i) => (
+                        <td
+                          key={i}
+                          style={{
+                            padding: "8px 6px",
+                            textAlign: "center",
+                            fontWeight: 700,
+                            fontSize: 11,
+                            color: status === "DONE" ? "var(--green)" : "var(--amber2, #d97706)",
+                          }}
+                        >
+                          {status}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
-          <p>
-            <strong>
-              Site:
-            </strong>
-            {" "}
-            {user.site_name || "Not Assigned"}
-          </p>
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN MDO PORTAL
+// ═══════════════════════════════════════════════════════════════════════════
 
-          <p>
-            <strong>
-              Role:
-            </strong>
-            {" "}
-            {user.role || "Not Assigned"}
-          </p>
+const NAV = [
+  { key: "attendance", label: "Attendance Report", icon: Ico.attendance },
+  { key: "dpr", label: "Daily Report (DPR)", icon: Ico.dpr },
+  { key: "apply-leave", label: "Apply Leave", icon: Ico.apply },
+  { key: "my-leave", label: "My Leave", icon: Ico.leave },
+];
 
+const LEAVE_TYPES = [
+  "Casual Leave", "Sick Leave", "Earned Leave",
+  "Maternity Leave", "Paternity Leave", "Compensatory Leave", "Unpaid Leave",
+];
+export function deriveLeaveStatus(levelApproved, headApproved) {
+  if (levelApproved === false || headApproved === false) return "rejected";
+  if (levelApproved === true && headApproved === true) return "approved";
+  return "pending";
+}
+
+export function mergeRejectionReason(existing, slot, by, reason) {
+  const arr = Array.isArray(existing) ? existing.filter((r) => r.slot !== slot) : [];
+  arr.push({ slot, by, reason, at: new Date().toISOString() });
+  return arr;
+}
+
+// MDO leaves skip the site-role chain entirely and go straight to
+// whichever user_details row has role = "Admin".
+async function findAdminApprover() {
+  const { data } = await supabase
+    .from("user_details")
+    .select("username, name, role")
+    .ilike("role", "Admin")
+    .eq("status", "Active")
+    .limit(1)
+    .maybeSingle();
+  return data || null;
+}
+function ApplyLeave({ user }) {
+  const empty = { leave_type: "", from_date: "", to_date: "", reason: "" };
+  const [form, setForm] = useState(empty);
+  const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [toast, setToast] = useState(null);
+  const [invalidFields, setInvalidFields] = useState([]);
+  const [admin, setAdmin] = useState(null);
+  const [adminLoading, setAdminLoading] = useState(true);
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const sites =
+    Array.isArray(user.site_names) && user.site_names.length
+      ? user.site_names
+      : user.site_name
+        ? [user.site_name]
+        : [];
+  const site = sites[0] || "MDO Office";
+
+  const showToast = (msg, ms = 4500) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), ms);
+  };
+
+  useEffect(() => {
+    setAdminLoading(true);
+    findAdminApprover().then(setAdmin).finally(() => setAdminLoading(false));
+  }, []);
+
+  const days =
+    form.from_date && form.to_date && new Date(form.to_date) >= new Date(form.from_date)
+      ? Math.ceil((new Date(form.to_date) - new Date(form.from_date)) / 86400000) + 1
+      : null;
+
+  const submit = async () => {
+  const missing = [];
+  if (!form.leave_type) missing.push("Leave Type");
+  if (!form.from_date) missing.push("From Date");
+  if (!form.to_date) missing.push("To Date");
+  if (!form.reason.trim()) missing.push("Reason");
+
+  if (missing.length) {
+    setInvalidFields(missing);
+    showToast(`Please fill: ${missing.join(", ")}`);
+    setErr("");
+    return;
+  }
+
+  setInvalidFields([]);
+  setBusy(true);
+  setErr("");
+
+  // Matches AdminPortal.jsx's actual leave schema (admin_approved / status),
+  // not the level/head columns used by SitePortal's site-role chain.
+  const { error } = await supabase.from("leaves").insert({
+    user_name: user.user_name,
+    name: user.name,
+    role: user.role || "Process Controller", // lets AdminPortal's isSiteEngineerLeave() correctly skip the head-managed path
+    leave_type: form.leave_type,
+    from_date: form.from_date,
+    to_date: form.to_date,
+    reason: form.reason || null,
+    site_name: site,
+    admin_approved: null,
+    approved_by: null,
+    rejection_reason: null,
+    status: "Pending",
+  });
+
+  setBusy(false);
+  if (error) { setErr(error.message); return; }
+  setSubmitted(true);
+};
+
+  if (submitted)
+    return (
+      <div className="success-state">
+        <div className="success-ico">{Ico.check}</div>
+        <div className="success-title">Leave Application Submitted!</div>
+        <div className="success-sub">Your request is pending approval. You'll be notified once reviewed.</div>
+        <button className="btn btn-pri" onClick={() => { setSubmitted(false); setForm(empty); }}>
+          Apply Another
+        </button>
+      </div>
+    );
+
+  return (
+    <div>
+      <div className="info-banner" style={{ marginBottom: 20, display: "flex", gap: 8 }}>
+        <span>{Ico.info}</span>
+        <span>Your leave will be reviewed by an Admin.</span>
+      </div>
+      {err && <div className="info-banner warn-banner" style={{ marginBottom: 16 }}>{Ico.info} {err}</div>}
+
+      <div className="grid2">
+        <div className="fgroup col2">
+          <label className="flabel">Leave Type <span className="req">*</span></label>
+          <select
+            className="finput"
+            value={form.leave_type}
+            onChange={(e) => { set("leave_type", e.target.value); setInvalidFields((f) => f.filter((x) => x !== "Leave Type")); }}
+            style={invalidFields.includes("Leave Type") ? { borderColor: "var(--red)", boxShadow: "0 0 0 3px rgba(220,38,38,.12)" } : undefined}
+          >
+            <option value="">Select leave type…</option>
+            {LEAVE_TYPES.map((t) => <option key={t}>{t}</option>)}
+          </select>
         </div>
+        <div className="fgroup">
+          <label className="flabel">From Date <span className="req">*</span></label>
+          <input type="date" className="finput" value={form.from_date}
+            onChange={(e) => { set("from_date", e.target.value); setInvalidFields((f) => f.filter((x) => x !== "From Date")); }}
+            style={invalidFields.includes("From Date") ? { borderColor: "var(--red)" } : undefined} />
+        </div>
+        <div className="fgroup">
+          <label className="flabel">To Date <span className="req">*</span></label>
+          <input type="date" className="finput" value={form.to_date} min={form.from_date}
+            onChange={(e) => { set("to_date", e.target.value); setInvalidFields((f) => f.filter((x) => x !== "To Date")); }}
+            style={invalidFields.includes("To Date") ? { borderColor: "var(--red)" } : undefined} />
+        </div>
+        {days && (
+          <div className="col2" style={{ display: "flex", alignItems: "center", gap: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 9, padding: "10px 14px", fontSize: 13, fontWeight: 700, color: "var(--green)" }}>
+            {days} day{days > 1 ? "s" : ""} of leave
+          </div>
+        )}
+        <div className="fgroup col2">
+          <label className="flabel">Reason <span className="req">*</span></label>
+          <textarea className="finput" rows={3} placeholder="Briefly describe the reason…" value={form.reason}
+            onChange={(e) => { set("reason", e.target.value); setInvalidFields((f) => f.filter((x) => x !== "Reason")); }}
+            style={invalidFields.includes("Reason") ? { borderColor: "var(--red)" } : undefined} />
+        </div>
+      </div>
+      <div className="act-row">
+        <button className="btn btn-out" onClick={() => setForm(empty)}>Reset</button>
+        <button className="btn btn-pri" onClick={submit} disabled={busy || adminLoading}>
+          {Ico.send} {busy ? "Submitting…" : "Submit Application"}
+        </button>
+      </div>
+      {toast && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, padding: "12px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, background: "#fef2f2", color: "var(--red)", border: "1.5px solid #fecaca" }}>
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+function computeLeaveStatus(leave) {
+  const s = (leave.status || "").toLowerCase();
+  if (leave.admin_approved === false || s === "rejected") return "rejected";
+  if (leave.admin_approved === true || s === "approved") return "approved";
+  return "pending";
+}
 
+function MyLeave({ user, onApply }) {
+  const [leaves, setLeaves] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
+  const [cancellingId, setCancellingId] = useState(null);
+  const [confirmLeave, setConfirmLeave] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("leaves")
+        .select("*")
+        .eq("user_name", user.user_name)
+        .order("created_at", { ascending: false });
+      setLeaves(data || []);
+      setLoading(false);
+    })();
+  }, [user.user_name]);
+
+const canCancel = (l) => {
+  if (computeLeaveStatus(l) !== "pending") return false;
+  if (l.admin_approved !== null && l.admin_approved !== undefined) return false;
+  return true;
+};
+  const requestCancel = (l, e) => { e.stopPropagation(); setConfirmLeave(l); };
+
+  const confirmCancel = async () => {
+    if (!confirmLeave) return;
+    setCancellingId(confirmLeave.id);
+    const { error } = await supabase.from("leaves").delete().eq("id", confirmLeave.id);
+    setCancellingId(null);
+    if (error) { alert("Failed to cancel leave: " + error.message); setConfirmLeave(null); return; }
+    setLeaves((prev) => prev.filter((x) => x.id !== confirmLeave.id));
+    setConfirmLeave(null);
+  };
+
+  const badgeCls = { approved: "badge-green", pending: "badge-amber", rejected: "badge-red" };
+  const counts = { total: leaves.length, approved: 0, pending: 0, rejected: 0 };
+  leaves.forEach((l) => { const s = computeLeaveStatus(l); if (counts[s] !== undefined) counts[s]++; });
+
+  const dayCount = (from, to) => (!from || !to ? null : Math.ceil((new Date(to) - new Date(from)) / 86400000) + 1);
+
+  if (loading) return <Loading />;
+
+  return (
+    <div>
+      <div className="stat-row">
+        {[["Total", counts.total, "var(--ink)"], ["Approved", counts.approved, "var(--green)"], ["Pending", counts.pending, "var(--amber)"], ["Rejected", counts.rejected, "var(--red)"]].map(([l, v, c]) => (
+          <div key={l} className="stat-card">
+            <div className="stat-val" style={{ color: c }}>{v}</div>
+            <div className="stat-lbl">{l}</div>
+          </div>
+        ))}
       </div>
 
+      <div className="lv-list">
+        {leaves.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-ico">{Ico.leave}</div>
+            <div className="empty-title">No leave applications yet</div>
+            <div className="empty-sub">Apply for your first leave below.</div>
+          </div>
+        ) : (
+          leaves.map((l) => {
+            const status = computeLeaveStatus(l);
+            const days = dayCount(l.from_date, l.to_date);
+            const isOpen = expanded === l.id;
+            const showCancel = canCancel(l);
+            const isCancelling = cancellingId === l.id;
+            return (
+              <div key={l.id} className="lv-item" style={{ flexDirection: "column", alignItems: "stretch", cursor: "pointer", gap: 0 }} onClick={() => setExpanded(isOpen ? null : l.id)}>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div className="lv-left">
+                    <div className="lv-type">{l.leave_type}</div>
+                    <div className="lv-dates">
+                      {fmtD(l.from_date)} → {fmtD(l.to_date)}
+                      {days && <> · <strong>{days} day{days > 1 ? "s" : ""}</strong></>}
+                    </div>
+                    {l.reason && <div className="lv-reason">"{l.reason}"</div>}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
+                    <span className={`badge ${badgeCls[status]}`}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                    {showCancel && (
+                      <button className="btn btn-red btn-sm" onClick={(e) => requestCancel(l, e)} disabled={isCancelling} style={{ marginTop: 8, padding: "5px 10px", fontSize: 10.5 }}>
+                        {isCancelling ? "Cancelling…" : "Cancel Leave"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {isOpen && (
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: 6, fontSize: 12.5, color: "var(--ink2)" }}>
+                    {l.admin_approved === true && <span style={{ color: "var(--green)" }}>✓ Approved{l.approved_by ? ` by ${l.approved_by}` : ""}</span>}
+                    {l.admin_approved === false && <span style={{ color: "var(--red)" }}>✗ Rejected</span>}
+                    {(l.admin_approved === null || l.admin_approved === undefined) && <span style={{ color: "var(--amber2)" }}>Approval Pending</span>}
+                    {l.rejection_reason && (
+                      <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px", color: "var(--red)" }}>
+                        <strong>Rejection reason:</strong> {l.rejection_reason}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div style={{ marginTop: 16, display: "flex" }}>
+        <button className="btn btn-pri" onClick={onApply}>{Ico.plus} Apply New Leave</button>
+      </div>
+
+      {confirmLeave && (
+        <div onClick={() => !cancellingId && setConfirmLeave(null)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,13,10,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface)", borderRadius: 14, width: "100%", maxWidth: 380, padding: 24, border: "1px solid var(--line)" }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>Cancel this leave application?</div>
+            <div style={{ fontSize: 13, color: "var(--ink2)", marginBottom: 20 }}>
+              <strong>{confirmLeave.leave_type}</strong> · {fmtD(confirmLeave.from_date)} → {fmtD(confirmLeave.to_date)}
+              <br />This action cannot be undone.
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="btn btn-out" style={{ flex: 1 }} onClick={() => setConfirmLeave(null)} disabled={!!cancellingId}>Keep It</button>
+              <button className="btn" style={{ flex: 1, background: "var(--red)", color: "#fff" }} onClick={confirmCancel} disabled={!!cancellingId}>
+                {cancellingId ? "Cancelling…" : "Yes, Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+const fmtD = (d) =>
+  d
+    ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
+export default function MDOPortal() {
+  const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState("attendance");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const loadUser = useCallback(async () => {
+    const stored = localStorage.getItem("user");
+    if (!stored) return;
+    const parsed = JSON.parse(stored);
+    setUser(parsed);
+
+    // Pull fresh site_names so the MDO always sees their current site list
+    const { data } = await supabase
+      .from("user_details")
+      .select("site_name, site_names, department")
+      .eq("id", parsed.id)
+      .single();
+
+    if (data) {
+      const updated = {
+        ...parsed,
+        site_name: data.site_name ?? parsed.site_name,
+        site_names: data.site_names ?? (parsed.site_name ? [parsed.site_name] : []),
+        department: data.department ?? parsed.department,
+      };
+      setUser(updated);
+      localStorage.setItem("user", JSON.stringify(updated));
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUser();
+    const onResize = () => {
+      if (window.innerWidth <= 768) setSidebarOpen(false);
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [loadUser]);
+
+  if (!user) {
+    return (
+      <div className="loading" style={{ minHeight: "100vh" }}>
+        <div className="spinner" />
+        <span>Loading user…</span>
+      </div>
+    );
+  }
+
+  const sites =
+    Array.isArray(user.site_names) && user.site_names.length
+      ? user.site_names
+      : user.site_name
+        ? [user.site_name]
+        : [];
+
+  const activeItem = NAV.find((n) => n.key === activeTab);
+
+  return (
+    <div>
+      <Navbar onMenuToggle={() => setSidebarOpen((p) => !p)} menuOpen={sidebarOpen} />
+
+      <div className="body">
+        {sidebarOpen && window.innerWidth <= 768 && (
+          <button className="sb-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar" />
+        )}
+
+        <aside className={`sidebar${sidebarOpen ? "" : " closed"}`}>
+          <div style={{ padding: "14px 14px 6px", fontSize: 11, fontWeight: 800, letterSpacing: ".08em", color: "var(--ink3)", textTransform: "uppercase" }}>
+            MDO Office Portal
+          </div>
+          <nav className="snav">
+            {NAV.map((n) => (
+              <button
+                key={n.key}
+                className={`sni${activeTab === n.key ? " act" : ""}`}
+                onClick={() => {
+                  setActiveTab(n.key);
+                  if (window.innerWidth <= 768) setSidebarOpen(false);
+                }}
+              >
+                {n.icon} {n.label}
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        <main className="main">
+          <div className="card">
+            <div className="card-hdr">
+              <div className="card-ico">{activeItem?.icon}</div>
+              <span className="card-title">{activeItem?.label}</span>
+            </div>
+
+            <div className="info-banner" style={{ marginBottom: 20 }}>
+              {user.name} · Access to <strong>{sites.length}</strong> site{sites.length !== 1 ? "s" : ""}
+            </div>
+                                                  
+            {activeTab === "attendance" ? (
+              <AttendanceReport sites={sites} />
+            ) : activeTab === "dpr" ? (
+              <DprSheetReport sites={sites} />
+            ) : activeTab === "apply-leave" ? (
+              <ApplyLeave user={user} />
+            ) : (
+              <MyLeave user={user} onApply={() => setActiveTab("apply-leave")} />
+            )}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

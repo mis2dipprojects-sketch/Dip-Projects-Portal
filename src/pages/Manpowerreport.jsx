@@ -286,7 +286,7 @@ export default function ManpowerReport({ user }) {
     setLoading(true);
     setReportData(null);
     try {
-      let query = `dpr_reports?select=id,date,report_type,payload,engineer&payload->>site=ilike.${encodeURIComponent(selectedSite)}&order=date.asc`;
+      let query = `dpr_reports?select=id,date,report_type,payload,engineer&payload->>site=ilike.${encodeURIComponent(selectedSite)}&order=date.asc`;  
       if (fromDate) query += `&date=gte.${fromDate}`;
       if (toDate)   query += `&date=lte.${toDate}`;
 

@@ -528,9 +528,9 @@ const [monthlyBalance, setMonthlyBalance] = useState(null);
             <div style={{ flex: "1 1 55%", minWidth: "min(100%, 260px)", background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 14, padding: "16px 12px 12px", boxSizing: "border-box" }}>
               <ActivityChart data={chartData} user={user} />
             </div>
-            <div style={{ flex: "1 1 35%", minWidth: "min(100%, 200px)", background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 14, padding: "16px 14px", boxSizing: "border-box" }}>
+            {/* <div style={{ flex: "1 1 35%", minWidth: "min(100%, 200px)", background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 14, padding: "16px 14px", boxSizing: "border-box" }}>
               <PerformanceScore chartData={chartData} />
-            </div>
+            </div> */}
           </div>
         </div>
       )}

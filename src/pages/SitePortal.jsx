@@ -1896,7 +1896,6 @@ useEffect(() => {
         </div>
       </>
     );
-    
   const renderContent = () => {
     switch (activeTab) {
       case "clock-in":

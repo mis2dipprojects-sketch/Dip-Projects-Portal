@@ -717,7 +717,7 @@ async function spawnNextRecurringInstance(task, nextDue) {
       priority: task.priority || "medium",
       status: "pending",
       is_recurring: true,
-      recurrence: task.recurrence,
+      recurrence: task.recurrence,  
       due_date: nextDue,
       audio_url: task.audio_url || null,
       document_url: task.document_url || null,

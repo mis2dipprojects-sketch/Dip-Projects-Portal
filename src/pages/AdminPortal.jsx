@@ -6961,7 +6961,19 @@ const activeItem = [
                   value=""
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (val && !empForm.site_names.includes(val)) {
+                    if (!val) return;
+
+                    if (val === "__ALL__") {
+                      
+                      const allSiteNames = [...new Set(sites.map((s) => s.site_name).filter(Boolean))];
+                      setEmpForm((p) => ({
+                        ...p,
+                        site_names: [...new Set([...p.site_names, ...allSiteNames])],
+                      }));
+                      return;
+                    }
+
+                    if (!empForm.site_names.includes(val)) {
                       setEmpForm((p) => ({
                         ...p,
                         site_names: [...p.site_names, val],
@@ -6970,8 +6982,10 @@ const activeItem = [
                   }}
                 >
                   <option value="">+ Add a site…</option>
+                  <option value="__ALL__">—— Assign All Sites ——</option>
                   {sites
                     .filter((s) => !empForm.site_names.includes(s.site_name))
+                    .sort((a, b) => a.site_name.localeCompare(b.site_name))
                     .map((s) => (
                       <option key={s.id} value={s.site_name}>
                         {s.site_name}

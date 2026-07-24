@@ -1913,6 +1913,7 @@ useEffect(() => {
       // case "weekly-planning":  return <WeeklyReport user={user}/>;
       // case "weekly-planning":
       //   return <WeeklyReport user={user} />;
+
       case "wpr-generator":
         return <WprGenerator user={user} supabase={supabase} />;
       // case "monthly-report":

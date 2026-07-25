@@ -1700,7 +1700,7 @@ function TaskRow({ task, onDelete, userMap, onClick }) {
       </td>
       <td className="ap-td">{nameFor(userMap, task.assigned_to)}</td>
       <td className="ap-td">{task.site_name || "—"}</td>
-      <td className="ap-td">{nameFor(userMap, task.assigned_by)}</td>
+      {/* <td className="ap-td">{nameFor(userMap, task.assigned_by)}</td> */}
       <td className="ap-td">
         <span className="ap-badge" style={{ background: p.bg, color: p.color }}>
           <span className="ap-badge-dot" style={{ background: p.dot }} />
@@ -1763,7 +1763,7 @@ function TaskRow({ task, onDelete, userMap, onClick }) {
   );
 }
 
-function RecurringTaskCard({ task, next, p, onDelete }) {
+function RecurringTaskCard({ task, next, p, onDelete, userMap }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -2094,7 +2094,7 @@ function TaskCard({ task, onDelete, onOpenDetail }) {
               {task.priority}
             </span>
             <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
-              {task.assigned_to || "Unassigned"}
+              {task.assigned_to}
             </span>
             {task.due_date && (
               <span
@@ -3168,7 +3168,7 @@ function TaskForm({
           <div className="ap-form-row ap-col-2">
             <div className="ap-field">
               <label className="ap-label">
-                Recurrence Pattern <span className="ap-req">*</span>
+                Recurrence Schedule <span className="ap-req">*</span>
               </label>
               <div className="ap-recurrence-pills">
                 {["daily", "weekly", "monthly", "yearly"].map((r) => (
@@ -4117,7 +4117,7 @@ function VerificationTable({ verifications, allTasks, userMap, onComplete, onCor
           </a>
         )}
         {v.correction_document_urls?.map((url, i) => (
-          
+
           <a  key={i}
             href={url}
             target="_blank"
@@ -5192,7 +5192,7 @@ const handleNavClick = (key) => {
     if (!form.assigned_to.trim())
       return showToast("error", "Assigned To is required.");
     if (form.is_recurring && !form.recurrence)
-      return showToast("error", "Please select a recurrence pattern.");
+      return showToast("error", "Please select a recurrence Schedule.");
 
     const anchor = form.is_recurring ? buildAnchor(form) : null;
           const computedDueDate = form.is_recurring
@@ -5974,7 +5974,7 @@ const activeItem = [
                           "Title",
                           "Assigned To",
                           "Site",
-                          "Given By",
+                          // "Given By",
                           "Priority",
                           "Status",
                           "Due Date",
@@ -6131,7 +6131,7 @@ const activeItem = [
                       )}
 
                       <div className="tf-group" style={{ width: "100%" }}>
-                        <span className="tf-label">Pattern</span>
+                        <span className="tf-label">Schedule</span>
                         <select
                           className="tf-select"
                           style={{ flex: 1 }}
@@ -6143,7 +6143,7 @@ const activeItem = [
                             }))
                           }
                         >
-                          <option value="">All patterns</option>
+                          <option value="">All Schedules</option>
                           {["daily", "weekly", "monthly", "yearly"].map((r) => (
                             <option key={r} value={r}>
                               {r.charAt(0).toUpperCase() + r.slice(1)}
@@ -6306,7 +6306,7 @@ const activeItem = [
                     }))
                   }
                 >
-                  <option value="">All patterns</option>
+                  <option value="">All Schedules</option>
                   {["daily", "weekly", "monthly", "yearly"].map((r) => (
                     <option key={r} value={r}>
                       {r.charAt(0).toUpperCase() + r.slice(1)}
@@ -6401,7 +6401,7 @@ const activeItem = [
                           "Assigned To",
                           "Site",
                           "Priority",
-                          "Pattern",
+                          "Schedule",
                           "Next Due",
                           "",
                         ].map((h) => (
@@ -6504,7 +6504,7 @@ const activeItem = [
                                 )}
                               </div>
                             </td>
-                            <td className="ap-td">{task.assigned_to}</td>
+                            <td className="ap-td">{nameFor(userMap, task.assigned_to)}</td>
                             <td className="ap-td">{task.site_name || "—"}</td>
                             <td className="ap-td">
                               <span
@@ -6592,12 +6592,13 @@ const activeItem = [
                         PRIORITY_STYLES[task.priority] ||
                         PRIORITY_STYLES.medium;
                       return (
-                        <RecurringTaskCard
+                      <RecurringTaskCard
                           key={task.id}
                           task={task}
                           next={next}
                           p={p}
                           onDelete={handleDelete}
+                          userMap={userMap}
                         />
                       );
                     })}

@@ -1,5 +1,4 @@
-
-  import { supabase } from "../supabase";
+import { supabase } from "../supabase";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { computeMonthlyLeaveBalance, isMonthlyLeaveRole } from "./leaveUtils.js";
 // ─── Config: expected shift times ────────────────────────────────────────────
@@ -190,6 +189,7 @@ export const CLOCK_CSS = `
 .select-all-label{color:#aaa;}  
 [data-theme="light"] .select-all-label{color:#374151;}
 `;
+
 async function uploadClockPhoto(supabase, base64, userName, type) {
   // base64 → blob
   const res  = await fetch(base64);

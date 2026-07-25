@@ -4468,7 +4468,9 @@ export default function AdminPortal() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [rejectModal, setRejectModal] = useState(null);
 
-  const [overdueRescheduleModal, setOverdueRescheduleModal] = useState(null); 
+  const [overdueRescheduleModal, setOverdueRescheduleModal] = useState(null);
+  const [overdueRejectModal, setOverdueRejectModal] = useState(null); // { task, note }
+  const [updatingRejectId, setUpdatingRejectId] = useState(null); 
   const [updatingOverdueId, setUpdatingOverdueId] = useState(null);
   const [overdueTasksSeen, setOverdueTasksSeen] = useState(false);
 
@@ -5287,7 +5289,17 @@ const handleNavClick = (key) => {
     fetchAllTasks();
     return true;
   };
-
+const handleOverdueRejectConfirm = async () => {
+  if (!overdueRejectModal) return;
+  const { task, note } = overdueRejectModal;
+  setUpdatingRejectId(task.id);
+  setUpdatingRejectId(null);
+  showToast(
+    "success",
+    `"${task.title}" — no extension granted. Original due date stands.`,
+  );
+  setOverdueRejectModal(null);
+};
   const handleOverdueRescheduleSubmit = async () => {
   if (!overdueRescheduleModal?.newDate)
     return showToast("error", "Please pick a new due date.");
@@ -9837,6 +9849,33 @@ const activeItem = [
                   gap: 12,
                 }}
               >
+                <div
+                  style={{
+                    width: "100%",
+                    fontSize: 12.5,
+                    color: "#dc2626",
+                    background: "#fef2f2",
+                    border: "1px solid #fecaca",
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    marginBottom: 4,
+                  }}
+                >
+                  Rejecting this request keeps the task's due date unchanged —
+                  the employee must complete it by the original date of{" "}
+                  <strong>
+                    {rejectModal.req.current_due
+                      ? new Date(
+                          rejectModal.req.current_due + "T00:00:00",
+                        ).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "—"}
+                  </strong>
+                  .
+                </div>
                 <div style={{ fontSize: 12, color: "#64748b" }}>
                   Current due:
                   <strong style={{ color: "#1e293b", marginLeft: 5 }}>
@@ -9989,7 +10028,7 @@ const activeItem = [
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
-                Confirm Rejection
+                Reject — Keep Original Due Date
               </button>
             </div>
           </div>

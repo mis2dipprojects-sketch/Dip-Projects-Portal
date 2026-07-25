@@ -125,6 +125,7 @@ const NAV_ITEMS = [
   },
 ];
 
+
 const REPORTS_NAV = [
   {
     key: "add-drawings",
@@ -1400,7 +1401,7 @@ function StatCard({ label, value, icon, accent }) {
   );
 }
 
-function TaskRow({ task, onDelete, userMap, onClick }) {
+function TaskRow({ task, onMarkDone, onEdit, onReassign, onReschedule, onReject, userMap, onClick }) {
   const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
   const s = STATUS_STYLES[task.status] || STATUS_STYLES.pending;
   return (
@@ -1536,27 +1537,14 @@ function TaskRow({ task, onDelete, userMap, onClick }) {
         )}
       </td>
       <td className="ap-td" onClick={(e) => e.stopPropagation()}>
-        <button
-          className="ap-del-btn"
-          onClick={() => onDelete(task.id)}
-          title="Delete"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14H6L5 6" />
-            <path d="M10 11v6M14 11v6" />
-            <path d="M9 6V4h6v2" />
-          </svg>
-        </button>
+        <TaskActionsMenu
+          task={task}
+          onMarkDone={onMarkDone}
+          onEdit={onEdit}
+          onReassign={onReassign}
+          onReschedule={onReschedule}
+          onReject={onReject}
+        />
       </td>
     </tr>
   );
@@ -1853,7 +1841,179 @@ function RecurringTaskCard({ task, next, p, onDelete, userMap }) {
     </div>
   );
 }
-function TaskCard({ task, onDelete, onOpenDetail }) {
+function TaskActionsMenu({ task, onMarkDone, onEdit, onReassign, onReschedule, onReject, busy }) {
+  const [open, setOpen] = useState(false);
+  const [hoveredKey, setHoveredKey] = useState(null);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const items = [
+    {
+      key: "done",
+      label: "Mark as Done",
+      hidden: task.status === "completed",
+      onClick: () => onMarkDone(task),
+      color: "#16a34a",
+      bg: "#f0fdf4",
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M8 12l3 3 5-6" />
+        </svg>
+      ),
+    },
+    {
+      key: "edit",
+      label: "Edit Task",
+      onClick: () => onEdit(task),
+      color: "#2563eb",
+      bg: "#eff6ff",
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      ),
+    },
+    {
+      key: "reassign",
+      label: "Reassign",
+      onClick: () => onReassign(task),
+      color: "#e73f8b",
+      bg: "#fdf2f8",
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      ),
+    },
+    {
+      key: "reschedule",
+      label: "Reschedule",
+      onClick: () => onReschedule(task),
+      color: "#7c3aed",
+      bg: "#f5f3ff",
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      ),
+    },
+    {
+      key: "reject",
+      label: "Reject Task",
+      onClick: () => onReject(task),
+      color: "#dc2626",
+      bg: "#fef2f2",
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      ),
+    },
+  ].filter((i) => !i.hidden);
+
+  return (
+    <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        title="Actions"
+        disabled={busy}
+        style={{
+          width: 30,
+          height: 30,
+          borderRadius: 6,
+          border: "1px solid #e2e8f0",
+          background: "#f8fafc",
+          cursor: busy ? "not-allowed" : "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#64748b",
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="5" r="1.6" />
+          <circle cx="12" cy="12" r="1.6" />
+          <circle cx="12" cy="19" r="1.6" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "absolute",
+            right: 0,
+            top: "calc(100% + 4px)",
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 10,
+            boxShadow: "0 8px 24px rgba(0,0,0,.12)",
+            minWidth: 190,
+            zIndex: 40,
+            overflow: "hidden",
+          }}
+        >
+          {items.map((item) => {
+            const isHovered = hoveredKey === item.key;
+            return (
+              <button
+                key={item.key}
+                onClick={() => {
+                  setOpen(false);
+                  item.onClick();
+                }}
+                onMouseEnter={() => setHoveredKey(item.key)}
+                onMouseLeave={() => setHoveredKey(null)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "9px 14px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  background: isHovered ? item.bg : "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: isHovered ? item.color : "#334155",
+                  transition: "background .12s, color .12s",
+                }}
+              >
+                <span style={{ display: "flex", flexShrink: 0, color: item.color }}>
+                  {item.icon}
+                </span>
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TaskCard({ task, onMarkDone, onEdit, onReassign, onReschedule, onReject, onOpenDetail }) {
   const [expanded, setExpanded] = useState(false);
   const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
   const s = STATUS_STYLES[task.status] || STATUS_STYLES.pending;
@@ -1929,30 +2089,14 @@ function TaskCard({ task, onDelete, onOpenDetail }) {
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-          <button
-            className="ap-del-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(task.id);
-            }}
-            title="Delete"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14H6L5 6" />
-              <path d="M10 11v6M14 11v6" />
-              <path d="M9 6V4h6v2" />
-            </svg>
-          </button>
+          <TaskActionsMenu
+            task={task}
+            onMarkDone={onMarkDone}
+            onEdit={onEdit}
+            onReassign={onReassign}
+            onReschedule={onReschedule}
+            onReject={onReject}
+          />
           <button
             style={{
               width: 30,
@@ -4288,6 +4432,13 @@ export default function AdminPortal() {
   const [editingEmployee, setEditingEmployee] = useState(null); 
   const mainRef = useRef(null);
 
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [reassignModal, setReassignModal] = useState(null); // { task, newAssignee }
+  const [rescheduleTaskModal, setRescheduleTaskModal] = useState(null); // { task, newDate }
+  const [updatingReassignId, setUpdatingReassignId] = useState(null);
+  const [updatingRescheduleTaskId, setUpdatingRescheduleTaskId] = useState(null);
+  const [updatingMarkDoneId, setUpdatingMarkDoneId] = useState(null);
+
   const [seenOverdueIds, setSeenOverdueIds] = useState(() => {
   try {return JSON.parse(localStorage.getItem("seenOverdueTaskIds") || "[]");} 
   catch {return [];}
@@ -5048,57 +5199,82 @@ const handleNavClick = (key) => {
       document_url = urlData.publicUrl;
     }
 
-    const payload = {
-      title: form.title.trim(),
-      description: form.description.trim() || null,
-      assigned_to: form.assigned_to.trim(),
-      site_name: form.site_name.trim() || null,
-      assigned_by: user.user_name,
-      priority: form.priority,
-      status: form.status,
-      due_date: computedDueDate,
-      is_recurring: form.is_recurring,
-      recurrence: form.is_recurring ? form.recurrence : null,
-      recurrence_anchor: anchor,
-      last_generated_date: null,
-      parent_task_id: null,
-      reschedule_allowed: form.reschedule_allowed || false,
-      hours_to_complete: form.hours_to_complete
-        ? parseFloat(form.hours_to_complete)
-        : null,
-      audio_url,
-      document_url,
-    };
+    const basePayload = {
+    title: form.title.trim(),
+    description: form.description.trim() || null,
+    assigned_to: form.assigned_to.trim(),
+    site_name: form.site_name.trim() || null,
+    priority: form.priority,
+    status: form.status,
+    due_date: computedDueDate,
+    is_recurring: form.is_recurring,
+    recurrence: form.is_recurring ? form.recurrence : null,
+    recurrence_anchor: anchor,
+    reschedule_allowed: form.reschedule_allowed || false,
+    hours_to_complete: form.hours_to_complete
+      ? parseFloat(form.hours_to_complete)
+      : null,
+  };
 
-    const { data: insertedTask, error } = await supabase
+  if (editingTaskId) {
+    const editPayload = { ...basePayload };
+    if (audio_url) editPayload.audio_url = audio_url;
+    if (document_url) editPayload.document_url = document_url;
+
+    const { error } = await supabase
       .from("tasks")
-      .insert([payload])
-      .select("id")
-      .single();
+      .update(editPayload)
+      .eq("id", editingTaskId);
     setSubmitting(false);
 
     if (error) {
-      showToast("error", "Failed to assign task. " + error.message);
+      showToast("error", "Failed to update task. " + error.message);
       return false;
     }
-
-    if (form.enable_checkpoints) {
-      await supabase
-        .from("tasks")
-        .update({ has_checkpoints: true })
-        .eq("id", insertedTask.id);
-    }
-
-    const desc = form.is_recurring
-      ? anchorDescription(form.recurrence, anchor)
-      : null;
-    showToast(
-      "success",
-      `Task "${form.title}" assigned${desc ? ` — repeats ${desc}` : ""}!`,
-    );
+    showToast("success", `Task "${form.title}" updated!`);
     fetchAllTasks();
+    setEditingTaskId(null);
     return true;
+  }
+
+  const payload = {
+    ...basePayload,
+    assigned_by: user.user_name,
+    last_generated_date: null,
+    parent_task_id: null,
+    audio_url,
+    document_url,
   };
+
+  const { data: insertedTask, error } = await supabase
+    .from("tasks")
+    .insert([payload])
+    .select("id")
+    .single();
+  setSubmitting(false);
+
+  if (error) {
+    showToast("error", "Failed to assign task. " + error.message);
+    return false;
+  }
+
+  if (form.enable_checkpoints) {
+    await supabase
+      .from("tasks")
+      .update({ has_checkpoints: true })
+      .eq("id", insertedTask.id);
+  }
+
+  const desc = form.is_recurring
+    ? anchorDescription(form.recurrence, anchor)
+    : null;
+  showToast(
+    "success",
+    `Task "${form.title}" assigned${desc ? ` — repeats ${desc}` : ""}!`,
+  );
+  fetchAllTasks();
+  return true;
+  }
 const handleOverdueRejectConfirm = async () => {
   if (!overdueRejectModal) return;
   const { task, note } = overdueRejectModal;
@@ -5129,6 +5305,93 @@ const handleOverdueRejectConfirm = async () => {
     `Due date updated to ${new Date(newDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
   );
   setOverdueRescheduleModal(null);
+};  
+
+const handleMarkTaskDone = async (task) => {
+  setUpdatingMarkDoneId(task.id);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ status: "completed" })
+    .eq("id", task.id);
+  setUpdatingMarkDoneId(null);
+  if (error) return showToast("error", "Failed to mark done: " + error.message);
+  setAllTasks((prev) =>
+    prev.map((t) => (t.id === task.id ? { ...t, status: "completed" } : t)),
+  );
+  showToast("success", `"${task.title}" marked as completed.`);
+};
+
+const openEditTaskModal = (task) => {
+  setForm({
+    ...EMPTY_FORM,
+    title: task.title || "",
+    description: task.description || "",
+    assigned_to: task.assigned_to || "",
+    site_name: task.site_name || "",
+    priority: task.priority || "medium",
+    status: task.status || "pending",
+    due_date: task.due_date || "",
+    is_recurring: task.is_recurring || false,
+    recurrence: task.recurrence || "",
+    reschedule_allowed: task.reschedule_allowed || false,
+    hours_to_complete: task.hours_to_complete || "",
+  });
+  setEditingTaskId(task.id);
+  setShowTaskModal(true);
+};
+
+const openReassignModal = (task) => {
+  setReassignModal({ task, newAssignee: task.assigned_to || "" });
+};
+
+const handleReassignSubmit = async () => {
+  if (!reassignModal?.newAssignee)
+    return showToast("error", "Please select an employee.");
+  const { task, newAssignee } = reassignModal;
+  setUpdatingReassignId(task.id);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ assigned_to: newAssignee })
+    .eq("id", task.id);
+  setUpdatingReassignId(null);
+  if (error) return showToast("error", "Failed to reassign: " + error.message);
+  setAllTasks((prev) =>
+    prev.map((t) => (t.id === task.id ? { ...t, assigned_to: newAssignee } : t)),
+  );
+  showToast("success", `"${task.title}" reassigned to ${nameFor(userMap, newAssignee)}.`);
+  setReassignModal(null);
+};
+
+const openRescheduleTaskModal = (task) => {
+  setRescheduleTaskModal({ task, newDate: task.due_date || "" });
+};
+
+const handleRescheduleTaskSubmit = async () => {
+  if (!rescheduleTaskModal?.newDate)
+    return showToast("error", "Please pick a new due date.");
+  const { task, newDate } = rescheduleTaskModal;
+  setUpdatingRescheduleTaskId(task.id);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ due_date: newDate })
+    .eq("id", task.id);
+  setUpdatingRescheduleTaskId(null);
+  if (error) return showToast("error", "Failed to reschedule: " + error.message);
+  setAllTasks((prev) =>
+    prev.map((t) => (t.id === task.id ? { ...t, due_date: newDate } : t)),
+  );
+  showToast(
+    "success",
+    `Due date updated to ${new Date(newDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
+  );
+  setRescheduleTaskModal(null);
+};
+
+const handleRejectTask = async (task) => {
+  if (!window.confirm(`Reject and remove "${task.title}"?`)) return;
+  await supabase.from("tasks").delete().eq("id", task.id);
+  setAllTasks((p) => p.filter((t) => t.id !== task.id));
+  showToast("success", "Task rejected and removed.");
 };
 
   const handleDelete = async (id) => {
@@ -5817,7 +6080,11 @@ const activeItem = [
                         <TaskRow
                           key={t.id}
                           task={t}
-                          onDelete={handleDelete}
+                          onMarkDone={handleMarkTaskDone}
+                          onEdit={openEditTaskModal}
+                          onReassign={openReassignModal}
+                          onReschedule={openRescheduleTaskModal}
+                          onReject={handleRejectTask}
                           userMap={userMap}
                           onClick={setDetailTask}
                         />
@@ -5830,7 +6097,11 @@ const activeItem = [
                     <TaskCard
                       key={t.id}
                       task={t}
-                      onDelete={handleDelete}
+                      onMarkDone={handleMarkTaskDone}
+                      onEdit={openEditTaskModal}
+                      onReassign={openReassignModal}
+                      onReschedule={openRescheduleTaskModal}
+                      onReject={handleRejectTask}
                       onOpenDetail={setDetailTask}
                     />
                   ))}
@@ -9115,11 +9386,15 @@ const activeItem = [
                       <path d="M12 5v14M5 12h14" />
                     </svg>
                   </div>
-                  Assign New Task
+                  {editingTaskId ? "Edit Task" : "Assign New Task"}
                 </div>
                 <button
                   className="ap-modal-close"
-                  onClick={() => setShowTaskModal(false)}
+                  onClick={() => {
+                    setShowTaskModal(false);
+                    setEditingTaskId(null);
+                    setForm({ ...EMPTY_FORM });
+                  }}
                 >
                   <svg
                     width="16"
@@ -10330,122 +10605,225 @@ const activeItem = [
         </div>
       )}
       {overdueRescheduleModal && (
-  <div
-    style={{
-      position: "fixed",
-      inset: 0,
-      zIndex: 10040,
-      background: "rgba(15,23,42,.5)",
-      backdropFilter: "blur(4px)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: 20,
-    }}
-    onClick={(e) => {
-      if (e.target === e.currentTarget) setOverdueRescheduleModal(null);
-    }}
-  >
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: 16,
-        width: "100%",
-        maxWidth: 420,
-        boxShadow: "0 24px 64px rgba(0,0,0,.22)",
-        overflow: "hidden",
-      }}
-    >
-      <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
-          Reschedule Overdue Task
-        </div>
-        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
-          {overdueRescheduleModal.task.title}
-        </div>
-      </div>
-
-      <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
-        <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
-          New Due Date <span style={{ color: "#dc2626" }}>*</span>
-        </label>
-        <input
-          type="date"
+        <div
           style={{
-            fontFamily: "'DM Sans',sans-serif",
-            fontSize: 13.5,
-            color: "#1e293b",
-            background: "#f8fafc",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            padding: "9px 12px",
-            outline: "none",
-            width: "100%",
+            position: "fixed",
+            inset: 0,
+            zIndex: 10040,
+            background: "rgba(15,23,42,.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
           }}
-          value={overdueRescheduleModal.newDate}
-          min={new Date().toISOString().split("T")[0]}
-          onChange={(e) =>
-            setOverdueRescheduleModal((p) => ({ ...p, newDate: e.target.value }))
-          }
-        />
-        <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
-          Current due date:{" "}
-          {new Date(overdueRescheduleModal.task.due_date).toLocaleDateString(
-            "en-IN",
-            { day: "numeric", month: "short", year: "numeric" },
-          )}
-        </span>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: 10,
-          padding: "12px 22px 18px",
-          borderTop: "1px solid #f1f5f9",
-        }}
-      >
-        <button
-          onClick={() => setOverdueRescheduleModal(null)}
-          style={{
-            background: "#f1f5f9",
-            color: "#475569",
-            fontFamily: "'DM Sans',sans-serif",
-            fontSize: 13.5,
-            fontWeight: 600,
-            padding: "9px 18px",
-            borderRadius: 8,
-            border: "1px solid #e2e8f0",
-            cursor: "pointer",
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setOverdueRescheduleModal(null);
           }}
         >
-          Cancel
-        </button>
-        <button
-          onClick={handleOverdueRescheduleSubmit}
-          disabled={updatingOverdueId === overdueRescheduleModal.task.id}
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 420,
+              boxShadow: "0 24px 64px rgba(0,0,0,.22)",
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+                Reschedule Overdue Task
+              </div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                {overdueRescheduleModal.task.title}
+              </div>
+            </div>
+
+            <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+                New Due Date <span style={{ color: "#dc2626" }}>*</span>
+              </label>
+              <input
+                type="date"
+                style={{
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  color: "#1e293b",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 8,
+                  padding: "9px 12px",
+                  outline: "none",
+                  width: "100%",
+                }}
+                value={overdueRescheduleModal.newDate}
+                min={new Date().toISOString().split("T")[0]}
+                onChange={(e) =>
+                  setOverdueRescheduleModal((p) => ({ ...p, newDate: e.target.value }))
+                }
+              />
+              <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+                Current due date:{" "}
+                {new Date(overdueRescheduleModal.task.due_date).toLocaleDateString(
+                  "en-IN",
+                  { day: "numeric", month: "short", year: "numeric" },
+                )}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                padding: "12px 22px 18px",
+                borderTop: "1px solid #f1f5f9",
+              }}
+            >
+              <button
+                onClick={() => setOverdueRescheduleModal(null)}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 18px",
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleOverdueRescheduleSubmit}
+                disabled={updatingOverdueId === overdueRescheduleModal.task.id}
+                style={{
+                  background: "#2563eb",
+                  color: "#fff",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  opacity: updatingOverdueId === overdueRescheduleModal.task.id ? 0.6 : 1,
+                }}
+              >
+                {updatingOverdueId === overdueRescheduleModal.task.id
+                  ? "Saving…"
+                  : "Update Due Date"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reassignModal && (
+        <div
           style={{
-            background: "#2563eb",
-            color: "#fff",
-            fontFamily: "'DM Sans',sans-serif",
-            fontSize: 13.5,
-            fontWeight: 600,
-            padding: "9px 20px",
-            borderRadius: 8,
-            border: "none",
-            cursor: "pointer",
-            opacity: updatingOverdueId === overdueRescheduleModal.task.id ? 0.6 : 1,
+            position: "fixed", inset: 0, zIndex: 10040,
+            background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
           }}
+          onClick={(e) => { if (e.target === e.currentTarget) setReassignModal(null); }}
         >
-          {updatingOverdueId === overdueRescheduleModal.task.id
-            ? "Saving…"
-            : "Update Due Date"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+          <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 420, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
+            <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Reassign Task</div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>{reassignModal.task.title}</div>
+            </div>
+            <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+                New Assignee <span style={{ color: "#dc2626" }}>*</span>
+              </label>
+              <select
+                className="ap-input ap-select"
+                value={reassignModal.newAssignee}
+                onChange={(e) => setReassignModal((p) => ({ ...p, newAssignee: e.target.value }))}
+              >
+                <option value="">Select employee…</option>
+                {employees
+                  .filter((e) => e.status !== "Inactive")
+                  .map((e) => (
+                    <option key={e.username} value={e.username}>{e.name}</option>
+                  ))}
+              </select>
+              <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+                Currently assigned to {nameFor(userMap, reassignModal.task.assigned_to)}.
+              </span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
+              <button
+                onClick={() => setReassignModal(null)}
+                style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReassignSubmit}
+                disabled={updatingReassignId === reassignModal.task.id}
+                style={{ background: "#2563eb", color: "#fff", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 20px", borderRadius: 8, border: "none", cursor: "pointer", opacity: updatingReassignId === reassignModal.task.id ? 0.6 : 1 }}
+              >
+                {updatingReassignId === reassignModal.task.id ? "Saving…" : "Reassign"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rescheduleTaskModal && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 10040,
+            background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setRescheduleTaskModal(null); }}
+        >
+          <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 420, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
+            <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Reschedule Task</div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>{rescheduleTaskModal.task.title}</div>
+            </div>
+            <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+                New Due Date <span style={{ color: "#dc2626" }}>*</span>
+              </label>
+              <input
+                type="date"
+                className="ap-input"
+                value={rescheduleTaskModal.newDate}
+                onChange={(e) => setRescheduleTaskModal((p) => ({ ...p, newDate: e.target.value }))}
+              />
+              <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+                Current due date:{" "}
+                {rescheduleTaskModal.task.due_date
+                  ? new Date(rescheduleTaskModal.task.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                  : "Not set"}
+              </span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
+              <button
+                onClick={() => setRescheduleTaskModal(null)}
+                style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRescheduleTaskSubmit}
+                disabled={updatingRescheduleTaskId === rescheduleTaskModal.task.id}
+                style={{ background: "#2563eb", color: "#fff", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 20px", borderRadius: 8, border: "none", cursor: "pointer", opacity: updatingRescheduleTaskId === rescheduleTaskModal.task.id ? 0.6 : 1 }}
+              >
+                {updatingRescheduleTaskId === rescheduleTaskModal.task.id ? "Saving…" : "Update Due Date"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

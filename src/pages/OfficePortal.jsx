@@ -1032,6 +1032,7 @@ function TaskActionMenu({
     },
   ];
 
+
   return (
     <div ref={ref} style={{ position: "relative", display: "flex", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
       {isHeld && (
@@ -1076,7 +1077,7 @@ function TaskActionMenu({
             position: "fixed",
             top: menuPosition.top,
             left: menuPosition.left,
-            width: 240, // ← added explicit width (was likely 220 via CSS)
+            width: 240,
             zIndex: 9999,
           }}
         >

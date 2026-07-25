@@ -6,26 +6,50 @@ import SiteReport from "./Sitereport";
 import "./AdminPortal.css";
 
 import { canAccessPortal, filterNav } from "../access.js"; // adjust path to where access.js lives
-import { TaskForm as TaskFormWithCheckpoints, EMPTY_FORM,AudioRecorder,} from "./Taskformwithcheckpoints.jsx";
+import {
+  TaskForm as TaskFormWithCheckpoints,
+  EMPTY_FORM,
+  AudioRecorder,
+} from "./Taskformwithcheckpoints.jsx";
 
 const NAV_ITEMS = [
   {
     key: "dashboard",
     label: "Dashboard",
+    color: "#be3d3d",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#be3d3d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#be3d3d"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <rect x="3" y="3" width="7" height="7" rx="1" />
         <rect x="14" y="3" width="7" height="7" rx="1" />
         <rect x="3" y="14" width="7" height="7" rx="1" />
         <rect x="14" y="14" width="7" height="7" rx="1" />
       </svg>
     ),
-  },  
+  },
   {
     key: "assign-task",
     label: "Assign Task",
+    color: "#2563eb",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#2563eb"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M12 5v14M5 12h14" />
       </svg>
     ),
@@ -33,8 +57,18 @@ const NAV_ITEMS = [
   {
     key: "all-tasks",
     label: "All Tasks",
+    color: "#2563eb",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#2563eb"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <rect x="3" y="3" width="18" height="18" rx="3" />
         <path d="M9 12l2 2 4-4" />
       </svg>
@@ -43,8 +77,18 @@ const NAV_ITEMS = [
   {
     key: "recurring-tasks",
     label: "All Recurring Tasks",
+    color: "#2563eb",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#2563eb"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
         <path d="M3 3v5h5" />
       </svg>
@@ -53,8 +97,18 @@ const NAV_ITEMS = [
   {
     key: "leave-requests",
     label: "Leave Requests",
+    color: "#7c3aed",   
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#7c3aed"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <rect x="3" y="4" width="18" height="18" rx="2" />
         <line x1="16" y1="2" x2="16" y2="6" />
         <line x1="8" y1="2" x2="8" y2="6" />
@@ -66,8 +120,18 @@ const NAV_ITEMS = [
   {
     key: "reschedule-requests",
     label: "Reschedule Requests",
+    color: "#6366f1",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#6366f1"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
         <path d="M3 3v5h5" />
         <line x1="12" y1="8" x2="12" y2="12" />
@@ -78,8 +142,18 @@ const NAV_ITEMS = [
   {
     key: "add-employee",
     label: "Add Employee",
+    color: "#db2777",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#db2777" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#db2777"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
         <circle cx="12" cy="7" r="4" />
         <line x1="19" y1="8" x2="19" y2="14" />
@@ -90,8 +164,18 @@ const NAV_ITEMS = [
   {
     key: "manage-employees",
     label: "Manage Employees",
+    color:"#db2777",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#db2777" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#db2777"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -102,8 +186,18 @@ const NAV_ITEMS = [
   {
     key: "add-site",
     label: "Add Site",
+    color: "#0891b2",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#0891b2"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <rect x="4" y="3" width="10" height="18" rx="2" />
         <path d="M8 7h2M8 11h2M8 15h2" />
         <path d="M19 8v6" />
@@ -114,8 +208,18 @@ const NAV_ITEMS = [
   {
     key: "manage-sites",
     label: "Manage Sites",
+    color: "#0891b2",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#0891b2"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <rect x="3" y="4" width="7" height="16" rx="1" />
         <rect x="14" y="8" width="7" height="12" rx="1" />
         <path d="M6 8h1M6 12h1M6 16h1" />
@@ -125,13 +229,22 @@ const NAV_ITEMS = [
   },
 ];
 
-
 const REPORTS_NAV = [
   {
     key: "add-drawings",
     label: "Add Drawings",
+     color: "#d97706",  
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#d97706"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <rect x="3" y="5" width="12" height="14" rx="1" />
         <path d="M6 9h6M6 12h6M6 15h4" />
         <path d="M16 16l5-5 2 2-5 5-3 1z" />
@@ -141,8 +254,18 @@ const REPORTS_NAV = [
   {
     key: "all-drawings",
     label: "All Drawings",
+     color: "#d97706",  
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#d97706"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <rect x="3" y="3" width="18" height="18" rx="1" />
         <path d="M3 9h18" />
         <path d="M9 3v18" />
@@ -154,8 +277,18 @@ const REPORTS_NAV = [
   {
     key: "site-report",
     label: "Site Visit Report",
+     color: "#d97706",  
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#d97706"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
         <line x1="9" y1="13" x2="15" y2="13" />
@@ -166,8 +299,18 @@ const REPORTS_NAV = [
   {
     key: "my-reports",
     label: "My Reports",
+     color: "#d97706",  
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#d97706"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9l5 5v3" />
         <polyline points="14 3 14 8 19 8" />
         <path d="M12 22l2 2 4-4" />
@@ -177,8 +320,18 @@ const REPORTS_NAV = [
   {
     key: "report-submissions",
     label: "Report Submissions",
+     color: "#d97706",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#d97706"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
         <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
       </svg>
@@ -190,8 +343,18 @@ const TICKETS_NAV = [
   {
     key: "new-tickets",
     label: "New Tickets",
+    color: "#eaa40c",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#eaa40c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#eaa40c"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z" />
         <path d="M12 7v10" strokeDasharray="2 2" />
       </svg>
@@ -200,8 +363,18 @@ const TICKETS_NAV = [
   {
     key: "solved-ticket",
     label: "Solved Tickets",
+    color: "#eaa40c",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#eaa40c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#eaa40c"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z" />
         <path d="M9 12l2 2 4-4" />
       </svg>
@@ -213,8 +386,18 @@ const VERIFICATION_NAV = [
   {
     key: "pending-verification",
     label: "Pending Verification",
+    color: "#16a34a",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#16a34a"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M6 2h12" />
         <path d="M6 22h12" />
         <path d="M8 2v4l4 4 4-4V2" />
@@ -225,8 +408,18 @@ const VERIFICATION_NAV = [
   {
     key: "resolved-verification",
     label: "Resolved Tasks",
+    color: "#16a34a",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#16a34a"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <path d="M9 11l3 3L22 4" />
         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
       </svg>
@@ -235,8 +428,18 @@ const VERIFICATION_NAV = [
   {
     key: "overdue-tasks",
     label: "Overdue Tasks",
+    color: "#16a34a",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#16a34a"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7v5l3 2" />
         <path d="M19 5l2-2" />
@@ -508,7 +711,8 @@ function applyTaskFilters(tasks, filters) {
       return false;
     if (filters.site && t.site_name !== filters.site) return false;
     if (filters.priority && t.priority !== filters.priority) return false;
-    if (filters.status && displayStatus(t.status) !== filters.status) return false;
+    if (filters.status && displayStatus(t.status) !== filters.status)
+      return false;
     if (filters.dateFrom && t.due_date && t.due_date < filters.dateFrom)
       return false;
     if (filters.dateTo && t.due_date && t.due_date > filters.dateTo)
@@ -520,10 +724,17 @@ function applyTaskFilters(tasks, filters) {
 function getNextDueDate(currentDue, recurrence) {
   const base = currentDue ? new Date(currentDue + "T00:00:00") : new Date();
   switch ((recurrence || "").toLowerCase()) {
-    case "daily": base.setDate(base.getDate() + 1); break;
-    case "weekly": base.setDate(base.getDate() + 7); break;
-    case "monthly": base.setMonth(base.getMonth() + 1); break;
-    default: base.setDate(base.getDate() + 1);
+    case "daily":
+      base.setDate(base.getDate() + 1);
+      break;
+    case "weekly":
+      base.setDate(base.getDate() + 7);
+      break;
+    case "monthly":
+      base.setMonth(base.getMonth() + 1);
+      break;
+    default:
+      base.setDate(base.getDate() + 1);
   }
   return base.toISOString().split("T")[0];
 }
@@ -531,25 +742,27 @@ function getNextDueDate(currentDue, recurrence) {
 async function spawnNextRecurringInstance(task, nextDue) {
   const { data: newTask, error } = await supabase
     .from("tasks")
-    .insert([{
-      title: task.title,
-      description: task.description || null,
-      assigned_to: task.assigned_to,
-      assigned_by: task.assigned_by || null,
-      site_name: task.site_name || null,
-      priority: task.priority || "medium",
-      status: "pending",
-      is_recurring: true,
-      recurrence: task.recurrence,  
-      due_date: nextDue,
-      audio_url: task.audio_url || null,
-      document_url: task.document_url || null,
-      has_checkpoints: task.has_checkpoints || false,
-      reschedule_allowed: task.reschedule_allowed || false,
-      parent_task_id: task.parent_task_id || task.id,
-      recurrence_anchor: task.recurrence_anchor || task.due_date || nextDue,
-      last_generated_date: nextDue,
-    }])
+    .insert([
+      {
+        title: task.title,
+        description: task.description || null,
+        assigned_to: task.assigned_to,
+        assigned_by: task.assigned_by || null,
+        site_name: task.site_name || null,
+        priority: task.priority || "medium",
+        status: "pending",
+        is_recurring: true,
+        recurrence: task.recurrence,
+        due_date: nextDue,
+        audio_url: task.audio_url || null,
+        document_url: task.document_url || null,
+        has_checkpoints: task.has_checkpoints || false,
+        reschedule_allowed: task.reschedule_allowed || false,
+        parent_task_id: task.parent_task_id || task.id,
+        recurrence_anchor: task.recurrence_anchor || task.due_date || nextDue,
+        last_generated_date: nextDue,
+      },
+    ])
     .select()
     .single();
   return { error, task: newTask };
@@ -597,7 +810,7 @@ function formatNextDue(date) {
     };
 
   return { label, badge: null };
-} 
+}
 function EmployeeFilterBar({
   filters,
   onChange,
@@ -1219,6 +1432,7 @@ function RescheduleFilterBar({
 
   return <div className="tf-bar tf-bar-fixed">{fields}</div>;
 }
+
 // ── Task Filter Bar ────────────────────────────────────────────────────────
 function TaskFilterBar({
   filters,
@@ -1429,7 +1643,16 @@ function StatCard({ label, value, icon, accent }) {
   );
 }
 
-function TaskRow({ task, onMarkDone, onEdit, onReassign, onReschedule, onReject, userMap, onClick }) {
+function TaskRow({
+  task,
+  onMarkDone,
+  onEdit,
+  onReassign,
+  onReschedule,
+  onReject,
+  userMap,
+  onClick,
+}) {
   const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
   const s = STATUS_STYLES[displayStatus(task.status)];
   return (
@@ -1552,7 +1775,11 @@ function TaskRow({ task, onMarkDone, onEdit, onReassign, onReschedule, onReject,
             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
               <span
                 className="ap-badge"
-                style={{ background: a.bg, color: a.color, width: "fit-content" }}
+                style={{
+                  background: a.bg,
+                  color: a.color,
+                  width: "fit-content",
+                }}
               >
                 {a.label}
               </span>
@@ -1895,10 +2122,22 @@ function RecurringTaskCard({ task, next, p, onDelete, userMap }) {
   );
 }
 
-function TaskActionsMenu({ task, onMarkDone, onEdit, onReassign, onReschedule, onReject, busy }) {
+function TaskActionsMenu({
+  task,
+  onMarkDone,
+  onEdit,
+  onReassign,
+  onReschedule,
+  onReject,
+  busy,
+}) {
   const [open, setOpen] = useState(false);
   const [hoveredKey, setHoveredKey] = useState(null);
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0, openUpward: false });
+  const [menuPosition, setMenuPosition] = useState({
+    top: 0,
+    left: 0,
+    openUpward: false,
+  });
   const ref = useRef(null);
   const btnRef = useRef(null);
 
@@ -1920,7 +2159,16 @@ function TaskActionsMenu({ task, onMarkDone, onEdit, onReassign, onReschedule, o
       color: "#16a34a",
       bg: "#f0fdf4",
       icon: (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <rect x="3" y="4" width="18" height="18" rx="2" />
           <path d="M8 12l3 3 5-6" />
         </svg>
@@ -1933,7 +2181,16 @@ function TaskActionsMenu({ task, onMarkDone, onEdit, onReassign, onReschedule, o
       color: "#2563eb",
       bg: "#eff6ff",
       icon: (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
         </svg>
@@ -1946,7 +2203,16 @@ function TaskActionsMenu({ task, onMarkDone, onEdit, onReassign, onReschedule, o
       color: "#e73f8b",
       bg: "#fdf2f8",
       icon: (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
           <circle cx="9" cy="7" r="4" />
           <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -1961,7 +2227,16 @@ function TaskActionsMenu({ task, onMarkDone, onEdit, onReassign, onReschedule, o
       color: "#7c3aed",
       bg: "#f5f3ff",
       icon: (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
           <path d="M3 3v5h5" />
           <line x1="12" y1="8" x2="12" y2="12" />
@@ -1976,7 +2251,16 @@ function TaskActionsMenu({ task, onMarkDone, onEdit, onReassign, onReschedule, o
       color: "#dc2626",
       bg: "#fef2f2",
       icon: (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <circle cx="12" cy="12" r="10" />
           <line x1="12" y1="8" x2="12" y2="12" />
           <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -2074,7 +2358,9 @@ function TaskActionsMenu({ task, onMarkDone, onEdit, onReassign, onReschedule, o
                   transition: "background .12s, color .12s",
                 }}
               >
-                <span style={{ display: "flex", flexShrink: 0, color: item.color }}>
+                <span
+                  style={{ display: "flex", flexShrink: 0, color: item.color }}
+                >
                   {item.icon}
                 </span>
                 {item.label}
@@ -2087,7 +2373,15 @@ function TaskActionsMenu({ task, onMarkDone, onEdit, onReassign, onReschedule, o
   );
 }
 
-function TaskCard({ task, onMarkDone, onEdit, onReassign, onReschedule, onReject, onOpenDetail }) {
+function TaskCard({
+  task,
+  onMarkDone,
+  onEdit,
+  onReassign,
+  onReschedule,
+  onReject,
+  onOpenDetail,
+}) {
   const [expanded, setExpanded] = useState(false);
   const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
   const s = STATUS_STYLES[displayStatus(task.status)];
@@ -2450,7 +2744,13 @@ function LeaveStatusBadge({ leave }) {
 }
 
 function VerificationCard({
-  verification, task, userMap, onComplete, onCorrect, updatingId, currentUser,
+  verification,
+  task,
+  userMap,
+  onComplete,
+  onCorrect,
+  updatingId,
+  currentUser,
 }) {
   const isPending = verification.status === "pending";
   const canAct = isPending && verification.verifier === currentUser;
@@ -2565,8 +2865,8 @@ function VerificationCard({
               }}
             >
               {task.audio_url && (
-                
-                <a  href={task.audio_url}
+                <a
+                  href={task.audio_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
@@ -2583,7 +2883,16 @@ function VerificationCard({
                     textDecoration: "none",
                   }}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#7c3aed"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                     <line x1="12" y1="19" x2="12" y2="23" />
@@ -2593,8 +2902,8 @@ function VerificationCard({
                 </a>
               )}
               {task.document_url && (
-                
-                <a  href={task.document_url}
+                <a
+                  href={task.document_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
@@ -2611,7 +2920,16 @@ function VerificationCard({
                     textDecoration: "none",
                   }}
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0369a1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#0369a1"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
@@ -2625,13 +2943,20 @@ function VerificationCard({
 
       {verification.document_urls?.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", marginBottom: 4 }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#94a3b8",
+              marginBottom: 4,
+            }}
+          >
             VERIFICATION ATTACHMENTS
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {verification.document_urls.map((url, i) => (
-              
-              <a  key={i}
+              <a
+                key={i}
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -2649,7 +2974,16 @@ function VerificationCard({
                   textDecoration: "none",
                 }}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#475569"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
@@ -2674,13 +3008,29 @@ function VerificationCard({
               }}
             >
               {verification.correction_audio_url && (
-                
-                <a  href={verification.correction_audio_url}
+                <a
+                  href={verification.correction_audio_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#7c3aed" }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "#7c3aed",
+                  }}
                 >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#7c3aed"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                     <line x1="12" y1="19" x2="12" y2="23" />
@@ -2690,14 +3040,30 @@ function VerificationCard({
                 </a>
               )}
               {verification.correction_document_urls?.map((url, i) => (
-                
-                <a  key={i}
+                <a
+                  key={i}
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "#2563eb" }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "#2563eb",
+                  }}
                 >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#2563eb"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
@@ -2709,29 +3075,38 @@ function VerificationCard({
         </div>
       )}
       {isPending ? (
-  canAct ? (
-    <div className="ap-leave-actions">
-      <button className="ap-btn-approve" disabled={updatingId === verification.id}
-        onClick={() => onComplete(verification)}>
-        Mark Completed
-      </button>
-      <button className="ap-btn-reject" disabled={updatingId === verification.id}
-        onClick={() => onCorrect(verification)}>
-        Send Correction
-      </button>
-      {updatingId === verification.id && <span className="ap-saving">saving...</span>}
-    </div>
-  ) : (
-    <div className="ap-leave-done">
-      Waiting on {verification.verifier_name || verification.verifier} to review this.
-    </div>
-  )
-) : (
-  <div className="ap-leave-done">
-    {isCompleted ? "✓ Marked completed" : "✗ Correction sent back"} by{" "}
-    {verification.resolved_by}
-  </div>
-)}
+        canAct ? (
+          <div className="ap-leave-actions">
+            <button
+              className="ap-btn-approve"
+              disabled={updatingId === verification.id}
+              onClick={() => onComplete(verification)}
+            >
+              Mark Completed
+            </button>
+            <button
+              className="ap-btn-reject"
+              disabled={updatingId === verification.id}
+              onClick={() => onCorrect(verification)}
+            >
+              Send Correction
+            </button>
+            {updatingId === verification.id && (
+              <span className="ap-saving">saving...</span>
+            )}
+          </div>
+        ) : (
+          <div className="ap-leave-done">
+            Waiting on {verification.verifier_name || verification.verifier} to
+            review this.
+          </div>
+        )
+      ) : (
+        <div className="ap-leave-done">
+          {isCompleted ? "✓ Marked completed" : "✗ Correction sent back"} by{" "}
+          {verification.resolved_by}
+        </div>
+      )}
     </div>
   );
 }
@@ -3242,7 +3617,7 @@ function TaskForm({
                         <line x1="12" y1="14" x2="12" y2="18" />
                       </svg>
                     )}
-                    
+
                     {r === "yearly" && (
                       <svg
                         width="12"
@@ -3980,7 +4355,17 @@ function RescheduleRequestCard({
   );
 }
 
-function VerificationTable({ verifications, allTasks, userMap, onComplete, onCorrect, updatingId, showAction = true, onRowClick, currentUser }) {
+function VerificationTable({
+  verifications,
+  allTasks,
+  userMap,
+  onComplete,
+  onCorrect,
+  updatingId,
+  showAction = true,
+  onRowClick,
+  currentUser,
+}) {
   const fmt = (d) =>
     d
       ? new Date(d).toLocaleDateString("en-IN", {
@@ -4066,105 +4451,155 @@ function VerificationTable({ verifications, allTasks, userMap, onComplete, onCor
                   )}
                 </td>
                 <td className="ap-td" onClick={(e) => e.stopPropagation()}>
-  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-    {/* Files the employee submitted with this verification */}
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-      {v.document_urls?.length > 0 ? (
-        v.document_urls.map((url, i) => (
-          
-          <a  key={i}
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#475569",
-              background: "#f8fafc",
-              border: "1px solid #e2e8f0",
-              borderRadius: 6,
-              padding: "2px 8px",
-              textDecoration: "none",
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-            <span>File {i + 1}</span>
-          </a>
-        ))
-      ) : (
-        <span style={{ color: "#94a3b8", fontSize: 11.5 }}>No files</span>
-      )}
-    </div>
+                  <div
+                    style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                  >
+                    {/* Files the employee submitted with this verification */}
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {v.document_urls?.length > 0 ? (
+                        v.document_urls.map((url, i) => (
+                          <a
+                            key={i}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 5,
+                              fontSize: 11,
+                              fontWeight: 600,
+                              color: "#475569",
+                              background: "#f8fafc",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: 6,
+                              padding: "2px 8px",
+                              textDecoration: "none",
+                            }}
+                          >
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#475569"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <polyline points="14 2 14 8 20 8" />
+                            </svg>
+                            <span>File {i + 1}</span>
+                          </a>
+                        ))
+                      ) : (
+                        <span style={{ color: "#94a3b8", fontSize: 11.5 }}>
+                          No files
+                        </span>
+                      )}
+                    </div>
 
-    {/* Admin's correction attachments — only relevant when a correction was sent */}
-    {v.status === "correction_sent" && (v.correction_audio_url || v.correction_document_urls?.length > 0) && (
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", paddingTop: 4, borderTop: "1px dashed #e2e8f0" }}>
-        <span style={{ fontSize: 10, fontWeight: 700, color: "#dc2626", width: "100%" }}>ADMIN CORRECTION</span>
-        {v.correction_audio_url && (
-          
-          <a  href={v.correction_audio_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#7c3aed",
-              background: "#f5f3ff",
-              border: "1px solid #ddd6fe",
-              borderRadius: 6,
-              padding: "2px 8px",
-              textDecoration: "none",
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-              <line x1="12" y1="19" x2="12" y2="23" />
-              <line x1="8" y1="23" x2="16" y2="23" />
-            </svg>
-            <span>Audio</span>
-          </a>
-        )}
-        {v.correction_document_urls?.map((url, i) => (
-
-          <a  key={i}
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#0369a1",
-              background: "#f0f9ff",
-              border: "1px solid #bae6fd",
-              borderRadius: 6,
-              padding: "2px 8px",
-              textDecoration: "none",
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0369a1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-            <span>Doc {i + 1}</span>
-          </a>
-        ))}
-      </div>
-    )}
-  </div>
-</td>
+                    {/* Admin's correction attachments — only relevant when a correction was sent */}
+                    {v.status === "correction_sent" &&
+                      (v.correction_audio_url ||
+                        v.correction_document_urls?.length > 0) && (
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 6,
+                            flexWrap: "wrap",
+                            paddingTop: 4,
+                            borderTop: "1px dashed #e2e8f0",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color: "#dc2626",
+                              width: "100%",
+                            }}
+                          >
+                            ADMIN CORRECTION
+                          </span>
+                          {v.correction_audio_url && (
+                            <a
+                              href={v.correction_audio_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 5,
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: "#7c3aed",
+                                background: "#f5f3ff",
+                                border: "1px solid #ddd6fe",
+                                borderRadius: 6,
+                                padding: "2px 8px",
+                                textDecoration: "none",
+                              }}
+                            >
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#7c3aed"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                <line x1="12" y1="19" x2="12" y2="23" />
+                                <line x1="8" y1="23" x2="16" y2="23" />
+                              </svg>
+                              <span>Audio</span>
+                            </a>
+                          )}
+                          {v.correction_document_urls?.map((url, i) => (
+                            <a
+                              key={i}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 5,
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: "#0369a1",
+                                background: "#f0f9ff",
+                                border: "1px solid #bae6fd",
+                                borderRadius: 6,
+                                padding: "2px 8px",
+                                textDecoration: "none",
+                              }}
+                            >
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#0369a1"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                              </svg>
+                              <span>Doc {i + 1}</span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+                </td>
                 <td className="ap-td">{fmt(v.created_at)}</td>
                 <td className="ap-td">
                   <span
@@ -4202,35 +4637,59 @@ function VerificationTable({ verifications, allTasks, userMap, onComplete, onCor
                     </div>
                   )}
                 </td>
-                  {showAction && (
-  <td className="ap-td" onClick={(e) => e.stopPropagation()}>
-    {v.status === "pending" ? (
-      v.verifier === currentUser ? (
-        <div style={{ display: "flex", gap: 6 }}>
-          <button className="ap-btn-approve" disabled={updatingId === v.id}
-            onClick={(e) => { e.stopPropagation(); onComplete(v); }}
-            style={{ padding: "5px 10px", fontSize: 11.5 }}>
-            Complete
-          </button>
-          <button className="ap-btn-reject" disabled={updatingId === v.id}
-            onClick={(e) => { e.stopPropagation(); onCorrect(v); }}
-            style={{ padding: "5px 10px", fontSize: 11.5 }}>
-            Correct
-          </button>
-        </div>
-      ) : (
-        <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}
-          title="Only the admin this task was sent to can action it">
-          Assigned to {v.verifier_name || v.verifier}
-        </span>
-      )
-    ) : (
-      <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>
-        {v.status === "completed" ? "✓ Done" : "✗ Sent back"}
-      </span>
-    )}
-  </td>
-)}
+                {showAction && (
+                  <td className="ap-td" onClick={(e) => e.stopPropagation()}>
+                    {v.status === "pending" ? (
+                      v.verifier === currentUser ? (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button
+                            className="ap-btn-approve"
+                            disabled={updatingId === v.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onComplete(v);
+                            }}
+                            style={{ padding: "5px 10px", fontSize: 11.5 }}
+                          >
+                            Complete
+                          </button>
+                          <button
+                            className="ap-btn-reject"
+                            disabled={updatingId === v.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCorrect(v);
+                            }}
+                            style={{ padding: "5px 10px", fontSize: 11.5 }}
+                          >
+                            Correct
+                          </button>
+                        </div>
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: 11.5,
+                            color: "#94a3b8",
+                            fontStyle: "italic",
+                          }}
+                          title="Only the admin this task was sent to can action it"
+                        >
+                          Assigned to {v.verifier_name || v.verifier}
+                        </span>
+                      )
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: 11.5,
+                          color: "#94a3b8",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        {v.status === "completed" ? "✓ Done" : "✗ Sent back"}
+                      </span>
+                    )}
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -4239,20 +4698,20 @@ function VerificationTable({ verifications, allTasks, userMap, onComplete, onCor
 
       {/* Mobile fallback — reuse the existing card layout */}
       <div className="ap-task-mobile-grid">
-          {verifications.map((v) => (
-            <VerificationCard
-              key={v.id}
-              verification={v}
-              task={taskFor(v)}
-              userMap={userMap}
-              onComplete={onComplete}
-              onCorrect={onCorrect}
-              updatingId={updatingId}
-              onClick={() => onRowClick?.(v, taskFor(v))}
-              currentUser={currentUser}
-            />
-          ))}
-        </div>
+        {verifications.map((v) => (
+          <VerificationCard
+            key={v.id}
+            verification={v}
+            task={taskFor(v)}
+            userMap={userMap}
+            onComplete={onComplete}
+            onCorrect={onCorrect}
+            updatingId={updatingId}
+            onClick={() => onRowClick?.(v, taskFor(v))}
+            currentUser={currentUser}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -4476,47 +4935,54 @@ export default function AdminPortal() {
   const [allReschedules, setAllReschedules] = useState([]);
   const [loadingReschedules, setLoadingReschedules] = useState(false);
   const [updatingRescheduleId, setUpdatingRescheduleId] = useState(null);
-  const [recurringMobileFilterOpen, setRecurringMobileFilterOpen] = useState(false);
+  const [recurringMobileFilterOpen, setRecurringMobileFilterOpen] =
+    useState(false);
   const [showRecurringInAllTasks, setShowRecurringInAllTasks] = useState(false);
   const [user, setUser] = useState(null);
   const canSwitchToOffice = canAccessPortal(user, "office");
-  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window === "undefined" ? true : window.innerWidth > 760,);
-
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window === "undefined" ? true : window.innerWidth > 760,
+  );
+const [hoveredNavKey, setHoveredNavKey] = useState(null);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [rejectModal, setRejectModal] = useState(null);
 
   const [overdueRescheduleModal, setOverdueRescheduleModal] = useState(null);
   const [overdueRejectModal, setOverdueRejectModal] = useState(null); // { task, note }
-  const [updatingRejectId, setUpdatingRejectId] = useState(null); 
+  const [updatingRejectId, setUpdatingRejectId] = useState(null);
   const [updatingOverdueId, setUpdatingOverdueId] = useState(null);
   const [overdueTasksSeen, setOverdueTasksSeen] = useState(false);
 
   const [pendingVerifications, setPendingVerifications] = useState([]);
   const [loadingVerifications, setLoadingVerifications] = useState(false);
   const [updatingVerificationId, setUpdatingVerificationId] = useState(null);
-  const [correctionModal, setCorrectionModal] = useState(null); 
+  const [correctionModal, setCorrectionModal] = useState(null);
 
   const [allTickets, setAllTickets] = useState([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
-  const [ticketSolveModal, setTicketSolveModal] = useState(null); 
+  const [ticketSolveModal, setTicketSolveModal] = useState(null);
   const [updatingTicketId, setUpdatingTicketId] = useState(null);
-  const [leaveRejectModal, setLeaveRejectModal] = useState(null); 
+  const [leaveRejectModal, setLeaveRejectModal] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState(null); 
+  const [editingEmployee, setEditingEmployee] = useState(null);
   const mainRef = useRef(null);
 
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [reassignModal, setReassignModal] = useState(null); // { task, newAssignee }
   const [rescheduleTaskModal, setRescheduleTaskModal] = useState(null); // { task, newDate }
   const [updatingReassignId, setUpdatingReassignId] = useState(null);
-  const [updatingRescheduleTaskId, setUpdatingRescheduleTaskId] = useState(null);
+  const [updatingRescheduleTaskId, setUpdatingRescheduleTaskId] =
+    useState(null);
   const [updatingMarkDoneId, setUpdatingMarkDoneId] = useState(null);
 
   const [seenOverdueIds, setSeenOverdueIds] = useState(() => {
-  try {return JSON.parse(localStorage.getItem("seenOverdueTaskIds") || "[]");} 
-  catch {return [];}
+    try {
+      return JSON.parse(localStorage.getItem("seenOverdueTaskIds") || "[]");
+    } catch {
+      return [];
+    }
   });
 
   useEffect(() => {
@@ -4707,6 +5173,13 @@ export default function AdminPortal() {
     dateTo: "",
   });
   const [visibleTaskCount, setVisibleTaskCount] = useState(20);
+  const [visibleOverdueCount, setVisibleOverdueCount] = useState(20);
+  const [visiblePendingVerificationCount, setVisiblePendingVerificationCount] =
+    useState(20);
+  const [
+    visibleResolvedVerificationCount,
+    setVisibleResolvedVerificationCount,
+  ] = useState(20);
   // Task filters
   const [taskFilters, setTaskFilters] = useState({ ...EMPTY_TASK_FILTERS });
   const total = allTasks.length;
@@ -4745,7 +5218,7 @@ export default function AdminPortal() {
         }
       });
   }, []);
-  
+
   const filteredReschedules = allReschedules.filter((r) => {
     if (
       rescheduleFilters.name &&
@@ -4788,8 +5261,8 @@ export default function AdminPortal() {
   const [recurringFilters, setRecurringFilters] = useState({
     ...EMPTY_RECURRING_FILTERS,
   });
-const [verificationDetail, setVerificationDetail] = useState(null);
-const [resolvedFilterTab, setResolvedFilterTab] = useState("all");
+  const [verificationDetail, setVerificationDetail] = useState(null);
+  const [resolvedFilterTab, setResolvedFilterTab] = useState("all");
   const [detailTask, setDetailTask] = useState(null);
   useEffect(() => {
     const s = localStorage.getItem("user");
@@ -4815,11 +5288,15 @@ const [resolvedFilterTab, setResolvedFilterTab] = useState("all");
   }, []);
   useEffect(() => {
     setVisibleTaskCount(20);
-  }, [taskFilters, showRecurringInAllTasks]); 
+  }, [taskFilters, showRecurringInAllTasks]);
 
   useEffect(() => {
     setVisibleRecurringCount(20);
   }, [recurringFilters]);
+
+  useEffect(() => {
+    setVisibleResolvedVerificationCount(20);
+  }, [resolvedFilterTab]);
 
   const fetchAllTickets = useCallback(async () => {
     setLoadingTickets(true);
@@ -5178,59 +5655,59 @@ const [resolvedFilterTab, setResolvedFilterTab] = useState("all");
     fetchAllTickets,
     fetchPendingVerifications, // ← add
   ]);
-useEffect(() => {
-  if (!user) return;
+  useEffect(() => {
+    if (!user) return;
 
-  const channel = supabase
-    .channel("admin-realtime-sync")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "tasks" },
-      () => fetchAllTasks(),
-    )
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "leaves" },
-      () => fetchAllLeaves(),
-    )
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "reschedule_requests" },
-      () => fetchAllReschedules(),
-    )
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "task_verifications" },
-      () => fetchPendingVerifications(),
-    )
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "tickets" },
-      () => fetchAllTickets(),
-    )
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "user_details" },
-      () => fetchEmployees(),
-    )
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "site_details" },
-      () => fetchSites(),
-    )
-    .subscribe();
+    const channel = supabase
+      .channel("admin-realtime-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tasks" },
+        () => fetchAllTasks(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leaves" },
+        () => fetchAllLeaves(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reschedule_requests" },
+        () => fetchAllReschedules(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "task_verifications" },
+        () => fetchPendingVerifications(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "tickets" },
+        () => fetchAllTickets(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_details" },
+        () => fetchEmployees(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "site_details" },
+        () => fetchSites(),
+      )
+      .subscribe();
 
-  return () => supabase.removeChannel(channel);
-}, [
-  user,
-  fetchAllTasks,
-  fetchAllLeaves,
-  fetchAllReschedules,
-  fetchPendingVerifications,
-  fetchAllTickets,
-  fetchEmployees,
-  fetchSites,
-]);
+    return () => supabase.removeChannel(channel);
+  }, [
+    user,
+    fetchAllTasks,
+    fetchAllLeaves,
+    fetchAllReschedules,
+    fetchPendingVerifications,
+    fetchAllTickets,
+    fetchEmployees,
+    fetchSites,
+  ]);
   useRecurringTasks(user, fetchAllTasks);
 
   const showToast = (type, msg) => {
@@ -5238,15 +5715,19 @@ useEffect(() => {
     setTimeout(() => setToast(null), 3500);
   };
 
-const handleNavClick = (key) => {
-  setActiveTab(key);
-  if (key === "my-reports") fetchMySvrReports(user);
-  if (key === "report-submissions") fetchAllReportSubmissions(user);
-  if (key === "overdue-tasks") {
-    const ids = overdueTasks.map((t) => t.id);
-    setSeenOverdueIds(ids);
-    localStorage.setItem("seenOverdueTaskIds", JSON.stringify(ids));
-  }
+  const handleNavClick = (key) => {
+    setActiveTab(key);
+    if (key === "my-reports") fetchMySvrReports(user);
+    if (key === "report-submissions") fetchAllReportSubmissions(user);
+    if (key === "overdue-tasks") {
+      const ids = overdueTasks.map((t) => t.id);
+      setSeenOverdueIds(ids);
+      localStorage.setItem("seenOverdueTaskIds", JSON.stringify(ids));
+      setVisibleOverdueCount(20); // ← add
+    }
+    if (key === "pending-verification") setVisiblePendingVerificationCount(20); // ← add
+    if (key === "resolved-verification")
+      setVisibleResolvedVerificationCount(20); // ← add
 
     if (key === "add-employee") {
       setEditingEmployee(null);
@@ -5285,10 +5766,10 @@ const handleNavClick = (key) => {
       return showToast("error", "Please select a recurrence Schedule.");
 
     const anchor = form.is_recurring ? buildAnchor(form) : null;
-          const computedDueDate = form.is_recurring
-          ? getNextDueDate(null, form.recurrence)   // ← fixed: returns a date string directly
-          : form.due_date || null;
-            setSubmitting(true);
+    const computedDueDate = form.is_recurring
+      ? getNextDueDate(null, form.recurrence) // ← fixed: returns a date string directly
+      : form.due_date || null;
+    setSubmitting(true);
 
     // Upload audio if provided
     let audio_url = null;
@@ -5327,199 +5808,208 @@ const handleNavClick = (key) => {
     }
 
     const basePayload = {
-    title: form.title.trim(),
-    description: form.description.trim() || null,
-    assigned_to: form.assigned_to.trim(),
-    site_name: form.site_name.trim() || null,
-    priority: form.priority,
-    status: form.status,
-    due_date: computedDueDate,
-    is_recurring: form.is_recurring,
-    recurrence: form.is_recurring ? form.recurrence : null,
-    recurrence_anchor: anchor,
-    reschedule_allowed: form.reschedule_allowed || false,
-    hours_to_complete: form.hours_to_complete
-      ? parseFloat(form.hours_to_complete)
-      : null,
-  };
+      title: form.title.trim(),
+      description: form.description.trim() || null,
+      assigned_to: form.assigned_to.trim(),
+      site_name: form.site_name.trim() || null,
+      priority: form.priority,
+      status: form.status,
+      due_date: computedDueDate,
+      is_recurring: form.is_recurring,
+      recurrence: form.is_recurring ? form.recurrence : null,
+      recurrence_anchor: anchor,
+      reschedule_allowed: form.reschedule_allowed || false,
+      hours_to_complete: form.hours_to_complete
+        ? parseFloat(form.hours_to_complete)
+        : null,
+    };
 
-  if (editingTaskId) {
-    const editPayload = { ...basePayload };
-    if (audio_url) editPayload.audio_url = audio_url;
-    if (document_url) editPayload.document_url = document_url;
+    if (editingTaskId) {
+      const editPayload = { ...basePayload };
+      if (audio_url) editPayload.audio_url = audio_url;
+      if (document_url) editPayload.document_url = document_url;
 
-    const { error } = await supabase
+      const { error } = await supabase
+        .from("tasks")
+        .update(editPayload)
+        .eq("id", editingTaskId);
+      setSubmitting(false);
+
+      if (error) {
+        showToast("error", "Failed to update task. " + error.message);
+        return false;
+      }
+      showToast("success", `Task "${form.title}" updated!`);
+      fetchAllTasks();
+      setEditingTaskId(null);
+      return true;
+    }
+
+    const payload = {
+      ...basePayload,
+      assigned_by: user.user_name,
+      last_generated_date: null,
+      parent_task_id: null,
+      audio_url,
+      document_url,
+    };
+
+    const { data: insertedTask, error } = await supabase
       .from("tasks")
-      .update(editPayload)
-      .eq("id", editingTaskId);
+      .insert([payload])
+      .select("id")
+      .single();
     setSubmitting(false);
 
     if (error) {
-      showToast("error", "Failed to update task. " + error.message);
+      showToast("error", "Failed to assign task. " + error.message);
       return false;
     }
-    showToast("success", `Task "${form.title}" updated!`);
-    fetchAllTasks();
-    setEditingTaskId(null);
-    return true;
-  }
 
-  const payload = {
-    ...basePayload,
-    assigned_by: user.user_name,
-    last_generated_date: null,
-    parent_task_id: null,
-    audio_url,
-    document_url,
+    if (form.enable_checkpoints) {
+      await supabase
+        .from("tasks")
+        .update({ has_checkpoints: true })
+        .eq("id", insertedTask.id);
+    }
+
+    const desc = form.is_recurring
+      ? anchorDescription(form.recurrence, anchor)
+      : null;
+    showToast(
+      "success",
+      `Task "${form.title}" assigned${desc ? ` — repeats ${desc}` : ""}!`,
+    );
+    fetchAllTasks();
+    return true;
+  };
+  const handleOverdueRejectConfirm = async () => {
+    if (!overdueRejectModal) return;
+    const { task, note } = overdueRejectModal;
+    setUpdatingRejectId(task.id);
+    setUpdatingRejectId(null);
+    showToast(
+      "success",
+      `"${task.title}" — no extension granted. Original due date stands.`,
+    );
+    setOverdueRejectModal(null);
+  };
+  const handleOverdueRescheduleSubmit = async () => {
+    if (!overdueRescheduleModal?.newDate)
+      return showToast("error", "Please pick a new due date.");
+    const { task, newDate } = overdueRescheduleModal;
+    setUpdatingOverdueId(task.id);
+    const { error } = await supabase
+      .from("tasks")
+      .update({ due_date: newDate })
+      .eq("id", task.id);
+    setUpdatingOverdueId(null);
+    if (error)
+      return showToast("error", "Failed to reschedule: " + error.message);
+    setAllTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, due_date: newDate } : t)),
+    );
+    showToast(
+      "success",
+      `Due date updated to ${new Date(newDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
+    );
+    setOverdueRescheduleModal(null);
   };
 
-  const { data: insertedTask, error } = await supabase
-    .from("tasks")
-    .insert([payload])
-    .select("id")
-    .single();
-  setSubmitting(false);
-
-  if (error) {
-    showToast("error", "Failed to assign task. " + error.message);
-    return false;
-  }
-
-  if (form.enable_checkpoints) {
-    await supabase
+  const handleMarkTaskDone = async (task) => {
+    setUpdatingMarkDoneId(task.id);
+    const { error } = await supabase
       .from("tasks")
-      .update({ has_checkpoints: true })
-      .eq("id", insertedTask.id);
-  }
+      .update({ status: "completed" })
+      .eq("id", task.id);
+    setUpdatingMarkDoneId(null);
+    if (error)
+      return showToast("error", "Failed to mark done: " + error.message);
+    setAllTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, status: "completed" } : t)),
+    );
+    showToast("success", `"${task.title}" marked as completed.`);
+  };
 
-  const desc = form.is_recurring
-    ? anchorDescription(form.recurrence, anchor)
-    : null;
-  showToast(
-    "success",
-    `Task "${form.title}" assigned${desc ? ` — repeats ${desc}` : ""}!`,
-  );
-  fetchAllTasks();
-  return true;
-  }
-const handleOverdueRejectConfirm = async () => {
-  if (!overdueRejectModal) return;
-  const { task, note } = overdueRejectModal;
-  setUpdatingRejectId(task.id);
-  setUpdatingRejectId(null);
-  showToast(
-    "success",
-    `"${task.title}" — no extension granted. Original due date stands.`,
-  );
-  setOverdueRejectModal(null);
-};
-  const handleOverdueRescheduleSubmit = async () => {
-  if (!overdueRescheduleModal?.newDate)
-    return showToast("error", "Please pick a new due date.");
-  const { task, newDate } = overdueRescheduleModal;
-  setUpdatingOverdueId(task.id);
-  const { error } = await supabase
-    .from("tasks")
-    .update({ due_date: newDate })
-    .eq("id", task.id);
-  setUpdatingOverdueId(null);
-  if (error) return showToast("error", "Failed to reschedule: " + error.message);
-  setAllTasks((prev) =>
-    prev.map((t) => (t.id === task.id ? { ...t, due_date: newDate } : t)),
-  );
-  showToast(
-    "success",
-    `Due date updated to ${new Date(newDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
-  );
-  setOverdueRescheduleModal(null);
-};  
+  const openEditTaskModal = (task) => {
+    setForm({
+      ...EMPTY_FORM,
+      title: task.title || "",
+      description: task.description || "",
+      assigned_to: task.assigned_to || "",
+      site_name: task.site_name || "",
+      priority: task.priority || "medium",
+      status: task.status || "pending",
+      due_date: task.due_date || "",
+      is_recurring: task.is_recurring || false,
+      recurrence: task.recurrence || "",
+      reschedule_allowed: task.reschedule_allowed || false,
+      hours_to_complete: task.hours_to_complete || "",
+    });
+    setEditingTaskId(task.id);
+    setShowTaskModal(true);
+  };
 
-const handleMarkTaskDone = async (task) => {
-  setUpdatingMarkDoneId(task.id);
-  const { error } = await supabase
-    .from("tasks")
-    .update({ status: "completed" })
-    .eq("id", task.id);
-  setUpdatingMarkDoneId(null);
-  if (error) return showToast("error", "Failed to mark done: " + error.message);
-  setAllTasks((prev) =>
-    prev.map((t) => (t.id === task.id ? { ...t, status: "completed" } : t)),
-  );
-  showToast("success", `"${task.title}" marked as completed.`);
-};
+  const openReassignModal = (task) => {
+    setReassignModal({ task, newAssignee: task.assigned_to || "" });
+  };
 
-const openEditTaskModal = (task) => {
-  setForm({
-    ...EMPTY_FORM,
-    title: task.title || "",
-    description: task.description || "",
-    assigned_to: task.assigned_to || "",
-    site_name: task.site_name || "",
-    priority: task.priority || "medium",
-    status: task.status || "pending",
-    due_date: task.due_date || "",
-    is_recurring: task.is_recurring || false,
-    recurrence: task.recurrence || "",
-    reschedule_allowed: task.reschedule_allowed || false,
-    hours_to_complete: task.hours_to_complete || "",
-  });
-  setEditingTaskId(task.id);
-  setShowTaskModal(true);
-};
+  const handleReassignSubmit = async () => {
+    if (!reassignModal?.newAssignee)
+      return showToast("error", "Please select an employee.");
+    const { task, newAssignee } = reassignModal;
+    setUpdatingReassignId(task.id);
+    const { error } = await supabase
+      .from("tasks")
+      .update({ assigned_to: newAssignee })
+      .eq("id", task.id);
+    setUpdatingReassignId(null);
+    if (error)
+      return showToast("error", "Failed to reassign: " + error.message);
+    setAllTasks((prev) =>
+      prev.map((t) =>
+        t.id === task.id ? { ...t, assigned_to: newAssignee } : t,
+      ),
+    );
+    showToast(
+      "success",
+      `"${task.title}" reassigned to ${nameFor(userMap, newAssignee)}.`,
+    );
+    setReassignModal(null);
+  };
 
-const openReassignModal = (task) => {
-  setReassignModal({ task, newAssignee: task.assigned_to || "" });
-};
+  const openRescheduleTaskModal = (task) => {
+    setRescheduleTaskModal({ task, newDate: task.due_date || "" });
+  };
 
-const handleReassignSubmit = async () => {
-  if (!reassignModal?.newAssignee)
-    return showToast("error", "Please select an employee.");
-  const { task, newAssignee } = reassignModal;
-  setUpdatingReassignId(task.id);
-  const { error } = await supabase
-    .from("tasks")
-    .update({ assigned_to: newAssignee })
-    .eq("id", task.id);
-  setUpdatingReassignId(null);
-  if (error) return showToast("error", "Failed to reassign: " + error.message);
-  setAllTasks((prev) =>
-    prev.map((t) => (t.id === task.id ? { ...t, assigned_to: newAssignee } : t)),
-  );
-  showToast("success", `"${task.title}" reassigned to ${nameFor(userMap, newAssignee)}.`);
-  setReassignModal(null);
-};
+  const handleRescheduleTaskSubmit = async () => {
+    if (!rescheduleTaskModal?.newDate)
+      return showToast("error", "Please pick a new due date.");
+    const { task, newDate } = rescheduleTaskModal;
+    setUpdatingRescheduleTaskId(task.id);
+    const { error } = await supabase
+      .from("tasks")
+      .update({ due_date: newDate })
+      .eq("id", task.id);
+    setUpdatingRescheduleTaskId(null);
+    if (error)
+      return showToast("error", "Failed to reschedule: " + error.message);
+    setAllTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, due_date: newDate } : t)),
+    );
+    showToast(
+      "success",
+      `Due date updated to ${new Date(newDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
+    );
+    setRescheduleTaskModal(null);
+  };
 
-const openRescheduleTaskModal = (task) => {
-  setRescheduleTaskModal({ task, newDate: task.due_date || "" });
-};
-
-const handleRescheduleTaskSubmit = async () => {
-  if (!rescheduleTaskModal?.newDate)
-    return showToast("error", "Please pick a new due date.");
-  const { task, newDate } = rescheduleTaskModal;
-  setUpdatingRescheduleTaskId(task.id);
-  const { error } = await supabase
-    .from("tasks")
-    .update({ due_date: newDate })
-    .eq("id", task.id);
-  setUpdatingRescheduleTaskId(null);
-  if (error) return showToast("error", "Failed to reschedule: " + error.message);
-  setAllTasks((prev) =>
-    prev.map((t) => (t.id === task.id ? { ...t, due_date: newDate } : t)),
-  );
-  showToast(
-    "success",
-    `Due date updated to ${new Date(newDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
-  );
-  setRescheduleTaskModal(null);
-};
-
-const handleRejectTask = async (task) => {
-  if (!window.confirm(`Reject and remove "${task.title}"?`)) return;
-  await supabase.from("tasks").delete().eq("id", task.id);
-  setAllTasks((p) => p.filter((t) => t.id !== task.id));
-  showToast("success", "Task rejected and removed.");
-};
+  const handleRejectTask = async (task) => {
+    if (!window.confirm(`Reject and remove "${task.title}"?`)) return;
+    await supabase.from("tasks").delete().eq("id", task.id);
+    setAllTasks((p) => p.filter((t) => t.id !== task.id));
+    showToast("success", "Task rejected and removed.");
+  };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this task?")) return;
@@ -5593,51 +6083,63 @@ const handleRejectTask = async (task) => {
   };
 
   const handleMarkVerificationCompleted = async (verification) => {
-      if (verification.verifier !== user.user_name)
-    return showToast("error", "Only the assigned admin can complete this task.");
-  setUpdatingVerificationId(verification.id);
-  const payload = {
-    status: "completed",
-    resolved_by: user.user_name,
-    resolved_at: new Date().toISOString(),
-  };
-  const { error } = await supabase
-    .from("task_verifications")
-    .update(payload)
-    .eq("id", verification.id);
+    if (verification.verifier !== user.user_name)
+      return showToast(
+        "error",
+        "Only the assigned admin can complete this task.",
+      );
+    setUpdatingVerificationId(verification.id);
+    const payload = {
+      status: "completed",
+      resolved_by: user.user_name,
+      resolved_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("task_verifications")
+      .update(payload)
+      .eq("id", verification.id);
 
-  if (!error && verification.task_id) {
-    const task = allTasks.find((t) => t.id === verification.task_id);
+    if (!error && verification.task_id) {
+      const task = allTasks.find((t) => t.id === verification.task_id);
 
-    await supabase
-      .from("tasks")
-      .update({ status: "completed" })
-      .eq("id", verification.task_id);
+      await supabase
+        .from("tasks")
+        .update({ status: "completed" })
+        .eq("id", verification.task_id);
 
-    // If it's a recurring task, spawn the next instance now.
-    if (task?.is_recurring && task.recurrence) {
-      const nextDue = getNextDueDate(task.due_date, task.recurrence);
-      await spawnNextRecurringInstance(task, nextDue);
+      // If it's a recurring task, spawn the next instance now.
+      if (task?.is_recurring && task.recurrence) {
+        const nextDue = getNextDueDate(task.due_date, task.recurrence);
+        await spawnNextRecurringInstance(task, nextDue);
+      }
+
+      fetchAllTasks();
     }
 
-    fetchAllTasks();
-  }
+    setUpdatingVerificationId(null);
+    if (error)
+      return showToast("error", "Failed to mark completed: " + error.message);
 
-  setUpdatingVerificationId(null);
-  if (error)
-    return showToast("error", "Failed to mark completed: " + error.message);
+    setPendingVerifications((prev) =>
+      prev.map((v) => (v.id === verification.id ? { ...v, ...payload } : v)),
+    );
+    showToast("success", "Task marked as completed.");
+  };
 
-  setPendingVerifications((prev) =>
-    prev.map((v) => (v.id === verification.id ? { ...v, ...payload } : v)),
-  );
-  showToast("success", "Task marked as completed.");
-};
-
-const openCorrectionModal = (verification) => {
-  if (verification.verifier !== user.user_name)
-    return showToast("error", "Only the assigned admin can send a correction.");
-  setCorrectionModal({ verification, note: "", audioFile: null, docFiles: [], submitting: false });
-};
+  const openCorrectionModal = (verification) => {
+    if (verification.verifier !== user.user_name)
+      return showToast(
+        "error",
+        "Only the assigned admin can send a correction.",
+      );
+    setCorrectionModal({
+      verification,
+      note: "",
+      audioFile: null,
+      docFiles: [],
+      submitting: false,
+    });
+  };
 
   const handleCorrectionSubmit = async () => {
     if (!correctionModal.note.trim())
@@ -5815,7 +6317,7 @@ const openCorrectionModal = (verification) => {
       </h2>
     );
 
-const activeItem = [
+  const activeItem = [
     ...NAV_ITEMS,
     ...REPORTS_NAV,
     ...VERIFICATION_NAV,
@@ -5867,8 +6369,8 @@ const activeItem = [
     ? allTasks
     : allTasks.filter((t) => !t.is_recurring && !t.parent_task_id);
   const filteredTasks = applyTaskFilters(baseAllTasks, taskFilters)
-  .slice()
-  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    .slice()
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const hasActiveFilters = Object.values(taskFilters).some((v) => v !== "");
   // Replace the 4 lines that compute tfSites/tfPriorities/tfStatuses/tfAssignees:
 
@@ -5897,7 +6399,9 @@ const activeItem = [
     ...new Set(tasksForPriorities.map((t) => t.priority).filter(Boolean)),
   ].sort();
   const tfStatuses = [
-    ...new Set(tasksForStatuses.map((t) => displayStatus(t.status)).filter(Boolean)),
+    ...new Set(
+      tasksForStatuses.map((t) => displayStatus(t.status)).filter(Boolean),
+    ),
   ].sort();
   const tfAssignees = [
     ...new Set(tasksForAssignees.map((t) => t.assigned_to).filter(Boolean)),
@@ -5905,30 +6409,33 @@ const activeItem = [
 
   const recurringTasks = allTasks.filter((t) => t.is_recurring);
 
-  const filteredRecurring = recurringTasks.filter((t) => {
-  if (recurringFilters.site && t.site_name !== recurringFilters.site)
-    return false;
-  if (
-    recurringFilters.assignedTo &&
-    t.assigned_to !== recurringFilters.assignedTo
-  )
-    return false;
-  if (
-    recurringFilters.recurrence &&
-    t.recurrence !== recurringFilters.recurrence
-  )
-    return false;
-  if (recurringFilters.dueSoon) {
-    const nextDateStr = getNextDueDate(t.due_date, t.recurrence);
-    if (!nextDateStr) return false;
-    const next = new Date(nextDateStr + "T00:00:00");
-    const diff = Math.round(
-      (next - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24),
-    );
-    if (diff > 7) return false;
-  }
-  return true;
-}).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const filteredRecurring = recurringTasks
+    .filter((t) => {
+      if (recurringFilters.site && t.site_name !== recurringFilters.site)
+        return false;
+      if (
+        recurringFilters.assignedTo &&
+        t.assigned_to !== recurringFilters.assignedTo
+      )
+        return false;
+      if (
+        recurringFilters.recurrence &&
+        t.recurrence !== recurringFilters.recurrence
+      )
+        return false;
+      if (recurringFilters.dueSoon) {
+        const nextDateStr = getNextDueDate(t.due_date, t.recurrence);
+        if (!nextDateStr) return false;
+        const next = new Date(nextDateStr + "T00:00:00");
+        const diff = Math.round(
+          (next - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24),
+        );
+        if (diff > 7) return false;
+      }
+      return true;
+    })
+    .slice()
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   const rfSites = [
     ...new Set(recurringTasks.map((t) => t.site_name).filter(Boolean)),
@@ -6191,7 +6698,7 @@ const activeItem = [
                           // "Given By",
                           "Priority",
                           "Status",
-                           "Activity",
+                          "Activity",
                           "Hours",
                           "Due Date",
                           "Schedule",
@@ -6235,12 +6742,19 @@ const activeItem = [
                   ))}
                 </div>
                 {visibleTaskCount < filteredTasks.length && (
-                  <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      marginTop: 16,
+                    }}
+                  >
                     <button
                       className="ap-btn-secondary"
                       onClick={() => setVisibleTaskCount((c) => c + 10)}
                     >
-                      Load 10 more ({filteredTasks.length - visibleTaskCount} remaining)
+                      Load 10 more ({filteredTasks.length - visibleTaskCount}{" "}
+                      remaining)
                     </button>
                   </div>
                 )}
@@ -6645,172 +7159,179 @@ const activeItem = [
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRecurring.slice(0, visibleRecurringCount).map((task) => {
-                        const nextDate = getNextDueDate(task.due_date, task.recurrence);  // ← fixed
-                        const next = formatNextDue(nextDate);
-                        const p =
-                          PRIORITY_STYLES[task.priority] ||
-                          PRIORITY_STYLES.medium;
-                        return (
-                          <tr key={task.id} className="ap-tr">
-                            <td className="ap-td ap-td-title">
-                              {task.title}
-                              <div
-                                style={{
-                                  display: "flex",
-                                  gap: 6,
-                                  marginTop: 4,
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                {task.audio_url && (
-                                  <a
-                                    href={task.audio_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: 4,
-                                      fontSize: 11,
-                                      fontWeight: 600,
-                                      color: "#7c3aed",
-                                      background: "#f5f3ff",
-                                      border: "1px solid #ddd6fe",
-                                      borderRadius: 5,
-                                      padding: "2px 7px",
-                                      textDecoration: "none",
-                                    }}
-                                  >
-                                    <svg
-                                      width="11"
-                                      height="11"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2.2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    >
-                                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                                      <line x1="12" y1="19" x2="12" y2="23" />
-                                      <line x1="8" y1="23" x2="16" y2="23" />
-                                    </svg>
-                                    Audio
-                                  </a>
-                                )}
-                                {task.document_url && (
-                                  <a
-                                    href={task.document_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: 4,
-                                      fontSize: 11,
-                                      fontWeight: 600,
-                                      color: "#0369a1",
-                                      background: "#f0f9ff",
-                                      border: "1px solid #bae6fd",
-                                      borderRadius: 5,
-                                      padding: "2px 7px",
-                                      textDecoration: "none",
-                                    }}
-                                  >
-                                    <svg
-                                      width="11"
-                                      height="11"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2.2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    >
-                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                      <polyline points="14 2 14 8 20 8" />
-                                    </svg>
-                                    Doc
-                                  </a>
-                                )}
-                              </div>
-                            </td>
-                            <td className="ap-td">{nameFor(userMap, task.assigned_to)}</td>
-                            <td className="ap-td">{task.site_name || "—"}</td>
-                            <td className="ap-td">
-                              <span
-                                className="ap-badge"
-                                style={{ background: p.bg, color: p.color }}
-                              >
-                                <span
-                                  className="ap-badge-dot"
-                                  style={{ background: p.dot }}
-                                />
-                                {task.priority}
-                              </span>
-                            </td>
-                            <td className="ap-td">
-                              <span className="ap-pill-blue">
-                                {anchorDescription(
-                                  task.recurrence,
-                                  task.recurrence_anchor,
-                                ) || task.recurrence}
-                              </span>
-                            </td>
-                            <td className="ap-td">
-                              {next?.label ? (
-                                <span
-                                  style={{ fontSize: 13, color: "#334155" }}
+                      {filteredRecurring
+                        .slice(0, visibleRecurringCount)
+                        .map((task) => {
+                          const nextDate = getNextDueDate(
+                            task.due_date,
+                            task.recurrence,
+                          ); // ← fixed
+                          const next = formatNextDue(nextDate);
+                          const p =
+                            PRIORITY_STYLES[task.priority] ||
+                            PRIORITY_STYLES.medium;
+                          return (
+                            <tr key={task.id} className="ap-tr">
+                              <td className="ap-td ap-td-title">
+                                {task.title}
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: 6,
+                                    marginTop: 4,
+                                    flexWrap: "wrap",
+                                  }}
                                 >
-                                  {next.label}
-                                  {next.badge && (
-                                    <span
+                                  {task.audio_url && (
+                                    <a
+                                      href={task.audio_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
                                       style={{
-                                        marginLeft: 6,
-                                        fontSize: 10,
-                                        fontWeight: 700,
-                                        background: next.bg,
-                                        color: next.color,
-                                        borderRadius: 20,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 4,
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        color: "#7c3aed",
+                                        background: "#f5f3ff",
+                                        border: "1px solid #ddd6fe",
+                                        borderRadius: 5,
                                         padding: "2px 7px",
+                                        textDecoration: "none",
                                       }}
                                     >
-                                      {next.badge}
-                                    </span>
+                                      <svg
+                                        width="11"
+                                        height="11"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2.2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      >
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                        <line x1="12" y1="19" x2="12" y2="23" />
+                                        <line x1="8" y1="23" x2="16" y2="23" />
+                                      </svg>
+                                      Audio
+                                    </a>
                                   )}
-                                </span>
-                              ) : (
-                                "—"
-                              )}
-                            </td>
-                            <td className="ap-td">
-                              <button
-                                className="ap-del-btn"
-                                onClick={() => handleDelete(task.id)}
-                                title="Delete"
-                              >
-                                <svg
-                                  width="14"
-                                  height="14"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2.2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
+                                  {task.document_url && (
+                                    <a
+                                      href={task.document_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 4,
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        color: "#0369a1",
+                                        background: "#f0f9ff",
+                                        border: "1px solid #bae6fd",
+                                        borderRadius: 5,
+                                        padding: "2px 7px",
+                                        textDecoration: "none",
+                                      }}
+                                    >
+                                      <svg
+                                        width="11"
+                                        height="11"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2.2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      >
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                      </svg>
+                                      Doc
+                                    </a>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="ap-td">
+                                {nameFor(userMap, task.assigned_to)}
+                              </td>
+                              <td className="ap-td">{task.site_name || "—"}</td>
+                              <td className="ap-td">
+                                <span
+                                  className="ap-badge"
+                                  style={{ background: p.bg, color: p.color }}
                                 >
-                                  <polyline points="3 6 5 6 21 6" />
-                                  <path d="M19 6l-1 14H6L5 6" />
-                                  <path d="M10 11v6M14 11v6" />
-                                  <path d="M9 6V4h6v2" />
-                                </svg>
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                                  <span
+                                    className="ap-badge-dot"
+                                    style={{ background: p.dot }}
+                                  />
+                                  {task.priority}
+                                </span>
+                              </td>
+                              <td className="ap-td">
+                                <span className="ap-pill-blue">
+                                  {anchorDescription(
+                                    task.recurrence,
+                                    task.recurrence_anchor,
+                                  ) || task.recurrence}
+                                </span>
+                              </td>
+                              <td className="ap-td">
+                                {next?.label ? (
+                                  <span
+                                    style={{ fontSize: 13, color: "#334155" }}
+                                  >
+                                    {next.label}
+                                    {next.badge && (
+                                      <span
+                                        style={{
+                                          marginLeft: 6,
+                                          fontSize: 10,
+                                          fontWeight: 700,
+                                          background: next.bg,
+                                          color: next.color,
+                                          borderRadius: 20,
+                                          padding: "2px 7px",
+                                        }}
+                                      >
+                                        {next.badge}
+                                      </span>
+                                    )}
+                                  </span>
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
+                              <td className="ap-td">
+                                <button
+                                  className="ap-del-btn"
+                                  onClick={() => handleDelete(task.id)}
+                                  title="Delete"
+                                >
+                                  <svg
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2.2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6l-1 14H6L5 6" />
+                                    <path d="M10 11v6M14 11v6" />
+                                    <path d="M9 6V4h6v2" />
+                                  </svg>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>
@@ -6818,38 +7339,49 @@ const activeItem = [
                 {/* Mobile cards */}
                 <div className="ap-task-mobile-grid">
                   <div className="ap-task-mobile-grid">
-                    {filteredRecurring.slice(0, visibleRecurringCount).map((task) => {
-                      const nextDate = getNextDueDate(task.due_date, task.recurrence);  // ← fixed
-                      const next = formatNextDue(nextDate);
-                      const p =
-                        PRIORITY_STYLES[task.priority] ||
-                        PRIORITY_STYLES.medium;
-                      return (
-                      <RecurringTaskCard
-                          key={task.id}
-                          task={task}
-                          next={next}
-                          p={p}
-                          onDelete={handleDelete}
-                          userMap={userMap}
-                        />
-                      );
-                    })}
+                    {filteredRecurring
+                      .slice(0, visibleRecurringCount)
+                      .map((task) => {
+                        const nextDate = getNextDueDate(
+                          task.due_date,
+                          task.recurrence,
+                        ); // ← fixed
+                        const next = formatNextDue(nextDate);
+                        const p =
+                          PRIORITY_STYLES[task.priority] ||
+                          PRIORITY_STYLES.medium;
+                        return (
+                          <RecurringTaskCard
+                            key={task.id}
+                            task={task}
+                            next={next}
+                            p={p}
+                            onDelete={handleDelete}
+                            userMap={userMap}
+                          />
+                        );
+                      })}
                   </div>
                 </div>
               </>
-              
             )}
             {visibleRecurringCount < filteredRecurring.length && (
-                  <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
-                    <button
-                      className="ap-btn-secondary"
-                      onClick={() => setVisibleRecurringCount((c) => c + 10)}
-                    >
-                      Load 10 more ({filteredRecurring.length - visibleRecurringCount} remaining)
-                    </button>
-                  </div>
-              )}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginTop: 16,
+                }}
+              >
+                <button
+                  className="ap-btn-secondary"
+                  onClick={() => setVisibleRecurringCount((c) => c + 10)}
+                >
+                  Load 10 more (
+                  {filteredRecurring.length - visibleRecurringCount} remaining)
+                </button>
+              </div>
+            )}
           </>
         );
       case "leave-requests":
@@ -7209,11 +7741,16 @@ const activeItem = [
                     if (!val) return;
 
                     if (val === "__ALL__") {
-                      
-                      const allSiteNames = [...new Set(sites.map((s) => s.site_name).filter(Boolean))];
+                      const allSiteNames = [
+                        ...new Set(
+                          sites.map((s) => s.site_name).filter(Boolean),
+                        ),
+                      ];
                       setEmpForm((p) => ({
                         ...p,
-                        site_names: [...new Set([...p.site_names, ...allSiteNames])],
+                        site_names: [
+                          ...new Set([...p.site_names, ...allSiteNames]),
+                        ],
                       }));
                       return;
                     }
@@ -8701,28 +9238,75 @@ const activeItem = [
             <p className="op-empty-text">No tasks pending verification.</p>
           </div>
         ) : (
-          <VerificationTable
-            verifications={verificationsPending}
-            allTasks={allTasks}
-            userMap={userMap}
-            onComplete={handleMarkVerificationCompleted}
-            onCorrect={openCorrectionModal}
-            updatingId={updatingVerificationId}
-            onRowClick={(v, task) => setVerificationDetail({ v, task })}
-            currentUser={user.user_name}
-          />
+          <>
+            <VerificationTable
+              verifications={verificationsPending.slice(
+                0,
+                visiblePendingVerificationCount,
+              )}
+              allTasks={allTasks}
+              userMap={userMap}
+              onComplete={handleMarkVerificationCompleted}
+              onCorrect={openCorrectionModal}
+              updatingId={updatingVerificationId}
+              onRowClick={(v, task) => task && setDetailTask(task)}
+              currentUser={user.user_name}
+            />
+            {visiblePendingVerificationCount < verificationsPending.length && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginTop: 16,
+                }}
+              >
+                <button
+                  className="ap-btn-secondary"
+                  onClick={() =>
+                    setVisiblePendingVerificationCount((c) => c + 10)
+                  }
+                >
+                  Load 10 more (
+                  {verificationsPending.length -
+                    visiblePendingVerificationCount}{" "}
+                  remaining)
+                </button>
+              </div>
+            )}
+          </>
         );
 
       case "resolved-verification": {
-        const resolvedAll = [...verificationsCompleted, ...verificationsCorrection].sort(
+        const resolvedAll = [
+          ...verificationsCompleted,
+          ...verificationsCorrection,
+        ].sort(
           (a, b) =>
             new Date(b.resolved_at || b.created_at) -
             new Date(a.resolved_at || a.created_at),
         );
         const RESOLVED_TABS = [
-          { key: "all", label: "All", count: resolvedAll.length, color: "#2563eb", bg: "#eff6ff" },
-          { key: "approved", label: "Approved", count: verificationsCompleted.length, color: "#16a34a", bg: "#f0fdf4" },
-          { key: "rejected", label: "Rejected", count: verificationsCorrection.length, color: "#dc2626", bg: "#fef2f2" },
+          {
+            key: "all",
+            label: "All",
+            count: resolvedAll.length,
+            color: "#2563eb",
+            bg: "#eff6ff",
+          },
+          {
+            key: "approved",
+            label: "Approved",
+            count: verificationsCompleted.length,
+            color: "#16a34a",
+            bg: "#f0fdf4",
+          },
+          {
+            key: "rejected",
+            label: "Rejected",
+            count: verificationsCorrection.length,
+            color: "#dc2626",
+            bg: "#fef2f2",
+          },
         ];
         const resolvedList =
           resolvedFilterTab === "approved"
@@ -8760,8 +9344,12 @@ const activeItem = [
                     border: "none",
                     cursor: "pointer",
                     color: resolvedFilterTab === t.key ? t.color : "#64748b",
-                    background: resolvedFilterTab === t.key ? "#fff" : "transparent",
-                    boxShadow: resolvedFilterTab === t.key ? "0 1px 6px rgba(0,0,0,.08)" : "none",
+                    background:
+                      resolvedFilterTab === t.key ? "#fff" : "transparent",
+                    boxShadow:
+                      resolvedFilterTab === t.key
+                        ? "0 1px 6px rgba(0,0,0,.08)"
+                        : "none",
                   }}
                 >
                   {t.label}
@@ -8771,7 +9359,8 @@ const activeItem = [
                       fontWeight: 700,
                       padding: "1px 6px",
                       borderRadius: 20,
-                      background: resolvedFilterTab === t.key ? t.bg : "#e2e8f0",
+                      background:
+                        resolvedFilterTab === t.key ? t.bg : "#e2e8f0",
                       color: resolvedFilterTab === t.key ? t.color : "#94a3b8",
                     }}
                   >
@@ -8786,263 +9375,337 @@ const activeItem = [
                 <p className="op-empty-text">No resolved verifications yet.</p>
               </div>
             ) : (
-              <VerificationTable
-                verifications={resolvedList}
-                allTasks={allTasks}
-                userMap={userMap}
-                onComplete={handleMarkVerificationCompleted}
-                onCorrect={openCorrectionModal}
-                updatingId={updatingVerificationId}
-                showAction={false}
-              />
+              <>
+                <VerificationTable
+                  verifications={resolvedList.slice(
+                    0,
+                    visibleResolvedVerificationCount,
+                  )}
+                  allTasks={allTasks}
+                  userMap={userMap}
+                  onComplete={handleMarkVerificationCompleted}
+                  onCorrect={openCorrectionModal}
+                  updatingId={updatingVerificationId}
+                  showAction={false}
+                  showAction={false}
+                  onRowClick={(v, task) => task && setDetailTask(task)}
+                />
+                {visibleResolvedVerificationCount < resolvedList.length && (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      marginTop: 16,
+                    }}
+                  >
+                    <button
+                      className="ap-btn-secondary"
+                      onClick={() =>
+                        setVisibleResolvedVerificationCount((c) => c + 10)
+                      }
+                    >
+                      Load 10 more (
+                      {resolvedList.length - visibleResolvedVerificationCount}{" "}
+                      remaining)
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </>
         );
       }
-        
-        case "overdue-tasks":
-  return overdueTasks.length === 0 ? (
-    <div className="op-empty-state">
-      <svg
-        width="48"
-        height="48"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{ opacity: 0.3 }}
-      >
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 2" />
-      </svg>
-      <p className="op-empty-text">
-        No overdue tasks. Everything is on schedule.
-      </p>
-    </div>
-  ) : (
-    <>
-      <p className="tf-count">
-        {overdueTasks.length} task{overdueTasks.length !== 1 ? "s" : ""} past
-        due and not yet completed
-      </p>
 
-      <div className="ap-table-wrap">
-        <table className="ap-table">
-          <thead>
-            <tr>
-              {[
-                "Title",
-                "Assigned To",
-                "Site",
-                "Given By",
-                "Priority",
-                "Status",
-                "Hours",
-                "Due Date",
-                "Overdue By",
-                "Files",
-                "Action",
-              ].map((h) => (
-                <th key={h} className="ap-th">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {overdueTasks.map((t) => {
-              const p = PRIORITY_STYLES[t.priority] || PRIORITY_STYLES.medium;
-              const s = STATUS_STYLES[displayStatus(t.status)];
-              const daysOverdue = Math.floor(
-                (new Date(todayStr) - new Date(t.due_date)) / 86400000,
-              );
-              return (
-                <tr key={t.id} className="ap-tr">
-                  <td className="ap-td ap-td-title">
-                    {t.title}
-                    {t.description && (
-                      <div
+      case "overdue-tasks":
+        return overdueTasks.length === 0 ? (
+          <div className="op-empty-state">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ opacity: 0.3 }}
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            <p className="op-empty-text">
+              No overdue tasks. Everything is on schedule.
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="tf-count">
+              {overdueTasks.length} task{overdueTasks.length !== 1 ? "s" : ""}{" "}
+              past due and not yet completed
+            </p>
+
+            <div className="ap-table-wrap">
+              <table className="ap-table">
+                <thead>
+                  <tr>
+                    {[
+                      "Title",
+                      "Assigned To",
+                      "Site",
+                      "Given By",
+                      "Priority",
+                      "Status",
+                      "Due Date",
+                      "Overdue By",
+                      "Files",
+                      "Action",
+                    ].map((h) => (
+                      <th key={h} className="ap-th">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {overdueTasks.slice(0, visibleOverdueCount).map((t) => {
+                    const p =
+                      PRIORITY_STYLES[t.priority] || PRIORITY_STYLES.medium;
+                    const s = STATUS_STYLES[displayStatus(t.status)];
+                    const daysOverdue = Math.floor(
+                      (new Date(todayStr) - new Date(t.due_date)) / 86400000,
+                    );
+                    return (
+                      <tr  key={t.id}  className="ap-tr"  onClick={() => setDetailTask(t)}  style={{ cursor: "pointer" }}>
+                        <td className="ap-td ap-td-title">
+                          {t.title}
+                          {t.description && (
+                            <div
+                              style={{
+                                fontSize: 11.5,
+                                color: "#94a3b8",
+                                marginTop: 2,
+                              }}
+                            >
+                              {t.description}
+                            </div>
+                          )}
+                        </td>
+                        <td className="ap-td">
+                          {nameFor(userMap, t.assigned_to)}
+                        </td>
+                        <td className="ap-td">{t.site_name || "—"}</td>
+                        <td className="ap-td">
+                          {nameFor(userMap, t.assigned_by)}
+                        </td>
+                        <td className="ap-td">
+                          <span
+                            className="ap-badge"
+                            style={{ background: p.bg, color: p.color }}
+                          >
+                            <span
+                              className="ap-badge-dot"
+                              style={{ background: p.dot }}
+                            />
+                            {t.priority}
+                          </span>
+                        </td>
+                        <td className="ap-td">
+                          <span
+                            className="ap-badge"
+                            style={{ background: s.bg, color: s.color }}
+                          >
+                            {displayStatus(t.status)}
+                          </span>
+                        </td>
+                        <td
+                          className="ap-td"
+                          style={{ color: "#dc2626", fontWeight: 600 }}
+                        >
+                          {new Date(t.due_date).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </td>
+                        <td className="ap-td">
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              padding: "2px 8px",
+                              borderRadius: 20,
+                              background: "#fef2f2",
+                              color: "#dc2626",
+                            }}
+                          >
+                            {daysOverdue} day{daysOverdue !== 1 ? "s" : ""}
+                          </span>
+                        </td>
+                        <td className="ap-td">
+                          <div style={{ display: "flex", gap: 8 }}>
+                            {t.audio_url && (
+                              <a
+                                href={t.audio_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Audio instruction"
+                                style={{ color: "#7c3aed" }}
+                              >
+                                <svg
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                </svg>
+                              </a>
+                            )}
+                            {t.document_url && (
+                              <a
+                                href={t.document_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Document"
+                                style={{ color: "#2563eb" }}
+                              >
+                                <svg
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                              </a>
+                            )}
+                            {!t.audio_url && !t.document_url && (
+                              <span style={{ color: "#94a3b8" }}>—</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="ap-td" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            className="ap-btn-approve"
+                            style={{ padding: "5px 10px", fontSize: 11.5 }}
+                            onClick={() =>
+                              setOverdueRescheduleModal({
+                                task: t,
+                                newDate: t.due_date,
+                              })
+                            }
+                          >
+                            Reschedule
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="ap-task-mobile-grid">
+              {overdueTasks.slice(0, visibleOverdueCount).map((t) => {
+                const daysOverdue = Math.floor(
+                  (new Date(todayStr) - new Date(t.due_date)) / 86400000,
+                );
+                return (
+                  <div key={t.id} className="ap-task-card-mobile" onClick={() => setDetailTask(t)} style={{ cursor: "pointer" }}>
+                    <div className="ap-task-card-head">
+                      <div>
+                        <div className="ap-task-card-title">{t.title}</div>
+                        <div className="ap-task-card-sub">
+                          {nameFor(userMap, t.assigned_to)} ·{" "}
+                          {t.site_name || "No site"}
+                        </div>
+                      </div>
+                      <span
                         style={{
-                          fontSize: 11.5,
-                          color: "#94a3b8",
-                          marginTop: 2,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "2px 8px",
+                          borderRadius: 20,
+                          background: "#fef2f2",
+                          color: "#dc2626",
+                          flexShrink: 0,
                         }}
                       >
-                        {t.description}
-                      </div>
-                    )}
-                  </td>
-                  <td className="ap-td">{nameFor(userMap, t.assigned_to)}</td>
-                  <td className="ap-td">{t.site_name || "—"}</td>
-                  <td className="ap-td">{nameFor(userMap, t.assigned_by)}</td>
-                  <td className="ap-td">
-                    <span
-                      className="ap-badge"
-                      style={{ background: p.bg, color: p.color }}
-                    >
-                      <span
-                        className="ap-badge-dot"
-                        style={{ background: p.dot }}
-                      />
-                      {t.priority}
-                    </span>
-                  </td>
-                  <td className="ap-td">
-                    <span
-                      className="ap-badge"
-                      style={{ background: s.bg, color: s.color }}
-                    >
-                      {displayStatus(t.status)}
-                    </span>
-                  </td>
-                  <td className="ap-td">
-                    {t.hours_to_complete ? `${t.hours_to_complete} hrs` : "—"}
-                  </td>
-                  <td className="ap-td" style={{ color: "#dc2626", fontWeight: 600 }}>
-                    {new Date(t.due_date).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </td>
-                  <td className="ap-td">
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: "2px 8px",
-                        borderRadius: 20,
-                        background: "#fef2f2",
-                        color: "#dc2626",
-                      }}
-                    >
-                      {daysOverdue} day{daysOverdue !== 1 ? "s" : ""}
-                    </span>
-                  </td>
-                  <td className="ap-td">
-                    <div style={{ display: "flex", gap: 8 }}>
-                      {t.audio_url && (
-                        
-                        <a  href={t.audio_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Audio instruction"
-                          style={{ color: "#7c3aed" }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                          </svg>
-                        </a>
-                      )}
-                      {t.document_url && (
-                        
-                        <a  href={t.document_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Document"
-                          style={{ color: "#2563eb" }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                            <polyline points="14 2 14 8 20 8" />
-                          </svg>
-                        </a>
-                      )}
-                      {!t.audio_url && !t.document_url && (
-                        <span style={{ color: "#94a3b8" }}>—</span>
-                      )}
+                        {daysOverdue}d overdue
+                      </span>
                     </div>
-                  </td>
-                  <td className="ap-td">
+                    <div className="ap-task-card-meta">
+                      <div>
+                        <span>Priority</span>
+                        <strong>{t.priority}</strong>
+                      </div>
+                      <div>
+                        <span>Status</span>
+                        <strong>{displayStatus(t.status)}</strong>
+                      </div>
+                      <div>
+                        <span>Due Date</span>
+                        <strong style={{ color: "#dc2626" }}>
+                          {new Date(t.due_date).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Given By</span>
+                        <strong>{nameFor(userMap, t.assigned_by)}</strong>
+                      </div>
+                    </div>
                     <button
                       className="ap-btn-approve"
-                      style={{ padding: "5px 10px", fontSize: 11.5 }}
-                      onClick={() =>
-                        setOverdueRescheduleModal({ task: t, newDate: t.due_date })
-                      }
+                      style={{ width: "100%" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOverdueRescheduleModal({
+                          task: t,
+                          newDate: t.due_date,
+                        });
+                      }}
                     >
-                      Reschedule
+                      Reschedule Due Date
                     </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Mobile cards */}
-      <div className="ap-task-mobile-grid">
-        {overdueTasks.map((t) => {
-          const daysOverdue = Math.floor(
-            (new Date(todayStr) - new Date(t.due_date)) / 86400000,
-          );
-          return (
-            <div key={t.id} className="ap-task-card-mobile">
-              <div className="ap-task-card-head">
-                <div>
-                  <div className="ap-task-card-title">{t.title}</div>
-                  <div className="ap-task-card-sub">
-                    {nameFor(userMap, t.assigned_to)} ·{" "}
-                    {t.site_name || "No site"}
                   </div>
-                </div>
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    padding: "2px 8px",
-                    borderRadius: 20,
-                    background: "#fef2f2",
-                    color: "#dc2626",
-                    flexShrink: 0,
-                  }}
-                >
-                  {daysOverdue}d overdue
-                </span>
-              </div>
-              <div className="ap-task-card-meta">
-                <div>
-                  <span>Priority</span>
-                  <strong>{t.priority}</strong>
-                </div>
-                <div>
-                  <span>Status</span>
-                  <strong>{displayStatus(t.status)}</strong>
-                </div>
-                <div>
-                  <span>Due Date</span>
-                  <strong style={{ color: "#dc2626" }}>
-                    {new Date(t.due_date).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </strong>
-                </div>
-                <div>
-                  <span>Given By</span>
-                  <strong>{nameFor(userMap, t.assigned_by)}</strong>
-                </div>
-              </div>
-              <button
-                className="ap-btn-approve"
-                style={{ width: "100%" }}
-                onClick={() =>
-                  setOverdueRescheduleModal({ task: t, newDate: t.due_date })
-                }
-              >
-                Reschedule Due Date
-              </button>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
-    </>
-  );
+
+            {visibleOverdueCount < overdueTasks.length && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginTop: 16,
+                }}
+              >
+                <button
+                  className="ap-btn-secondary"
+                  onClick={() => setVisibleOverdueCount((c) => c + 10)}
+                >
+                  Load 10 more ({overdueTasks.length - visibleOverdueCount}{" "}
+                  remaining)
+                </button>
+              </div>
+            )}
+          </>
+        );
 
       default:
         return null;
@@ -9159,7 +9822,36 @@ const activeItem = [
               </button>
             </div>
             <nav className="op-nav">
-              {filterNav(NAV_ITEMS.slice(0, 6), user, "admin").map((item) => (
+            {filterNav(NAV_ITEMS.slice(0, 6), user, "admin").map((item) => {
+              const isActive = activeTab === item.key;
+              const isHovered = hoveredNavKey === item.key;
+              const highlighted = isActive || isHovered;
+              return (
+                <button
+                  key={item.key}
+                  className={`op-nav-item${isActive ? " Active" : ""}`}
+                  onClick={() => handleNavClick(item.key)}
+                  onMouseEnter={() => setHoveredNavKey(item.key)}
+                  onMouseLeave={() => setHoveredNavKey(null)}
+                  style={{
+                    background: highlighted ? `${item.color}18` : undefined,
+                    color: highlighted ? item.color : undefined,
+                    transition: "background .12s, color .12s",
+                  }}
+                >
+                  <span className="op-nav-icon">{item.icon}</span>
+                  {item.label}
+                  {item.key === "leave-requests" && leavePendingForAdmin > 0 && (
+                    <span className="op-nav-badge">{leavePendingForAdmin}</span>
+                  )}
+                  {item.key === "reschedule-requests" && reschedPending > 0 && (
+                    <span className="op-nav-badge">{reschedPending}</span>
+                  )}
+                </button>
+              );
+            })}
+              <span className="op-nav-section">Task Verification</span>
+              {filterNav(VERIFICATION_NAV, user, "admin").map((item) => (
                 <button
                   key={item.key}
                   className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
@@ -9167,37 +9859,17 @@ const activeItem = [
                 >
                   <span className="op-nav-icon">{item.icon}</span>
                   {item.label}
-                  {item.key === "leave-requests" &&
-                    leavePendingForAdmin > 0 && (
+                  {item.key === "pending-verification" &&
+                    verificationsPending.length > 0 && (
                       <span className="op-nav-badge">
-                        {leavePendingForAdmin}
+                        {verificationsPending.length}
                       </span>
                     )}
-                  {item.key === "reschedule-requests" && reschedPending > 0 && (
-                    <span className="op-nav-badge">{reschedPending}</span>
+                  {item.key === "overdue-tasks" && unseenOverdueCount > 0 && (
+                    <span className="op-nav-badge">{unseenOverdueCount}</span>
                   )}
                 </button>
               ))}
-              <span className="op-nav-section">Task Verification</span>
-                {filterNav(VERIFICATION_NAV, user, "admin").map((item) => (
-                  <button
-                    key={item.key}
-                    className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
-                    onClick={() => handleNavClick(item.key)}
-                  >
-                    <span className="op-nav-icon">{item.icon}</span>
-                    {item.label}
-                    {item.key === "pending-verification" &&
-                      verificationsPending.length > 0 && (
-                        <span className="op-nav-badge">
-                          {verificationsPending.length}
-                        </span>
-                      )}
-                    {item.key === "overdue-tasks" && unseenOverdueCount > 0 && (
-                      <span className="op-nav-badge">{unseenOverdueCount}</span>
-                    )} 
-                  </button>
-                ))}
               <span className="op-nav-section">Ticket Raised</span>
               {filterNav(TICKETS_NAV, user, "admin").map((item) => (
                 <button
@@ -9702,7 +10374,9 @@ const activeItem = [
                         color: s.color,
                       }}
                     >
-                      {displayStatus(detailTask.status).charAt(0).toUpperCase() +
+                      {displayStatus(detailTask.status)
+                        .charAt(0)
+                        .toUpperCase() +
                         displayStatus(detailTask.status).slice(1)}
                     </span>
                   );
@@ -9712,9 +10386,14 @@ const activeItem = [
                   return (
                     <span
                       style={{
-                        display: "inline-flex", alignItems: "center", fontSize: 12,
-                        fontWeight: 700, padding: "4px 10px", borderRadius: 20,
-                        background: a.bg, color: a.color,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        padding: "4px 10px",
+                        borderRadius: 20,
+                        background: a.bg,
+                        color: a.color,
                       }}
                     >
                       {a.label}
@@ -9778,12 +10457,17 @@ const activeItem = [
                   {
                     label: "Accepted At",
                     value: detailTask.accepted_at
-                      ? new Date(detailTask.accepted_at).toLocaleString("en-IN", {
-                          day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
-                        })
+                      ? new Date(detailTask.accepted_at).toLocaleString(
+                          "en-IN",
+                          {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )
                       : "Not accepted yet",
                   },
-
                 ].map(({ label, value }) => (
                   <div
                     key={label}
@@ -9929,112 +10613,456 @@ const activeItem = [
         </div>
       )}
       {verificationDetail && (
-  <div
-    style={{
-      position: "fixed", inset: 0, zIndex: 10030,
-      background: "rgba(15,23,42,.45)", backdropFilter: "blur(3px)",
-      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-    }}
-    onClick={(e) => { if (e.target === e.currentTarget) setVerificationDetail(null); }}
-  >
-    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.2)" }}>
-      {(() => {
-        const { v, task } = verificationDetail;
-        const statusStyle = {
-          pending: { bg: "#fffbeb", color: "#d97706", label: "Pending" },
-          completed: { bg: "#f0fdf4", color: "#16a34a", label: "Completed" },
-          correction_sent: { bg: "#fef2f2", color: "#dc2626", label: "Correction Sent" },
-        };
-        const sc = statusStyle[v.status] || statusStyle.pending;
-        return (
-          <>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9", position: "sticky", top: 0, background: "#fff", zIndex: 1, borderRadius: "16px 16px 0 0" }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>{task?.title || v.task_title}</div>
-                {(task?.site_name || v.site_name) && (
-                  <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 3 }}>{task?.site_name || v.site_name}</div>
-                )}
-              </div>
-              <button onClick={() => setVerificationDetail(null)} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", flexShrink: 0 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-              </button>
-            </div>
-
-            <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
-              <span style={{ display: "inline-flex", alignItems: "center", fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 20, background: sc.bg, color: sc.color, width: "fit-content" }}>
-                {sc.label}
-              </span>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {[
-                  { label: "Sent By", value: v.sent_by_name || v.sent_by },
-                  { label: "Assigned To", value: task ? nameFor(userMap, task.assigned_to) : "—" },
-                  { label: "Priority", value: task?.priority || "—" },
-                  { label: "Sent On", value: v.created_at ? new Date(v.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—" },
-                ].map(({ label, value }) => (
-                  <div key={label} style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 8, padding: "10px 12px" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 4 }}>{label}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>{value}</div>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10030,
+            background: "rgba(15,23,42,.45)",
+            backdropFilter: "blur(3px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setVerificationDetail(null);
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 560,
+              maxHeight: "90vh",
+              overflowY: "auto",
+              boxShadow: "0 20px 60px rgba(0,0,0,.2)",
+            }}
+          >
+            {(() => {
+              const { v, task } = verificationDetail;
+              const statusStyle = {
+                pending: { bg: "#fffbeb", color: "#d97706", label: "Pending" },
+                completed: {
+                  bg: "#f0fdf4",
+                  color: "#16a34a",
+                  label: "Completed",
+                },
+                correction_sent: {
+                  bg: "#fef2f2",
+                  color: "#dc2626",
+                  label: "Correction Sent",
+                },
+              };
+              const sc = statusStyle[v.status] || statusStyle.pending;
+              return (
+                <>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      padding: "18px 22px 14px",
+                      borderBottom: "1px solid #f1f5f9",
+                      position: "sticky",
+                      top: 0,
+                      background: "#fff",
+                      zIndex: 1,
+                      borderRadius: "16px 16px 0 0",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 700,
+                          color: "#1e293b",
+                        }}
+                      >
+                        {task?.title || v.task_title}
+                      </div>
+                      {(task?.site_name || v.site_name) && (
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "#94a3b8",
+                            marginTop: 3,
+                          }}
+                        >
+                          {task?.site_name || v.site_name}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setVerificationDetail(null)}
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 8,
+                        border: "1px solid #e2e8f0",
+                        background: "#fff",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#64748b",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
                   </div>
-                ))}
-              </div>
 
-              {task?.description && (
-                <div style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 10, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 8 }}>Task Description</div>
-                  <p style={{ fontSize: 13.5, color: "#475569", lineHeight: 1.6, margin: 0 }}>{task.description}</p>
-                </div>
-              )}
+                  <div
+                    style={{
+                      padding: "20px 22px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 16,
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        padding: "4px 10px",
+                        borderRadius: 20,
+                        background: sc.bg,
+                        color: sc.color,
+                        width: "fit-content",
+                      }}
+                    >
+                      {sc.label}
+                    </span>
 
-              <div style={{ background: "#f8fafc", border: "1px solid #e8edf3", borderRadius: 10, padding: "14px 16px" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 8 }}>Files Submitted for Verification</div>
-                {v.document_urls?.length > 0 ? (
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {v.document_urls.map((url, i) => (
-                      <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: "#475569", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 7, padding: "6px 12px", textDecoration: "none" }}>
-                        📎 File {i + 1}
-                      </a>
-                    ))}
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 10,
+                      }}
+                    >
+                      {[
+                        {
+                          label: "Sent By",
+                          value: v.sent_by_name || v.sent_by,
+                        },
+                        {
+                          label: "Assigned To",
+                          value: task
+                            ? nameFor(userMap, task.assigned_to)
+                            : "—",
+                        },
+                        { label: "Priority", value: task?.priority || "—" },
+                        {
+                          label: "Sent On",
+                          value: v.created_at
+                            ? new Date(v.created_at).toLocaleDateString(
+                                "en-IN",
+                                {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                },
+                              )
+                            : "—",
+                        },
+                      ].map(({ label, value }) => (
+                        <div
+                          key={label}
+                          style={{
+                            background: "#f8fafc",
+                            border: "1px solid #e8edf3",
+                            borderRadius: 8,
+                            padding: "10px 12px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              letterSpacing: ".06em",
+                              textTransform: "uppercase",
+                              color: "#94a3b8",
+                              marginBottom: 4,
+                            }}
+                          >
+                            {label}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: "#334155",
+                            }}
+                          >
+                            {value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {task?.description && (
+                      <div
+                        style={{
+                          background: "#f8fafc",
+                          border: "1px solid #e8edf3",
+                          borderRadius: 10,
+                          padding: "14px 16px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            letterSpacing: ".06em",
+                            textTransform: "uppercase",
+                            color: "#94a3b8",
+                            marginBottom: 8,
+                          }}
+                        >
+                          Task Description
+                        </div>
+                        <p
+                          style={{
+                            fontSize: 13.5,
+                            color: "#475569",
+                            lineHeight: 1.6,
+                            margin: 0,
+                          }}
+                        >
+                          {task.description}
+                        </p>
+                      </div>
+                    )}
+
+                    <div
+                      style={{
+                        background: "#f8fafc",
+                        border: "1px solid #e8edf3",
+                        borderRadius: 10,
+                        padding: "14px 16px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          letterSpacing: ".06em",
+                          textTransform: "uppercase",
+                          color: "#94a3b8",
+                          marginBottom: 8,
+                        }}
+                      >
+                        Files Submitted for Verification
+                      </div>
+                      {v.document_urls?.length > 0 ? (
+                        <div
+                          style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+                        >
+                          {v.document_urls.map((url, i) => (
+                            <a
+                              key={i}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                color: "#475569",
+                                background: "#fff",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: 7,
+                                padding: "6px 12px",
+                                textDecoration: "none",
+                              }}
+                            >
+                              📎 File {i + 1}
+                            </a>
+                          ))}
+                        </div>
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: 12.5,
+                            color: "#94a3b8",
+                            fontStyle: "italic",
+                          }}
+                        >
+                          No files attached
+                        </span>
+                      )}
+                    </div>
+
+                    {(task?.audio_url || task?.document_url) && (
+                      <div
+                        style={{
+                          background: "#eff6ff",
+                          border: "1px solid #bfdbfe",
+                          borderRadius: 10,
+                          padding: "14px 16px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            letterSpacing: ".06em",
+                            textTransform: "uppercase",
+                            color: "#2563eb",
+                            marginBottom: 10,
+                          }}
+                        >
+                          Original Task Attachments
+                        </div>
+                        <div
+                          style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+                        >
+                          {task.audio_url && (
+                            <a
+                              href={task.audio_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                color: "#7c3aed",
+                              }}
+                            >
+                              🎵 Audio
+                            </a>
+                          )}
+                          {task.document_url && (
+                            <a
+                              href={task.document_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                color: "#0369a1",
+                              }}
+                            >
+                              📄 Document
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {v.status === "correction_sent" && (
+                      <div
+                        style={{
+                          background: "#fef2f2",
+                          border: "1px solid #fecaca",
+                          borderRadius: 10,
+                          padding: "14px 16px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            letterSpacing: ".06em",
+                            textTransform: "uppercase",
+                            color: "#dc2626",
+                            marginBottom: 8,
+                          }}
+                        >
+                          Correction Sent
+                        </div>
+                        {v.correction_note && (
+                          <p
+                            style={{
+                              fontSize: 13.5,
+                              color: "#475569",
+                              lineHeight: 1.6,
+                              margin: "0 0 10px",
+                            }}
+                          >
+                            {v.correction_note}
+                          </p>
+                        )}
+                        <div
+                          style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+                        >
+                          {v.correction_audio_url && (
+                            <a
+                              href={v.correction_audio_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                color: "#7c3aed",
+                              }}
+                            >
+                              🎵 Correction Audio
+                            </a>
+                          )}
+                          {v.correction_document_urls?.map((url, i) => (
+                            <a
+                              key={i}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                color: "#0369a1",
+                              }}
+                            >
+                              📄 Doc {i + 1}
+                            </a>
+                          ))}
+                        </div>
+                        {v.resolved_by && (
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "#94a3b8",
+                              marginTop: 8,
+                            }}
+                          >
+                            by {v.resolved_by}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {v.status === "completed" && v.resolved_by && (
+                      <div
+                        style={{
+                          fontSize: 12.5,
+                          color: "#16a34a",
+                          fontWeight: 600,
+                        }}
+                      >
+                        ✓ Verified by {v.resolved_by}
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <span style={{ fontSize: 12.5, color: "#94a3b8", fontStyle: "italic" }}>No files attached</span>
-                )}
-              </div>
-
-              {(task?.audio_url || task?.document_url) && (
-                <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#2563eb", marginBottom: 10 }}>Original Task Attachments</div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {task.audio_url && <a href={task.audio_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: "#7c3aed" }}>🎵 Audio</a>}
-                    {task.document_url && <a href={task.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: "#0369a1" }}>📄 Document</a>}
-                  </div>
-                </div>
-              )}
-
-              {v.status === "correction_sent" && (
-                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "14px 16px" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "#dc2626", marginBottom: 8 }}>Correction Sent</div>
-                  {v.correction_note && <p style={{ fontSize: 13.5, color: "#475569", lineHeight: 1.6, margin: "0 0 10px" }}>{v.correction_note}</p>}
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {v.correction_audio_url && <a href={v.correction_audio_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: "#7c3aed" }}>🎵 Correction Audio</a>}
-                    {v.correction_document_urls?.map((url, i) => (
-                      <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: "#0369a1" }}>📄 Doc {i + 1}</a>
-                    ))}
-                  </div>
-                  {v.resolved_by && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>by {v.resolved_by}</div>}
-                </div>
-              )}
-
-              {v.status === "completed" && v.resolved_by && (
-                <div style={{ fontSize: 12.5, color: "#16a34a", fontWeight: 600 }}>✓ Verified by {v.resolved_by}</div>
-              )}
-            </div>
-          </>
-        );
-      })()}
-    </div>
-  </div>
-)}
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
       {rejectModal && (
         <div
           style={{
@@ -10600,16 +11628,32 @@ const activeItem = [
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+                <label
+                  style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+                >
                   Audio Note
-                  <span style={{ fontSize: 11, fontWeight: 500, color: "#94a3b8", background: "#f1f5f9", borderRadius: 4, padding: "1px 6px", marginLeft: 6 }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: "#94a3b8",
+                      background: "#f1f5f9",
+                      borderRadius: 4,
+                      padding: "1px 6px",
+                      marginLeft: 6,
+                    }}
+                  >
                     optional
                   </span>
                 </label>
                 <AudioRecorder
-                  onRecorded={(file) => setCorrectionModal((p) => ({ ...p, audioFile: file }))}
+                  onRecorded={(file) =>
+                    setCorrectionModal((p) => ({ ...p, audioFile: file }))
+                  }
                 />
-                <span style={{ fontSize: 11.5, color: "#94a3b8" }}>Record a voice note explaining the correction.</span>
+                <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+                  Record a voice note explaining the correction.
+                </span>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -10780,7 +11824,12 @@ const activeItem = [
               overflow: "hidden",
             }}
           >
-            <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
+            <div
+              style={{
+                padding: "18px 22px 14px",
+                borderBottom: "1px solid #f1f5f9",
+              }}
+            >
               <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
                 Reschedule Overdue Task
               </div>
@@ -10789,8 +11838,17 @@ const activeItem = [
               </div>
             </div>
 
-            <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+            <div
+              style={{
+                padding: "16px 22px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <label
+                style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+              >
                 New Due Date <span style={{ color: "#dc2626" }}>*</span>
               </label>
               <input
@@ -10809,15 +11867,21 @@ const activeItem = [
                 value={overdueRescheduleModal.newDate}
                 min={new Date().toISOString().split("T")[0]}
                 onChange={(e) =>
-                  setOverdueRescheduleModal((p) => ({ ...p, newDate: e.target.value }))
+                  setOverdueRescheduleModal((p) => ({
+                    ...p,
+                    newDate: e.target.value,
+                  }))
                 }
               />
               <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
                 Current due date:{" "}
-                {new Date(overdueRescheduleModal.task.due_date).toLocaleDateString(
-                  "en-IN",
-                  { day: "numeric", month: "short", year: "numeric" },
-                )}
+                {new Date(
+                  overdueRescheduleModal.task.due_date,
+                ).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
               </span>
             </div>
 
@@ -10859,7 +11923,10 @@ const activeItem = [
                   borderRadius: 8,
                   border: "none",
                   cursor: "pointer",
-                  opacity: updatingOverdueId === overdueRescheduleModal.task.id ? 0.6 : 1,
+                  opacity:
+                    updatingOverdueId === overdueRescheduleModal.task.id
+                      ? 0.6
+                      : 1,
                 }}
               >
                 {updatingOverdueId === overdueRescheduleModal.task.id
@@ -10874,50 +11941,125 @@ const activeItem = [
       {reassignModal && (
         <div
           style={{
-            position: "fixed", inset: 0, zIndex: 10040,
-            background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
-            display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+            position: "fixed",
+            inset: 0,
+            zIndex: 10040,
+            background: "rgba(15,23,42,.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
           }}
-          onClick={(e) => { if (e.target === e.currentTarget) setReassignModal(null); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setReassignModal(null);
+          }}
         >
-          <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 420, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
-            <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Reassign Task</div>
-              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>{reassignModal.task.title}</div>
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 420,
+              boxShadow: "0 24px 64px rgba(0,0,0,.22)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 22px 14px",
+                borderBottom: "1px solid #f1f5f9",
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+                Reassign Task
+              </div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                {reassignModal.task.title}
+              </div>
             </div>
-            <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+            <div
+              style={{
+                padding: "16px 22px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <label
+                style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+              >
                 New Assignee <span style={{ color: "#dc2626" }}>*</span>
               </label>
               <select
                 className="ap-input ap-select"
                 value={reassignModal.newAssignee}
-                onChange={(e) => setReassignModal((p) => ({ ...p, newAssignee: e.target.value }))}
+                onChange={(e) =>
+                  setReassignModal((p) => ({
+                    ...p,
+                    newAssignee: e.target.value,
+                  }))
+                }
               >
                 <option value="">Select employee…</option>
                 {employees
                   .filter((e) => e.status !== "Inactive")
                   .map((e) => (
-                    <option key={e.username} value={e.username}>{e.name}</option>
+                    <option key={e.username} value={e.username}>
+                      {e.name}
+                    </option>
                   ))}
               </select>
               <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
-                Currently assigned to {nameFor(userMap, reassignModal.task.assigned_to)}.
+                Currently assigned to{" "}
+                {nameFor(userMap, reassignModal.task.assigned_to)}.
               </span>
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                padding: "12px 22px 18px",
+                borderTop: "1px solid #f1f5f9",
+              }}
+            >
               <button
                 onClick={() => setReassignModal(null)}
-                style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 18px",
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  cursor: "pointer",
+                }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleReassignSubmit}
                 disabled={updatingReassignId === reassignModal.task.id}
-                style={{ background: "#2563eb", color: "#fff", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 20px", borderRadius: 8, border: "none", cursor: "pointer", opacity: updatingReassignId === reassignModal.task.id ? 0.6 : 1 }}
+                style={{
+                  background: "#2563eb",
+                  color: "#fff",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  opacity:
+                    updatingReassignId === reassignModal.task.id ? 0.6 : 1,
+                }}
               >
-                {updatingReassignId === reassignModal.task.id ? "Saving…" : "Reassign"}
+                {updatingReassignId === reassignModal.task.id
+                  ? "Saving…"
+                  : "Reassign"}
               </button>
             </div>
           </div>
@@ -10927,47 +12069,129 @@ const activeItem = [
       {rescheduleTaskModal && (
         <div
           style={{
-            position: "fixed", inset: 0, zIndex: 10040,
-            background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
-            display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+            position: "fixed",
+            inset: 0,
+            zIndex: 10040,
+            background: "rgba(15,23,42,.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
           }}
-          onClick={(e) => { if (e.target === e.currentTarget) setRescheduleTaskModal(null); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setRescheduleTaskModal(null);
+          }}
         >
-          <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 420, boxShadow: "0 24px 64px rgba(0,0,0,.22)", overflow: "hidden" }}>
-            <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9" }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>Reschedule Task</div>
-              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>{rescheduleTaskModal.task.title}</div>
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 420,
+              boxShadow: "0 24px 64px rgba(0,0,0,.22)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 22px 14px",
+                borderBottom: "1px solid #f1f5f9",
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+                Reschedule Task
+              </div>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                {rescheduleTaskModal.task.title}
+              </div>
             </div>
-            <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}>
+            <div
+              style={{
+                padding: "16px 22px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <label
+                style={{ fontSize: 12.5, fontWeight: 600, color: "#475569" }}
+              >
                 New Due Date <span style={{ color: "#dc2626" }}>*</span>
               </label>
               <input
                 type="date"
                 className="ap-input"
                 value={rescheduleTaskModal.newDate}
-                onChange={(e) => setRescheduleTaskModal((p) => ({ ...p, newDate: e.target.value }))}
+                onChange={(e) =>
+                  setRescheduleTaskModal((p) => ({
+                    ...p,
+                    newDate: e.target.value,
+                  }))
+                }
               />
               <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
                 Current due date:{" "}
                 {rescheduleTaskModal.task.due_date
-                  ? new Date(rescheduleTaskModal.task.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                  ? new Date(
+                      rescheduleTaskModal.task.due_date,
+                    ).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })
                   : "Not set"}
               </span>
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                padding: "12px 22px 18px",
+                borderTop: "1px solid #f1f5f9",
+              }}
+            >
               <button
                 onClick={() => setRescheduleTaskModal(null)}
-                style={{ background: "#f1f5f9", color: "#475569", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 18px",
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  cursor: "pointer",
+                }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleRescheduleTaskSubmit}
-                disabled={updatingRescheduleTaskId === rescheduleTaskModal.task.id}
-                style={{ background: "#2563eb", color: "#fff", fontFamily: "'DM Sans',sans-serif", fontSize: 13.5, fontWeight: 600, padding: "9px 20px", borderRadius: 8, border: "none", cursor: "pointer", opacity: updatingRescheduleTaskId === rescheduleTaskModal.task.id ? 0.6 : 1 }}
+                disabled={
+                  updatingRescheduleTaskId === rescheduleTaskModal.task.id
+                }
+                style={{
+                  background: "#2563eb",
+                  color: "#fff",
+                  fontFamily: "'DM Sans',sans-serif",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  padding: "9px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  opacity:
+                    updatingRescheduleTaskId === rescheduleTaskModal.task.id
+                      ? 0.6
+                      : 1,
+                }}
               >
-                {updatingRescheduleTaskId === rescheduleTaskModal.task.id ? "Saving…" : "Update Due Date"}
+                {updatingRescheduleTaskId === rescheduleTaskModal.task.id
+                  ? "Saving…"
+                  : "Update Due Date"}
               </button>
             </div>
           </div>

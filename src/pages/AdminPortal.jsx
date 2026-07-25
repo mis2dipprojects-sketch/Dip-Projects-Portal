@@ -13,14 +13,14 @@ const NAV_ITEMS = [
     key: "dashboard",
     label: "Dashboard",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#be3d3d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="7" rx="1" />
         <rect x="14" y="3" width="7" height="7" rx="1" />
         <rect x="3" y="14" width="7" height="7" rx="1" />
         <rect x="14" y="14" width="7" height="7" rx="1" />
       </svg>
     ),
-  },
+  },  
   {
     key: "assign-task",
     label: "Assign Task",
@@ -4480,6 +4480,7 @@ export default function AdminPortal() {
     dateFrom: "",
     dateTo: "",
   });
+  const [visibleTaskCount, setVisibleTaskCount] = useState(20);
   // Task filters
   const [taskFilters, setTaskFilters] = useState({ ...EMPTY_TASK_FILTERS });
   const total = allTasks.length;
@@ -4518,6 +4519,7 @@ export default function AdminPortal() {
         }
       });
   }, []);
+  
   const filteredReschedules = allReschedules.filter((r) => {
     if (
       rescheduleFilters.name &&
@@ -4556,6 +4558,7 @@ export default function AdminPortal() {
     assignedTo: "",
     recurrence: "",
   };
+  const [visibleRecurringCount, setVisibleRecurringCount] = useState(20);
   const [recurringFilters, setRecurringFilters] = useState({
     ...EMPTY_RECURRING_FILTERS,
   });
@@ -4584,6 +4587,13 @@ const [resolvedFilterTab, setResolvedFilterTab] = useState("all");
     setAllTasks(data || []);
     setLoadingTasks(false);
   }, []);
+  useEffect(() => {
+    setVisibleTaskCount(20);
+  }, [taskFilters, showRecurringInAllTasks]); 
+
+  useEffect(() => {
+    setVisibleRecurringCount(20);
+  }, [recurringFilters]);
 
   const fetchAllTickets = useCallback(async () => {
     setLoadingTickets(true);
@@ -5466,7 +5476,9 @@ const activeItem = [
   const baseAllTasks = showRecurringInAllTasks
     ? allTasks
     : allTasks.filter((t) => !t.is_recurring && !t.parent_task_id);
-  const filteredTasks = applyTaskFilters(baseAllTasks, taskFilters);
+  const filteredTasks = applyTaskFilters(baseAllTasks, taskFilters)
+  .slice()
+  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   const hasActiveFilters = Object.values(taskFilters).some((v) => v !== "");
   // Replace the 4 lines that compute tfSites/tfPriorities/tfStatuses/tfAssignees:
 
@@ -5504,29 +5516,29 @@ const activeItem = [
   const recurringTasks = allTasks.filter((t) => t.is_recurring);
 
   const filteredRecurring = recurringTasks.filter((t) => {
-    if (recurringFilters.site && t.site_name !== recurringFilters.site)
-      return false;
-    if (
-      recurringFilters.assignedTo &&
-      t.assigned_to !== recurringFilters.assignedTo
-    )
-      return false;
-    if (
-      recurringFilters.recurrence &&
-      t.recurrence !== recurringFilters.recurrence
-    )
-      return false;
-    if (recurringFilters.dueSoon) {
-      const nextDateStr = getNextDueDate(t.due_date, t.recurrence);  // ← fixed
-      if (!nextDateStr) return false;
-      const next = new Date(nextDateStr + "T00:00:00");
-      const diff = Math.round(
-        (next - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24),
-      );
-      if (diff > 7) return false;
-    }
-    return true;
-  });
+  if (recurringFilters.site && t.site_name !== recurringFilters.site)
+    return false;
+  if (
+    recurringFilters.assignedTo &&
+    t.assigned_to !== recurringFilters.assignedTo
+  )
+    return false;
+  if (
+    recurringFilters.recurrence &&
+    t.recurrence !== recurringFilters.recurrence
+  )
+    return false;
+  if (recurringFilters.dueSoon) {
+    const nextDateStr = getNextDueDate(t.due_date, t.recurrence);
+    if (!nextDateStr) return false;
+    const next = new Date(nextDateStr + "T00:00:00");
+    const diff = Math.round(
+      (next - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24),
+    );
+    if (diff > 7) return false;
+  }
+  return true;
+}).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   const rfSites = [
     ...new Set(recurringTasks.map((t) => t.site_name).filter(Boolean)),
@@ -5801,7 +5813,7 @@ const activeItem = [
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredTasks.map((t) => (
+                      {filteredTasks.slice(0, visibleTaskCount).map((t) => (
                         <TaskRow
                           key={t.id}
                           task={t}
@@ -5814,7 +5826,7 @@ const activeItem = [
                   </table>
                 </div>
                 <div className="ap-task-mobile-grid">
-                  {filteredTasks.map((t) => (
+                  {filteredTasks.slice(0, visibleTaskCount).map((t) => (
                     <TaskCard
                       key={t.id}
                       task={t}
@@ -5823,6 +5835,16 @@ const activeItem = [
                     />
                   ))}
                 </div>
+                {visibleTaskCount < filteredTasks.length && (
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+                    <button
+                      className="ap-btn-secondary"
+                      onClick={() => setVisibleTaskCount((c) => c + 10)}
+                    >
+                      Load 10 more ({filteredTasks.length - visibleTaskCount} remaining)
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </>
@@ -6224,7 +6246,7 @@ const activeItem = [
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRecurring.map((task) => {
+                      {filteredRecurring.slice(0, visibleRecurringCount).map((task) => {
                         const nextDate = getNextDueDate(task.due_date, task.recurrence);  // ← fixed
                         const next = formatNextDue(nextDate);
                         const p =
@@ -6397,7 +6419,7 @@ const activeItem = [
                 {/* Mobile cards */}
                 <div className="ap-task-mobile-grid">
                   <div className="ap-task-mobile-grid">
-                    {filteredRecurring.map((task) => {
+                    {filteredRecurring.slice(0, visibleRecurringCount).map((task) => {
                       const nextDate = getNextDueDate(task.due_date, task.recurrence);  // ← fixed
                       const next = formatNextDue(nextDate);
                       const p =
@@ -6417,7 +6439,18 @@ const activeItem = [
                   </div>
                 </div>
               </>
+              
             )}
+            {visibleRecurringCount < filteredRecurring.length && (
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+                    <button
+                      className="ap-btn-secondary"
+                      onClick={() => setVisibleRecurringCount((c) => c + 10)}
+                    >
+                      Load 10 more ({filteredRecurring.length - visibleRecurringCount} remaining)
+                    </button>
+                  </div>
+              )}
           </>
         );
       case "leave-requests":

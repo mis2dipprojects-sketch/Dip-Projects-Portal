@@ -17,16 +17,7 @@ const TASK_NAV = [
     key: "my-tasks",
     label: "My Tasks",
     icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="18" height="18" rx="3" />
         <path d="M9 12l2 2 4-4" />
       </svg>
@@ -36,16 +27,7 @@ const TASK_NAV = [
     key: "recurring-tasks",
     label: "Recurring Tasks",
     icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
         <path d="M3 3v5h5" />
       </svg>
@@ -55,16 +37,7 @@ const TASK_NAV = [
     key: "my-reschedules",
     label: "My Reschedule Requests",
     icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="17" rx="2" />
         <line x1="8" y1="2" x2="8" y2="6" />
         <line x1="16" y1="2" x2="16" y2="6" />
@@ -79,58 +52,43 @@ const VERIFIED_TASKS_ITEM = {
   key: "verified-tasks",
   label: "Verified Tasks",
   icon: (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 11l3 3L22 4" />
       <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
     </svg>
   ),
 };
+
 const TASK_CORRECTIONS_ITEM = {
   key: "task-corrections",
   label: "Task Corrections",
   icon: (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <line x1="12" y1="8" x2="12" y2="12" />
       <line x1="12" y1="16" x2="12.01" y2="16" />
     </svg>
   ),
 };
+
 const NEW_TICKETS_ITEM = {
   key: "new-tickets",
   label: "New Tickets",
   icon: (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
       <line x1="12" y1="10" x2="12" y2="14" />
       <line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   ),
 };
+
 const TICKETS_NAV = [
   {
     key: "raised-tickets",
     label: "Raised Tickets",
     icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z" />
         <path d="M12 7v10" strokeDasharray="2 2" />
       </svg>
@@ -140,16 +98,7 @@ const TICKETS_NAV = [
     key: "solved-tickets",
     label: "Solved Tickets",
     icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z" />
         <path d="M9 12l2 2 4-4" />
       </svg>
@@ -157,20 +106,12 @@ const TICKETS_NAV = [
   },
 ];
 
+
 const VERIFY_REQUESTS_ITEM = {
   key: "verify-requests",
   label: "Reschedule Requests",
   icon: (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
       <path d="M3 3v5h5" />
       <line x1="12" y1="8" x2="12" y2="12" />
@@ -183,16 +124,7 @@ const LEAVE_NAV = [
     key: "apply-leave",
     label: "Apply Leave",
     icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" />
         <line x1="16" y1="2" x2="16" y2="6" />
         <line x1="8" y1="2" x2="8" y2="6" />
@@ -206,16 +138,7 @@ const LEAVE_NAV = [
     key: "my-leaves",
     label: "My Leaves",
     icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
         <line x1="9" y1="13" x2="15" y2="13" />
@@ -227,16 +150,7 @@ const LEAVE_NAV = [
     key: "proxy-request",
     label: "Leave Approvals",
     icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
         <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
@@ -245,21 +159,13 @@ const LEAVE_NAV = [
     ),
   },
 ];
+
 const REPORTS_NAV = [
   {
     key: "site-report",
     label: "Site Report",
     icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
         <line x1="9" y1="13" x2="15" y2="13" />
@@ -272,16 +178,7 @@ const REPORTS_NAV = [
     key: "my-reports",
     label: "My Reports",
     icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9l5 5v3" />
         <polyline points="14 3 14 8 19 8" />
         <path d="M12 22l2 2 4-4" />
@@ -292,16 +189,7 @@ const REPORTS_NAV = [
     key: "checklists",
     label: "Checklists",
     icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M9 11l3 3L22 4" />
         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
       </svg>
@@ -313,16 +201,7 @@ const REPORT_SUBMISSIONS_ITEM = {
   key: "report-submissions",
   label: "Report Submissions",
   icon: (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
       <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
     </svg>
@@ -381,6 +260,7 @@ function TaskFilterBar({
   onClear,
   taskList,
   showAssignedBy,
+  userMap = {},
 }) {
   const sitesFiltered = applyFilters(taskList, { ...filters, site: "" });
   const priorityFiltered = applyFilters(taskList, { ...filters, priority: "" });
@@ -589,7 +469,7 @@ function TaskFilterBar({
               <option value="">Anyone</option>
               {assignees.map((a) => (
                 <option key={a} value={a}>
-                  {a}
+                  {userMap[a] || a}
                 </option>
               ))}
             </select>
@@ -782,7 +662,7 @@ function ApprovalPip({ label, state }) {
 }
 
 // ── TaskCard ───────────────────────────────────────────────────────────────
-function TaskCard({ task, onStatusChange, updating, onReschedule, onClick }) {
+function TaskCard({ task, onStatusChange, updating, onReschedule, onClick, userMap = {} }) {
   const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
   const s = STATUS_STYLES[task.status] || STATUS_STYLES.pending;
   return (
@@ -935,7 +815,7 @@ function TaskCard({ task, onStatusChange, updating, onReschedule, onClick }) {
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
-            by {task.assigned_by}
+            by {userMap[task.assigned_by] || task.assigned_by}
           </span>
         )}
         {task.is_recurring && task.recurrence && (
@@ -1194,7 +1074,9 @@ function TaskTable({
             <th>Due Date</th>
             <th>Priority</th>
             <th>Status</th>
-            {showRecurrence && <th>Recurrence</th>}
+            <th style={!showRecurrence ? { display: "none" } : undefined}>
+              Recurrence
+            </th>
             <th>Files</th>
             <th>Action</th>
           </tr>
@@ -1218,8 +1100,7 @@ function TaskTable({
                 {showAssignedBy && <td>{nameFor(task.assigned_to)}</td>}
                 <td>{task.site_name || "—"}</td>
                 {showAssignedBy && <td>{nameFor(task.assigned_by)}</td>}
-                {showAssignedBy && <td>{nameFor(task.assigned_by)}</td>}
-                
+
                 <td>
                   {task.due_date
                     ? new Date(task.due_date).toLocaleDateString("en-IN", {
@@ -1251,7 +1132,7 @@ function TaskTable({
                       .replace(/\b\w/g, (c) => c.toUpperCase())}
                   </span>
                 </td>
-                <td>
+                <td style={!showRecurrence ? { display: "none" } : undefined}>
                   {task.recurrence ? (
                     <span className="op-meta-pill op-pill-blue">
                       {task.recurrence.charAt(0).toUpperCase() +
@@ -1327,7 +1208,8 @@ function TaskTable({
       </table>
     </div>
   );
-}
+} 
+
 function TaskList({
   tasks,
   loading,
@@ -1511,7 +1393,7 @@ function NewTicketsTable({ tickets, onSolve, updatingId }) {
                 <td className="tt-title-cell">
                   <div className="tt-title">{t.task_title || "—"}</div>
                 </td>
-                <td>{t.raised_by_name || t.raised_by}</td>
+                <td>{t.raised_by_name || "—"}</td>
                 <td>{t.site_name || "—"}</td>
                 <td style={{ maxWidth: 220 }}>
                   <span style={{ fontSize: 12.5, color: "#64748b" }}>
@@ -1631,7 +1513,7 @@ function MyVerificationTable({
                   <div className="tt-title">{v.task_title || "—"}</div>
                 </td>
                 <td>{v.site_name || "—"}</td>
-                <td>{v.verifier_name || v.verifier}</td>
+                <td>{v.verifier_name || "—"}</td>
                 <td>{fmt(v.created_at)}</td>
                 <td>
                   {v.document_urls?.length > 0 ? (
@@ -1737,7 +1619,7 @@ function MyVerificationTable({
                   </div>
                   {v.status === "completed" && v.resolved_by && (
                     <div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 2 }}>
-                      Verified by {v.resolved_by}
+                      Verified by {v.verifier_name || "—"}
                     </div>
                   )}
                 </td>
@@ -1809,7 +1691,7 @@ function RaisedTicketsTable({ tickets, onRowClick }) {
                 <td className="tt-title-cell">
                   <div className="tt-title">{t.task_title || "—"}</div>
                 </td>
-                <td>{t.assigned_to_name || t.assigned_to}</td>
+                <td>{t.assigned_to_name || "—"}</td>
                 <td>{t.site_name || "—"}</td>
                 <td style={{ maxWidth: 220 }}>
                   <span style={{ fontSize: 12.5, color: "#64748b" }}>
@@ -1898,7 +1780,7 @@ function RaisedTicketsTable({ tickets, onRowClick }) {
   );
 }
 
-function VerifyRequestsTable({ requests, onApprove, onReject, updatingId }) {
+function VerifyRequestsTable({ requests, onApprove, onReject, updatingId, userMap = {} }) {
   const fmt = (d) =>
     d
       ? new Date(d + "T00:00:00").toLocaleDateString("en-IN", {
@@ -1939,7 +1821,7 @@ function VerifyRequestsTable({ requests, onApprove, onReject, updatingId }) {
                     {req.tasks?.title || `Task #${req.task_id}`}
                   </div>
                 </td>
-                <td>{req.requested_by}</td>
+                  <td>{userMap[req.requested_by] || req.requested_by}</td>
                 <td>{req.tasks?.site_name || "—"}</td>
                 <td>{fmt(req.current_due)}</td>
                 <td style={{ color: "#7c3aed", fontWeight: 600 }}>
@@ -2064,8 +1946,7 @@ function ProxyLeaveTable({
             return (
               <tr key={l.id} className="tt-row" onClick={() => onRowClick(l)}>
                 <td className="tt-title-cell">
-                  <div className="tt-title">{l.name || l.user_name}</div>
-                  <div className="tt-desc">{l.user_name}</div>
+                   <div className="tt-title">{l.name || l.user_name}</div>
                 </td>
                 <td>{l.site_name || "—"}</td>
                 <td>{l.leave_type}</td>
@@ -2132,6 +2013,7 @@ function MyRescheduleTable({
   onReschedule,
   onSendVerification,
   onRaiseTicket,
+  userMap = {}
 }) {
   const fmt = (d) =>
     d
@@ -2216,7 +2098,7 @@ function MyRescheduleTable({
                     </div>
                   )}
                 </td>
-                <td>{req.actioned_by || "—"}</td>
+                 <td>{userMap[req.actioned_by] || req.actioned_by || "—"}</td>
                 <td onClick={(e) => e.stopPropagation()}>
                   {task ? (
                     <TaskActionMenu
@@ -3594,6 +3476,7 @@ const latestVerificationByTask = useMemo(() => {
             onFilterChange={makeFilterChange(setRecurringFilters)}
             onFilterClear={makeFilterClear(setRecurringFilters)}
             allTasks={recurringTasks}
+            showRecurrence={true}
             onSendVerification={handleSendVerification}
             onRaiseTicket={handleRaiseTicket}
             onReschedule={(task) => {
@@ -4023,6 +3906,7 @@ const latestVerificationByTask = useMemo(() => {
                 onApprove={(req) => handleVerifyAction(req, true)}
                 onReject={(req) => handleVerifyAction(req, false)}
                 updatingId={updatingVerifyId}
+                userMap={userMap}
               />
             </div>
             <div className="lv-cards-only">
@@ -4046,7 +3930,7 @@ const latestVerificationByTask = useMemo(() => {
                           {req.tasks?.title || `Task #${req.task_id}`}
                         </div>
                         <div className="lv-card-sub">
-                          Requested by {req.requested_by}
+                           Requested by {userMap[req.requested_by] || req.requested_by}
                           {req.tasks?.site_name && ` · ${req.tasks.site_name}`}
                         </div>
                       </div>
@@ -4343,6 +4227,7 @@ const latestVerificationByTask = useMemo(() => {
               <MyRescheduleTable
                 reschedules={myReschedules}
                 allTasks={allTasks}
+                userMap={userMap}
                 onReschedule={(task) => {
                   setRescheduleTask(task);
                   setRescheduleForm({ requested_date: "", reason: "", verify_with: "" });
@@ -4694,7 +4579,7 @@ const latestVerificationByTask = useMemo(() => {
                             <circle cx="12" cy="7" r="4" />
                           </svg>
                           {isApproved ? "Approved" : "Rejected"} by{" "}
-                          {req.actioned_by}
+                          {userMap[req.actioned_by] || req.actioned_by}
                           {req.actioned_at &&
                             ` · ${new Date(req.actioned_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}
                         </div>
@@ -5567,6 +5452,7 @@ const latestVerificationByTask = useMemo(() => {
                   <>
                     <div className="tf-bar-inline" >
                       <TaskFilterBar
+                      userMap={userMap}
                         filters={
                           activeTab === "my-tasks"
                             ? myTaskFilters
@@ -7046,9 +6932,9 @@ const latestVerificationByTask = useMemo(() => {
                 }}
               >
                 {[
-                  {
+                  {                  
                     label: "Assigned By",
-                    value: detailTask.assigned_by || "—",
+                    value: userMap[detailTask.assigned_by] || detailTask.assigned_by || "—",
                   },
                   {
                     label: "Hours to Complete",
@@ -7442,7 +7328,7 @@ const latestVerificationByTask = useMemo(() => {
                             </a>
                           ))}
                         </div>
-                        {v.resolved_by && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>by {v.resolved_by}</div>}
+                        {v.resolved_by && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>by {v.resolved_by}</div>} 
                       </div>
                     )}
                       </div>

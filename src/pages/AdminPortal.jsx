@@ -3242,6 +3242,7 @@ function TaskForm({
                         <line x1="12" y1="14" x2="12" y2="18" />
                       </svg>
                     )}
+                    
                     {r === "yearly" && (
                       <svg
                         width="12"

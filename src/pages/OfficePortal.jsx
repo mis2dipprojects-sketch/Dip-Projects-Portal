@@ -900,12 +900,16 @@ function TaskCard({ task, onStatusChange, updating, onReschedule, onClick, userM
 }
 function TaskActionMenu({
   task,
+  onAccept,
+  onHold,
+  onContinue,
   onReschedule,
   onSendVerification,
   onRaiseTicket,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [hoveredKey, setHoveredKey] = useState(null);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -917,27 +921,140 @@ function TaskActionMenu({
   }, []);
 
   const isCompleted = task.status === "completed";
+  const isAccepted = !!task.accepted_at;
+  const isHeld = !!task.is_held;
   const canReschedule = task.reschedule_allowed && !isCompleted;
 
-  const handleMenuOpen = (e) => {
+  // Not yet accepted — standalone Accept button, no dropdown
+  if (!isAccepted && !isCompleted) {
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onAccept(task);
+        }}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 12,
+          fontWeight: 700,
+          padding: "6px 14px",
+          borderRadius: 7,
+          border: "1px solid #bbf7d0",
+          background: "#f0fdf4",
+          color: "#16a34a",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "#dcfce7")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "#f0fdf4")}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" stroke="none" />
+        </svg>
+        Accept Task
+      </button>
+    );
+  }
+
+ const handleMenuOpen = (e) => {
     if (isCompleted) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
-    const menuHeight = 140;
+    const menuHeight = 210;
     setMenuPosition({
-      top:
-        spaceBelow < menuHeight ? rect.top - menuHeight - 4 : rect.bottom + 4,
-      left: rect.right - 190,
+      top: spaceBelow < menuHeight ? rect.top - menuHeight - 4 : rect.bottom + 4,
+      left: rect.right - 260, // ← widened from 220
     });
     setMenuOpen(true);
   };
 
+  const items = [
+    {
+      key: "verify",
+      label: "Send for Verification",
+      color: "#16a34a",
+      bg: "#f0fdf4",
+      onClick: () => onSendVerification(task),
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 11l3 3L22 4" />
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+        </svg>
+      ),
+    },
+    {
+      key: "hold",
+      label: isHeld ? "Continue Task" : "Hold Task",
+      color: isHeld ? "#2563eb" : "#d97706",
+      bg: isHeld ? "#eff6ff" : "#fffbeb",
+      onClick: () => (isHeld ? onContinue(task) : onHold(task)),
+      icon: isHeld ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3" />
+        </svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="6" y="4" width="4" height="16" />
+          <rect x="14" y="4" width="4" height="16" />
+        </svg>
+      ),
+    },
+    {
+      key: "reschedule",
+      label: "Reschedule",
+      disabled: !canReschedule,
+      color: "#7c3aed",
+      bg: "#f5f3ff",
+      onClick: () => canReschedule && onReschedule(task),
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+        </svg>
+      ),
+    },
+    {
+      key: "ticket",
+      label: "Raise Ticket",
+      color: "#dc2626",
+      bg: "#fef2f2",
+      onClick: () => onRaiseTicket(task),
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+          <line x1="12" y1="10" x2="12" y2="14" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      ),
+    },
+  ];
+
   return (
-    <div
-      ref={ref}
-      style={{ position: "relative" }}
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div ref={ref} style={{ position: "relative", display: "flex", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
+      {isHeld && (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            fontSize: 10.5,
+            fontWeight: 700,
+            padding: "2px 8px",
+            borderRadius: 20,
+            background: "#fffbeb",
+            color: "#d97706",
+            border: "1px solid #fde68a",
+            marginRight: 8,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+          Held
+        </span>
+      )}
       <button
         className="tt-action-btn"
         onClick={handleMenuOpen}
@@ -945,15 +1062,7 @@ function TaskActionMenu({
         title={isCompleted ? "Task completed — no actions available" : "Actions"}
         style={isCompleted ? { opacity: 0.35, cursor: "not-allowed" } : undefined}
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-        >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
           <circle cx="12" cy="5" r="1.6" />
           <circle cx="12" cy="12" r="1.6" />
           <circle cx="12" cy="19" r="1.6" />
@@ -967,81 +1076,47 @@ function TaskActionMenu({
             position: "fixed",
             top: menuPosition.top,
             left: menuPosition.left,
+            width: 240, // ← added explicit width (was likely 220 via CSS)
             zIndex: 9999,
           }}
         >
-          <button
-            className="tt-action-item tt-action-success"
-            onClick={() => {
-              setMenuOpen(false);
-              onSendVerification(task);
-            }}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M9 11l3 3L22 4" />
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-            </svg>
-            Send for Verification
-          </button>
-
-          <button
-            className="tt-action-item tt-action-primary"
-            disabled={!canReschedule}
-            onClick={() => {
-              if (canReschedule) {
-                setMenuOpen(false);
-                onReschedule(task);
-              }
-            }}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-            </svg>
-            Reschedule
-          </button>
-
-          <button
-            className="tt-action-item tt-action-danger"
-            onClick={() => {
-              setMenuOpen(false);
-              onRaiseTicket(task);
-            }}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
-              <line x1="12" y1="10" x2="12" y2="14" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            Raise Ticket
-          </button>
+          {items.map((item) => {
+            const hovered = hoveredKey === item.key && !item.disabled;
+            return (
+              <button
+                key={item.key}
+                disabled={item.disabled}
+                onMouseEnter={() => setHoveredKey(item.key)}
+                onMouseLeave={() => setHoveredKey(null)}
+                onClick={() => {
+                  if (item.disabled) return;
+                  setMenuOpen(false);
+                  item.onClick();
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "9px 14px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  background: hovered ? item.bg : "transparent",
+                  border: "none",
+                  cursor: item.disabled ? "not-allowed" : "pointer",
+                  color: item.disabled ? "#94a3b8" : hovered ? item.color : "#334155", // ← darker disabled text (was #cbd5e1)
+                  opacity: item.disabled ? 1 : 1, // ← removed extra opacity dimming since color already conveys disabled state
+                  transition: "background .12s, color .12s",
+                }}
+              >
+                <span style={{ display: "flex", flexShrink: 0, color: item.disabled ? "#94a3b8" : item.color }}>
+                  {item.icon}
+                </span>
+                {item.label}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -1059,6 +1134,9 @@ function TaskTable({
   userMap = {},
   onSendVerification,
   onRaiseTicket,
+  onAccept,
+  onHold,
+  onContinue,
 }) {
   const nameFor = (username) => userMap[username] || username || "—";
 
@@ -1196,6 +1274,9 @@ function TaskTable({
                 <td onClick={(e) => e.stopPropagation()}>
                   <TaskActionMenu
                     task={task}
+                    onAccept={onAccept}
+                    onHold={onHold}
+                    onContinue={onContinue}
                     onReschedule={onReschedule}
                     onSendVerification={onSendVerification}
                     onRaiseTicket={onRaiseTicket}
@@ -1227,6 +1308,9 @@ function TaskList({
   userMap = {},
   onSendVerification,
   onRaiseTicket,
+  onAccept,
+  onHold,
+  onContinue,
 }) {
   const filtered = applyFilters(tasks, filters);
   const hasActiveFilters = Object.values(filters).some((v) => v !== "");
@@ -1277,8 +1361,11 @@ function TaskList({
           onClick={onDetailClick}
           showRecurrence={showRecurrence}
           userMap={userMap}
-          onSendVerification={onSendVerification} // ← add
+          onSendVerification={onSendVerification}
           onRaiseTicket={onRaiseTicket}
+          onAccept={onAccept}
+          onHold={onHold}
+          onContinue={onContinue}
         />
       )}
     </>
@@ -1479,6 +1566,9 @@ function MyVerificationTable({
   onReschedule,
   onSendVerification,
   onRaiseTicket,
+  onAccept,
+  onHold,
+  onContinue,
   showAction = false,
 }) {
   const fmt = (d) =>
@@ -1628,6 +1718,9 @@ function MyVerificationTable({
                     {task ? (
                       <TaskActionMenu
                         task={task}
+                        onAccept={onAccept}
+                        onHold={onHold}
+                        onContinue={onContinue}
                         onReschedule={onReschedule}
                         onSendVerification={onSendVerification}
                         onRaiseTicket={onRaiseTicket}
@@ -2013,6 +2106,9 @@ function MyRescheduleTable({
   onReschedule,
   onSendVerification,
   onRaiseTicket,
+  onAccept,
+  onHold,
+  onContinue,
   userMap = {}
 }) {
   const fmt = (d) =>
@@ -2101,12 +2197,15 @@ function MyRescheduleTable({
                  <td>{userMap[req.actioned_by] || req.actioned_by || "—"}</td>
                 <td onClick={(e) => e.stopPropagation()}>
                   {task ? (
-                    <TaskActionMenu
-                      task={task}
-                      onReschedule={onReschedule}
-                      onSendVerification={onSendVerification}
-                      onRaiseTicket={onRaiseTicket}
-                    />
+                      <TaskActionMenu
+                        task={task}
+                        onAccept={onAccept}
+                        onHold={onHold}
+                        onContinue={onContinue}
+                        onReschedule={onReschedule}
+                        onSendVerification={onSendVerification}
+                        onRaiseTicket={onRaiseTicket}
+                      />
                   ) : (
                     <span style={{ fontSize: 11.5, color: "#94a3b8" }}>—</span>
                   )}
@@ -2119,6 +2218,7 @@ function MyRescheduleTable({
     </div>
   );
 }
+
 // ── Leave Card ─────────────────────────────────────────────────────────────
 function LeaveCard({
   leave,
@@ -2468,25 +2568,8 @@ useEffect(() => {
   const [recurringFilters, setRecurringFilters] = useState({
     ...EMPTY_FILTERS,
   });
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel("tasks-status-sync")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "tasks" },
-        (payload) => {
-          const updated = payload.new;
-          const patch = (list) =>
-            list.map((t) => (t.id === updated.id ? { ...t, ...updated } : t));
-          setMyTasks((p) => patch(p));
-          setRecurringTasks((p) => patch(p));
-        },
-      )
-      .subscribe();
+  
 
-    return () => supabase.removeChannel(channel);
-  }, [user]);
   const [userMap, setUserMap] = useState({});
   useEffect(() => {
     supabase
@@ -2737,6 +2820,55 @@ useEffect(() => {
   fetchNewTickets,
   fetchRaisedTickets,
   fetchMyVerifications, // ← add
+]);
+  useEffect(() => {
+  if (!user) return;
+
+  const channel = supabase
+    .channel("office-realtime-sync")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "tasks" },
+      () => fetchTasks(user),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "leaves" },
+      () => fetchLeaves(user),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "reschedule_requests" },
+      () => {
+        fetchMyReschedules(user);
+        fetchVerifyRequests(user);
+      },
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "task_verifications" },
+      () => fetchMyVerifications(user),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "tickets" },
+      () => {
+        fetchNewTickets(user);
+        fetchRaisedTickets(user);
+      },
+    )
+    .subscribe();
+
+  return () => supabase.removeChannel(channel);
+}, [
+  user,
+  fetchTasks,
+  fetchLeaves,
+  fetchMyReschedules,
+  fetchVerifyRequests,
+  fetchMyVerifications,
+  fetchNewTickets,
+  fetchRaisedTickets,
 ]);
 
   const showToast = (type, msg) => {
@@ -3069,7 +3201,72 @@ const handleChecklistConfirm = async () => {
     }
     return base.toISOString().split("T")[0];
   };
+const handleAcceptTask = async (task) => {
+  const nowIso = new Date().toISOString();
+  setUpdatingId(task.id);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ accepted_at: nowIso, is_held: false, hold_started_at: null, resumed_at: nowIso })
+    .eq("id", task.id);
+  setUpdatingId(null);
+  if (error) return showToast("error", "Failed to accept task: " + error.message);
 
+  const patch = (list) =>
+    list.map((t) =>
+      t.id === task.id
+        ? { ...t, accepted_at: nowIso, is_held: false, hold_started_at: null, resumed_at: nowIso }
+        : t,
+    );
+  setMyTasks((p) => patch(p));
+  setRecurringTasks((p) => patch(p));
+  showToast("success", `"${task.title}" accepted — timer started.`);
+};
+
+const handleHoldTask = async (task) => {
+  const nowIso = new Date().toISOString();
+  const lastStart = task.resumed_at || task.accepted_at;
+  const elapsed = lastStart ? Math.floor((new Date(nowIso) - new Date(lastStart)) / 1000) : 0;
+  const newAccumulated = (task.accumulated_seconds || 0) + Math.max(elapsed, 0);
+
+  setUpdatingId(task.id);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ is_held: true, hold_started_at: nowIso, accumulated_seconds: newAccumulated })
+    .eq("id", task.id);
+  setUpdatingId(null);
+  if (error) return showToast("error", "Failed to hold task: " + error.message);
+
+  const patch = (list) =>
+    list.map((t) =>
+      t.id === task.id
+        ? { ...t, is_held: true, hold_started_at: nowIso, accumulated_seconds: newAccumulated }
+        : t,
+    );
+  setMyTasks((p) => patch(p));
+  setRecurringTasks((p) => patch(p));
+  showToast("success", `"${task.title}" put on hold — timer paused.`);
+};
+
+const handleContinueTask = async (task) => {
+  const nowIso = new Date().toISOString();
+  setUpdatingId(task.id);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ is_held: false, hold_started_at: null, resumed_at: nowIso })
+    .eq("id", task.id);
+  setUpdatingId(null);
+  if (error) return showToast("error", "Failed to resume task: " + error.message);
+
+  const patch = (list) =>
+    list.map((t) =>
+      t.id === task.id
+        ? { ...t, is_held: false, hold_started_at: null, resumed_at: nowIso }
+        : t,
+    );
+  setMyTasks((p) => patch(p));
+  setRecurringTasks((p) => patch(p));
+  showToast("success", `"${task.title}" resumed — timer running.`);
+};
 const handleStatusChange = async (taskId, newStatus, e) => {
   e?.stopPropagation();
 
@@ -3436,33 +3633,58 @@ const latestVerificationByTask = useMemo(() => {
   const renderContent = () => {
     switch (activeTab) {
       case "my-tasks": {
-      return (
-        <TaskList
-          tasks={myTasks}
-          loading={loadingTasks}
-          onStatusChange={handleStatusChange}
-          updatingId={updatingId}
-          emptyText="No tasks assigned to you yet."
-          filters={myTaskFilters}
-          onFilterChange={makeFilterChange(setMyTaskFilters)}
-          onFilterClear={makeFilterClear(setMyTaskFilters)}
-          showRecurrence={false}
-          allTasks={myTasks}
-          userMap={userMap}
-          onSendVerification={handleSendVerification}
-          onRaiseTicket={handleRaiseTicket}
-          onReschedule={(task) => {
-            setRescheduleTask(task);
-            setRescheduleForm({
-              requested_date: "",
-              reason: "",
-              verify_with: "",
-            });
-          }}
-          onDetailClick={(task) => setDetailTask(task)}
-        />
-      );
-    }
+  return (
+    <TaskList
+      tasks={myTasks}
+      loading={loadingTasks}
+      onStatusChange={handleStatusChange}
+      updatingId={updatingId}
+      emptyText="No tasks assigned to you yet."
+      filters={myTaskFilters}
+      onFilterChange={makeFilterChange(setMyTaskFilters)}
+      onFilterClear={makeFilterClear(setMyTaskFilters)}
+      showRecurrence={false}
+      allTasks={myTasks}
+      userMap={userMap}
+      onSendVerification={handleSendVerification}
+      onRaiseTicket={handleRaiseTicket}
+      onAccept={handleAcceptTask}
+      onHold={handleHoldTask}
+      onContinue={handleContinueTask}
+      onReschedule={(task) => {
+        setRescheduleTask(task);
+        setRescheduleForm({ requested_date: "", reason: "", verify_with: "" });
+      }}
+      onDetailClick={(task) => setDetailTask(task)}
+    />
+  );
+}
+
+case "recurring-tasks":
+  return (
+    <TaskList
+      tasks={recurringTasks}
+      loading={loadingTasks}
+      onStatusChange={handleStatusChange}
+      updatingId={updatingId}
+      emptyText="No recurring tasks assigned to you."
+      filters={recurringFilters}
+      onFilterChange={makeFilterChange(setRecurringFilters)}
+      onFilterClear={makeFilterClear(setRecurringFilters)}
+      allTasks={recurringTasks}
+      showRecurrence={true}
+      onSendVerification={handleSendVerification}
+      onRaiseTicket={handleRaiseTicket}
+      onAccept={handleAcceptTask}
+      onHold={handleHoldTask}
+      onContinue={handleContinueTask}
+      onReschedule={(task) => {
+        setRescheduleTask(task);
+        setRescheduleForm({ requested_date: "", reason: "", verify_with: "" });
+      }}
+      onDetailClick={(task) => setDetailTask(task)}
+    />
+  );
 
       case "recurring-tasks":
         return (

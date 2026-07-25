@@ -252,9 +252,32 @@ const PRIORITY_STYLES = {
 
 const STATUS_STYLES = {
   pending: { bg: "#f1f5f9", color: "#64748b" },
-  in_progress: { bg: "#eff6ff", color: "#2563eb" },
   completed: { bg: "#f0fdf4", color: "#16a34a" },
 };
+
+// ← add this block
+const ACTIVITY_STYLES = {
+  not_started: { bg: "#f1f5f9", color: "#64748b", label: "Not Started" },
+  working: { bg: "#eff6ff", color: "#2563eb", label: "Working" },
+  held: { bg: "#fffbeb", color: "#d97706", label: "On Hold" },
+  completed: { bg: "#f0fdf4", color: "#16a34a", label: "Completed" },
+};
+
+function getTaskActivity(task) {
+  if (task.status === "completed") return ACTIVITY_STYLES.completed;
+  if (task.is_held) return ACTIVITY_STYLES.held;
+  if (task.accepted_at) return ACTIVITY_STYLES.working;
+  return ACTIVITY_STYLES.not_started;
+}
+
+function formatElapsedSince(iso) {
+  if (!iso) return null;
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return `${hrs}h ${rem}m`;
+}
 
 const LEAVE_STATUS_STYLES = {
   pending: { bg: "#fffbeb", color: "#d97706", border: "#fde68a" },
@@ -485,7 +508,7 @@ function applyTaskFilters(tasks, filters) {
       return false;
     if (filters.site && t.site_name !== filters.site) return false;
     if (filters.priority && t.priority !== filters.priority) return false;
-    if (filters.status && t.status !== filters.status) return false;
+    if (filters.status && displayStatus(t.status) !== filters.status) return false;
     if (filters.dateFrom && t.due_date && t.due_date < filters.dateFrom)
       return false;
     if (filters.dateTo && t.due_date && t.due_date > filters.dateTo)
@@ -705,7 +728,12 @@ function EmployeeFilterBar({
 
   return <div className="tf-bar tf-bar-fixed">{fields}</div>;
 }
-
+function displayStatus(status) {
+  // Status is binary for admin view: only Pending or Completed.
+  // "in_progress" is an internal workflow state (checklist done, awaiting verification)
+  // but visually it's still "Pending" until an admin verifies it.
+  return status === "completed" ? "completed" : "pending";
+}
 function SiteFilterBar({
   filters,
   onChange,
@@ -1403,7 +1431,7 @@ function StatCard({ label, value, icon, accent }) {
 
 function TaskRow({ task, onMarkDone, onEdit, onReassign, onReschedule, onReject, userMap, onClick }) {
   const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
-  const s = STATUS_STYLES[task.status] || STATUS_STYLES.pending;
+  const s = STATUS_STYLES[displayStatus(task.status)];
   return (
     <tr
       className="ap-tr"
@@ -1509,8 +1537,33 @@ function TaskRow({ task, onMarkDone, onEdit, onReassign, onReschedule, onReject,
       </td>
       <td className="ap-td">
         <span className="ap-badge" style={{ background: s.bg, color: s.color }}>
-          {task.status?.replace("_", " ")}
+          {displayStatus(task.status)}
         </span>
+      </td>
+      <td className="ap-td">
+        {(() => {
+          const a = getTaskActivity(task);
+          const elapsed = task.is_held
+            ? formatElapsedSince(task.hold_started_at)
+            : task.accepted_at
+              ? formatElapsedSince(task.resumed_at || task.accepted_at)
+              : null;
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <span
+                className="ap-badge"
+                style={{ background: a.bg, color: a.color, width: "fit-content" }}
+              >
+                {a.label}
+              </span>
+              {elapsed && (
+                <span style={{ fontSize: 10.5, color: "#94a3b8" }}>
+                  {task.is_held ? "held" : "running"} {elapsed}
+                </span>
+              )}
+            </div>
+          );
+        })()}
       </td>
       <td className="ap-td">
         {task.hours_to_complete ? `${task.hours_to_complete} hrs` : "—"}
@@ -1841,10 +1894,13 @@ function RecurringTaskCard({ task, next, p, onDelete, userMap }) {
     </div>
   );
 }
+
 function TaskActionsMenu({ task, onMarkDone, onEdit, onReassign, onReschedule, onReject, busy }) {
   const [open, setOpen] = useState(false);
   const [hoveredKey, setHoveredKey] = useState(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0, openUpward: false });
   const ref = useRef(null);
+  const btnRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
@@ -1929,13 +1985,31 @@ function TaskActionsMenu({ task, onMarkDone, onEdit, onReassign, onReschedule, o
     },
   ].filter((i) => !i.hidden);
 
+  const handleToggle = (e) => {
+    e.stopPropagation();
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const rect = btnRef.current.getBoundingClientRect();
+    const menuHeight = items.length * 40 + 12; // approx row height + padding
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const openUpward = spaceBelow < menuHeight && spaceAbove > spaceBelow;
+
+    setMenuPosition({
+      top: openUpward ? rect.top - menuHeight - 4 : rect.bottom + 4,
+      left: Math.min(rect.right - 190, window.innerWidth - 200), // keep on-screen horizontally too
+      openUpward,
+    });
+    setOpen(true);
+  };
+
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
+        ref={btnRef}
+        onClick={handleToggle}
         title="Actions"
         disabled={busy}
         style={{
@@ -1961,15 +2035,15 @@ function TaskActionsMenu({ task, onMarkDone, onEdit, onReassign, onReschedule, o
         <div
           onClick={(e) => e.stopPropagation()}
           style={{
-            position: "absolute",
-            right: 0,
-            top: "calc(100% + 4px)",
+            position: "fixed",
+            top: menuPosition.top,
+            left: menuPosition.left,
             background: "#fff",
             border: "1px solid #e2e8f0",
             borderRadius: 10,
             boxShadow: "0 8px 24px rgba(0,0,0,.12)",
             minWidth: 190,
-            zIndex: 40,
+            zIndex: 9999,
             overflow: "hidden",
           }}
         >
@@ -2016,7 +2090,7 @@ function TaskActionsMenu({ task, onMarkDone, onEdit, onReassign, onReschedule, o
 function TaskCard({ task, onMarkDone, onEdit, onReassign, onReschedule, onReject, onOpenDetail }) {
   const [expanded, setExpanded] = useState(false);
   const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
-  const s = STATUS_STYLES[task.status] || STATUS_STYLES.pending;
+  const s = STATUS_STYLES[displayStatus(task.status)];
 
   return (
     <div className="ap-task-card-mobile">
@@ -2152,7 +2226,7 @@ function TaskCard({ task, onMarkDone, onEdit, onReassign, onReschedule, onReject
               className="ap-badge"
               style={{ background: s.bg, color: s.color }}
             >
-              {task.status?.replace("_", " ")}
+              {displayStatus(task.status)}
             </span>
             {task.is_recurring ? (
               <span className="ap-pill-blue">
@@ -2455,7 +2529,7 @@ function VerificationCard({
                 className="ap-badge"
                 style={{ background: s.bg, color: s.color }}
               >
-                {task.status?.replace("_", " ")}
+                {displayStatus(task.status)}
               </span>
             )}
             {task.hours_to_complete && (
@@ -5103,7 +5177,59 @@ const [resolvedFilterTab, setResolvedFilterTab] = useState("all");
     fetchAllTickets,
     fetchPendingVerifications, // ← add
   ]);
+useEffect(() => {
+  if (!user) return;
 
+  const channel = supabase
+    .channel("admin-realtime-sync")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "tasks" },
+      () => fetchAllTasks(),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "leaves" },
+      () => fetchAllLeaves(),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "reschedule_requests" },
+      () => fetchAllReschedules(),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "task_verifications" },
+      () => fetchPendingVerifications(),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "tickets" },
+      () => fetchAllTickets(),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "user_details" },
+      () => fetchEmployees(),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "site_details" },
+      () => fetchSites(),
+    )
+    .subscribe();
+
+  return () => supabase.removeChannel(channel);
+}, [
+  user,
+  fetchAllTasks,
+  fetchAllLeaves,
+  fetchAllReschedules,
+  fetchPendingVerifications,
+  fetchAllTickets,
+  fetchEmployees,
+  fetchSites,
+]);
   useRecurringTasks(user, fetchAllTasks);
 
   const showToast = (type, msg) => {
@@ -5770,7 +5896,7 @@ const activeItem = [
     ...new Set(tasksForPriorities.map((t) => t.priority).filter(Boolean)),
   ].sort();
   const tfStatuses = [
-    ...new Set(tasksForStatuses.map((t) => t.status).filter(Boolean)),
+    ...new Set(tasksForStatuses.map((t) => displayStatus(t.status)).filter(Boolean)),
   ].sort();
   const tfAssignees = [
     ...new Set(tasksForAssignees.map((t) => t.assigned_to).filter(Boolean)),
@@ -6064,6 +6190,7 @@ const activeItem = [
                           // "Given By",
                           "Priority",
                           "Status",
+                           "Activity",
                           "Hours",
                           "Due Date",
                           "Schedule",
@@ -8726,7 +8853,7 @@ const activeItem = [
           <tbody>
             {overdueTasks.map((t) => {
               const p = PRIORITY_STYLES[t.priority] || PRIORITY_STYLES.medium;
-              const s = STATUS_STYLES[t.status] || STATUS_STYLES.pending;
+              const s = STATUS_STYLES[displayStatus(t.status)];
               const daysOverdue = Math.floor(
                 (new Date(todayStr) - new Date(t.due_date)) / 86400000,
               );
@@ -8766,7 +8893,7 @@ const activeItem = [
                       className="ap-badge"
                       style={{ background: s.bg, color: s.color }}
                     >
-                      {t.status?.replace("_", " ")}
+                      {displayStatus(t.status)}
                     </span>
                   </td>
                   <td className="ap-td">
@@ -8883,7 +9010,7 @@ const activeItem = [
                 </div>
                 <div>
                   <span>Status</span>
-                  <strong>{t.status?.replace("_", " ")}</strong>
+                  <strong>{displayStatus(t.status)}</strong>
                 </div>
                 <div>
                   <span>Due Date</span>
@@ -9560,8 +9687,7 @@ const activeItem = [
                   );
                 })()}
                 {(() => {
-                  const s =
-                    STATUS_STYLES[detailTask.status] || STATUS_STYLES.pending;
+                  const s = STATUS_STYLES[displayStatus(detailTask.status)];
                   return (
                     <span
                       style={{
@@ -9575,9 +9701,22 @@ const activeItem = [
                         color: s.color,
                       }}
                     >
-                      {detailTask.status
-                        ?.replace("_", " ")
-                        .replace(/\b\w/g, (c) => c.toUpperCase())}
+                      {displayStatus(detailTask.status).charAt(0).toUpperCase() +
+                        displayStatus(detailTask.status).slice(1)}
+                    </span>
+                  );
+                })()}
+                {(() => {
+                  const a = getTaskActivity(detailTask);
+                  return (
+                    <span
+                      style={{
+                        display: "inline-flex", alignItems: "center", fontSize: 12,
+                        fontWeight: 700, padding: "4px 10px", borderRadius: 20,
+                        background: a.bg, color: a.color,
+                      }}
+                    >
+                      {a.label}
                     </span>
                   );
                 })()}
@@ -9635,6 +9774,15 @@ const activeItem = [
                         )
                       : "—",
                   },
+                  {
+                    label: "Accepted At",
+                    value: detailTask.accepted_at
+                      ? new Date(detailTask.accepted_at).toLocaleString("en-IN", {
+                          day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                        })
+                      : "Not accepted yet",
+                  },
+
                 ].map(({ label, value }) => (
                   <div
                     key={label}

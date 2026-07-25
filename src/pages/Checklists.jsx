@@ -1,12 +1,78 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../supabase";
 
+// ── Small colored icon components ───────────────────────────────────────────
+function IconSafety({ size = 26, color = "#d97706" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z" />
+      <path d="M9.5 12l2 2 3.5-3.5" />
+    </svg>
+  );
+}
+function IconQuality({ size = 26, color = "#2563eb" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 2v6.5L4.5 17a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L15 8.5V2" />
+      <path d="M9 2h6" />
+      <path d="M8 15h8" />
+    </svg>
+  );
+}
+function IconDaily({ size = 26, color = "#16a34a" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+function IconHandover({ size = 26, color = "#7c3aed" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="15" r="4" />
+      <path d="M10.5 12.5L20 3" />
+      <path d="M17 6l3 3" />
+      <path d="M14 9l3 3" />
+    </svg>
+  );
+}
+function IconPin({ size = 12, color = "#94a3b8" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "-1.5px" }}>
+      <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+function IconCalendar({ size = 12, color = "#94a3b8" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "-1.5px" }}>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+function IconNote({ size = 12, color = "#64748b" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "-1.5px" }}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="9" y1="13" x2="15" y2="13" />
+      <line x1="9" y1="17" x2="13" y2="17" />
+    </svg>
+  );
+}
+
 // ── Preset checklist templates ──────────────────────────────────────────────
 const TEMPLATES = [
   {
     id: "safety",
     label: "Safety Inspection",
-    icon: "🦺",
+    icon: <IconSafety />,
+    color: "#d97706",
     items: [
       "All workers wearing PPE (helmet, vest, boots)",
       "Fire extinguishers in place and accessible",
@@ -21,7 +87,8 @@ const TEMPLATES = [
   {
     id: "quality",
     label: "Quality Control",
-    icon: "🔬",
+    icon: <IconQuality />,
+    color: "#2563eb",
     items: [
       "Line and level checked before pour",
       "Material test certificates available",
@@ -36,7 +103,8 @@ const TEMPLATES = [
   {
     id: "daily",
     label: "Daily Site Check",
-    icon: "📋",
+    icon: <IconDaily />,
+    color: "#16a34a",
     items: [
       "Site diary updated",
       "Manpower count recorded",
@@ -51,7 +119,8 @@ const TEMPLATES = [
   {
     id: "handover",
     label: "Site Handover",
-    icon: "🔑",
+    icon: <IconHandover />,
+    color: "#7c3aed",
     items: [
       "All work items completed as per scope",
       "Site clearance and cleanup done",
@@ -266,13 +335,14 @@ export default function Checklists({ user }) {
         .cl-tab.active { background: #fff; color: #1e293b; box-shadow: 0 1px 6px rgba(0,0,0,.08); }
 
         /* ── Template Grid ── */
-        .cl-tmpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 10px; margin-bottom: 18px; }
+        .cl-tmpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 10px; margin-bottom: 18px;}
         .cl-tmpl-card { display: flex; flex-direction: column; align-items: center; gap: 7px;
           padding: 16px 10px; border: 2px solid #e2e8f0; border-radius: 10px; cursor: pointer;
           background: #fff; transition: .15s; font-family: 'DM Sans', sans-serif; text-align: center; }
         .cl-tmpl-card:hover { border-color: #94a3b8; background: #f8fafc; }
-        .cl-tmpl-card.selected { border-color: #1e293b; background: #f1f5f9; }
-        .cl-tmpl-emoji { font-size: 26px; }
+        .cl-tmpl-card.selected { border-width: 2px; background: #f8fafc; }
+        .cl-tmpl-icon-wrap { width: 44px; height: 44px; border-radius: 10px; display: flex;
+          align-items: center; justify-content: center; }
         .cl-tmpl-label { font-size: 12.5px; font-weight: 700; color: #1e293b; }
 
         /* ── Form ── */
@@ -352,7 +422,8 @@ export default function Checklists({ user }) {
         .cl-hist-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,.08); }
         .cl-hist-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
         .cl-hist-title { font-size: 14px; font-weight: 700; color: #1e293b; }
-        .cl-hist-meta { font-size: 12px; color: #64748b; margin-top: 3px; }
+        .cl-hist-meta { font-size: 12px; color: #64748b; margin-top: 3px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .cl-hist-meta-sep { color: #cbd5e1; }
         .cl-hist-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
         .cl-hist-items-list { margin-top: 12px; border-top: 1px solid #f1f5f9; padding-top: 12px;
           display: flex; flex-direction: column; gap: 6px; }
@@ -361,6 +432,8 @@ export default function Checklists({ user }) {
         .cl-hist-item-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
         .cl-hist-item-text { flex: 1; color: #1e293b; }
         .cl-hist-item-note { font-size: 11.5px; color: #64748b; font-style: italic; }
+        .cl-remarks-row { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; color: #64748b;
+          font-style: italic; padding: 8px 10px; background: #f8fafc; border-radius: 7px; }
 
         .cl-divider-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
           color: #94a3b8; margin: 4px 0 10px; }
@@ -403,9 +476,15 @@ export default function Checklists({ user }) {
                 <div
                   key={t.id}
                   className={`cl-tmpl-card${selectedTemplate === t.id ? " selected" : ""}`}
+                  style={selectedTemplate === t.id ? { borderColor: t.color } : {}}
                   onClick={() => applyTemplate(t)}
                 >
-                  <span className="cl-tmpl-emoji">{t.icon}</span>
+                  <div
+                    className="cl-tmpl-icon-wrap"
+                    style={{ background: `${t.color}15` }}
+                  >
+                    {t.icon}
+                  </div>
                   <span className="cl-tmpl-label">{t.label}</span>
                 </div>
               ))}
@@ -511,7 +590,9 @@ export default function Checklists({ user }) {
                       <div>
                         <div className="cl-hist-title">{cl.checklist_name}</div>
                         <div className="cl-hist-meta">
-                          📍 {cl.site_name} &nbsp;·&nbsp; 📅 {new Date(cl.visit_date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                          <IconPin color="#2563eb" /> {cl.site_name}
+                          <span className="cl-hist-meta-sep">·</span>
+                          <IconCalendar color="#7c3aed" /> {new Date(cl.visit_date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                         </div>
                       </div>
                       <svg
@@ -548,8 +629,9 @@ export default function Checklists({ user }) {
                             );
                           })}
                         {cl.remarks && (
-                          <div style={{ fontSize: 12, color: "#64748b", fontStyle: "italic", padding: "6px 10px", background: "#f8fafc", borderRadius: 7 }}>
-                            📝 {cl.remarks}
+                          <div className="cl-remarks-row">
+                            <IconNote color="#94a3b8" />
+                            <span>{cl.remarks}</span>
                           </div>
                         )}
                       </div>

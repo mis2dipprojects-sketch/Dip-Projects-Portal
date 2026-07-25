@@ -1191,7 +1191,6 @@ function TaskTable({
             {showAssignedBy && <th>Assigned To</th>}
             <th>Site</th>
             {showAssignedBy && <th>Given By</th>}
-            <th>Hours to Complete</th>
             <th>Due Date</th>
             <th>Priority</th>
             <th>Status</th>
@@ -1220,9 +1219,7 @@ function TaskTable({
                 <td>{task.site_name || "—"}</td>
                 {showAssignedBy && <td>{nameFor(task.assigned_by)}</td>}
                 {showAssignedBy && <td>{nameFor(task.assigned_by)}</td>}
-                <td>
-                  {task.hours_to_complete ? `${task.hours_to_complete} hrs` : "—"}
-                </td>
+                
                 <td>
                   {task.due_date
                     ? new Date(task.due_date).toLocaleDateString("en-IN", {
@@ -1254,7 +1251,7 @@ function TaskTable({
                       .replace(/\b\w/g, (c) => c.toUpperCase())}
                   </span>
                 </td>
-                {/* <td>
+                <td>
                   {task.recurrence ? (
                     <span className="op-meta-pill op-pill-blue">
                       {task.recurrence.charAt(0).toUpperCase() +
@@ -1275,7 +1272,7 @@ function TaskTable({
                   ) : (
                     "—"
                   )}
-                </td> */}
+                </td>
 
                 <td>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -5558,18 +5555,17 @@ const latestVerificationByTask = useMemo(() => {
             </nav>
           </aside>
 
-          <main className="op-main" ref={mainRef}>
+          <main className="op-main" ref={mainRef} >
             <div className="op-content-card">
               <div className="op-content-header">
                 <div className="op-header-left">
                   <div className="op-content-icon">{activeItem?.icon}</div>
                   <span className="op-content-title">{activeItem?.label}</span>
                 </div>
-
                 {/* Show filter controls only on task tabs */}
                 {["my-tasks", "recurring-tasks"].includes(activeTab) && (
                   <>
-                    <div className="tf-bar-inline">
+                    <div className="tf-bar-inline" >
                       <TaskFilterBar
                         filters={
                           activeTab === "my-tasks"

@@ -385,8 +385,8 @@ const VERIFICATION_NAV = [
     ),
   },
   {
-    key: "approved-verification",
-    label: "Approved Tasks",
+    key: "resolved-verification",
+    label: "Resolved Tasks",
     icon: (
       <svg
         width="18"
@@ -398,28 +398,8 @@ const VERIFICATION_NAV = [
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <circle cx="12" cy="12" r="9" />
-        <path d="M8 12l3 3 5-6" />
-      </svg>
-    ),
-  },
-  {
-    key: "rejected-verification",
-    label: "Rejected Tasks",
-    icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <circle cx="12" cy="12" r="9" />
-        <path d="M9 9l6 6" />
-        <path d="M15 9l-6 6" />
+        <path d="M9 11l3 3L22 4" />
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
       </svg>
     ),
   },
@@ -3543,7 +3523,7 @@ async function syncUserSiteNames(supabaseClient, username, siteName) {
     .from("user_details")
     .select("id, site_name, site_names")
     .eq("username", username)
-    .maybeSingle(); // ← safer than .single(), won't throw on 0 or >1 rows
+    .maybeSingle();
 
   if (fetchErr) {
     console.error("syncUserSiteNames: fetch failed", fetchErr);
@@ -4761,6 +4741,7 @@ export default function AdminPortal() {
     ...EMPTY_RECURRING_FILTERS,
   });
 const [verificationDetail, setVerificationDetail] = useState(null);
+const [resolvedFilterTab, setResolvedFilterTab] = useState("all");
   const [detailTask, setDetailTask] = useState(null);
   useEffect(() => {
     const s = localStorage.getItem("user");
@@ -5989,8 +5970,8 @@ const activeItem = [
                           // "Given By",
                           "Priority",
                           "Status",
-                          "Due Date",
                           "Hours",
+                          "Due Date",
                           "Schedule",
                           "",
                         ].map((h) => (
@@ -8481,39 +8462,92 @@ const activeItem = [
           />
         );
 
-      case "approved-verification":
-        return verificationsCompleted.length === 0 ? (
-          <div className="op-empty-state">
-            <p className="op-empty-text">No completed verifications yet.</p>
-          </div>
-        ) : (
-          <VerificationTable
-            verifications={verificationsCompleted}
-            allTasks={allTasks}
-            userMap={userMap}
-            onComplete={handleMarkVerificationCompleted}
-            onCorrect={openCorrectionModal}
-            updatingId={updatingVerificationId}
-            showAction={false}
-          />
+      case "resolved-verification": {
+        const resolvedAll = [...verificationsCompleted, ...verificationsCorrection].sort(
+          (a, b) =>
+            new Date(b.resolved_at || b.created_at) -
+            new Date(a.resolved_at || a.created_at),
         );
+        const RESOLVED_TABS = [
+          { key: "all", label: "All", count: resolvedAll.length, color: "#2563eb", bg: "#eff6ff" },
+          { key: "approved", label: "Approved", count: verificationsCompleted.length, color: "#16a34a", bg: "#f0fdf4" },
+          { key: "rejected", label: "Rejected", count: verificationsCorrection.length, color: "#dc2626", bg: "#fef2f2" },
+        ];
+        const resolvedList =
+          resolvedFilterTab === "approved"
+            ? verificationsCompleted
+            : resolvedFilterTab === "rejected"
+              ? verificationsCorrection
+              : resolvedAll;
 
-      case "rejected-verification":
-        return verificationsCorrection.length === 0 ? (
-          <div className="op-empty-state">
-            <p className="op-empty-text">No corrections sent yet.</p>
-          </div>
-        ) : (
-          <VerificationTable
-            verifications={verificationsCorrection}
-            allTasks={allTasks}
-            userMap={userMap}
-            onComplete={handleMarkVerificationCompleted}
-            onCorrect={openCorrectionModal}
-            updatingId={updatingVerificationId}
-            showAction={false}
-          />
+        return (
+          <>
+            <div
+              style={{
+                display: "inline-flex",
+                gap: 4,
+                padding: 4,
+                borderRadius: 10,
+                background: "#f8fafc",
+                border: "1px solid #e8edf3",
+                marginBottom: 18,
+              }}
+            >
+              {RESOLVED_TABS.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setResolvedFilterTab(t.key)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "7px 16px",
+                    borderRadius: 7,
+                    fontFamily: "'DM Sans',sans-serif",
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    border: "none",
+                    cursor: "pointer",
+                    color: resolvedFilterTab === t.key ? t.color : "#64748b",
+                    background: resolvedFilterTab === t.key ? "#fff" : "transparent",
+                    boxShadow: resolvedFilterTab === t.key ? "0 1px 6px rgba(0,0,0,.08)" : "none",
+                  }}
+                >
+                  {t.label}
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      padding: "1px 6px",
+                      borderRadius: 20,
+                      background: resolvedFilterTab === t.key ? t.bg : "#e2e8f0",
+                      color: resolvedFilterTab === t.key ? t.color : "#94a3b8",
+                    }}
+                  >
+                    {t.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {resolvedList.length === 0 ? (
+              <div className="op-empty-state">
+                <p className="op-empty-text">No resolved verifications yet.</p>
+              </div>
+            ) : (
+              <VerificationTable
+                verifications={resolvedList}
+                allTasks={allTasks}
+                userMap={userMap}
+                onComplete={handleMarkVerificationCompleted}
+                onCorrect={openCorrectionModal}
+                updatingId={updatingVerificationId}
+                showAction={false}
+              />
+            )}
+          </>
         );
+      }
         
         case "overdue-tasks":
   return overdueTasks.length === 0 ? (

@@ -2550,7 +2550,23 @@ const fetchMyVerifications = useCallback(async (u) => {
       }
     });
 }, []);
-
+const [technicalUsers, setTechnicalUsers] = useState([]);
+useEffect(() => {
+  supabase
+    .from("user_details")
+    .select("username, name, role")
+    .then(({ data, error }) => {
+      if (!error && data) {
+        setTechnicalUsers(
+          data.filter((u) =>
+            ["mis head", "mis executive"].includes(
+              String(u.role || "").trim().toLowerCase(),
+            ),
+          ),
+        );
+      }
+    });
+}, []);
   useEffect(() => {
     supabase
       .from("user_details")
@@ -2955,9 +2971,10 @@ const handleVerifySubmit = async () => {
     );
     showToast("success", "Reschedule rejected.");
   };
-  const handleRaiseTicket = (task) => {
+const handleRaiseTicket = (task) => {
     setTicketModal({
       task,
+      recipientType: "admin",
       assigned_to: "",
       query: "",
       file: null,
@@ -6186,6 +6203,60 @@ const latestVerificationByTask = useMemo(() => {
                 >
                   Send To <span style={{ color: "#dc2626" }}>*</span>
                 </label>
+
+                {/* Recipient category toggle */}
+                <div
+                  style={{
+                    display: "inline-flex",
+                    gap: 4,
+                    padding: 4,
+                    borderRadius: 8,
+                    background: "#f1f5f9",
+                    border: "1px solid #e2e8f0",
+                    width: "fit-content",
+                  }}
+                >
+                  {[
+                    { key: "admin", label: "Admins" },
+                    { key: "technical", label: "Technical Team" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() =>
+                        setTicketModal((p) => ({
+                          ...p,
+                          recipientType: opt.key,
+                          assigned_to: "",
+                        }))
+                      }
+                      style={{
+                        padding: "6px 14px",
+                        borderRadius: 6,
+                        fontFamily: "'DM Sans',sans-serif",
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        border: "none",
+                        cursor: "pointer",
+                        color:
+                          ticketModal.recipientType === opt.key
+                            ? "#2563eb"
+                            : "#64748b",
+                        background:
+                          ticketModal.recipientType === opt.key
+                            ? "#fff"
+                            : "transparent",
+                        boxShadow:
+                          ticketModal.recipientType === opt.key
+                            ? "0 1px 6px rgba(0,0,0,.08)"
+                            : "none",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
                 <select
                   style={{
                     fontFamily: "'DM Sans',sans-serif",
@@ -6207,8 +6278,15 @@ const latestVerificationByTask = useMemo(() => {
                     }))
                   }
                 >
-                  <option value="">Select recipient…</option>
-                  {allUsers
+                  <option value="">
+                    {ticketModal.recipientType === "technical"
+                      ? "Select technical team member…"
+                      : "Select admin…"}
+                  </option>
+                  {(ticketModal.recipientType === "technical"
+                    ? technicalUsers
+                    : adminUsers
+                  )
                     .filter((u) => u.username !== user?.user_name)
                     .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
                     .map((u) => (
@@ -6217,6 +6295,16 @@ const latestVerificationByTask = useMemo(() => {
                       </option>
                     ))}
                 </select>
+                {(ticketModal.recipientType === "technical"
+                  ? technicalUsers
+                  : adminUsers
+                ).length === 0 && (
+                  <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+                    {ticketModal.recipientType === "technical"
+                      ? "No MIS Head / MIS Executive users found."
+                      : "No Admin department users found."}
+                  </span>
+                )}
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

@@ -3,7 +3,7 @@
 const ADMIN_ALL_KEYS = [
   "dashboard", "assign-task", "all-tasks", "recurring-tasks",
   "leave-requests", "reschedule-requests",
-  "pending-verification", "approved-verification", "rejected-verification", "overdue-tasks",
+  "pending-verification",  "resolved-verification", "overdue-tasks",
   "new-tickets", "solved-ticket",
   "add-employee", "manage-employees", "add-site", "manage-sites",
   "add-drawings", "all-drawings", "site-report", "my-reports", "report-submissions",

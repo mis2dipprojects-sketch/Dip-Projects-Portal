@@ -9851,76 +9851,132 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
               );
             })}
               <span className="op-nav-section">Task Verification</span>
-              {filterNav(VERIFICATION_NAV, user, "admin").map((item) => (
-                <button
-                  key={item.key}
-                  className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
-                  onClick={() => handleNavClick(item.key)}
-                >
-                  <span className="op-nav-icon">{item.icon}</span>
-                  {item.label}
-                  {item.key === "pending-verification" &&
-                    verificationsPending.length > 0 && (
-                      <span className="op-nav-badge">
-                        {verificationsPending.length}
-                      </span>
+              {filterNav(VERIFICATION_NAV, user, "admin").map((item) => {
+                const isActive = activeTab === item.key;
+                const isHovered = hoveredNavKey === item.key;
+                const highlighted = isActive || isHovered;
+                return (
+                  <button
+                    key={item.key}
+                    className={`op-nav-item${isActive ? " Active" : ""}`}
+                    onClick={() => handleNavClick(item.key)}
+                    onMouseEnter={() => setHoveredNavKey(item.key)}
+                    onMouseLeave={() => setHoveredNavKey(null)}
+                    style={{
+                      background: highlighted ? `${item.color}18` : undefined,
+                      color: highlighted ? item.color : undefined,
+                      transition: "background .12s, color .12s",
+                    }}
+                  >
+                    <span className="op-nav-icon">{item.icon}</span>
+                    {item.label}
+                    {item.key === "pending-verification" && verificationsPending.length > 0 && (
+                      <span className="op-nav-badge">{verificationsPending.length}</span>
                     )}
-                  {item.key === "overdue-tasks" && unseenOverdueCount > 0 && (
-                    <span className="op-nav-badge">{unseenOverdueCount}</span>
-                  )}
-                </button>
-              ))}
+                    {item.key === "overdue-tasks" && unseenOverdueCount > 0 && (
+                      <span className="op-nav-badge">{unseenOverdueCount}</span>
+                    )}
+                  </button>
+                );
+              })}
               <span className="op-nav-section">Ticket Raised</span>
-              {filterNav(TICKETS_NAV, user, "admin").map((item) => (
-                <button
-                  key={item.key}
-                  className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
-                  onClick={() => handleNavClick(item.key)}
-                >
-                  <span className="op-nav-icon">{item.icon}</span>
-                  {item.label}
-                  {item.key === "new-tickets" &&
-                    allTickets.filter((t) => t.status === "open").length >
-                      0 && (
-                      <span className="op-nav-badge">
-                        {allTickets.filter((t) => t.status === "open").length}
-                      </span>
-                    )}
-                </button>
-              ))}
+              {filterNav(TICKETS_NAV, user, "admin").map((item) => {
+                const isActive = activeTab === item.key;
+                const isHovered = hoveredNavKey === item.key;
+                const highlighted = isActive || isHovered;
+                return (
+                  <button
+                    key={item.key}
+                    className={`op-nav-item${isActive ? " Active" : ""}`}
+                    onClick={() => handleNavClick(item.key)}
+                    onMouseEnter={() => setHoveredNavKey(item.key)}
+                    onMouseLeave={() => setHoveredNavKey(null)}
+                    style={{
+                      background: highlighted ? `${item.color}18` : undefined,
+                      color: highlighted ? item.color : undefined,
+                      transition: "background .12s, color .12s",
+                    }}
+                  >
+                    <span className="op-nav-icon">{item.icon}</span>
+                    {item.label}
+                    {item.key === "new-tickets" &&
+                      allTickets.filter((t) => t.status === "open").length > 0 && (
+                        <span className="op-nav-badge">
+                          {allTickets.filter((t) => t.status === "open").length}
+                        </span>
+                      )}
+                  </button>
+                );
+              })}
               <span className="op-nav-section">Employee Management</span>
-              {filterNav(NAV_ITEMS.slice(6, 8), user, "admin").map((item) => (
-                <button
-                  key={item.key}
-                  className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
-                  onClick={() => handleNavClick(item.key)}
-                >
-                  <span className="op-nav-icon">{item.icon}</span>
-                  {item.label}
-                </button>
-              ))}
+              {filterNav(NAV_ITEMS.slice(6, 8), user, "admin").map((item) => {
+                const isActive = activeTab === item.key;
+                const isHovered = hoveredNavKey === item.key;
+                const highlighted = isActive || isHovered;
+                return (
+                  <button
+                    key={item.key}
+                    className={`op-nav-item${isActive ? " Active" : ""}`}
+                    onClick={() => handleNavClick(item.key)}
+                    onMouseEnter={() => setHoveredNavKey(item.key)}
+                    onMouseLeave={() => setHoveredNavKey(null)}
+                    style={{
+                      background: highlighted ? `${item.color}18` : undefined,
+                      color: highlighted ? item.color : undefined,
+                      transition: "background .12s, color .12s",
+                    }}
+                  >
+                    <span className="op-nav-icon">{item.icon}</span>
+                    {item.label}
+                  </button>
+                );
+              })}
               <span className="op-nav-section">Site Management</span>
-              {filterNav(NAV_ITEMS.slice(8), user, "admin").map((item) => (
-                <button
-                  key={item.key}
-                  className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
-                  onClick={() => handleNavClick(item.key)}
-                >
-                  <span className="op-nav-icon">{item.icon}</span>
-                  {item.label}
-                </button>
-              ))}
+              {filterNav(NAV_ITEMS.slice(8), user, "admin").map((item) => {
+                const isActive = activeTab === item.key;
+                const isHovered = hoveredNavKey === item.key;
+                const highlighted = isActive || isHovered;
+                return (
+                  <button
+                    key={item.key}
+                    className={`op-nav-item${isActive ? " Active" : ""}`}
+                    onClick={() => handleNavClick(item.key)}
+                    onMouseEnter={() => setHoveredNavKey(item.key)}
+                    onMouseLeave={() => setHoveredNavKey(null)}
+                    style={{
+                      background: highlighted ? `${item.color}18` : undefined,
+                      color: highlighted ? item.color : undefined,
+                      transition: "background .12s, color .12s",
+                    }}
+                  >
+                    <span className="op-nav-icon">{item.icon}</span>
+                    {item.label}
+                  </button>
+                );
+              })}
               <span className="op-nav-section">Drawings & Reports</span>
-              {filterNav(REPORTS_NAV, user, "admin").map((item) => (
-                <button
-                  key={item.key}
-                  className={`op-nav-item${activeTab === item.key ? " Active" : ""}`}
-                  onClick={() => handleNavClick(item.key)}
-                >
-                  <span className="op-nav-icon">{item.icon}</span>
-                  {item.label}
-                </button>
-              ))}
+              {filterNav(REPORTS_NAV, user, "admin").map((item) => {
+                const isActive = activeTab === item.key;
+                const isHovered = hoveredNavKey === item.key;
+                const highlighted = isActive || isHovered;
+                return (
+                  <button
+                    key={item.key}
+                    className={`op-nav-item${isActive ? " Active" : ""}`}
+                    onClick={() => handleNavClick(item.key)}
+                    onMouseEnter={() => setHoveredNavKey(item.key)}
+                    onMouseLeave={() => setHoveredNavKey(null)}
+                    style={{
+                      background: highlighted ? `${item.color}18` : undefined,
+                      color: highlighted ? item.color : undefined,
+                      transition: "background .12s, color .12s",
+                    }}
+                  >
+                    <span className="op-nav-icon">{item.icon}</span>
+                    {item.label}
+                  </button>
+                );
+              })}
             </nav>
           </aside>
 

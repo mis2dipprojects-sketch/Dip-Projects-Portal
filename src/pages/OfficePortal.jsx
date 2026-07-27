@@ -106,7 +106,6 @@ const TICKETS_NAV = [
   },
 ];
 
-
 const VERIFY_REQUESTS_ITEM = {
   key: "verify-requests",
   label: "Reschedule Requests",
@@ -2398,6 +2397,46 @@ function isTodayOrPast(dateStr) {
 }
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function OfficePortal() {
+  const [hoveredNavKey, setHoveredNavKey] = useState(null);
+const NAV_COLORS = {
+  "my-tasks": "#2563eb",
+  "recurring-tasks": "#2563eb",
+  "my-reschedules": "#2563eb",
+  "verify-requests": "#2563eb",
+  "new-tickets": "#ea580c",
+  "raised-tickets": "#ea580c",
+  "solved-tickets": "#ea580c",
+  "verified-tasks": "#16a34a",
+  "task-corrections": "#16a34a",
+  "apply-leave": "#7c3aed",
+  "my-leaves": "#7c3aed",
+  "proxy-request": "#7c3aed",
+  "site-report": "#0891b2",
+  "my-reports": "#0891b2",
+  "checklists": "#0891b2",
+  "report-submissions": "#0891b2",
+};
+
+function NavButton({ itemKey, icon, label, isActive, isHovered, onEnter, onLeave, onClick, badge }) {
+  const highlighted = isActive || isHovered;
+  const color = NAV_COLORS[itemKey] || "#2563eb"; // fallback so it never silently breaks
+  return (
+    <button
+      className={`op-nav-item${isActive ? " active" : ""}`}
+      onClick={onClick}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      style={{
+        background: highlighted ? `${color}18` : undefined,
+        color: highlighted ? color : undefined,
+      }}
+    >
+      <span className="op-nav-icon">{icon}</span>
+      {label}
+      {badge != null && badge > 0 && <span className="op-nav-badge">{badge}</span>}
+    </button>
+  );
+}
   const [rescheduleTask, setRescheduleTask] = useState(null); // task object or null
   const [rescheduleForm, setRescheduleForm] = useState({
     requested_date: "",
@@ -5507,158 +5546,154 @@ case "recurring-tasks":
             <nav className="op-nav">
               <span className="op-nav-section">Tasks</span>
               {filterNav(TASK_NAV.filter(
-                (item) =>
-                  item.key !== "delegated-tasks" ||
-                  user?.role?.toLowerCase().trim() === "admin",
+                (item) => item.key !== "delegated-tasks" || user?.role?.toLowerCase().trim() === "admin",
               ), user, "office").map((item) => (
-                <button
+                <NavButton
                   key={item.key}
-                  className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
+                  itemKey={item.key}
+                  icon={item.icon}
+                  label={item.label}
+                  isActive={activeTab === item.key}
+                  isHovered={hoveredNavKey === item.key}
+                  onEnter={() => setHoveredNavKey(item.key)}
+                  onLeave={() => setHoveredNavKey(null)}
                   onClick={() => handleNavClick(item.key)}
-                >
-                  <span className="op-nav-icon">{item.icon}</span>
-                  {item.label}
-                </button>
+                />
               ))}
+
               {verifyRequests.length > 0 && filterNav([VERIFY_REQUESTS_ITEM], user, "office").length > 0 && (
-                <button
-                  className={`op-nav-item${activeTab === "verify-requests" ? " active" : ""}`}
+                <NavButton
+                  itemKey="verify-requests"
+                  icon={VERIFY_REQUESTS_ITEM.icon}
+                  label={VERIFY_REQUESTS_ITEM.label}
+                  isActive={activeTab === "verify-requests"}
+                  isHovered={hoveredNavKey === "verify-requests"}
+                  onEnter={() => setHoveredNavKey("verify-requests")}
+                  onLeave={() => setHoveredNavKey(null)}
                   onClick={() => handleNavClick("verify-requests")}
-                >
-                  <span className="op-nav-icon">
-                    {VERIFY_REQUESTS_ITEM.icon}
-                  </span>
-                  {VERIFY_REQUESTS_ITEM.label}
-                  {verifyRequests.filter((r) => r.status === "pending").length >
-                    0 && (
-                    <span className="op-nav-badge">
-                      {
-                        verifyRequests.filter((r) => r.status === "pending")
-                          .length
-                      }
-                    </span>
-                  )}
-                </button>
-              )}
-              {newTickets.length > 0 && (
-                <button
-                  className={`op-nav-item${activeTab === "new-tickets" ? " active" : ""}`}
-                  onClick={() => handleNavClick("new-tickets")}
-                >
-                  <span className="op-nav-icon">{NEW_TICKETS_ITEM.icon}</span>
-                  {NEW_TICKETS_ITEM.label}
-                  {newTickets.filter((t) => t.status === "open").length > 0 && (
-                    <span className="op-nav-badge">
-                      {newTickets.filter((t) => t.status === "open").length}
-                    </span>
-                  )}
-                </button>
+                  badge={verifyRequests.filter((r) => r.status === "pending").length}
+                />
               )}
 
-              <span className="op-nav-section" style={{ marginTop: 8 }}>
-                Tickets
-              </span>
+              <span className="op-nav-section" style={{ marginTop: 8 }}>Tickets</span>
+
+              {newTickets.length > 0 && (
+                <NavButton
+                  itemKey="new-tickets"
+                  icon={NEW_TICKETS_ITEM.icon}
+                  label={NEW_TICKETS_ITEM.label}
+                  isActive={activeTab === "new-tickets"}
+                  isHovered={hoveredNavKey === "new-tickets"}
+                  onEnter={() => setHoveredNavKey("new-tickets")}
+                  onLeave={() => setHoveredNavKey(null)}
+                  onClick={() => handleNavClick("new-tickets")}
+                  badge={newTickets.filter((t) => t.status === "open").length}
+                />
+              )}
 
               {filterNav(TICKETS_NAV, user, "office").map((item) => (
-                <button
+                <NavButton
                   key={item.key}
-                  className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
+                  itemKey={item.key}
+                  icon={item.icon}
+                  label={item.label}
+                  isActive={activeTab === item.key}
+                  isHovered={hoveredNavKey === item.key}
+                  onEnter={() => setHoveredNavKey(item.key)}
+                  onLeave={() => setHoveredNavKey(null)}
                   onClick={() => handleNavClick(item.key)}
-                >
-                  <span className="op-nav-icon">{item.icon}</span>
-                  {item.label}
-                  {item.key === "solved-tickets" &&
-                    raisedTickets.filter(
-                      (t) => t.status === "solved" && t.raised_by_read !== true,
-                    ).length > 0 && (
-                      <span className="op-nav-badge">
-                        {
-                          raisedTickets.filter(
-                            (t) =>
-                              t.status === "solved" &&
-                              t.raised_by_read !== true,
-                          ).length
-                        }
-                      </span>
-                    )}
-                </button>
+                  badge={
+                    item.key === "solved-tickets"
+                      ? raisedTickets.filter((t) => t.status === "solved" && t.raised_by_read !== true).length
+                      : undefined
+                  }
+                />
               ))}
+
               {myVerifications.length > 0 && (
                 <>
-                  <span className="op-nav-section" style={{ marginTop: 8 }}>
-                    Verification
-                  </span>
-                  <button
-                    className={`op-nav-item${activeTab === "verified-tasks" ? " active" : ""}`}
+                  <span className="op-nav-section" style={{ marginTop: 8 }}>Verification</span>
+                  <NavButton
+                    itemKey="verified-tasks"
+                    icon={VERIFIED_TASKS_ITEM.icon}
+                    label={VERIFIED_TASKS_ITEM.label}
+                    isActive={activeTab === "verified-tasks"}
+                    isHovered={hoveredNavKey === "verified-tasks"}
+                    onEnter={() => setHoveredNavKey("verified-tasks")}
+                    onLeave={() => setHoveredNavKey(null)}
                     onClick={() => handleNavClick("verified-tasks")}
-                  >
-                    <span className="op-nav-icon">{VERIFIED_TASKS_ITEM.icon}</span>
-                    {VERIFIED_TASKS_ITEM.label}
-                  </button>
-                  <button
-                      className={`op-nav-item${activeTab === "task-corrections" ? " active" : ""}`}
-                      onClick={() => handleNavClick("task-corrections")}
-                    >
-                      <span className="op-nav-icon">{TASK_CORRECTIONS_ITEM.icon}</span>
-                      {TASK_CORRECTIONS_ITEM.label}
-                      {(() => {
-                        const unread = myVerifications.filter(
-                          (v) =>
-                            v.status === "correction_sent" &&
-                            v.correction_read !== true &&
-                            latestVerificationByTask.get(v.task_id)?.id === v.id,
-                        ).length;
-                        return unread > 0 ? <span className="op-nav-badge">{unread}</span> : null;
-                      })()}
-                    </button>
+                  />
+                  <NavButton
+                    itemKey="task-corrections"
+                    icon={TASK_CORRECTIONS_ITEM.icon}
+                    label={TASK_CORRECTIONS_ITEM.label}
+                    isActive={activeTab === "task-corrections"}
+                    isHovered={hoveredNavKey === "task-corrections"}
+                    onEnter={() => setHoveredNavKey("task-corrections")}
+                    onLeave={() => setHoveredNavKey(null)}
+                    onClick={() => handleNavClick("task-corrections")}
+                    badge={
+                      myVerifications.filter(
+                        (v) =>
+                          v.status === "correction_sent" &&
+                          v.correction_read !== true &&
+                          latestVerificationByTask.get(v.task_id)?.id === v.id,
+                      ).length
+                    }
+                  />
                 </>
-              )} 
-              <span className="op-nav-section" style={{ marginTop: 8 }}>
-                Leave
-              </span>
-             {filterNav(LEAVE_NAV.filter(
-                (item) =>
-                  item.key !== "proxy-request" || proxyLeaves.length > 0,
+              )}
+
+              <span className="op-nav-section" style={{ marginTop: 8 }}>Leave</span>
+              {filterNav(LEAVE_NAV.filter(
+                (item) => item.key !== "proxy-request" || proxyLeaves.length > 0,
               ), user, "office").map((item) => (
-                <button
+                <NavButton
                   key={item.key}
-                  className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
+                  itemKey={item.key}
+                  icon={item.icon}
+                  label={item.label}
+                  isActive={activeTab === item.key}
+                  isHovered={hoveredNavKey === item.key}
+                  onEnter={() => setHoveredNavKey(item.key)}
+                  onLeave={() => setHoveredNavKey(null)}
                   onClick={() => handleNavClick(item.key)}
-                >
-                  <span className="op-nav-icon">{item.icon}</span>
-                  {item.label}
-                  {item.key === "my-leaves" && unreadLeavesCount > 0 && (
-                    <span className="op-nav-badge">{unreadLeavesCount}</span>
-                  )}
-                  {item.key === "proxy-request" && proxyPendingCount > 0 && (
-                    <span className="op-nav-badge">{proxyPendingCount}</span>
-                  )}
-                </button>
+                  badge={
+                    item.key === "my-leaves"
+                      ? unreadLeavesCount
+                      : item.key === "proxy-request"
+                      ? proxyPendingCount
+                      : undefined
+                  }
+                />
               ))}
-              <span className="op-nav-section" style={{ marginTop: 8 }}>
-                Reports
-              </span>
+
+              <span className="op-nav-section" style={{ marginTop: 8 }}>Reports</span>
               {filterNav(REPORTS_NAV, user, "office").map((item) => (
-                <button
+                <NavButton
                   key={item.key}
-                  className={`op-nav-item${activeTab === item.key ? " active" : ""}`}
+                  itemKey={item.key}
+                  icon={item.icon}
+                  label={item.label}
+                  isActive={activeTab === item.key}
+                  isHovered={hoveredNavKey === item.key}
+                  onEnter={() => setHoveredNavKey(item.key)}
+                  onLeave={() => setHoveredNavKey(null)}
                   onClick={() => handleNavClick(item.key)}
-                >
-                  <span className="op-nav-icon">{item.icon}</span>
-                  {item.label}
-                </button>
+                />
               ))}
 
               {user?.role?.toLowerCase().trim() === "project head" && (
-                <button
-                  className={`op-nav-item${activeTab === "report-submissions" ? " active" : ""}`}
+                <NavButton
+                  itemKey="report-submissions"
+                  icon={REPORT_SUBMISSIONS_ITEM.icon}
+                  label={REPORT_SUBMISSIONS_ITEM.label}
+                  isActive={activeTab === "report-submissions"}
+                  isHovered={hoveredNavKey === "report-submissions"}
+                  onEnter={() => setHoveredNavKey("report-submissions")}
+                  onLeave={() => setHoveredNavKey(null)}
                   onClick={() => handleNavClick("report-submissions")}
-                >
-                  <span className="op-nav-icon">
-                    {REPORT_SUBMISSIONS_ITEM.icon}
-                  </span>
-                  {REPORT_SUBMISSIONS_ITEM.label}
-                </button>
+                />
               )}
             </nav>
           </aside>

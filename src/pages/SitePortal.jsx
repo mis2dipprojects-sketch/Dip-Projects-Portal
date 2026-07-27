@@ -1605,7 +1605,47 @@ export function mergeRejectionReason(existing, slot, by, reason) {
 // MAIN APP
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function SitePortal() {
+const [hoveredNavKey, setHoveredNavKey] = useState(null);
 
+const NAV_COLORS = {
+  "clock-in": "#2563eb",
+  "calendar": "#2563eb",
+  "apply-leave": "#7c3aed",
+  "my-leave": "#7c3aed",
+  "leave-approvals": "#7c3aed",
+  "daily-report": "#db2777",
+  "wpr-generator": "#db2777",
+  "site-report": "#db2777",
+  "my-reports": "#16a34a",
+  "manpower-reports": "#16a34a",
+  "report-submissions": "#0891b2",
+  "profile": "#bd3c0a",
+};
+
+function SniButton({ itemKey, icon, label, isActive, isHovered, onEnter, onLeave, onClick, badge, style }) {
+  const highlighted = isActive || isHovered;
+  const color = NAV_COLORS[itemKey] || "var(--amber2)";
+  return (
+    <button
+      className={`sni${isActive ? " act" : ""}`}
+      onClick={onClick}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      style={{
+        background: highlighted ? `${color}18` : undefined,
+        color: highlighted ? color : undefined,
+        overflow: "visible",
+        position: "relative",
+        ...style,
+      }}
+    >
+      {icon} {label}
+      {badge != null && badge > 0 && (
+        <span className="sni-badge">{badge > 9 ? "9+" : badge}</span>
+      )}
+    </button>
+  );
+}
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("clock-in");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -2786,70 +2826,53 @@ useEffect(() => {
               {NAV.map((n) => {
                 if (!n.section)
                   return (
-                    <button
+                    <SniButton
                       key={n.key}
-                      className={`sni${activeTab === n.key ? " act" : ""}`}
+                      itemKey={n.key}
+                      icon={n.icon}
+                      label={n.label}
+                      isActive={activeTab === n.key}
+                      isHovered={hoveredNavKey === n.key}
+                      onEnter={() => setHoveredNavKey(n.key)}
+                      onLeave={() => setHoveredNavKey(null)}
                       onClick={() => nav(n.key)}
-                    >
-                      {n.icon} {n.label}
-                    </button>
+                    />
                   );
                 return (
                   <div key={n.section}>
                     <div
                       className="sgroup-hdr"
                       onClick={() =>
-                        setExpanded((p) => ({
-                          ...p,
-                          [n.section]: !p[n.section],
-                        }))
+                        setExpanded((p) => ({ ...p, [n.section]: !p[n.section] }))
                       }
                     >
                       <span className="sgroup-lbl">{n.label}</span>
-                      <span
-                        className={`sgroup-chev${expanded[n.section] ? " open" : ""}`}
-                      >
+                      <span className={`sgroup-chev${expanded[n.section] ? " open" : ""}`}>
                         {Ico.chev}
                       </span>
                     </div>
-                    <div
-                      className={`sgroup-kids${expanded[n.section] ? "" : " shut"}`}
-                    >
+                    <div className={`sgroup-kids${expanded[n.section] ? "" : " shut"}`}>
                       {n.children
-                        .filter(
-                          (c) => c.key !== "leave-approvals" || isApprover,
-                        ) // ← add this filter
+                        .filter((c) => c.key !== "leave-approvals" || isApprover)
                         .map((c) => (
-                          <button
+                          <SniButton
                             key={c.key}
-                            className={`sni${activeTab === c.key ? " act" : ""}`}
+                            itemKey={c.key}
+                            icon={c.icon}
+                            label={c.label}
+                            isActive={activeTab === c.key}
+                            isHovered={hoveredNavKey === c.key}
+                            onEnter={() => setHoveredNavKey(c.key)}
+                            onLeave={() => setHoveredNavKey(null)}
                             onClick={() => nav(c.key)}
-                            style={{
-                              overflow: "visible",
-                              position: "relative",
-                            }}
-                          >
-                            {c.icon} {c.label}
-                            {c.key === "my-leave" && leaveBadgeCount > 0 && (
-                              <span className="sni-badge">
-                                {leaveBadgeCount > 9 ? "9+" : leaveBadgeCount}
-                              </span>
-                            )}
-                            {/* {c.key === "material-requirement" &&
-                              matUnseen.total > 0 && (
-                                <span className="sni-badge">
-                                  {matUnseen.total > 9 ? "9+" : matUnseen.total}
-                                </span>
-                              )} */}
-                            {c.key === "leave-approvals" &&
-                              approvalsPendingCount > 0 && (
-                                <span className="sni-badge">
-                                  {approvalsPendingCount > 9
-                                    ? "9+"
-                                    : approvalsPendingCount}
-                                </span>
-                              )}
-                          </button>
+                            badge={
+                              c.key === "my-leave"
+                                ? leaveBadgeCount
+                                : c.key === "leave-approvals"
+                                ? approvalsPendingCount
+                                : undefined
+                            }
+                          />
                         ))}
                     </div>
                   </div>
@@ -2858,26 +2881,32 @@ useEffect(() => {
 
               {(user?.role?.toLowerCase().trim() === "project head" ||
                 user?.role?.toLowerCase().trim() === "site incharge") && (
-                <button
-                  className={`sni${activeTab === "report-submissions" ? " act" : ""}`}
+                <SniButton
+                  itemKey="report-submissions"
+                  icon={REPORT_SUBMISSIONS_ITEM.icon}
+                  label={REPORT_SUBMISSIONS_ITEM.label}
+                  isActive={activeTab === "report-submissions"}
+                  isHovered={hoveredNavKey === "report-submissions"}
+                  onEnter={() => setHoveredNavKey("report-submissions")}
+                  onLeave={() => setHoveredNavKey(null)}
                   onClick={() => nav("report-submissions")}
-                >
-                  {REPORT_SUBMISSIONS_ITEM.icon}
-                  {REPORT_SUBMISSIONS_ITEM.label}
-                </button>
+                />
               )}
             </nav>
 
             {/* Settings pinned to bottom */}
             <div className="sb-bottom">
-              <button
-                className={`sni${activeTab === "profile" ? " act" : ""}`}
+              <SniButton
+                itemKey="profile"
+                icon={Ico.settings}
+                label="Settings & Profile"
+                isActive={activeTab === "profile"}
+                isHovered={hoveredNavKey === "profile"}
+                onEnter={() => setHoveredNavKey("profile")}
+                onLeave={() => setHoveredNavKey(null)}
                 onClick={() => nav("profile")}
                 style={{ width: "100%", borderRadius: 9 }}
-              >
-                {Ico.settings}
-                Settings &amp; Profile
-              </button>
+              />
             </div>
           </aside>
 

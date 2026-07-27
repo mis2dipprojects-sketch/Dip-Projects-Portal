@@ -185,15 +185,6 @@
   color:#f0ede8;
 }
 
-[data-theme="dark"] .sni.act {
-  background:#2a1f08;
-  color:#fbbf24;
-}
-
-[data-theme="dark"] .sni.act svg {
-  stroke:#fbbf24;
-}
-
 [data-theme="dark"] .stat-card {
   background:#252320;
   border-color:#2e2b27;
@@ -574,8 +565,7 @@
   .sgroup-kids.shut{max-height:0;opacity:0;pointer-events:none;}
   .sni{display:flex;align-items:center;gap:9px;padding:12px;border-radius:9px;cursor:pointer;color:var(--ink2);font-size:13px;font-weight:500;border:none;background:transparent;width:100%;text-align:left;transition:background .15s,color .15s;}
   .sni:hover{background:var(--paper);color:var(--ink);}
-  .sni.act{background:var(--amber-bg);color:var(--amber2);font-weight:700;}
-  .sni.act svg{stroke:var(--amber2);}
+
   .sni { position: relative; }
   .sni-badge {margin-left: auto;min-width: 18px;height: 18px;padding: 0 5px;border-radius: 9px;background: var(--red);color: #fff;font-size: 10.5px;font-weight: 800;display: flex;align-items: center;justify-content: center;flex-shrink: 0;line-height: 1;}
   /* ── Card ── */

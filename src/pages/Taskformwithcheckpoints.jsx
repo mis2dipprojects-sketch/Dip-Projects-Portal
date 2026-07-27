@@ -385,15 +385,16 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
           <div className="ap-field">
             <label className="ap-label">Site Name</label>
             <select className="ap-input ap-select" name="site_name" value={form.site_name} onChange={handleFormChange}>
-            <option value="">Select site…</option>
-            {[...sites]
-              .sort((a, b) => (a.site_name || "").localeCompare(b.site_name || ""))
-              .map((s) => (
-                <option key={s.id} value={s.site_name}>
-                  {s.site_name}
-                </option>
-              ))}
-          </select>
+              <option value="">Select site…</option>
+              {sites
+                .filter((s) => String(s.status || "").trim().toLowerCase() !== "inactive")
+                .sort((a, b) => (a.site_name || "").localeCompare(b.site_name || ""))
+                .map((s) => (
+                  <option key={s.id} value={s.site_name}>
+                    {s.site_name}
+                  </option>
+                ))}
+            </select>
           </div>
           <div className="ap-field">
             <label className="ap-label">Priority</label>

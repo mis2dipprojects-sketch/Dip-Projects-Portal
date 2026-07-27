@@ -3067,7 +3067,7 @@ function VerificationCard({
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
-                  <span>Correction doc {i + 1}</span>
+                  <span>&nbsp;&nbsp;Correction doc {i + 1}</span>
                 </a>
               ))}
             </div>
@@ -3110,7 +3110,79 @@ function VerificationCard({
     </div>
   );
 }
+// ── Site badge list (collapsed by default) ─────────────────────────────────
+function SiteBadgeList({ sites, max = 3 }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!sites || sites.length === 0) {
+    return <span style={{ color: "#94a3b8" }}>—</span>;
+  }
 
+  const visible = expanded ? sites : sites.slice(0, max);
+  const remaining = sites.length - max;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 4,
+        alignItems: "center",
+        maxWidth: 320,
+      }}
+    >
+      {visible.map((s) => (
+        <span key={s} className="ap-pill-blue" title={s}>
+          {s.toUpperCase()}
+        </span>
+      ))}
+      {!expanded && remaining > 0 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(true);
+          }}
+          title={sites.slice(max).join(", ")}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#64748b",
+            background: "#f1f5f9",
+            border: "1px solid #e2e8f0",
+            borderRadius: 20,
+            padding: "2px 9px",
+            cursor: "pointer",
+          }}
+        >
+          +{remaining} more
+        </button>
+      )}
+      {expanded && sites.length > max && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(false);
+          }}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#64748b",
+            background: "#f1f5f9",
+            border: "1px solid #e2e8f0",
+            borderRadius: 20,
+            padding: "2px 9px",
+            cursor: "pointer",
+          }}
+        >
+          Show less
+        </button>
+      )}
+    </div>
+  );
+}
 function LeaveRequestCard({ leave, onAction, updating, roleByName }) {
   const status = computeLeaveStatus(leave);
   const days = getLeaveDays(leave);
@@ -3476,11 +3548,13 @@ function TaskForm({
             onChange={handleFormChange}
           >
             <option value="">Select site…</option>
-            {sites.map((s) => (
-              <option key={s.id} value={s.site_name}>
-                {s.site_name}
-              </option>
-            ))}
+            {sites
+              .filter((s) => (s.status || "Active") === "Active")
+              .map((s) => (
+                <option key={s.id} value={s.site_name}>
+                  {s.site_name}
+                </option>
+              ))}
           </select>
         </div>
         <div className="ap-field">
@@ -4593,7 +4667,7 @@ function VerificationTable({
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                                 <polyline points="14 2 14 8 20 8" />
                               </svg>
-                              <span>Doc {i + 1}</span>
+                              <span>&nbsp;&nbsp;Doc {i + 1}</span>
                             </a>
                           ))}
                         </div>
@@ -4633,7 +4707,7 @@ function VerificationTable({
                     <div
                       style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 2 }}
                     >
-                      by {v.resolved_by}
+                      by {nameFor(userMap, v.resolved_by)}
                     </div>
                   )}
                 </td>
@@ -5655,6 +5729,7 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
     fetchAllTickets,
     fetchPendingVerifications, // ← add
   ]);
+  
   useEffect(() => {
     if (!user) return;
 
@@ -7743,14 +7818,15 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
                     if (val === "__ALL__") {
                       const allSiteNames = [
                         ...new Set(
-                          sites.map((s) => s.site_name).filter(Boolean),
+                          sites
+                            .filter((s) => (s.status || "Active") === "Active")
+                            .map((s) => s.site_name)
+                            .filter(Boolean),
                         ),
                       ];
                       setEmpForm((p) => ({
                         ...p,
-                        site_names: [
-                          ...new Set([...p.site_names, ...allSiteNames]),
-                        ],
+                        site_names: [...new Set([...p.site_names, ...allSiteNames])],
                       }));
                       return;
                     }
@@ -7766,7 +7842,11 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
                   <option value="">+ Add a site…</option>
                   <option value="__ALL__">—— Assign All Sites ——</option>
                   {sites
-                    .filter((s) => !empForm.site_names.includes(s.site_name))
+                    .filter(
+                      (s) =>
+                        (s.status || "Active") === "Active" &&
+                        !empForm.site_names.includes(s.site_name),
+                    )
                     .sort((a, b) => a.site_name.localeCompare(b.site_name))
                     .map((s) => (
                       <option key={s.id} value={s.site_name}>
@@ -7937,23 +8017,15 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
                       </td>
                       <td className="ap-td">{emp.department || "—"}</td>
                       <td className="ap-td">
-                        {(emp.site_names?.length > 0
-                          ? emp.site_names
-                          : emp.site_name
-                            ? [emp.site_name]
-                            : []
-                        ).map((s) => (
-                          <span
-                            key={s}
-                            className="ap-pill-blue"
-                            style={{ marginRight: 4, marginBottom: 2 }}
-                          >
-                            {s.toUpperCase()}
-                          </span>
-                        ))}
-                        {!emp.site_names?.length && !emp.site_name && (
-                          <span style={{ color: "#94a3b8" }}>—</span>
-                        )}
+                        <SiteBadgeList
+                          sites={
+                            emp.site_names?.length > 0
+                              ? emp.site_names
+                              : emp.site_name
+                                ? [emp.site_name]
+                                : []
+                          }
+                        />
                       </td>
                       <td className="ap-td">
                         <span
@@ -8084,17 +8156,17 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
                       <span>Designation</span>
                       <strong>{emp.designation || "—"}</strong>
                     </div>
-                    <div>
-                      <span>Sites</span>
-                      <strong>
-                        {(emp.site_names?.length
+                    <td className="ap-td">
+                    <SiteBadgeList
+                      sites={
+                        emp.site_names?.length > 0
                           ? emp.site_names
                           : emp.site_name
                             ? [emp.site_name]
                             : []
-                        ).join(", ") || "—"}
-                      </strong>
-                    </div>
+                      }
+                    />
+                  </td>
                   </div>
                 </div>
               ))}
@@ -9240,16 +9312,13 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
         ) : (
           <>
             <VerificationTable
-              verifications={verificationsPending.slice(
-                0,
-                visiblePendingVerificationCount,
-              )}
+              verifications={verificationsPending.slice(0, visiblePendingVerificationCount)}
               allTasks={allTasks}
               userMap={userMap}
               onComplete={handleMarkVerificationCompleted}
               onCorrect={openCorrectionModal}
               updatingId={updatingVerificationId}
-              onRowClick={(v, task) => task && setDetailTask(task)}
+              onRowClick={(v, task) => setVerificationDetail({ v, task })} 
               currentUser={user.user_name}
             />
             {visiblePendingVerificationCount < verificationsPending.length && (
@@ -9377,18 +9446,14 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
             ) : (
               <>
                 <VerificationTable
-                  verifications={resolvedList.slice(
-                    0,
-                    visibleResolvedVerificationCount,
-                  )}
+                  verifications={resolvedList.slice(0, visibleResolvedVerificationCount)}
                   allTasks={allTasks}
                   userMap={userMap}
                   onComplete={handleMarkVerificationCompleted}
                   onCorrect={openCorrectionModal}
                   updatingId={updatingVerificationId}
                   showAction={false}
-                  showAction={false}
-                  onRowClick={(v, task) => task && setDetailTask(task)}
+                  onRowClick={(v, task) => setVerificationDetail({ v, task })}
                 />
                 {visibleResolvedVerificationCount < resolvedList.length && (
                   <div
@@ -10986,26 +11051,17 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
                         >
                           Original Task Attachments
                         </div>
-                        <div
-                          style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
-                        >
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                           {task.audio_url && (
-                            <a
-                              href={task.audio_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                fontSize: 12.5,
-                                fontWeight: 600,
-                                color: "#7c3aed",
-                              }}
-                            >
-                              🎵 Audio
-                            </a>
+                            <audio
+                              controls
+                              src={task.audio_url}
+                              style={{ width: "100%", borderRadius: 8, outline: "none" }}
+                            />
                           )}
                           {task.document_url && (
-                            <a
-                              href={task.document_url}
+                            
+                            <a  href={task.document_url}
                               target="_blank"
                               rel="noopener noreferrer"
                               style={{
@@ -11014,7 +11070,19 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
                                 color: "#0369a1",
                               }}
                             >
-                              📄 Document
+                              <svg
+  width="13"
+  height="13"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  strokeWidth="2.2"
+  strokeLinecap="round"
+  strokeLinejoin="round"
+>
+  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+  <polyline points="14 2 14 8 20 8" />
+</svg> Document
                             </a>
                           )}
                         </div>
@@ -11022,58 +11090,50 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
                     )}
 
                     {v.status === "correction_sent" && (
+                    <div
+                      style={{
+                        background: "#fef2f2",
+                        border: "1px solid #fecaca",
+                        borderRadius: 10,
+                        padding: "14px 16px",
+                      }}
+                    >
                       <div
                         style={{
-                          background: "#fef2f2",
-                          border: "1px solid #fecaca",
-                          borderRadius: 10,
-                          padding: "14px 16px",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          letterSpacing: ".06em",
+                          textTransform: "uppercase",
+                          color: "#dc2626",
+                          marginBottom: 8,
                         }}
                       >
-                        <div
+                        Correction Sent
+                      </div>
+                      {v.correction_note && (
+                        <p
                           style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            letterSpacing: ".06em",
-                            textTransform: "uppercase",
-                            color: "#dc2626",
-                            marginBottom: 8,
+                            fontSize: 13.5,
+                            color: "#475569",
+                            lineHeight: 1.6,
+                            margin: "0 0 10px",
                           }}
                         >
-                          Correction Sent
-                        </div>
-                        {v.correction_note && (
-                          <p
-                            style={{
-                              fontSize: 13.5,
-                              color: "#475569",
-                              lineHeight: 1.6,
-                              margin: "0 0 10px",
-                            }}
-                          >
-                            {v.correction_note}
-                          </p>
-                        )}
-                        <div
-                          style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
-                        >
-                          {v.correction_audio_url && (
-                            <a
-                              href={v.correction_audio_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                fontSize: 12.5,
-                                fontWeight: 600,
-                                color: "#7c3aed",
-                              }}
-                            >
-                              🎵 Correction Audio
-                            </a>
-                          )}
-                          {v.correction_document_urls?.map((url, i) => (
-                            <a
-                              key={i}
+                          {v.correction_note}
+                        </p>
+                      )}
+                      {v.correction_audio_url && (
+                        <audio
+                          controls
+                          src={v.correction_audio_url}
+                          style={{ width: "100%", borderRadius: 8, outline: "none", marginBottom: 8 }}
+                        />
+                      )}
+                      {v.correction_document_urls?.length > 0 && (
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {v.correction_document_urls.map((url, i) => (
+                            
+                            <a  key={i}
                               href={url}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -11083,23 +11143,36 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
                                 color: "#0369a1",
                               }}
                             >
-                              📄 Doc {i + 1}
+                              <svg
+                                width="13"
+                                height="13"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                              </svg>&nbsp;&nbsp;Doc {i + 1}
                             </a>
                           ))}
                         </div>
-                        {v.resolved_by && (
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: "#94a3b8",
-                              marginTop: 8,
-                            }}
-                          >
-                            by {v.resolved_by}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                      )}
+                      {v.resolved_by && (
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "#94a3b8",
+                            marginTop: 8,
+                          }}
+                        >
+                          by {nameFor(userMap, v.resolved_by)}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                     {v.status === "completed" && v.resolved_by && (
                       <div
@@ -11109,7 +11182,7 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
                           fontWeight: 600,
                         }}
                       >
-                        ✓ Verified by {v.resolved_by}
+                        ✓ Verified by {nameFor(userMap, v.resolved_by)}
                       </div>
                     )}
                   </div>

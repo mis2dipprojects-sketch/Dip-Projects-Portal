@@ -6169,7 +6169,7 @@ const handleMarkTaskDone = async (task) => {
   setAllTasks((prev) =>
     prev.map((t) => (t.id === task.id ? { ...t, status: "completed" } : t)),
   );
-  fetchAllTasks();  // ← add, so the newly-started queued task's accepted_at shows up
+  fetchAllTasks();
   showToast("success", `"${task.title}" marked as completed.`);
 };
 
@@ -6219,7 +6219,7 @@ const handleMarkTaskDone = async (task) => {
     );
     setReassignModal(null);
   };
-
+  
   const openRescheduleTaskModal = (task) => {
     setRescheduleTaskModal({ task, newDate: task.due_date || "" });
   };

@@ -1196,6 +1196,7 @@ function TaskTable({
               {showAssignedBy && <th>Assigned To</th>}
               <th>Site</th>
               {showAssignedBy && <th>Given By</th>}
+              {!recurringMode && <th>Hrs</th>}
               <th>Due Date</th>
               {!recurringMode && <th>Priority</th>}
               {!recurringMode && <th>Status</th>}
@@ -1217,11 +1218,12 @@ function TaskTable({
                 {showAssignedBy && <td>{nameFor(task.assigned_to)}</td>}
                 <td>{task.site_name || "—"}</td>
                 {showAssignedBy && <td>{nameFor(task.assigned_by)}</td>}
-                <td>
-                  {task.due_date
-                    ? new Date(task.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-                    : "—"}
-                </td>
+                {!recurringMode && ( <td>{task.hours_to_complete ? `${task.hours_to_complete} hrs` : "—"}</td>)}
+                  <td>
+                    {task.due_date
+                      ? new Date(task.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                      : "—"}
+                  </td>
                 {!recurringMode && (
                   <td>
                     <span className="op-badge" style={{ background: p.bg, color: p.color }}>
@@ -2409,6 +2411,25 @@ function isTodayOrPast(dateStr) {
   const d = new Date(dateStr + "T00:00:00");
   return d <= today;
 }
+async function activateQueuedTask(supabaseClient, completedTaskId, userMap, notify) {
+  const { data: queued, error } = await supabaseClient
+    .from("tasks")
+    .select("id, title, assigned_to")
+    .eq("queued_after_task_id", completedTaskId)
+    .is("accepted_at", null);
+  if (error || !queued?.length) return;
+
+  const nowIso = new Date().toISOString();
+  for (const qt of queued) {
+    await supabaseClient
+      .from("tasks")
+      .update({ accepted_at: nowIso, resumed_at: nowIso, queued_after_task_id: null })
+      .eq("id", qt.id);
+  }
+  notify?.(
+    `"${queued[0].title}" has started automatically for ${userMap[queued[0].assigned_to] || queued[0].assigned_to}.`,
+  );
+}
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function OfficePortal() {
   const [hoveredNavKey, setHoveredNavKey] = useState(null);
@@ -3229,6 +3250,7 @@ const handleNavClick = (key) => {
   setRecurringTasks((p) => patch(p));
 
   showToast("success", `"${task.title}" marked as completed.`);
+  await activateQueuedTask(supabase, taskId, userMap, (msg) => showToast("success", msg));
 };
 
   const getNextDueDate = (currentDue, recurrence) => {
@@ -3320,6 +3342,7 @@ const handleCompleteTaskDirectly = async (task) => {
   setMyTasks((p) => patch(p));
   setRecurringTasks((p) => patch(p));
   showToast("success", `"${task.title}" marked as completed.`);
+  await activateQueuedTask(supabase, task.id, userMap, (msg) => showToast("success", msg));
 };
 
 const handleMarkDone = (task) => {
@@ -7349,6 +7372,7 @@ case "recurring-tasks":
                 ))}
               </div>
 
+                
               {/* Description */}
               {detailTask.description && (
                 <div

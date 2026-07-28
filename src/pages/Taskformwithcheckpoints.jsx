@@ -11,6 +11,9 @@ export const EMPTY_FORM = {
   due_date: "", status: "pending", is_recurring: false, recurrence: "",
   anchor_weekday: "1", anchor_day: "1", anchor_month: "1", anchor_month_day: "1",
   reschedule_allowed: false, enable_checkpoints: false,_audioFile: null, _docFile: null,hours_to_complete: "",
+  _queueMode: null,
+  _queueTargetTaskId: null,
+  _queueRescheduleDate: "",
 };
 
 function daysInMonth(month) {
@@ -38,6 +41,30 @@ function anchorDescription(recurrence, anchor) {
     }
     default: return null;
   }
+}
+
+function getElapsedSeconds(task) {
+  const accumulated = task.accumulated_seconds || 0;
+  if (task.is_held) return accumulated;
+  if (!task.accepted_at) return accumulated;
+  const lastStart = task.resumed_at || task.accepted_at;
+  const extra = Math.floor((Date.now() - new Date(lastStart).getTime()) / 1000);
+  return accumulated + Math.max(extra, 0);
+}
+
+function formatDuration(totalSeconds) {
+  const sign = totalSeconds < 0 ? "-" : "";
+  const abs = Math.abs(totalSeconds);
+  const hrs = Math.floor(abs / 3600);
+  const mins = Math.floor((abs % 3600) / 60);
+  return `${sign}${hrs}h ${mins}m`;
+}
+
+function getTimeLeftLabel(task) {
+  if (!task.hours_to_complete) return "No time budget set";
+  const budgetSeconds = task.hours_to_complete * 3600;
+  const remaining = budgetSeconds - getElapsedSeconds(task);
+  return `${formatDuration(remaining)}${remaining < 0 ? " overdue" : " left"}`;
 }
 
 function ordinal(n) {
@@ -299,6 +326,153 @@ export function AudioRecorder({ onRecorded }) {
   );
 }
 
+function PendingTaskQueuePanel({ assignedTo, employeeName, form, setForm }) {
+  const [pendingTasks, setPendingTasks] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!assignedTo) { setPendingTasks([]); return; }
+    (async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("id, title, due_date, hours_to_complete, accepted_at, resumed_at, accumulated_seconds, is_held, hold_started_at, status")
+        .eq("assigned_to", assignedTo)
+        .neq("status", "completed")
+        .neq("status", "not_applicable")
+        .order("due_date", { ascending: true });
+      if (!error) setPendingTasks(data || []);
+      setLoading(false);
+    })();
+  }, [assignedTo]);
+
+  if (!assignedTo) return null;
+
+  const selectMode = (task, mode) => {
+    setForm((p) => ({
+      ...p,
+      _queueMode: mode,
+      _queueTargetTaskId: task.id,
+      _queueRescheduleDate: mode === "pause_and_prioritize" ? (task.due_date || "") : "",
+    }));
+  };
+
+  const clearSelection = () => {
+    setForm((p) => ({ ...p, _queueMode: null, _queueTargetTaskId: null, _queueRescheduleDate: "" }));
+  };
+
+  return (
+    <div className="ap-form-row ap-col-1">
+      <div className="ap-field">
+        <label className="ap-label">
+          {employeeName ? `${employeeName}'s` : "Employee's"} Pending Tasks
+        </label>
+
+        {loading ? (
+          <div style={{ fontSize: 12.5, color: "#94a3b8", padding: "8px 0" }}>
+            Loading pending tasks…
+          </div>
+        ) : pendingTasks.length === 0 ? (
+          <div style={{ fontSize: 12.5, color: "#94a3b8", padding: "8px 0" }}>
+            No pending tasks — the new task can start right away.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {pendingTasks.map((t) => {
+              const isSelected = form._queueTargetTaskId === t.id;
+              const timeLeft = getTimeLeftLabel(t);
+              const isOverdue = timeLeft.includes("overdue");
+              return (
+                <div
+                  key={t.id}
+                  style={{
+                    border: `1px solid ${isSelected ? "#dc2626" : "#e2e8f0"}`,
+                    background: isSelected ? "#fef2f2" : "#f8fafc",
+                    borderRadius: 10,
+                    padding: "10px 12px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{t.title}</div>
+                    <div style={{ display: "flex", gap: 8, fontSize: 11.5, color: "#64748b" }}>
+                      <span>
+                        Due: {t.due_date ? new Date(t.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "—"}
+                      </span>
+                      <span style={{ color: isOverdue ? "#dc2626" : "#2563eb", fontWeight: 600 }}>
+                        {timeLeft}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      onClick={() => selectMode(t, "continue_after")}
+                      style={{
+                        fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 7,
+                        border: `1px solid ${isSelected && form._queueMode === "continue_after" ? "#2563eb" : "#e2e8f0"}`,
+                        background: isSelected && form._queueMode === "continue_after" ? "#eff6ff" : "#fff",
+                        color: isSelected && form._queueMode === "continue_after" ? "#2563eb" : "#475569",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Continue after this task completes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectMode(t, "pause_and_prioritize")}
+                      style={{
+                        fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 7,
+                        border: `1px solid ${isSelected && form._queueMode === "pause_and_prioritize" ? "#dc2626" : "#e2e8f0"}`,
+                        background: isSelected && form._queueMode === "pause_and_prioritize" ? "#fef2f2" : "#fff",
+                        color: isSelected && form._queueMode === "pause_and_prioritize" ? "#dc2626" : "#475569",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Pause & do new task first
+                    </button>
+                  </div>
+
+                  {isSelected && form._queueMode === "pause_and_prioritize" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5, paddingTop: 6, borderTop: "1px dashed #e2e8f0" }}>
+                      <label style={{ fontSize: 11.5, fontWeight: 600, color: "#475569" }}>
+                        New due date for "{t.title}" <span style={{ color: "#dc2626" }}>*</span>
+                      </label>
+                      <input
+                        type="date"
+                        className="ap-input"
+                        value={form._queueRescheduleDate}
+                        min={t.due_date || new Date().toISOString().slice(0, 10)}
+                        onChange={(e) => setForm((p) => ({ ...p, _queueRescheduleDate: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {form._queueTargetTaskId && (
+          <button
+            type="button"
+            onClick={clearSelection}
+            style={{
+              alignSelf: "flex-start", fontSize: 11.5, color: "#94a3b8", background: "none",
+              border: "none", cursor: "pointer", marginTop: 6, textDecoration: "underline",
+            }}
+          >
+            Clear queue selection
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── TaskForm (drop-in replacement) ────────────────────────────────────────────
 export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submitting, onSuccess, employees = [], sites = [] }) {
   const [cpCount, setCpCount] = useState(0);  
@@ -372,6 +546,12 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
           </div>
         </div>
 
+         <PendingTaskQueuePanel
+            assignedTo={form.assigned_to}
+            employeeName={employees.find((e) => e.username === form.assigned_to)?.name}
+            form={form}
+            setForm={setForm}
+          />
         {/* ── Description ── */}
         <div className="ap-form-row ap-col-1">
           <div className="ap-field">

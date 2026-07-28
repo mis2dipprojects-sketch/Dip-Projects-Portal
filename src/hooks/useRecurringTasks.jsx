@@ -1,27 +1,9 @@
-/**
- * useRecurringTasks.js
- *
- * Drop this hook into any page that should auto-generate recurring task instances.
- * Call it once on mount (e.g. in OfficePortal and AdminPortal).
- *
- * Logic:
- *  1. Fetch all recurring tasks (is_recurring = true).
- *  2. For each, decide if today is a "trigger day" based on recurrence + recurrence_anchor.
- *  3. If yes, AND the last_generated_date is not already today (de-dup guard):
- *     a. Check if the previous instance (latest child with this parent_task_id) is still incomplete.
- *     b. Create a new non-recurring task instance (a "child") regardless — even if old one is incomplete
- *        (the child inherits the parent's due_date offset by one cycle forward).
- *     c. Update parent's last_generated_date to today so we don't double-spawn.
- *
- * Recurrence patterns:
- *  daily   → triggers every calendar day
- *  weekly  → triggers on the weekday stored in recurrence_anchor (0=Sun … 6=Sat)
- *  monthly → triggers on the day-of-month stored in recurrence_anchor (1–31)
- *  yearly  → triggers on the "MM-DD" stored in recurrence_anchor (e.g. "03-25")
- */
 
 import { useEffect } from "react";
-import { supabase } from "../supabase";
+import {
+  RecurringTaskInstancesAPI,
+  RecurringTasksAPI,
+} from "../api/tasks";
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -76,8 +58,10 @@ function shouldTriggerToday(recurrence, anchor) {
 function nextDueDate(recurrence) {
   const today = todayStr();
   switch (recurrence) {
-    case "daily":   return addDays(today, 1);
-    case "weekly":  return addDays(today, 7);
+    case "daily":
+      return addDays(today, 1);
+    case "weekly":
+      return addDays(today, 7);
     case "monthly": {
       const d = new Date(today + "T00:00:00");
       d.setMonth(d.getMonth() + 1);
@@ -88,7 +72,8 @@ function nextDueDate(recurrence) {
       d.setFullYear(d.getFullYear() + 1);
       return d.toISOString().slice(0, 10);
     }
-    default: return null;
+    default:
+      return null;
   }
 }
 
@@ -96,7 +81,7 @@ function nextDueDate(recurrence) {
 
 /**
  * @param {object|null} user   – the logged-in user from localStorage
- * @param {function}    onDone – optional callback after generation (e.g. refetch tasks)
+ * @param {function}    onDone – optional callback after generation (e.g. refetch instances)
  */
 export function useRecurringTasks(user, onDone) {
   useEffect(() => {
@@ -109,68 +94,79 @@ export function useRecurringTasks(user, onDone) {
 async function processRecurringTasks(user, onDone) {
   const today = todayStr();
 
-  // Fetch all recurring template tasks (both assigned to or by this user covers all cases)
-  // Admin typically wants ALL recurring tasks processed; engineer only needs theirs.
-  // We fetch globally so admins can trigger generation too.
-  const { data: recurringTasks, error } = await supabase
-    .from("tasks")
-    .select("*")
-    .eq("is_recurring", true);
+  // Fetch active templates. Admin triggers generation for everyone; the
+  // office portal can call this too (harmless — same de-dup guard applies
+  // regardless of who triggers it).
+  let templates;
+  try {
+    templates = await RecurringTasksAPI.listActive();
+  } catch (error) {
+    console.error("Failed to load recurring task templates", error);
+    return;
+  }
 
-  if (error || !recurringTasks?.length) return;
+  if (!templates.length) return;
 
-  const toGenerate = recurringTasks.filter((task) => {
+  const toGenerate = templates.filter((template) => {
     // Already generated today → skip
-    if (task.last_generated_date === today) return false;
+    if (template.last_generated_date === today) return false;
     // Check if today matches the recurrence pattern
-    return shouldTriggerToday(task.recurrence, task.recurrence_anchor);
+    return shouldTriggerToday(template.recurrence, template.recurrence_anchor);
   });
 
   if (!toGenerate.length) return;
 
-  for (const parent of toGenerate) {
-    // Check if the most recent child instance is still incomplete
-    // (we still create new ones either way, but you can gate this with the flag below)
-    const { data: lastChild } = await supabase
-      .from("tasks")
-      .select("id, status")
-      .eq("parent_task_id", parent.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  for (const template of toGenerate) {
+    // Check if the most recent instance for this template is still incomplete
+    // (used only to annotate the new instance — we still spawn either way).
+    let lastInstance = null;
+    try {
+      [lastInstance] = await RecurringTaskInstancesAPI.listForRecurringTask(template.id);
+    } catch (error) {
+      console.error("Failed to load recurring task instances", error);
+      continue;
+    }
 
-    const prevIncomplete = lastChild && lastChild.status !== "completed";
+    const prevIncomplete = lastInstance && lastInstance.status === "pending";
 
-    // Build the new instance
+    // Build the new instance — fields are copied from the template at spawn
+    // time so later edits to the template don't rewrite history.
     const newInstance = {
-      title:             parent.title,
-      description:       parent.description,
-      assigned_to:       parent.assigned_to,
-      site_name:         parent.site_name,
-      assigned_by:       parent.assigned_by,
-      priority:          parent.priority,
-      status:            "pending",
-      due_date:          nextDueDate(parent.recurrence),
-      is_recurring:      false,      // child is a one-off instance
-      recurrence:        null,
-      recurrence_anchor: null,
-      parent_task_id:    parent.id,
-      // Attach a note if previous was not completed
-      ...(prevIncomplete
-        ? { description: (parent.description ? parent.description + "\n\n" : "") + "⚠️ Previous instance was not completed." }
-        : {}),
+      recurring_task_id: template.id,
+      title: template.title,
+      description: prevIncomplete
+        ? (template.description ? template.description + "\n\n" : "") +
+          "⚠️ Previous instance was not completed."
+        : template.description,
+      assigned_to: template.assigned_to,
+      assigned_by: template.assigned_by,
+      site_name: template.site_name,
+      priority: template.priority,
+      status: "pending",
+      due_date: nextDueDate(template.recurrence),
+      hours_to_complete: template.hours_to_complete,
+      audio_url: template.audio_url,
+      document_url: template.document_url,
+      has_checkpoints: template.has_checkpoints,
+      reschedule_allowed: template.reschedule_allowed,
     };
 
     // Insert the new instance
-    await supabase.from("tasks").insert([newInstance]);
+    try {
+      await RecurringTaskInstancesAPI.create(newInstance);
+    } catch (error) {
+      console.error("Failed to spawn recurring instance for", template.id, error);
+      continue; // don't stamp last_generated_date if the insert failed
+    }
 
-    // Stamp the parent so we don't re-generate today
-    await supabase
-      .from("tasks")
-      .update({ last_generated_date: today })
-      .eq("id", parent.id);
+    // Stamp the template so we don't re-generate today
+    try {
+      await RecurringTasksAPI.markGenerated(template.id, today);
+    } catch (error) {
+      console.error("Failed to stamp recurring task", template.id, error);
+    }
   }
 
-  // Notify caller (e.g. refetch task lists)
+  // Notify caller (e.g. refetch instance lists)
   if (typeof onDone === "function") onDone();
 }

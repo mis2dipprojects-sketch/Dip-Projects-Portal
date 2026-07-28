@@ -471,6 +471,7 @@ const PRIORITY_STYLES = {
 const STATUS_STYLES = {
   pending: { bg: "#f1f5f9", color: "#64748b" },
   completed: { bg: "#f0fdf4", color: "#16a34a" },
+  not_applicable: { bg: "#f3f4f6", color: "#d61818" },   // ← add
 };
 
 // ← add this block
@@ -760,7 +761,25 @@ function getNextDueDate(currentDue, recurrence) {
   }
   return base.toISOString().split("T")[0];
 }
+async function activateQueuedTask(supabaseClient, completedTaskId, userMap, notify) {
+  const { data: queued, error } = await supabaseClient
+    .from("tasks")
+    .select("id, title, assigned_to")
+    .eq("queued_after_task_id", completedTaskId)
+    .is("accepted_at", null);
+  if (error || !queued?.length) return;
 
+  const nowIso = new Date().toISOString();
+  for (const qt of queued) {
+    await supabaseClient
+      .from("tasks")
+      .update({ accepted_at: nowIso, resumed_at: nowIso, queued_after_task_id: null })
+      .eq("id", qt.id);
+  }
+  notify?.(
+    `"${queued[0].title}" has started automatically for ${nameFor(userMap, queued[0].assigned_to)}.`,
+  );
+}
 async function spawnNextRecurringInstance(task, nextDue) {
   const { data: newTask, error } = await supabase
     .from("tasks")
@@ -964,10 +983,9 @@ function EmployeeFilterBar({
   return <div className="tf-bar tf-bar-fixed">{fields}</div>;
 }
 function displayStatus(status) {
-  // Status is binary for admin view: only Pending or Completed.
-  // "in_progress" is an internal workflow state (checklist done, awaiting verification)
-  // but visually it's still "Pending" until an admin verifies it.
-  return status === "completed" ? "completed" : "pending";
+  if (status === "completed") return "completed";
+  if (status === "not_applicable") return "not_applicable";
+  return "pending";
 }
 function SiteFilterBar({
   filters,
@@ -1455,6 +1473,7 @@ function RescheduleFilterBar({
   return <div className="tf-bar tf-bar-fixed">{fields}</div>;
 }
 
+
 // ── Task Filter Bar ────────────────────────────────────────────────────────
 function TaskFilterBar({
   filters,
@@ -1464,6 +1483,7 @@ function TaskFilterBar({
   priorities,
   statuses,
   assignees,
+    userMap = {}, 
   inline,
   mobileOpen,
   onMobileToggle,
@@ -1533,7 +1553,7 @@ function TaskFilterBar({
           <option value="">All users</option>
           {assignees.map((a) => (
             <option key={a} value={a}>
-              {a}
+              {userMap[a] || a}
             </option>
           ))}
         </select>
@@ -3993,6 +4013,7 @@ async function removeSiteFromUser(supabaseClient, username, siteName) {
     })
     .eq("id", userRow.id);
 }
+
 function findUsernameByEmployeeName(employeesList, name) {
   if (!name) return null;
   const match = employeesList.find((e) => e.name === name);
@@ -4022,7 +4043,7 @@ async function syncAllSiteUsers(
 
   const pcUsername = findUsernameByEmployeeName(employeesList, payload.pc_name);
   if (pcUsername) usernamesToSync.add(pcUsername);
-
+  
   console.log("syncAllSiteUsers: usernames to sync", [...usernamesToSync]);
 
   for (const uname of usernamesToSync) {
@@ -6043,12 +6064,52 @@ const handleNavClick = (key) => {
       return false;
     }
 
-    if (form.enable_checkpoints) {
-      await supabase
-        .from("tasks")
-        .update({ has_checkpoints: true })
-        .eq("id", insertedTask.id);
-    }
+   if (form.enable_checkpoints) {
+  await supabase
+    .from("tasks")
+    .update({ has_checkpoints: true })
+    .eq("id", insertedTask.id);
+}
+
+// ── Queue handling: continue-after or pause-and-prioritize ──  ← add this whole block
+if (form._queueMode === "continue_after" && form._queueTargetTaskId) {
+  await supabase
+    .from("tasks")
+    .update({ queued_after_task_id: form._queueTargetTaskId })
+    .eq("id", insertedTask.id);
+} else if (form._queueMode === "pause_and_prioritize" && form._queueTargetTaskId) {
+  const targetId = form._queueTargetTaskId;
+  const { data: targetTask } = await supabase
+    .from("tasks")
+    .select("accepted_at, resumed_at, accumulated_seconds, is_held")
+    .eq("id", targetId)
+    .single();
+
+  if (targetTask) {
+    const nowIso = new Date().toISOString();
+    const lastStart = targetTask.resumed_at || targetTask.accepted_at;
+    const elapsed = lastStart && !targetTask.is_held
+      ? Math.floor((new Date(nowIso) - new Date(lastStart)) / 1000)
+      : 0;
+    const newAccumulated = (targetTask.accumulated_seconds || 0) + Math.max(elapsed, 0);
+
+    await supabase
+      .from("tasks")
+      .update({
+        is_held: true,
+        hold_started_at: nowIso,
+        accumulated_seconds: newAccumulated,
+        ...(form._queueRescheduleDate ? { due_date: form._queueRescheduleDate } : {}),
+      })
+      .eq("id", targetId);
+  }
+
+  const startIso = new Date().toISOString();
+  await supabase
+    .from("tasks")
+    .update({ accepted_at: startIso, resumed_at: startIso, is_held: false })
+    .eq("id", insertedTask.id);
+}
 
     const desc = form.is_recurring
       ? anchorDescription(form.recurrence, anchor)
@@ -6093,20 +6154,24 @@ const handleNavClick = (key) => {
     setOverdueRescheduleModal(null);
   };
 
-  const handleMarkTaskDone = async (task) => {
-    setUpdatingMarkDoneId(task.id);
-    const { error } = await supabase
-      .from("tasks")
-      .update({ status: "completed" })
-      .eq("id", task.id);
-    setUpdatingMarkDoneId(null);
-    if (error)
-      return showToast("error", "Failed to mark done: " + error.message);
-    setAllTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, status: "completed" } : t)),
-    );
-    showToast("success", `"${task.title}" marked as completed.`);
-  };
+const handleMarkTaskDone = async (task) => {
+  setUpdatingMarkDoneId(task.id);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ status: "completed" })
+    .eq("id", task.id);
+  setUpdatingMarkDoneId(null);
+  if (error)
+    return showToast("error", "Failed to mark done: " + error.message);
+
+  await activateQueuedTask(supabase, task.id, userMap, (msg) => showToast("success", msg));  // ← add
+
+  setAllTasks((prev) =>
+    prev.map((t) => (t.id === task.id ? { ...t, status: "completed" } : t)),
+  );
+  fetchAllTasks();  // ← add, so the newly-started queued task's accepted_at shows up
+  showToast("success", `"${task.title}" marked as completed.`);
+};
 
   const openEditTaskModal = (task) => {
     setForm({
@@ -6276,22 +6341,25 @@ const handleNavClick = (key) => {
       .update(payload)
       .eq("id", verification.id);
 
-    if (!error && verification.task_id) {
-      const task = allTasks.find((t) => t.id === verification.task_id);
+if (!error && verification.task_id) {
+  const task = allTasks.find((t) => t.id === verification.task_id);
 
-      await supabase
-        .from("tasks")
-        .update({ status: "completed" })
-        .eq("id", verification.task_id);
+  await supabase
+    .from("tasks")
+    .update({ status: "completed" })
+    .eq("id", verification.task_id);
 
-      // If it's a recurring task, spawn the next instance now.
-      if (task?.is_recurring && task.recurrence) {
-        const nextDue = getNextDueDate(task.due_date, task.recurrence);
-        await spawnNextRecurringInstance(task, nextDue);
-      }
+  await activateQueuedTask(supabase, verification.task_id, userMap, (msg) =>
+    showToast("success", msg),
+  );   // ← add this line
 
-      fetchAllTasks();
-    }
+  if (task?.is_recurring && task.recurrence) {
+    const nextDue = getNextDueDate(task.due_date, task.recurrence);
+    await spawnNextRecurringInstance(task, nextDue);
+  }
+
+  fetchAllTasks();
+}
 
     setUpdatingVerificationId(null);
     if (error)
@@ -7028,7 +7096,7 @@ const handleNavClick = (key) => {
                           <option value="">All users</option>
                           {rfAssignees.map((a) => (
                             <option key={a} value={a}>
-                              {a}
+                              {userMap[a] || a}
                             </option>
                           ))}
                         </select>
@@ -7193,7 +7261,7 @@ const handleNavClick = (key) => {
                   <option value="">All users</option>
                   {rfAssignees.map((a) => (
                     <option key={a} value={a}>
-                      {a}
+                     {userMap[a] || a}
                     </option>
                   ))}
                 </select>
@@ -10130,6 +10198,7 @@ const handleNavClick = (key) => {
                       priorities={tfPriorities}
                       statuses={tfStatuses}
                       assignees={tfAssignees}
+                      userMap={userMap} 
                       inline={true}
                       mobileOpen={mobileFilterOpen}
                       onMobileToggle={() => setMobileFilterOpen((p) => !p)}

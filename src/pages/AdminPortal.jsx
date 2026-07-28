@@ -11,7 +11,7 @@ import {
   EMPTY_FORM,
   AudioRecorder,
 } from "./Taskformwithcheckpoints.jsx";
-
+ 
 const NAV_ITEMS = [
   {
     key: "dashboard",
@@ -10562,8 +10562,8 @@ const handleNavClick = (key) => {
                   <div
                     key={label}
                     style={{
-                      background: "#f8fafc",
-                      border: "1px solid #e8edf3",
+                      background: "#dfd9d97a",
+                      border: "1px solid #9d9da094",  
                       borderRadius: 8,
                       padding: "10px 12px",
                     }}
@@ -10596,8 +10596,8 @@ const handleNavClick = (key) => {
               {detailTask.description && (
                 <div
                   style={{
-                    background: "#f8fafc",
-                    border: "1px solid #e8edf3",
+                    background: "#dfd9d97a",
+                    border: "1px solid #9d9da094",  
                     borderRadius: 10,
                     padding: "14px 16px",
                   }}
@@ -10876,8 +10876,8 @@ const handleNavClick = (key) => {
                         <div
                           key={label}
                           style={{
-                            background: "#f8fafc",
-                            border: "1px solid #e8edf3",
+                            background: "#dfd9d97a",
+                            border: "1px solid #9d9da094", 
                             borderRadius: 8,
                             padding: "10px 12px",
                           }}
@@ -10910,8 +10910,8 @@ const handleNavClick = (key) => {
                     {task?.description && (
                       <div
                         style={{
-                          background: "#f8fafc",
-                          border: "1px solid #e8edf3",
+                          background: "#dfd9d97a",
+                          border: "1px solid #9d9da094", 
                           borderRadius: 10,
                           padding: "14px 16px",
                         }}

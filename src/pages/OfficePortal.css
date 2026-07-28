@@ -191,7 +191,7 @@
           }
           .op-header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
-          .tf-bar-inline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; }
+          .tf-bar-inline {z-index:999; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; }
 
           .tf-mobile-btn { display: none; width: 32px; height: 32px; border-radius: 8px;
             border: 1px solid #c9d0d4d0; background: #f8fafc; color: #475569; 

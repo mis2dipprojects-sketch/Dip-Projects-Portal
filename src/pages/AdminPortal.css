@@ -271,7 +271,7 @@
               .op-header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
               .op-content-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; }
 
-              .tf-bar-inline { position:fixed; top:120px; right:90px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; background: #c9d0d4dc; padding: 10px; border-radius: 10px; }
+              .tf-bar-inline { z-index:999; position:fixed; top:120px; right:90px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; background: #c9d0d4dc; padding: 10px; border-radius: 10px; }
               .tf-mobile-btn { display: none; width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; cursor: pointer; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
               .tf-mobile-btn.Active { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
               .tf-mobile-badge { position: absolute; top: -4px; right: -4px; width: 8px; height: 8px; background: #dc2626; border-radius: 50%; }

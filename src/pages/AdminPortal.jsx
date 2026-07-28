@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Navbar from "../components/Navbar";
 import { supabase } from "../supabase";
 import { useRecurringTasks } from "../hooks/useRecurringTasks";
@@ -381,7 +381,42 @@ const TICKETS_NAV = [
     ),
   },
 ];
+const VERIFICATION_STATUS_STYLE = {
+  pending: { bg: "#fffbeb", color: "#d97706", border: "#fde68a", label: "Pending Verification" },
+  completed: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0", label: "Verified" },
+  correction_sent: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca", label: "Correction Sent" },
+};
 
+function VerificationBadge({ verification, onClick }) {
+  if (!verification) {
+    return (
+      <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>
+        Not sent
+      </span>
+    );
+  }
+  const sc = VERIFICATION_STATUS_STYLE[verification.status] || VERIFICATION_STATUS_STYLE.pending;
+  return (
+    <span
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        fontSize: 11,
+        fontWeight: 700,
+        padding: "3px 9px",
+        borderRadius: 20,
+        background: sc.bg,
+        color: sc.color,
+        border: `1px solid ${sc.border}`,
+        cursor: onClick ? "pointer" : "default",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {sc.label}
+    </span>
+  );
+}
 const VERIFICATION_NAV = [
   {
     key: "pending-verification",
@@ -402,26 +437,6 @@ const VERIFICATION_NAV = [
         <path d="M6 22h12" />
         <path d="M8 2v4l4 4 4-4V2" />
         <path d="M8 22v-4l4-4 4 4v4" />
-      </svg>
-    ),
-  },
-  {
-    key: "resolved-verification",
-    label: "Resolved Tasks",
-    color: "#16a34a",
-    icon: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#16a34a"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M9 11l3 3L22 4" />
-        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
       </svg>
     ),
   },
@@ -519,6 +534,7 @@ const EMPTY_TASK_FILTERS = {
   site: "",
   priority: "",
   status: "",
+  verification: "", // ← new
 };
 // ── helpers ────────────────────────────────────────────────────────────────
 function daysInMonth(month) {
@@ -705,7 +721,7 @@ function applySubmissionFilters(rows, filters) {
     return true;
   });
 }
-function applyTaskFilters(tasks, filters) {
+function applyTaskFilters(tasks, filters, verificationMap) {
   return tasks.filter((t) => {
     if (filters.assignedTo && t.assigned_to !== filters.assignedTo)
       return false;
@@ -717,6 +733,12 @@ function applyTaskFilters(tasks, filters) {
       return false;
     if (filters.dateTo && t.due_date && t.due_date > filters.dateTo)
       return false;
+    if (filters.verification) {
+      const v = verificationMap?.get(t.id);
+      const vStatus = v ? v.status : "not_sent";
+      if (filters.verification !== vStatus) return false;
+    }
+    return true;
     return true;
   });
 }
@@ -1645,6 +1667,7 @@ function StatCard({ label, value, icon, accent }) {
 
 function TaskRow({
   task,
+  verification, 
   onMarkDone,
   onEdit,
   onReassign,
@@ -1652,6 +1675,7 @@ function TaskRow({
   onReject,
   userMap,
   onClick,
+  onVerificationClick,
 }) {
   const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
   const s = STATUS_STYLES[displayStatus(task.status)];
@@ -1803,6 +1827,12 @@ function TaskRow({
               year: "numeric",
             })
           : "—"}
+      </td>
+      <td className="ap-td" onClick={(e) => e.stopPropagation()}>
+        <VerificationBadge
+          verification={verification}
+          onClick={verification ? () => onVerificationClick(verification, task) : undefined}
+        />
       </td>
       <td className="ap-td">
         {task.is_recurring ? (
@@ -2381,6 +2411,7 @@ function TaskCard({
   onReschedule,
   onReject,
   onOpenDetail,
+   onVerificationClick,
 }) {
   const [expanded, setExpanded] = useState(false);
   const p = PRIORITY_STYLES[task.priority] || PRIORITY_STYLES.medium;
@@ -2533,6 +2564,16 @@ function TaskCard({
               <span className="ap-mobile-pill-muted">one-time</span>
             )}
           </div>
+          <div className="ap-task-card-badges">
+            <VerificationBadge
+              verification={task._verification}
+              onClick={
+                task._verification
+                  ? () => onVerificationClick(task._verification, task)
+                  : undefined
+              }
+            />
+          </div>  
           <div className="ap-task-card-meta">
             <div>
               <span>Site</span>
@@ -5033,6 +5074,18 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
   const [updatingVerificationId, setUpdatingVerificationId] = useState(null);
   const [correctionModal, setCorrectionModal] = useState(null);
 
+    const latestVerificationByTask = useMemo(() => {
+    const map = new Map();
+    pendingVerifications.forEach((v) => {
+      if (!v.task_id) return;
+      const existing = map.get(v.task_id);
+      if (!existing || new Date(v.created_at) > new Date(existing.created_at)) {
+        map.set(v.task_id, v);
+      }
+    });
+    return map;
+  }, [pendingVerifications]);
+
   const [allTickets, setAllTickets] = useState([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
   const [ticketSolveModal, setTicketSolveModal] = useState(null);
@@ -5058,7 +5111,6 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
       return [];
     }
   });
-
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
     mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
@@ -5246,14 +5298,14 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
     dateFrom: "",
     dateTo: "",
   });
-  const [visibleTaskCount, setVisibleTaskCount] = useState(20);
-  const [visibleOverdueCount, setVisibleOverdueCount] = useState(20);
+  const [visibleTaskCount, setVisibleTaskCount] = useState(30);
+  const [visibleOverdueCount, setVisibleOverdueCount] = useState(30);
   const [visiblePendingVerificationCount, setVisiblePendingVerificationCount] =
-    useState(20);
+    useState(30);
   const [
     visibleResolvedVerificationCount,
     setVisibleResolvedVerificationCount,
-  ] = useState(20);
+  ] = useState(30);
   // Task filters
   const [taskFilters, setTaskFilters] = useState({ ...EMPTY_TASK_FILTERS });
   const total = allTasks.length;
@@ -5331,7 +5383,7 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
     assignedTo: "",
     recurrence: "",
   };
-  const [visibleRecurringCount, setVisibleRecurringCount] = useState(20);
+  const [visibleRecurringCount, setVisibleRecurringCount] = useState(30);
   const [recurringFilters, setRecurringFilters] = useState({
     ...EMPTY_RECURRING_FILTERS,
   });
@@ -5361,15 +5413,15 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
     setLoadingTasks(false);
   }, []);
   useEffect(() => {
-    setVisibleTaskCount(20);
+    setVisibleTaskCount(30);
   }, [taskFilters, showRecurringInAllTasks]);
 
   useEffect(() => {
-    setVisibleRecurringCount(20);
+    setVisibleRecurringCount(30);
   }, [recurringFilters]);
 
   useEffect(() => {
-    setVisibleResolvedVerificationCount(20);
+    setVisibleResolvedVerificationCount(30);
   }, [resolvedFilterTab]);
 
   const fetchAllTickets = useCallback(async () => {
@@ -5729,7 +5781,7 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
     fetchAllTickets,
     fetchPendingVerifications, // ← add
   ]);
-  
+
   useEffect(() => {
     if (!user) return;
 
@@ -5790,19 +5842,68 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
     setTimeout(() => setToast(null), 3500);
   };
 
-  const handleNavClick = (key) => {
+const handleNavClick = (key) => {
     setActiveTab(key);
-    if (key === "my-reports") fetchMySvrReports(user);
-    if (key === "report-submissions") fetchAllReportSubmissions(user);
-    if (key === "overdue-tasks") {
-      const ids = overdueTasks.map((t) => t.id);
-      setSeenOverdueIds(ids);
-      localStorage.setItem("seenOverdueTaskIds", JSON.stringify(ids));
-      setVisibleOverdueCount(20); // ← add
+
+    switch (key) {
+      case "dashboard":
+        fetchAllTasks();
+        fetchAllLeaves();
+        break;
+      case "assign-task":
+        fetchEmployees();
+        fetchSites();
+        break;
+      case "all-tasks":
+        fetchAllTasks();
+        fetchPendingVerifications();
+        break;
+      case "recurring-tasks":
+        fetchAllTasks();
+        break;
+      case "leave-requests":
+        fetchAllLeaves();
+        break;
+      case "reschedule-requests":
+        fetchAllReschedules();
+        break;
+      case "add-employee":
+      case "manage-employees":
+        fetchEmployees();
+        break;
+      case "add-site":
+      case "manage-sites":
+        fetchSites();
+        fetchEmployees();
+        break;
+      case "site-report":
+        break;
+      case "my-reports":
+        fetchMySvrReports(user);
+        break;
+      case "report-submissions":
+        fetchAllReportSubmissions(user);
+        break;
+      case "new-tickets":
+      case "solved-ticket":
+        fetchAllTickets();
+        break;
+      case "pending-verification":
+        fetchPendingVerifications();
+        fetchAllTasks();
+        setVisiblePendingVerificationCount(20);
+        break;
+      case "overdue-tasks": {
+        fetchAllTasks();
+        const ids = overdueTasks.map((t) => t.id);
+        setSeenOverdueIds(ids);
+        localStorage.setItem("seenOverdueTaskIds", JSON.stringify(ids));
+        setVisibleOverdueCount(20);
+        break;
+      }
+      default:
+        break;
     }
-    if (key === "pending-verification") setVisiblePendingVerificationCount(20); // ← add
-    if (key === "resolved-verification")
-      setVisibleResolvedVerificationCount(20); // ← add
 
     if (key === "add-employee") {
       setEditingEmployee(null);
@@ -5824,6 +5925,7 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
     if (typeof window !== "undefined" && window.innerWidth <= 760)
       setSidebarOpen(false);
   };
+
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm((prev) => ({
@@ -6776,6 +6878,7 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
                           "Activity",
                           "Hours",
                           "Due Date",
+                          "Verification",
                           "Schedule",
                           "",
                         ].map((h) => (
@@ -6786,10 +6889,11 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredTasks.slice(0, visibleTaskCount).map((t) => (
+                     {filteredTasks.slice(0, visibleTaskCount).map((t) => (
                         <TaskRow
                           key={t.id}
                           task={t}
+                          verification={latestVerificationByTask.get(t.id)}
                           onMarkDone={handleMarkTaskDone}
                           onEdit={openEditTaskModal}
                           onReassign={openReassignModal}
@@ -6797,6 +6901,7 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
                           onReject={handleRejectTask}
                           userMap={userMap}
                           onClick={setDetailTask}
+                          onVerificationClick={(v, task) => setVerificationDetail({ v, task })}
                         />
                       ))}
                     </tbody>
@@ -6806,13 +6911,14 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
                   {filteredTasks.slice(0, visibleTaskCount).map((t) => (
                     <TaskCard
                       key={t.id}
-                      task={t}
+                      task={{ ...t, _verification: latestVerificationByTask.get(t.id) }}
                       onMarkDone={handleMarkTaskDone}
                       onEdit={openEditTaskModal}
                       onReassign={openReassignModal}
                       onReschedule={openRescheduleTaskModal}
                       onReject={handleRejectTask}
                       onOpenDetail={setDetailTask}
+                      onVerificationClick={(v, task) => setVerificationDetail({ v, task })}
                     />
                   ))}
                 </div>
@@ -9345,142 +9451,6 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
           </>
         );
 
-      case "resolved-verification": {
-        const resolvedAll = [
-          ...verificationsCompleted,
-          ...verificationsCorrection,
-        ].sort(
-          (a, b) =>
-            new Date(b.resolved_at || b.created_at) -
-            new Date(a.resolved_at || a.created_at),
-        );
-        const RESOLVED_TABS = [
-          {
-            key: "all",
-            label: "All",
-            count: resolvedAll.length,
-            color: "#2563eb",
-            bg: "#eff6ff",
-          },
-          {
-            key: "approved",
-            label: "Approved",
-            count: verificationsCompleted.length,
-            color: "#16a34a",
-            bg: "#f0fdf4",
-          },
-          {
-            key: "rejected",
-            label: "Rejected",
-            count: verificationsCorrection.length,
-            color: "#dc2626",
-            bg: "#fef2f2",
-          },
-        ];
-        const resolvedList =
-          resolvedFilterTab === "approved"
-            ? verificationsCompleted
-            : resolvedFilterTab === "rejected"
-              ? verificationsCorrection
-              : resolvedAll;
-
-        return (
-          <>
-            <div
-              style={{
-                display: "inline-flex",
-                gap: 4,
-                padding: 4,
-                borderRadius: 10,
-                background: "#f8fafc",
-                border: "1px solid #e8edf3",
-                marginBottom: 18,
-              }}
-            >
-              {RESOLVED_TABS.map((t) => (
-                <button
-                  key={t.key}
-                  onClick={() => setResolvedFilterTab(t.key)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "7px 16px",
-                    borderRadius: 7,
-                    fontFamily: "'DM Sans',sans-serif",
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    border: "none",
-                    cursor: "pointer",
-                    color: resolvedFilterTab === t.key ? t.color : "#64748b",
-                    background:
-                      resolvedFilterTab === t.key ? "#fff" : "transparent",
-                    boxShadow:
-                      resolvedFilterTab === t.key
-                        ? "0 1px 6px rgba(0,0,0,.08)"
-                        : "none",
-                  }}
-                >
-                  {t.label}
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      padding: "1px 6px",
-                      borderRadius: 20,
-                      background:
-                        resolvedFilterTab === t.key ? t.bg : "#e2e8f0",
-                      color: resolvedFilterTab === t.key ? t.color : "#94a3b8",
-                    }}
-                  >
-                    {t.count}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {resolvedList.length === 0 ? (
-              <div className="op-empty-state">
-                <p className="op-empty-text">No resolved verifications yet.</p>
-              </div>
-            ) : (
-              <>
-                <VerificationTable
-                  verifications={resolvedList.slice(0, visibleResolvedVerificationCount)}
-                  allTasks={allTasks}
-                  userMap={userMap}
-                  onComplete={handleMarkVerificationCompleted}
-                  onCorrect={openCorrectionModal}
-                  updatingId={updatingVerificationId}
-                  showAction={false}
-                  onRowClick={(v, task) => setVerificationDetail({ v, task })}
-                />
-                {visibleResolvedVerificationCount < resolvedList.length && (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      marginTop: 16,
-                    }}
-                  >
-                    <button
-                      className="ap-btn-secondary"
-                      onClick={() =>
-                        setVisibleResolvedVerificationCount((c) => c + 10)
-                      }
-                    >
-                      Load 10 more (
-                      {resolvedList.length - visibleResolvedVerificationCount}{" "}
-                      remaining)
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </>
-        );
-      }
-
       case "overdue-tasks":
         return overdueTasks.length === 0 ? (
           <div className="op-empty-state">
@@ -10259,7 +10229,6 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
             </div>
           </main>
         </div>
-
         {/* FAB — dashboard and all-tasks tabs */}
         {(activeTab === "dashboard" || activeTab === "all-tasks") && (
           <button

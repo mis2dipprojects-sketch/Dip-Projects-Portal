@@ -500,15 +500,15 @@ function getAdminRejectionReason(leave) {
 }
 // ── Leave status helpers ───────────────────────────────────────────────────
 function computeLeaveStatus(leave) {
-  // Chain-approval leaves (level/head) — trust the derived status column
   if (leave.level_approver_user_name || leave.head_approver_user_name) {
     const s = (leave.status || "").toLowerCase();
     if (s === "approved" || s === "rejected") return s;
     return "pending";
   }
-  // Admin-direct leaves (no chain)
-  if (leave.admin_approved === false) return "rejected";
-  if (leave.admin_approved === true) return "approved";
+  if (leave.admin_approved === false || leave.proxy_approved === false)
+    return "rejected";
+  const proxyDone = !leave.proxy_user_name || leave.proxy_approved === true;
+  if (leave.admin_approved === true && proxyDone) return "approved";
   return "pending";
 }
 
@@ -2047,10 +2047,12 @@ function ProxyLeaveTable({
                       (1000 * 60 * 60 * 24),
                   ) + 1
                 : null;
+                
             const isLevelSlot = l.level_approver_user_name === currentUser;
             const isHeadSlot = l.head_approver_user_name === currentUser;
-            const myState = isHeadSlot ? l.head_approved : l.level_approved;
-            const myTurn = (isLevelSlot || isHeadSlot) && myState === null;
+            const isProxySlot = l.proxy_user_name === currentUser;
+            const myState = isProxySlot ? l.proxy_approved : isHeadSlot ? l.head_approved : l.level_approved;
+            const myTurn = (isLevelSlot || isHeadSlot || isProxySlot) && myState === null;
 
             return (
               <tr key={l.id} className="tt-row" onClick={() => onRowClick(l)}>
@@ -2100,7 +2102,7 @@ function ProxyLeaveTable({
                         Reject
                       </button>
                     </div>
-                  ) : isLevelSlot || isHeadSlot ? (
+                  ) : isLevelSlot || isHeadSlot || isProxySlot ? (
                     <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
                       {myState ? "✓ You approved" : "✗ You rejected"}
                     </span>
@@ -2524,6 +2526,29 @@ const [ticketDetail, setTicketDetail] = useState(null);
   const [loadingRaisedTickets, setLoadingRaisedTickets] = useState(false);
   const [updatingTicketId, setUpdatingTicketId] = useState(null);
   const mainRef = useRef(null);
+  const [mdoOfficeUsers, setMdoOfficeUsers] = useState([]);
+useEffect(() => {
+  supabase
+    .from("user_details")
+    .select("username, name, department")
+    .then(({ data, error }) => {
+      if (!error && data) {
+        setMdoOfficeUsers(
+          data.filter(
+            (u) => String(u.department || "").trim().toLowerCase() === "mdo office",
+          ),
+        );
+      }
+    });
+}, []);
+
+const proxyCandidates = useMemo(
+  () =>
+    [...engineerOfficeUsers, ...mdoOfficeUsers]
+      .filter((u) => u.username !== user?.user_name)
+      .sort((a, b) => (a.name || "").localeCompare(b.name || "")),
+  [engineerOfficeUsers, mdoOfficeUsers, user],
+);
   const canSwitchToAdmin = canAccessPortal(user, "admin");
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2785,12 +2810,13 @@ useEffect(() => {
     setLoadingSvrReports(false);
   }, []);
   // Leave form
-  const [leaveForm, setLeaveForm] = useState({
-    leave_type: "",
-    from_date: "",
-    to_date: "",
-    reason: "",
-  });
+const [leaveForm, setLeaveForm] = useState({
+  leave_type: "",
+  from_date: "",
+  to_date: "",
+  reason: "",
+  proxy_user_name: "",
+});
 
   useEffect(() => {
     const s = localStorage.getItem("user");
@@ -2861,13 +2887,13 @@ useEffect(() => {
       .select("*")
       .eq("user_name", u.user_name)
       .order("created_at", { ascending: false });
-    const { data: proxy } = await supabase
-      .from("leaves")
-      .select("*")
-      .or(
-        `level_approver_user_name.eq.${u.user_name},head_approver_user_name.eq.${u.user_name}`,
-      )
-      .order("created_at", { ascending: false });
+const { data: proxy } = await supabase
+  .from("leaves")
+  .select("*")
+  .or(
+    `level_approver_user_name.eq.${u.user_name},head_approver_user_name.eq.${u.user_name},proxy_user_name.eq.${u.user_name}`,
+  )
+  .order("created_at", { ascending: false });
     setMyLeaves(mine || []);
     setProxyLeaves(proxy || []);
     setLoadingLeaves(false);
@@ -3348,12 +3374,11 @@ const handleCompleteTaskDirectly = async (task) => {
 const handleMarkDone = (task) => {
   if (task.has_checkpoints) {
     setChecklistModal(task);
-    fetchCheckpointsForTask(task);   // only fetch when has_checkpoints is true
+    fetchCheckpointsForTask(task);
   } else {
-    handleCompleteTaskDirectly(task); // no checkpoints → skip modal, complete immediately
+    handleCompleteTaskDirectly(task);
   }
 };
-
 
 const handleMarkNotApplicable = async (task) => {
   setUpdatingId(task.id);
@@ -3554,150 +3579,168 @@ const handleStatusChange = async (taskId, newStatus, e) => {
       );
     }
   };
-  const handleLeaveSubmit = async () => {
-    if (!leaveForm.leave_type)
-      return showToast("error", "Please select a leave type.");
-    if (!leaveForm.from_date)
-      return showToast("error", "Please select a start date.");
-    if (!leaveForm.to_date)
-      return showToast("error", "Please select an end date.");
-    if (new Date(leaveForm.to_date) < new Date(leaveForm.from_date))
-      return showToast("error", "End date must be after start date.");
+const handleLeaveSubmit = async () => {
+  if (!leaveForm.leave_type)
+    return showToast("error", "Please select a leave type.");
+  if (!leaveForm.from_date)
+    return showToast("error", "Please select a start date.");
+  if (!leaveForm.to_date)
+    return showToast("error", "Please select an end date.");
+  if (new Date(leaveForm.to_date) < new Date(leaveForm.from_date))
+    return showToast("error", "End date must be after start date.");
+  if (!leaveForm.proxy_user_name)
+    return showToast("error", "Please select a proxy for your leave.");
 
-    const site = user.site_names?.[0] || user.site_name || "";
-    if (!site) return showToast("error", "No site assigned to your account.");
+  const site = user.site_names?.[0] || user.site_name || null;
+  setLeaveSubmitting(true);
 
-    setLeaveSubmitting(true);
+  const chain = await resolveApprovalChain(supabase, site, user.role, user.user_name);
+  const initialLevel = chain.levelApprover ? null : true;
+  const initialHead = chain.autoApproved ? true : chain.headApprover ? null : true;
+  const proxyUser = proxyCandidates.find((u) => u.username === leaveForm.proxy_user_name);
 
-    const chain = await resolveApprovalChain(
-      supabase,
-      site,
-      user.role,
-      user.user_name,
+  const payload = {
+    user_name: user.user_name,
+    name: user.name,
+    site_name: site,
+    leave_type: leaveForm.leave_type,
+    from_date: leaveForm.from_date,
+    to_date: leaveForm.to_date,
+    reason: leaveForm.reason.trim() || null,
+    level_approver_user_name: chain.levelApprover?.username || null,
+    level_approver_role: chain.levelApprover?.role || null,
+    level_approver_name: chain.levelApprover?.name || null,
+    level_approved: initialLevel,
+    head_approver_user_name: chain.headApprover?.username || null,
+    head_approver_role: chain.headApprover?.role || null,
+    head_approver_name: chain.headApprover?.name || null,
+    head_approved: initialHead,
+    admin_approved: null,
+    proxy_user_name: leaveForm.proxy_user_name,
+    proxy_name: proxyUser?.name || leaveForm.proxy_user_name,
+    proxy_approved: null,
+    status: deriveLeaveStatus(initialLevel, initialHead),
+  };
+
+  const { error } = await supabase.from("leaves").insert([payload]);
+  setLeaveSubmitting(false);
+  if (error) {
+    showToast("error", "Failed to submit leave. " + error.message);
+  } else {
+    showToast(
+      "success",
+      chain.autoApproved
+        ? "Leave application submitted and auto-approved!"
+        : "Leave application submitted — awaiting proxy and admin approval.",
     );
-    const initialLevel = chain.levelApprover ? null : true;
-    const initialHead = chain.autoApproved
-      ? true
-      : chain.headApprover
-        ? null
-        : true;
+    setLeaveForm({ leave_type: "", from_date: "", to_date: "", reason: "", proxy_user_name: "" });
+    fetchLeaves(user);
+    setActiveTab("my-leaves");
+  }
+};
 
-    const payload = {
-      user_name: user.user_name,
-      name: user.name,
-      site_name: site,
-      leave_type: leaveForm.leave_type,
-      from_date: leaveForm.from_date,
-      to_date: leaveForm.to_date,
-      reason: leaveForm.reason.trim() || null,
-      level_approver_user_name: chain.levelApprover?.username || null,
-      level_approver_role: chain.levelApprover?.role || null,
-      level_approver_name: chain.levelApprover?.name || null,
-      level_approved: initialLevel,
-      head_approver_user_name: chain.headApprover?.username || null,
-      head_approver_role: chain.headApprover?.role || null,
-      head_approver_name: chain.headApprover?.name || null,
-      head_approved: initialHead,
-      admin_approved: null,
-      status: deriveLeaveStatus(initialLevel, initialHead),
-    };
-
-    const { error } = await supabase.from("leaves").insert([payload]);
-    setLeaveSubmitting(false);
-    if (error) {
-      showToast("error", "Failed to submit leave. " + error.message);
-    } else {
-      showToast(
-        "success",
-        chain.autoApproved
-          ? "Leave application submitted and auto-approved!"
-          : "Leave application submitted successfully!",
-      );
-      setLeaveForm({ leave_type: "", from_date: "", to_date: "", reason: "" });
-      fetchLeaves(user);
-      setActiveTab("my-leaves");
-    }
-  };
-
-  const handleProxyApprove = async (leave) => {
-    setUpdatingProxyId(leave.id); // ← add
-    const isHeadSlot = leave.head_approver_user_name === user.user_name;
-    const field = isHeadSlot ? "head_approved" : "level_approved";
-    const newLevel = isHeadSlot ? leave.level_approved : true;
-    const newHead = isHeadSlot ? true : leave.head_approved;
-
-    const { error } = await supabase
-      .from("leaves")
-      .update({ [field]: true, status: deriveLeaveStatus(newLevel, newHead) })
-      .eq("id", leave.id);
-    setUpdatingProxyId(null); // ← add
-    if (!error) {
-      setProxyLeaves((p) =>
-        p.map((l) =>
-          l.id === leave.id
-            ? {
-                ...l,
-                [field]: true,
-                status: deriveLeaveStatus(newLevel, newHead),
-              }
-            : l,
-        ),
-      );
-      showToast("success", "Leave approved.");
-    } else {
-      showToast("error", "Action failed. " + error.message);
-    }
-  };
   const openProxyReject = (leave) => {
     const isHeadSlot = leave.head_approver_user_name === user.user_name;
     setRejectTarget({ leave, isHead: isHeadSlot });
     setRejectReason("");
   };
+const handleProxyApprove = async (leave) => {
+  setUpdatingProxyId(leave.id);
+  const isHeadSlot = leave.head_approver_user_name === user.user_name;
+  const isProxySlot = leave.proxy_user_name === user.user_name;
 
-  const confirmProxyReject = async () => {
-    if (!rejectReason.trim()) return;
-    const { leave, isHead } = rejectTarget;
-    setUpdatingProxyId(leave.id); // ← add
-    const field = isHead ? "head_approved" : "level_approved";
-    const newLevel = isHead ? leave.level_approved : false;
-    const newHead = isHead ? false : leave.head_approved;
-    const slot = isHead ? "head" : "level";
-    const merged = mergeRejectionReason(
-      leave.rejection_reason,
-      slot,
-      user.user_name,
-      rejectReason.trim(),
-    );
+  let payload;
+  if (isProxySlot) {
+    payload = { proxy_approved: true };
+  } else {
+    const field = isHeadSlot ? "head_approved" : "level_approved";
+    const newLevel = isHeadSlot ? leave.level_approved : true;
+    const newHead = isHeadSlot ? true : leave.head_approved;
+    payload = { [field]: true, status: deriveLeaveStatus(newLevel, newHead) };
+  }
 
-    const { error } = await supabase
-      .from("leaves")
-      .update({
-        [field]: false,
-        status: deriveLeaveStatus(newLevel, newHead),
-        rejection_reason: merged,
-      })
-      .eq("id", leave.id);
+  const { error } = await supabase.from("leaves").update(payload).eq("id", leave.id);
+  setUpdatingProxyId(null);
+  if (error) return showToast("error", "Action failed. " + error.message);
 
-    setUpdatingProxyId(null); // ← add
-    if (!error) {
-      setProxyLeaves((p) =>
-        p.map((l) =>
-          l.id === leave.id
-            ? {
-                ...l,
-                [field]: false,
-                status: deriveLeaveStatus(newLevel, newHead),
-                rejection_reason: merged,
-              }
-            : l,
-        ),
-      );
-      showToast("success", "Leave rejected.");
-    } else {
-      showToast("error", "Action failed. " + error.message);
-    }
-    setRejectTarget(null);
-  };
+  const updatedLeave = { ...leave, ...payload };
+  setProxyLeaves((p) => p.map((l) => (l.id === leave.id ? updatedLeave : l)));
+  showToast("success", "Leave approved.");
+
+  // Both sides now approved — hand off the applicant's tasks for the leave window.
+  if (isLeaveFullyApproved(updatedLeave)) {
+    await transferTasksToProxy(updatedLeave);
+  }
+};
+function isLeaveFullyApproved(leave) {
+  const proxyDone = !leave.proxy_user_name || leave.proxy_approved === true;
+  if (!proxyDone) return false;
+
+  const hasChain = !!(leave.level_approver_user_name || leave.head_approver_user_name);
+  if (hasChain) {
+    const levelDone = !leave.level_approver_user_name || leave.level_approved === true;
+    const headDone = !leave.head_approver_user_name || leave.head_approved === true;
+    return levelDone && headDone;
+  }
+  return leave.admin_approved === true;
+}
+
+
+async function transferTasksToProxy(leave) {
+  if (!leave.proxy_user_name || !leave.from_date || !leave.to_date) return;
+
+  const { data: tasksToMove, error } = await supabase
+    .from("tasks")
+    .select("id, title")
+    .eq("assigned_to", leave.user_name)
+    .neq("status", "completed")
+    .gte("due_date", leave.from_date)
+    .lte("due_date", leave.to_date);
+
+  if (error || !tasksToMove?.length) return;
+
+  const ids = tasksToMove.map((t) => t.id);
+  await supabase.from("tasks").update({ assigned_to: leave.proxy_user_name }).in("id", ids);
+
+  showToast(
+    "success",
+    `${tasksToMove.length} task${tasksToMove.length > 1 ? "s" : ""} transferred to ${
+      userMap[leave.proxy_user_name] || leave.proxy_name || leave.proxy_user_name
+    } for the leave period.`,
+  );
+}
+
+const confirmProxyReject = async () => {
+  if (!rejectReason.trim()) return;
+  const { leave } = rejectTarget;
+  const isHeadSlot = leave.head_approver_user_name === user.user_name;
+  const isProxySlot = leave.proxy_user_name === user.user_name;
+  setUpdatingProxyId(leave.id);
+
+  const slot = isProxySlot ? "proxy" : isHeadSlot ? "head" : "level";
+  const merged = mergeRejectionReason(leave.rejection_reason, slot, user.name, rejectReason.trim());
+
+  let payload = { rejection_reason: merged };
+  if (isProxySlot) {
+    payload.proxy_approved = false;
+  } else {
+    const field = isHeadSlot ? "head_approved" : "level_approved";
+    const newLevel = isHeadSlot ? leave.level_approved : false;
+    const newHead = isHeadSlot ? false : leave.head_approved;
+    payload = { ...payload, [field]: false, status: deriveLeaveStatus(newLevel, newHead) };
+  }
+
+  const { error } = await supabase.from("leaves").update(payload).eq("id", leave.id);
+  setUpdatingProxyId(null);
+  if (!error) {
+    setProxyLeaves((p) => p.map((l) => (l.id === leave.id ? { ...l, ...payload } : l)));
+    showToast("success", "Leave rejected.");
+  } else {
+    showToast("error", "Action failed. " + error.message);
+  }
+  setRejectTarget(null);
+};
+
 const latestVerificationByTask = useMemo(() => {
   const map = new Map();
   myVerifications.forEach((v) => {
@@ -3734,8 +3777,8 @@ const latestVerificationByTask = useMemo(() => {
     VERIFY_REQUESTS_ITEM,
     NEW_TICKETS_ITEM,
     ...TICKETS_NAV,
-      VERIFIED_TASKS_ITEM,      // ← add
-  TASK_CORRECTIONS_ITEM,    // ← add
+      VERIFIED_TASKS_ITEM,
+  TASK_CORRECTIONS_ITEM,
   ].find((n) => n.key === activeTab);
 
   const proxyPendingCount = proxyLeaves.filter(
@@ -3758,37 +3801,10 @@ const latestVerificationByTask = useMemo(() => {
 
   const renderContent = () => {
     switch (activeTab) {
-//       case "my-tasks": {
-//   return (
-//     <TaskList
-//       tasks={myTasks}
-//       loading={loadingTasks}
-//       onStatusChange={handleStatusChange}
-//       updatingId={updatingId}
-//       emptyText="No tasks assigned to you yet."
-//       filters={myTaskFilters}
-//       onFilterChange={makeFilterChange(setMyTaskFilters)}
-//       onFilterClear={makeFilterClear(setMyTaskFilters)}
-//       showRecurrence={false}
-//       allTasks={myTasks}
-//       userMap={userMap}
-//       onSendVerification={handleSendVerification}
-//       onRaiseTicket={handleRaiseTicket}
-//       onAccept={handleAcceptTask}
-//       onHold={handleHoldTask}
-//       onContinue={handleContinueTask}
-//       onReschedule={(task) => {
-//         setRescheduleTask(task);
-//         setRescheduleForm({ requested_date: "", reason: "", verify_with: "" });
-//       }}
-//       onDetailClick={(task) => setDetailTask(task)}
-//     />
-//   );
-// }
 case "my-tasks": {
   return (
     <TaskList
-      tasks={myTasks.filter((t) => t.status !== "completed")}   // ← filter
+      tasks={myTasks.filter((t) => t.status !== "completed")}
       loading={loadingTasks}
       onStatusChange={handleStatusChange}
       updatingId={updatingId}
@@ -3812,40 +3828,11 @@ case "my-tasks": {
     />
   );
 }
-
-// case "recurring-tasks":
-//   return (
-//     <TaskList
-//       tasks={recurringTasks}
-//       loading={loadingTasks}
-//       onStatusChange={handleStatusChange}
-//       updatingId={updatingId}
-//       emptyText="No recurring tasks assigned to you."
-//       filters={recurringFilters}
-//       onFilterChange={makeFilterChange(setRecurringFilters)}
-//       onFilterClear={makeFilterClear(setRecurringFilters)}
-//       allTasks={recurringTasks}
-//       showRecurrence={true}
-//       onSendVerification={handleSendVerification}
-//       onRaiseTicket={handleRaiseTicket}
-//       onAccept={handleAcceptTask}
-//       onHold={handleHoldTask}
-//       onContinue={handleContinueTask}
-//       recurringMode={true}              
-//       onDone={handleMarkDone}           
-//       onNotApplicable={handleMarkNotApplicable} 
-//       onReschedule={(task) => {
-//         setRescheduleTask(task);
-//         setRescheduleForm({ requested_date: "", reason: "", verify_with: "" });
-//       }}
-//       onDetailClick={(task) => setDetailTask(task)}
-//     />
-//   );
       
 case "recurring-tasks":
   return (
     <TaskList
-      tasks={recurringTasks.filter((t) => t.status == "pending")}   // ← filter
+      tasks={recurringTasks.filter((t) => t.status == "pending")}
       loading={loadingTasks}
       onStatusChange={handleStatusChange}
       updatingId={updatingId}
@@ -3979,7 +3966,29 @@ case "recurring-tasks":
                   }
                 />
               </div>
-
+              <div className="lv-field lv-col-2">
+                <label className="lv-label">
+                  Proxy (covers your tasks while on leave) <span className="lv-req">*</span>
+                </label>
+                <select
+                  className="lv-input lv-select"
+                  value={leaveForm.proxy_user_name}
+                  onChange={(e) =>
+                    setLeaveForm((p) => ({ ...p, proxy_user_name: e.target.value }))
+                  }
+                >
+                  <option value="">Select a proxy…</option>
+                  {proxyCandidates.map((u) => (
+                    <option key={u.username} value={u.username}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+                <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+                  Both your proxy and the admin must approve before this leave is confirmed.
+                  Your pending tasks due during the leave period will be handed to them.
+                </span>
+              </div>
               <div className="lv-field lv-col-2 lv-actions-row">
                 <button
                   className="lv-btn-reset"
@@ -8142,7 +8151,7 @@ case "recurring-tasks":
                 onClick={handleChecklistConfirm}
                 disabled={
                   fetchingCPs ||
-                  checkpoints.some((cp) => !checkedItems[cp.id])   // ← disabled ONLY if something's unticked
+                  checkpoints.some((cp) => !checkedItems[cp.id])
                 }
                 style={{
                   display: "inline-flex",

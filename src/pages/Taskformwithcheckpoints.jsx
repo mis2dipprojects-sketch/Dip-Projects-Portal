@@ -334,14 +334,18 @@ function PendingTaskQueuePanel({ assignedTo, employeeName, form, setForm }) {
     if (!assignedTo) { setPendingTasks([]); return; }
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("id, title, due_date, hours_to_complete, accepted_at, resumed_at, accumulated_seconds, is_held, hold_started_at, status")
-        .eq("assigned_to", assignedTo)
-        .neq("status", "completed")
-        .neq("status", "not_applicable")
-        .order("due_date", { ascending: true });
-      if (!error) setPendingTasks(data || []);
+const { data, error } = await supabase
+  .from("tasks")
+  .select("id, title, due_date, hours_to_complete, accepted_at, resumed_at, accumulated_seconds, is_held, hold_started_at, status, is_recurring, parent_task_id")
+  .eq("assigned_to", assignedTo)
+  .neq("status", "completed")
+  .neq("status", "not_applicable")
+  .order("due_date", { ascending: true });
+if (!error) {
+  setPendingTasks(
+    (data || []).filter((t) => !t.is_recurring && !t.parent_task_id),
+  );
+}
       setLoading(false);
     })();
   }, [assignedTo]);
@@ -387,14 +391,14 @@ function PendingTaskQueuePanel({ assignedTo, employeeName, form, setForm }) {
                   key={t.id}
                   style={{
                     border: `1px solid ${isSelected ? "#dc2626" : "#e2e8f0"}`,
-                    background: isSelected ? "#fef2f2" : "#f8fafc",
+                    background: isSelected ? "#fef2f2" : "#dadada93",
                     borderRadius: 10,
                     padding: "10px 12px",
                     display: "flex",
                     flexDirection: "column",
                     gap: 8,
                   }}
-                >
+                > 
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>{t.title}</div>
                     <div style={{ display: "flex", gap: 8, fontSize: 11.5, color: "#64748b" }}>
@@ -520,6 +524,15 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
       `}</style>
 
       <div className="ap-form-grid">
+        <div className="ap-field ap-field-center">
+            <label className="ap-label">Recurring Task</label>
+            <label className="ap-toggle">
+              <input type="checkbox" name="is_recurring" checked={form.is_recurring} onChange={handleFormChange}/>
+              <span className="ap-toggle-track"><span className="ap-toggle-thumb"/></span>
+              <span className="ap-toggle-label">{form.is_recurring ? "Yes" : "No"}</span>
+            </label>
+          </div>
+
         {/* ── Title + Assigned To ── */}
         <div className="ap-form-row ap-col-2">
           <div className="ap-field">
@@ -546,12 +559,14 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
           </div>
         </div>
 
-         <PendingTaskQueuePanel
-            assignedTo={form.assigned_to}
-            employeeName={employees.find((e) => e.username === form.assigned_to)?.name}
-            form={form}
-            setForm={setForm}
-          />
+         {!form.is_recurring && (
+            <PendingTaskQueuePanel
+              assignedTo={form.assigned_to}
+              employeeName={employees.find((e) => e.username === form.assigned_to)?.name}
+              form={form}
+              setForm={setForm}
+            />
+          )}
         {/* ── Description ── */}
         <div className="ap-form-row ap-col-1">
           <div className="ap-field">
@@ -582,14 +597,6 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
-            </select>
-          </div>
-          <div className="ap-field">
-            <label className="ap-label">Initial Status</label>
-            <select className="ap-input ap-select" name="status" value={form.status} onChange={handleFormChange}>
-              <option value="pending">Pending</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
             </select>
           </div>
         </div>
@@ -631,14 +638,7 @@ export function TaskForm({ form, handleFormChange, setForm, handleSubmit, submit
             <label className="ap-label">Due Date</label>
             <input className="ap-input" type="date" name="due_date" value={form.due_date} onChange={handleFormChange}/>
           </div>
-          <div className="ap-field ap-field-center">
-            <label className="ap-label">Recurring Task</label>
-            <label className="ap-toggle">
-              <input type="checkbox" name="is_recurring" checked={form.is_recurring} onChange={handleFormChange}/>
-              <span className="ap-toggle-track"><span className="ap-toggle-thumb"/></span>
-              <span className="ap-toggle-label">{form.is_recurring ? "Yes" : "No"}</span>
-            </label>
-          </div>
+          
         </div>
 
         {/* ── Recurrence settings ── */}

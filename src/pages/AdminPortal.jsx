@@ -386,7 +386,40 @@ const VERIFICATION_STATUS_STYLE = {
   completed: { bg: "#f0fdf4", color: "#16a34a", border: "#bbf7d0", label: "Verified" },
   correction_sent: { bg: "#fef2f2", color: "#dc2626", border: "#fecaca", label: "Correction Sent" },
 };
+async function transferTasksToProxy(supabaseClient, leave, userMap, notify) {
+  if (!leave.proxy_user_name || !leave.from_date || !leave.to_date) return;
 
+  const { data: tasksToMove, error } = await supabaseClient
+    .from("tasks")
+    .select("id, title")
+    .eq("assigned_to", leave.user_name)
+    .neq("status", "completed")
+    .gte("due_date", leave.from_date)
+    .lte("due_date", leave.to_date);
+
+  if (error || !tasksToMove?.length) return;
+
+  const ids = tasksToMove.map((t) => t.id);
+  await supabaseClient.from("tasks").update({ assigned_to: leave.proxy_user_name }).in("id", ids);
+
+  notify?.(
+    `${tasksToMove.length} task${tasksToMove.length > 1 ? "s" : ""} transferred to ${
+      userMap[leave.proxy_user_name] || leave.proxy_name || leave.proxy_user_name
+    } for the leave period.`,
+  );
+}
+function isLeaveFullyApproved(leave) {
+  const proxyDone = !leave.proxy_user_name || leave.proxy_approved === true;
+  if (!proxyDone) return false;
+
+  const hasChain = !!(leave.level_approver_user_name || leave.head_approver_user_name);
+  if (hasChain) {
+    const levelDone = !leave.level_approver_user_name || leave.level_approved === true;
+    const headDone = !leave.head_approver_user_name || leave.head_approved === true;
+    return levelDone && headDone;
+  }
+  return leave.admin_approved === true;
+}
 function VerificationBadge({ verification, onClick }) {
   if (!verification) {
     return (
@@ -601,22 +634,27 @@ function ordinal(n) {
 }
 
 function computeLeaveStatus(leave) {
+  const hasChain = !!(leave.level_approver_user_name || leave.head_approver_user_name);
   const storedStatus = normalizeText(leave.status);
+
   if (
     leave.admin_approved === false ||
     leave.proxy_approved === false ||
     storedStatus === "rejected"
   )
     return "rejected";
-  const proxyDone = !leave.proxy_user_name || leave.proxy_approved === true;
-  if (
-    (leave.admin_approved === true || storedStatus === "approved") &&
-    proxyDone
-  )
-    return "approved";
+
+  if (hasChain) {
+    const proxyDone = !leave.proxy_user_name || leave.proxy_approved === true;
+    if ((leave.admin_approved === true || storedStatus === "approved") && proxyDone)
+      return "approved";
+    return "pending";
+  }
+
+  // Admin-direct leave (no approval chain) — only a real admin action counts.
+  if (leave.admin_approved === true) return "approved";
   return "pending";
 }
-
 function formatLeaveDate(date) {
   return date
     ? new Date(date + "T00:00:00").toLocaleDateString("en-IN", {
@@ -709,6 +747,11 @@ function getHeadApprovalClass(leave) {
 }
 
 function isFinalLeaveStatus(leave) {
+  const hasChain = !!(leave.level_approver_user_name || leave.head_approver_user_name);
+  if (!hasChain) {
+    // Admin-direct leave — final only once admin has actually approved/rejected.
+    return leave.admin_approved === true || leave.admin_approved === false;
+  }
   const storedStatus = normalizeText(leave.status);
   return storedStatus === "approved" || storedStatus === "rejected";
 }
@@ -2718,12 +2761,13 @@ function TaskCard({
     </div>
   );
 }
-function formatAuditEntries(value, roleByName = {}) {
+function formatAuditEntries(value, roleByName = {}, userMap = {}) {
   if (value == null || value === "") return null;
 
   const renderEntry = (entry, key) => {
     if (typeof entry === "string") return <div key={key}>{entry}</div>;
     const { by, slot, reason, at } = entry || {};
+    const displayName = userMap[by] || by; // resolves username -> name if needed
     const dateStr = at
       ? new Date(at).toLocaleDateString("en-IN", {
           day: "numeric",
@@ -2731,10 +2775,10 @@ function formatAuditEntries(value, roleByName = {}) {
           year: "numeric",
         })
       : null;
-    const roleLabel = roleByName[by];
+    const roleLabel = roleByName[displayName] || roleByName[by];
     return (
       <div key={key} style={{ marginBottom: 6 }}>
-        <strong>{by || "Unknown"}</strong>
+        <strong>{displayName || "Unknown"}</strong>
         {roleLabel ? (
           <span style={{ color: "#94a3b8" }}> ({roleLabel})</span>
         ) : slot ? (
@@ -3244,7 +3288,7 @@ function SiteBadgeList({ sites, max = 3 }) {
     </div>
   );
 }
-function LeaveRequestCard({ leave, onAction, updating, roleByName }) {
+function LeaveRequestCard({ leave, onAction, updating, roleByName, userMap }) {
   const status = computeLeaveStatus(leave);
   const days = getLeaveDays(leave);
   const managedByHead = isSiteEngineerLeave(leave);
@@ -3293,7 +3337,7 @@ function LeaveRequestCard({ leave, onAction, updating, roleByName }) {
       </div>
       {leave.reason && (
         <p className="ap-leave-reason">
-          {formatAuditEntries(leave.reason, roleByName)}
+          {formatAuditEntries(leave.reason, roleByName, userMap)}
         </p>
       )}
       <div className="ap-leave-approvals">
@@ -3344,7 +3388,7 @@ function LeaveRequestCard({ leave, onAction, updating, roleByName }) {
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           <strong>Rejected:</strong>{" "}
-          {formatAuditEntries(leave.rejection_reason, roleByName)}
+          {formatAuditEntries(leave.rejection_reason, roleByName, userMap)}
         </div>
       )}
       {canAct ? (
@@ -4148,7 +4192,8 @@ async function uploadSiteImage(supabaseClient, siteName, file) {
     .getPublicUrl(path);
   return urlData.publicUrl;
 }
-function LeaveRow({ leave, onAction, updating, roleByName }) {
+
+function LeaveRow({ leave, onAction, updating, roleByName, userMap, onRowClick }) {
   const status = computeLeaveStatus(leave);
   const style = LEAVE_STATUS_STYLES[status];
   const days = getLeaveDays(leave);
@@ -4159,7 +4204,11 @@ function LeaveRow({ leave, onAction, updating, roleByName }) {
     !isFinalLeaveStatus(leave);
 
   return (
-    <tr className="ap-tr">
+    <tr
+      className="ap-tr"
+      onClick={() => onRowClick?.(leave)}
+      style={{ cursor: "pointer" }}
+    >
       <td className="ap-td ap-td-title">
         {leave.name || leave.user_name || "Employee"}
         <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>
@@ -4179,7 +4228,7 @@ function LeaveRow({ leave, onAction, updating, roleByName }) {
       <td className="ap-td" style={{ maxWidth: 220 }}>
         {leave.reason ? (
           <span style={{ fontSize: 12.5, color: "#64748b" }}>
-            {formatAuditEntries(leave.reason, roleByName)}
+            {formatAuditEntries(leave.reason, roleByName, userMap)}
           </span>
         ) : (
           <span style={{ color: "#94a3b8" }}>—</span>
@@ -4217,51 +4266,28 @@ function LeaveRow({ leave, onAction, updating, roleByName }) {
           {status.charAt(0).toUpperCase() + status.slice(1)}
         </span>
         {leave.rejection_reason && (
-          <div
-            style={{
-              fontSize: 11,
-              color: "#dc2626",
-              marginTop: 4,
-              maxWidth: 180,
-            }}
-          >
-            {formatAuditEntries(leave.rejection_reason, roleByName)}
+          <div style={{ fontSize: 11, color: "#dc2626", marginTop: 4, maxWidth: 180 }}>
+             {formatAuditEntries(leave.rejection_reason, roleByName, userMap)}
           </div>
         )}
       </td>
-      <td className="ap-td">
+      <td className="ap-td" onClick={(e) => e.stopPropagation()}>
         {canAct ? (
           <div style={{ display: "flex", gap: 6 }}>
-            <button
-              className="ap-btn-approve"
-              disabled={updating === leave.id}
-              onClick={() => onAction(leave, true)}
-              style={{ padding: "5px 10px", fontSize: 11.5 }}
-            >
+            <button className="ap-btn-approve" disabled={updating === leave.id} onClick={() => onAction(leave, true)} style={{ padding: "5px 10px", fontSize: 11.5 }}>
               Approve
             </button>
-            <button
-              className="ap-btn-reject"
-              disabled={updating === leave.id}
-              onClick={() => onAction(leave, false)}
-              style={{ padding: "5px 10px", fontSize: 11.5 }}
-            >
+            <button className="ap-btn-reject" disabled={updating === leave.id} onClick={() => onAction(leave, false)} style={{ padding: "5px 10px", fontSize: 11.5 }}>
               Reject
             </button>
-            {updating === leave.id && (
-              <span className="ap-saving">saving…</span>
-            )}
+            {updating === leave.id && <span className="ap-saving">saving…</span>}
           </div>
         ) : managedByHead ? (
-          <span
-            style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}
-          >
+          <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>
             Managed by site head
           </span>
         ) : (
-          <span
-            style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}
-          >
+          <span style={{ fontSize: 11.5, color: "#94a3b8", fontStyle: "italic" }}>
             Actioned
           </span>
         )}
@@ -5095,6 +5121,11 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
   const [updatingVerificationId, setUpdatingVerificationId] = useState(null);
   const [correctionModal, setCorrectionModal] = useState(null);
 
+  const [recurringTemplates, setRecurringTemplates] = useState([]); // from recurring_tasks
+  const [editingTaskType, setEditingTaskType] = useState(null);     // 'task' | 'template' | 'instance'
+
+  const [leaveDetailModal, setLeaveDetailModal] = useState(null);
+
     const latestVerificationByTask = useMemo(() => {
     const map = new Map();
     pendingVerifications.forEach((v) => {
@@ -5425,14 +5456,29 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
     setLoadingVerifications(false);
   }, []);
   const fetchAllTasks = useCallback(async () => {
-    setLoadingTasks(true);
-    const { data } = await supabase
-      .from("tasks")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setAllTasks(data || []);
-    setLoadingTasks(false);
-  }, []);
+  setLoadingTasks(true);
+  try {
+    const [oneTimeRes, instancesRes, templatesRes] = await Promise.all([
+      supabase.from("tasks").select("*").order("created_at", { ascending: false }),
+      supabase.from("recurring_task_instances").select("*").order("created_at", { ascending: false }),
+      supabase.from("recurring_tasks").select("*").order("created_at", { ascending: false }),
+    ]);
+
+    const oneTime = (oneTimeRes.data || []).map((t) => ({ ...t, _source: "task" }));
+    const instances = (instancesRes.data || []).map((t) => ({
+      ...t,
+      _source: "instance",
+      is_recurring: true, // keeps existing pills/badges ("instance" chip, recurrence icon) working unchanged
+    }));
+    const templates = (templatesRes.data || []).map((t) => ({ ...t, _source: "template" }));
+
+    setAllTasks([...oneTime, ...instances]);
+    setRecurringTemplates(templates);
+  } catch (err) {
+    showToast("error", "Failed to load tasks: " + err.message);
+  }
+  setLoadingTasks(false);
+}, []);
   useEffect(() => {
     setVisibleTaskCount(30);
   }, [taskFilters, showRecurringInAllTasks]);
@@ -5843,6 +5889,8 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
         { event: "*", schema: "public", table: "site_details" },
         () => fetchSites(),
       )
+      .on("postgres_changes", { event: "*", schema: "public", table: "recurring_tasks" }, () => fetchAllTasks())
+      .on("postgres_changes", { event: "*", schema: "public", table: "recurring_task_instances" }, () => fetchAllTasks())
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -5947,14 +5995,17 @@ const handleNavClick = (key) => {
       setSidebarOpen(false);
   };
 
-  const handleFormChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-      ...(name === "is_recurring" && !checked ? { recurrence: "" } : {}),
-    }));
-  };
+const handleFormChange = (e) => {
+  const { name, value, type, checked } = e.target;
+  setForm((prev) => ({
+    ...prev,
+    [name]: type === "checkbox" ? checked : value,
+    ...(name === "is_recurring" && !checked ? { recurrence: "" } : {}),
+    ...(name === "is_recurring" && checked
+      ? { _queueMode: null, _queueTargetTaskId: null, _queueRescheduleDate: "" }
+      : {}),
+  }));
+};
 
   const handleSubmit = async () => {
     if (!form.title.trim()) return showToast("error", "Title is required.");
@@ -6005,78 +6056,154 @@ const handleNavClick = (key) => {
       document_url = urlData.publicUrl;
     }
 
-    const basePayload = {
+if (form.is_recurring) {
+  if (!form.recurrence) {
+    setSubmitting(false);
+    return showToast("error", "Please select a recurrence Schedule.");
+  }
+  const firstDueDate = getNextDueDate(null, form.recurrence);
+
+  const templatePayload = {
+    title: form.title.trim(),
+    description: form.description.trim() || null,
+    assigned_to: form.assigned_to.trim(),
+    assigned_by: user.user_name,
+    site_name: form.site_name.trim() || null,
+    priority: form.priority,
+    recurrence: form.recurrence,
+    recurrence_anchor: anchor,
+    audio_url,
+    document_url,
+    has_checkpoints: !!form.enable_checkpoints,
+    reschedule_allowed: form.reschedule_allowed || false,
+    hours_to_complete: form.hours_to_complete ? parseFloat(form.hours_to_complete) : null,
+    due_date: firstDueDate,
+    is_active: true,
+  };
+
+  // ── editing an existing template ──
+  if (editingTaskId && editingTaskType === "template") {
+    const patch = { ...templatePayload };
+    if (!audio_url) delete patch.audio_url;       // don't clobber an existing file if none re-uploaded
+    if (!document_url) delete patch.document_url;
+    const { error } = await supabase.from("recurring_tasks").update(patch).eq("id", editingTaskId);
+    setSubmitting(false);
+    if (error) { showToast("error", "Failed to update recurring task. " + error.message); return false; }
+    showToast("success", `Recurring task "${form.title}" updated!`);
+    fetchAllTasks();
+    setEditingTaskId(null);
+    setEditingTaskType(null);
+    return true;
+  }
+
+  // ── editing an existing instance (title/desc/priority/due date/hours only — not the schedule) ──
+  if (editingTaskId && editingTaskType === "instance") {
+    const instancePatch = {
       title: form.title.trim(),
       description: form.description.trim() || null,
-      assigned_to: form.assigned_to.trim(),
-      site_name: form.site_name.trim() || null,
       priority: form.priority,
-      status: form.status,
-      due_date: computedDueDate,
-      is_recurring: form.is_recurring,
-      recurrence: form.is_recurring ? form.recurrence : null,
-      recurrence_anchor: anchor,
+      due_date: form.due_date || null,
       reschedule_allowed: form.reschedule_allowed || false,
-      hours_to_complete: form.hours_to_complete
-        ? parseFloat(form.hours_to_complete)
-        : null,
+      hours_to_complete: form.hours_to_complete ? parseFloat(form.hours_to_complete) : null,
     };
-
-    if (editingTaskId) {
-      const editPayload = { ...basePayload };
-      if (audio_url) editPayload.audio_url = audio_url;
-      if (document_url) editPayload.document_url = document_url;
-
-      const { error } = await supabase
-        .from("tasks")
-        .update(editPayload)
-        .eq("id", editingTaskId);
-      setSubmitting(false);
-
-      if (error) {
-        showToast("error", "Failed to update task. " + error.message);
-        return false;
-      }
-      showToast("success", `Task "${form.title}" updated!`);
-      fetchAllTasks();
-      setEditingTaskId(null);
-      return true;
-    }
-
-    const payload = {
-      ...basePayload,
-      assigned_by: user.user_name,
-      last_generated_date: null,
-      parent_task_id: null,
-      audio_url,
-      document_url,
-    };
-
-    const { data: insertedTask, error } = await supabase
-      .from("tasks")
-      .insert([payload])
-      .select("id")
-      .single();
+    if (audio_url) instancePatch.audio_url = audio_url;
+    if (document_url) instancePatch.document_url = document_url;
+    const { error } = await supabase.from("recurring_task_instances").update(instancePatch).eq("id", editingTaskId);
     setSubmitting(false);
+    if (error) { showToast("error", "Failed to update task instance. " + error.message); return false; }
+    showToast("success", `Task "${form.title}" updated!`);
+    fetchAllTasks();
+    setEditingTaskId(null);
+    setEditingTaskType(null);
+    return true;
+  }
 
-    if (error) {
-      showToast("error", "Failed to assign task. " + error.message);
-      return false;
-    }
+  // ── creating a new recurring template ──
+  const { data: insertedTemplate, error } = await supabase
+    .from("recurring_tasks")
+    .insert([templatePayload])
+    .select()
+    .single();
+  setSubmitting(false);
+  if (error) { showToast("error", "Failed to create recurring task. " + error.message); return false; }
 
-   if (form.enable_checkpoints) {
-  await supabase
-    .from("tasks")
-    .update({ has_checkpoints: true })
-    .eq("id", insertedTask.id);
+  // Spawn the first instance immediately so there's something actionable
+  // right away rather than waiting for the next scheduled trigger day.
+  const { error: instErr } = await supabase.from("recurring_task_instances").insert([
+    {
+      recurring_task_id: insertedTemplate.id,
+      title: insertedTemplate.title,
+      description: insertedTemplate.description,
+      assigned_to: insertedTemplate.assigned_to,
+      assigned_by: insertedTemplate.assigned_by,
+      site_name: insertedTemplate.site_name,
+      priority: insertedTemplate.priority,
+      status: "pending",
+      due_date: firstDueDate,
+      audio_url: insertedTemplate.audio_url,
+      document_url: insertedTemplate.document_url,
+      has_checkpoints: insertedTemplate.has_checkpoints,
+      reschedule_allowed: insertedTemplate.reschedule_allowed,
+      hours_to_complete: insertedTemplate.hours_to_complete,
+    },
+  ]);
+  if (!instErr) {
+    await supabase
+      .from("recurring_tasks")
+      .update({ last_generated_date: firstDueDate })
+      .eq("id", insertedTemplate.id);
+  } else {
+    showToast("error", "Recurring task created, but the first instance failed to generate: " + instErr.message);
+  }
+
+  const desc = anchorDescription(form.recurrence, anchor);
+  showToast("success", `Recurring task "${form.title}" created${desc ? ` — repeats ${desc}` : ""}!`);
+  fetchAllTasks();
+  return true;
 }
 
-// ── Queue handling: continue-after or pause-and-prioritize ──  ← add this whole block
+// ── one-time task: unchanged, still writes to `tasks` ──────────────────
+const basePayload = {
+  title: form.title.trim(),
+  description: form.description.trim() || null,
+  assigned_to: form.assigned_to.trim(),
+  site_name: form.site_name.trim() || null,
+  priority: form.priority,
+  status: form.status,
+  due_date: computedDueDate,
+  reschedule_allowed: form.reschedule_allowed || false,
+  hours_to_complete: form.hours_to_complete ? parseFloat(form.hours_to_complete) : null,
+};
+
+if (editingTaskId && editingTaskType !== "template" && editingTaskType !== "instance") {
+  const editPayload = { ...basePayload };
+  if (audio_url) editPayload.audio_url = audio_url;
+  if (document_url) editPayload.document_url = document_url;
+
+  const { error } = await supabase.from("tasks").update(editPayload).eq("id", editingTaskId);
+  setSubmitting(false);
+  if (error) { showToast("error", "Failed to update task. " + error.message); return false; }
+  showToast("success", `Task "${form.title}" updated!`);
+  fetchAllTasks();
+  setEditingTaskId(null);
+  setEditingTaskType(null);
+  return true;
+}
+
+const payload = { ...basePayload, assigned_by: user.user_name, audio_url, document_url };
+
+const { data: insertedTask, error } = await supabase.from("tasks").insert([payload]).select("id").single();
+setSubmitting(false);
+if (error) { showToast("error", "Failed to assign task. " + error.message); return false; }
+
+if (form.enable_checkpoints) {
+  await supabase.from("tasks").update({ has_checkpoints: true }).eq("id", insertedTask.id);
+}
+
+// Queue handling stays exactly as-is — only applies to `tasks` rows,
+// since `queued_after_task_id` only exists on that table.
 if (form._queueMode === "continue_after" && form._queueTargetTaskId) {
-  await supabase
-    .from("tasks")
-    .update({ queued_after_task_id: form._queueTargetTaskId })
-    .eq("id", insertedTask.id);
+  await supabase.from("tasks").update({ queued_after_task_id: form._queueTargetTaskId }).eq("id", insertedTask.id);
 } else if (form._queueMode === "pause_and_prioritize" && form._queueTargetTaskId) {
   const targetId = form._queueTargetTaskId;
   const { data: targetTask } = await supabase
@@ -6084,7 +6211,6 @@ if (form._queueMode === "continue_after" && form._queueTargetTaskId) {
     .select("accepted_at, resumed_at, accumulated_seconds, is_held")
     .eq("id", targetId)
     .single();
-
   if (targetTask) {
     const nowIso = new Date().toISOString();
     const lastStart = targetTask.resumed_at || targetTask.accepted_at;
@@ -6092,34 +6218,20 @@ if (form._queueMode === "continue_after" && form._queueTargetTaskId) {
       ? Math.floor((new Date(nowIso) - new Date(lastStart)) / 1000)
       : 0;
     const newAccumulated = (targetTask.accumulated_seconds || 0) + Math.max(elapsed, 0);
-
-    await supabase
-      .from("tasks")
-      .update({
-        is_held: true,
-        hold_started_at: nowIso,
-        accumulated_seconds: newAccumulated,
-        ...(form._queueRescheduleDate ? { due_date: form._queueRescheduleDate } : {}),
-      })
-      .eq("id", targetId);
+    await supabase.from("tasks").update({
+      is_held: true,
+      hold_started_at: nowIso,
+      accumulated_seconds: newAccumulated,
+      ...(form._queueRescheduleDate ? { due_date: form._queueRescheduleDate } : {}),
+    }).eq("id", targetId);
   }
-
   const startIso = new Date().toISOString();
-  await supabase
-    .from("tasks")
-    .update({ accepted_at: startIso, resumed_at: startIso, is_held: false })
-    .eq("id", insertedTask.id);
+  await supabase.from("tasks").update({ accepted_at: startIso, resumed_at: startIso, is_held: false }).eq("id", insertedTask.id);
 }
 
-    const desc = form.is_recurring
-      ? anchorDescription(form.recurrence, anchor)
-      : null;
-    showToast(
-      "success",
-      `Task "${form.title}" assigned${desc ? ` — repeats ${desc}` : ""}!`,
-    );
-    fetchAllTasks();
-    return true;
+showToast("success", `Task "${form.title}" assigned!`);
+fetchAllTasks();
+return true;
   };
   const handleOverdueRejectConfirm = async () => {
     if (!overdueRejectModal) return;
@@ -6156,110 +6268,95 @@ if (form._queueMode === "continue_after" && form._queueTargetTaskId) {
 
 const handleMarkTaskDone = async (task) => {
   setUpdatingMarkDoneId(task.id);
-  const { error } = await supabase
-    .from("tasks")
-    .update({ status: "completed" })
-    .eq("id", task.id);
+  const table = task._source === "instance" ? "recurring_task_instances" : "tasks";
+  const { error } = await supabase.from(table).update({ status: "completed" }).eq("id", task.id);
   setUpdatingMarkDoneId(null);
-  if (error)
-    return showToast("error", "Failed to mark done: " + error.message);
+  if (error) return showToast("error", "Failed to mark done: " + error.message);
 
-  await activateQueuedTask(supabase, task.id, userMap, (msg) => showToast("success", msg));  // ← add
-
-  setAllTasks((prev) =>
-    prev.map((t) => (t.id === task.id ? { ...t, status: "completed" } : t)),
-  );
-  fetchAllTasks();
+  if (table === "tasks") {
+    await activateQueuedTask(supabase, task.id, userMap, (msg) => showToast("success", msg));
+  }
+  setAllTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: "completed" } : t)));
   showToast("success", `"${task.title}" marked as completed.`);
 };
 
   const openEditTaskModal = (task) => {
-    setForm({
-      ...EMPTY_FORM,
-      title: task.title || "",
-      description: task.description || "",
-      assigned_to: task.assigned_to || "",
-      site_name: task.site_name || "",
-      priority: task.priority || "medium",
-      status: task.status || "pending",
-      due_date: task.due_date || "",
-      is_recurring: task.is_recurring || false,
-      recurrence: task.recurrence || "",
-      reschedule_allowed: task.reschedule_allowed || false,
-      hours_to_complete: task.hours_to_complete || "",
-    });
-    setEditingTaskId(task.id);
-    setShowTaskModal(true);
-  };
+  const isTemplateOrInstance = task._source === "template" || task._source === "instance";
+  setForm({
+    ...EMPTY_FORM,
+    title: task.title || "",
+    description: task.description || "",
+    assigned_to: task.assigned_to || "",
+    site_name: task.site_name || "",
+    priority: task.priority || "medium",
+    status: task.status || "pending",
+    due_date: task.due_date || "",
+    is_recurring: isTemplateOrInstance,
+    recurrence: task.recurrence || "",
+    reschedule_allowed: task.reschedule_allowed || false,
+    hours_to_complete: task.hours_to_complete || "",
+  });
+  setEditingTaskId(task.id);
+  setEditingTaskType(task._source === "template" ? "template" : task._source === "instance" ? "instance" : "task");
+  setShowTaskModal(true);
+};
 
   const openReassignModal = (task) => {
     setReassignModal({ task, newAssignee: task.assigned_to || "" });
   };
 
-  const handleReassignSubmit = async () => {
-    if (!reassignModal?.newAssignee)
-      return showToast("error", "Please select an employee.");
-    const { task, newAssignee } = reassignModal;
-    setUpdatingReassignId(task.id);
-    const { error } = await supabase
-      .from("tasks")
-      .update({ assigned_to: newAssignee })
-      .eq("id", task.id);
-    setUpdatingReassignId(null);
-    if (error)
-      return showToast("error", "Failed to reassign: " + error.message);
-    setAllTasks((prev) =>
-      prev.map((t) =>
-        t.id === task.id ? { ...t, assigned_to: newAssignee } : t,
-      ),
-    );
-    showToast(
-      "success",
-      `"${task.title}" reassigned to ${nameFor(userMap, newAssignee)}.`,
-    );
-    setReassignModal(null);
-  };
-  
+const handleReassignSubmit = async () => {
+  if (!reassignModal?.newAssignee) return showToast("error", "Please select an employee.");
+  const { task, newAssignee } = reassignModal;
+  const table = task._source === "instance" ? "recurring_task_instances" : "tasks";
+  setUpdatingReassignId(task.id);
+  const { error } = await supabase.from(table).update({ assigned_to: newAssignee }).eq("id", task.id);
+  setUpdatingReassignId(null);
+  if (error) return showToast("error", "Failed to reassign: " + error.message);
+  setAllTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, assigned_to: newAssignee } : t)));
+  showToast("success", `"${task.title}" reassigned to ${nameFor(userMap, newAssignee)}.`);
+  setReassignModal(null);
+};
+
   const openRescheduleTaskModal = (task) => {
     setRescheduleTaskModal({ task, newDate: task.due_date || "" });
   };
 
-  const handleRescheduleTaskSubmit = async () => {
-    if (!rescheduleTaskModal?.newDate)
-      return showToast("error", "Please pick a new due date.");
-    const { task, newDate } = rescheduleTaskModal;
-    setUpdatingRescheduleTaskId(task.id);
-    const { error } = await supabase
-      .from("tasks")
-      .update({ due_date: newDate })
-      .eq("id", task.id);
-    setUpdatingRescheduleTaskId(null);
-    if (error)
-      return showToast("error", "Failed to reschedule: " + error.message);
-    setAllTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, due_date: newDate } : t)),
-    );
-    showToast(
-      "success",
-      `Due date updated to ${new Date(newDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
-    );
-    setRescheduleTaskModal(null);
-  };
+const handleRescheduleTaskSubmit = async () => {
+  if (!rescheduleTaskModal?.newDate) return showToast("error", "Please pick a new due date.");
+  const { task, newDate } = rescheduleTaskModal;
+  const table = task._source === "instance" ? "recurring_task_instances" : "tasks";
+  setUpdatingRescheduleTaskId(task.id);
+  const { error } = await supabase.from(table).update({ due_date: newDate }).eq("id", task.id);
+  setUpdatingRescheduleTaskId(null);
+  if (error) return showToast("error", "Failed to reschedule: " + error.message);
+  setAllTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, due_date: newDate } : t)));
+  showToast("success", `Due date updated to ${new Date(newDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`);
+  setRescheduleTaskModal(null);
+};
+  
+const handleRejectTask = async (task) => {
+  if (!window.confirm(`Reject and remove "${task.title}"?`)) return;
+  const table = task._source === "instance" ? "recurring_task_instances" : "tasks";
+  await supabase.from(table).delete().eq("id", task.id);
+  setAllTasks((p) => p.filter((t) => t.id !== task.id));
+  showToast("success", "Task rejected and removed.");
+};
 
-  const handleRejectTask = async (task) => {
-    if (!window.confirm(`Reject and remove "${task.title}"?`)) return;
-    await supabase.from("tasks").delete().eq("id", task.id);
-    setAllTasks((p) => p.filter((t) => t.id !== task.id));
-    showToast("success", "Task rejected and removed.");
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this task?")) return;
-    await supabase.from("tasks").delete().eq("id", id);
-    setAllTasks((p) => p.filter((t) => t.id !== id));
-    showToast("success", "Task deleted.");
-  };
-
+const handleDelete = async (id) => {
+  if (!window.confirm("Delete this task?")) return;
+  const task = allTasks.find((t) => t.id === id);
+  const table = task?._source === "instance" ? "recurring_task_instances" : "tasks";
+  await supabase.from(table).delete().eq("id", id);
+  setAllTasks((p) => p.filter((t) => t.id !== id));
+  showToast("success", "Task deleted.");
+};
+const handleDeleteTemplate = async (id) => {
+  if (!window.confirm("Delete this recurring task? Existing instances remain, but no new ones will be generated.")) return;
+  await supabase.from("recurring_tasks").delete().eq("id", id);
+  setRecurringTemplates((p) => p.filter((t) => t.id !== id));
+  showToast("success", "Recurring task deleted.");
+};
   const handleRescheduleAction = async (req, approved) => {
     if (!approved) {
       // Open the reject modal instead of window.prompt
@@ -6343,21 +6440,16 @@ const handleMarkTaskDone = async (task) => {
 
 if (!error && verification.task_id) {
   const task = allTasks.find((t) => t.id === verification.task_id);
+  const table = task?._source === "instance" ? "recurring_task_instances" : "tasks";
 
-  await supabase
-    .from("tasks")
-    .update({ status: "completed" })
-    .eq("id", verification.task_id);
+  await supabase.from(table).update({ status: "completed" }).eq("id", verification.task_id);
 
-  await activateQueuedTask(supabase, verification.task_id, userMap, (msg) =>
-    showToast("success", msg),
-  );   // ← add this line
-
-  if (task?.is_recurring && task.recurrence) {
-    const nextDue = getNextDueDate(task.due_date, task.recurrence);
-    await spawnNextRecurringInstance(task, nextDue);
+  if (table === "tasks") {
+    await activateQueuedTask(supabase, verification.task_id, userMap, (msg) => showToast("success", msg));
   }
-
+  // Next-instance generation is no longer triggered from here — the
+  // useRecurringTasks hook spawns the next instance on its scheduled
+  // trigger day, independent of when the current one gets verified.
   fetchAllTasks();
 }
 
@@ -6455,33 +6547,31 @@ if (!error && verification.task_id) {
     setCorrectionModal(null);
   };
   const handleLeaveAction = async (leave, approved) => {
-    if (!approved) {
-      setLeaveRejectModal({ leave, reason: "" });
-      return;
-    }
-    setUpdatingLeaveId(leave.id);
-    const payload = {
-      admin_approved: true,
-      approved_by: user.user_name,
-      rejection_reason: null,
-      status: "Approved",
-    };
-    const { error } = await supabase
-      .from("leaves")
-      .update(payload)
-      .eq("id", leave.id);
-    setUpdatingLeaveId(null);
-    if (error) {
-      showToast("error", "Failed to update leave. " + error.message);
-      return;
-    }
-    setAllLeaves((prev) =>
-      prev.map((item) =>
-        item.id === leave.id ? { ...item, ...payload } : item,
-      ),
-    );
-    showToast("success", "Leave approved.");
+  if (!approved) {
+    setLeaveRejectModal({ leave, reason: "" });
+    return;
+  }
+  setUpdatingLeaveId(leave.id);
+  const payload = {
+    admin_approved: true,
+    approved_by: user.user_name,
+    rejection_reason: null,
+    status: "Approved",
   };
+  const { error } = await supabase.from("leaves").update(payload).eq("id", leave.id);
+  setUpdatingLeaveId(null);
+  if (error) {
+    showToast("error", "Failed to update leave. " + error.message);
+    return;
+  }
+  const updatedLeave = { ...leave, ...payload };
+  setAllLeaves((prev) => prev.map((item) => (item.id === leave.id ? updatedLeave : item)));
+  showToast("success", "Leave approved.");
+
+  if (isLeaveFullyApproved(updatedLeave)) {
+    await transferTasksToProxy(supabase, updatedLeave, userMap, (msg) => showToast("success", msg));
+  }
+};
 
   const handleMarkTicketSolved = async () => {
     if (!ticketSolveModal) return;
@@ -6652,7 +6742,7 @@ if (!error && verification.task_id) {
     ...new Set(tasksForAssignees.map((t) => t.assigned_to).filter(Boolean)),
   ].sort();
 
-  const recurringTasks = allTasks.filter((t) => t.is_recurring);
+  const recurringTasks = recurringTemplates;
 
   const filteredRecurring = recurringTasks
     .filter((t) => {
@@ -7758,6 +7848,8 @@ if (!error && verification.task_id) {
                           onAction={handleLeaveAction}
                           updating={updatingLeaveId}
                           roleByName={roleByName}
+                          userMap={userMap}
+                          onRowClick={setLeaveDetailModal}
                         />
                       ))}
                     </tbody>
@@ -7773,6 +7865,7 @@ if (!error && verification.task_id) {
                       onAction={handleLeaveAction}
                       updating={updatingLeaveId}
                       roleByName={roleByName}
+                      userMap={userMap}
                     />
                   ))}
                 </div>
@@ -11539,6 +11632,121 @@ if (!error && verification.task_id) {
           </div>
         </div>
       )}
+      {leaveDetailModal && (
+  <div
+    style={{
+      position: "fixed", inset: 0, zIndex: 10040,
+      background: "rgba(15,23,42,.5)", backdropFilter: "blur(4px)",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+    }}
+    onClick={(e) => { if (e.target === e.currentTarget) setLeaveDetailModal(null); }}
+  >
+    <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,.22)" }}>
+      {(() => {
+        const leave = leaveDetailModal;
+        const status = computeLeaveStatus(leave);
+        const style = LEAVE_STATUS_STYLES[status];
+        const days = getLeaveDays(leave);
+        const managedByHead = isSiteEngineerLeave(leave);
+
+        return (
+          <>
+            <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#1e293b" }}>
+                  {leave.name || leave.user_name || "Employee"}
+                </div>
+                <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
+                  {leave.leave_type} · {leave.site_name || "No site"}
+                </div>
+              </div>
+              <button
+                onClick={() => setLeaveDetailModal(null)}
+                style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <span className="op-meta-pill">
+                  {formatLeaveDate(leave.from_date)} → {formatLeaveDate(leave.to_date)}
+                  {days && ` · ${days} day${days > 1 ? "s" : ""}`}
+                </span>
+                <span
+                  className="ap-leave-status"
+                  style={{ background: style.bg, color: style.color, borderColor: style.border }}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </span>
+              </div>
+
+              {leave.reason && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>
+                    Employee's Reason
+                  </div>
+                  <p className="ap-leave-reason" style={{ margin: 0 }}>
+                    {formatAuditEntries(leave.reason, roleByName, userMap)}
+                  </p>
+                </div>
+              )}
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {managedByHead ? (
+                  <span className={`ap-approval-pill ${getHeadApprovalClass(leave)}`}>
+                    {getHeadApprovalText(leave)}
+                  </span>
+                ) : (
+                  <>
+                    {leave.admin_approved === true && <span className="ap-approval-pill ok">Admin: Approved</span>}
+                    {leave.admin_approved === false && <span className="ap-approval-pill no">Admin: Rejected</span>}
+                    {(leave.admin_approved === null || leave.admin_approved === undefined) && (
+                      <span className="ap-approval-pill">Admin: Pending</span>
+                    )}
+                    {leave.proxy_user_name && (
+                      <span className={`ap-approval-pill ${leave.proxy_approved === true ? "ok" : leave.proxy_approved === false ? "no" : ""}`}>
+                        Proxy ({userMap[leave.proxy_user_name] || leave.proxy_user_name}):{" "}
+                        {leave.proxy_approved === true ? "Accepted" : leave.proxy_approved === false ? "Declined" : "Pending"}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {leave.rejection_reason && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>
+                    Rejection Reason(s)
+                  </div>
+                  <div className="lv-rejection">
+                    {formatAuditEntries(leave.rejection_reason, roleByName, userMap)}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ fontSize: 11, color: "#cbd5e1" }}>
+                Submitted {formatLeaveDate(leave.created_at?.slice(0, 10)) || "—"}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", padding: "12px 22px 18px", borderTop: "1px solid #f1f5f9" }}>
+              <button
+                onClick={() => setLeaveDetailModal(null)}
+                style={{ background: "#f1f5f9", color: "#475569", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 8, border: "1px solid #e2e8f0", cursor: "pointer" }}
+              >
+                Close
+              </button>
+            </div>
+          </>
+        );
+      })()}
+    </div>
+  </div>
+)}
       {ticketSolveModal && (
         <div
           style={{

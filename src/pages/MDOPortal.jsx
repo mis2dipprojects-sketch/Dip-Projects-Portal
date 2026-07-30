@@ -622,6 +622,7 @@ const NAV = [
   { key: "dpr", label: "Daily Report (DPR)", icon: Ico.dpr },
   { key: "apply-leave", label: "Apply Leave", icon: Ico.apply },
   { key: "my-leave", label: "My Leave", icon: Ico.leave },
+  { key: "proxy-request", label: "Leave Approvals", icon: Ico.leave },
 ];
 
 const LEAVE_TYPES = [
@@ -639,7 +640,180 @@ export function mergeRejectionReason(existing, slot, by, reason) {
   arr.push({ slot, by, reason, at: new Date().toISOString() });
   return arr;
 }
+function isLeaveFullyApproved(leave) {
+  const proxyDone = !leave.proxy_user_name || leave.proxy_approved === true;
+  if (!proxyDone) return false;
+  const hasChain = !!(leave.level_approver_user_name || leave.head_approver_user_name);
+  if (hasChain) {
+    const levelDone = !leave.level_approver_user_name || leave.level_approved === true;
+    const headDone = !leave.head_approver_user_name || leave.head_approved === true;
+    return levelDone && headDone;
+  }
+  return leave.admin_approved === true;
+}
 
+async function transferTasksToProxy(leave, showToast) {
+  if (!leave.proxy_user_name || !leave.from_date || !leave.to_date) return;
+  const { data: tasksToMove, error } = await supabase
+    .from("tasks")
+    .select("id, title")
+    .eq("assigned_to", leave.user_name)
+    .neq("status", "completed")
+    .gte("due_date", leave.from_date)
+    .lte("due_date", leave.to_date);
+  if (error || !tasksToMove?.length) return;
+  const ids = tasksToMove.map((t) => t.id);
+  await supabase.from("tasks").update({ assigned_to: leave.proxy_user_name }).in("id", ids);
+  showToast?.(
+    `${tasksToMove.length} task${tasksToMove.length > 1 ? "s" : ""} transferred to you for the leave period.`,
+  );
+}
+function ProxyLeaveApproval({ user }) {
+  const [leaves, setLeaves] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState(null);
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 4000); };
+
+  const fetchLeaves = useCallback(async () => {
+  setLoading(true);
+  const { data, error } = await supabase
+    .from("leaves")
+    .select("*")
+    .eq("proxy_user_name", user.user_name)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("ProxyLeaveApproval fetch error:", error);
+  }
+
+  console.log("Fetched leaves for proxy", user.user_name, data);
+  setLeaves(data || []);
+  setLoading(false);
+}, [user.user_name]);
+  useEffect(() => { fetchLeaves(); }, [fetchLeaves]);
+
+  const approve = async (leave) => {
+    setUpdatingId(leave.id);
+    const { error } = await supabase  
+      .from("leaves")
+      .update({ proxy_approved: true })
+      .eq("id", leave.id);
+    setUpdatingId(null);
+    if (error) return showToast("Failed: " + error.message);
+    const updated = { ...leave, proxy_approved: true };
+    setLeaves((prev) => prev.map((l) => (l.id === leave.id ? updated : l)));
+    showToast("Leave approved.");
+    if (isLeaveFullyApproved(updated)) {
+      await transferTasksToProxy(updated, showToast);
+    }
+  };
+
+  const openReject = (leave) => { setRejectTarget(leave); setRejectReason(""); };
+
+  const confirmReject = async () => {
+    if (!rejectReason.trim() || !rejectTarget) return;
+    setUpdatingId(rejectTarget.id);
+    const merged = mergeRejectionReason(
+      rejectTarget.rejection_reason, "proxy", user.name, rejectReason.trim(),
+    );
+    const { error } = await supabase
+      .from("leaves")
+      .update({ proxy_approved: false, rejection_reason: merged })
+      .eq("id", rejectTarget.id);
+    setUpdatingId(null);
+    if (error) { showToast("Failed: " + error.message); setRejectTarget(null); return; }
+    setLeaves((prev) =>
+      prev.map((l) => (l.id === rejectTarget.id ? { ...l, proxy_approved: false, rejection_reason: merged } : l)),
+    );
+    setRejectTarget(null);
+    showToast("Leave rejected.");
+  };
+
+  if (loading) return <Loading />;
+
+  const pending = leaves.filter((l) => l.proxy_approved === null || l.proxy_approved === undefined);
+  const actioned = leaves.filter((l) => l.proxy_approved === true || l.proxy_approved === false);
+
+  return (
+    <div>
+      {leaves.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-ico">{Ico.leave}</div>
+          <div className="empty-title">No leave requests routed to you</div>
+          <div className="empty-sub">You haven't been selected as a proxy for anyone's leave yet.</div>
+        </div>
+      ) : (
+        <div className="lv-list">
+          {[...pending, ...actioned].map((l) => {
+            const days = l.from_date && l.to_date
+              ? Math.ceil((new Date(l.to_date) - new Date(l.from_date)) / 86400000) + 1
+              : null;
+            const isPending = l.proxy_approved === null || l.proxy_approved === undefined;
+            return (
+              <div key={l.id} className="lv-item" style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                  <div>
+                    <div className="lv-type">{l.name || l.user_name}</div>
+                    <div className="lv-dates">
+                      {l.leave_type} · {fmtD(l.from_date)} → {fmtD(l.to_date)}
+                      {days && <> · <strong>{days} day{days > 1 ? "s" : ""}</strong></>}
+                    </div>
+                    {l.reason && <div className="lv-reason">"{l.reason}"</div>}
+                  </div>
+                  <span className={`badge ${l.proxy_approved === true ? "badge-green" : l.proxy_approved === false ? "badge-red" : "badge-amber"}`}>
+                    {l.proxy_approved === true ? "Approved" : l.proxy_approved === false ? "Rejected" : "Pending"}
+                  </span>
+                </div>
+                {isPending ? (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn btn-pri" style={{ flex: 1 }} disabled={updatingId === l.id} onClick={() => approve(l)}>
+                      {updatingId === l.id ? "Saving…" : "Approve"}
+                    </button>
+                    <button className="btn btn-red" style={{ flex: 1 }} disabled={updatingId === l.id} onClick={() => openReject(l)}>
+                      Reject
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: "var(--ink2)" }}>
+                    {l.proxy_approved ? "✓ You approved this — their tasks will be covered by you." : "✗ You rejected this."}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {rejectTarget && (
+        <div onClick={() => !updatingId && setRejectTarget(null)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,13,10,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface)", borderRadius: 14, width: "100%", maxWidth: 400, padding: 24, border: "1px solid var(--line)" }}>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 12 }}>Reject this leave?</div>
+            <textarea
+              className="finput" rows={3} placeholder="Reason for rejection…"
+              value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}
+              style={{ marginBottom: 16 }}
+            />
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="btn btn-out" style={{ flex: 1 }} onClick={() => setRejectTarget(null)}>Cancel</button>
+              <button className="btn btn-red" style={{ flex: 1 }} disabled={!rejectReason.trim() || !!updatingId} onClick={confirmReject}>
+                Confirm Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, padding: "12px 18px", borderRadius: 10, fontSize: 13, fontWeight: 700, background: "#f0fdf4", color: "var(--green)", border: "1.5px solid #bbf7d0" }}>
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+} 
 // MDO leaves skip the site-role chain entirely and go straight to
 // whichever user_details row has role = "Admin".
 async function findAdminApprover() {
@@ -705,12 +879,12 @@ function ApplyLeave({ user }) {
   setBusy(true);
   setErr("");
 
-  // Matches AdminPortal.jsx's actual leave schema (admin_approved / status),
-  // not the level/head columns used by SitePortal's site-role chain.
+
+
   const { error } = await supabase.from("leaves").insert({
     user_name: user.user_name,
     name: user.name,
-    role: user.role || "Process Controller", // lets AdminPortal's isSiteEngineerLeave() correctly skip the head-managed path
+    role: user.role || "Process Controller", 
     leave_type: form.leave_type,
     from_date: form.from_date,
     to_date: form.to_date,
@@ -1016,20 +1190,37 @@ export default function MDOPortal() {
           <div style={{ padding: "14px 14px 6px", fontSize: 11, fontWeight: 800, letterSpacing: ".08em", color: "var(--ink3)", textTransform: "uppercase" }}>
             MDO Office Portal
           </div>
-          <nav className="snav">
-            {NAV.map((n) => (
-              <button
-                key={n.key}
-                className={`sni${activeTab === n.key ? " act" : ""}`}
-                onClick={() => {
-                  setActiveTab(n.key);
-                  if (window.innerWidth <= 768) setSidebarOpen(false);
-                }}
-              >
-                {n.icon} {n.label}
-              </button>
-            ))}
-          </nav>
+          <nav
+          className="snav"
+          style={{
+            overflowY: "auto",
+            maxHeight: "none",
+            height: "auto",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {NAV.map((n) => (
+            <button
+              key={n.key}
+              className={`sni${activeTab === n.key ? " act" : ""}`}
+              onClick={() => {
+                setActiveTab(n.key);
+                if (window.innerWidth <= 768) setSidebarOpen(false);
+              }}
+              style={{
+                display: "flex",
+                visibility: "visible",
+                opacity: 1,
+                height: "auto",
+                minHeight: 40,
+                flexShrink: 0,
+              }}
+            >
+              {n.icon} {n.label}
+            </button>
+          ))}
+        </nav>
         </aside>
 
         <main className="main">
@@ -1049,6 +1240,8 @@ export default function MDOPortal() {
               <DprSheetReport sites={sites} />
             ) : activeTab === "apply-leave" ? (
               <ApplyLeave user={user} />
+            ) : activeTab === "proxy-request" ? (
+              <ProxyLeaveApproval user={user} />
             ) : (
               <MyLeave user={user} onApply={() => setActiveTab("apply-leave")} />
             )}

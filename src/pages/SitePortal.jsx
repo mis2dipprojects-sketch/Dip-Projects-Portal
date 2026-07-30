@@ -1558,6 +1558,10 @@ export async function resolveApprovalChain(
   applicantRole,
   applicantUsername,
 ) {
+  if (!site) {
+    // No site assigned — fall back to admin-direct approval (no chain)
+    return { levelApprover: null, headApprover: null, autoApproved: false };
+  }
   const idx = ROLE_LEVELS.findIndex(
     (r) => normRole(r) === normRole(applicantRole),
   );

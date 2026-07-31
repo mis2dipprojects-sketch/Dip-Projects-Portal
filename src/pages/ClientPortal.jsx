@@ -1793,9 +1793,6 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
                     max={rangeEnd || undefined}
                     onChange={(e) => setRangeStart(e.target.value)}
                   />
-                  {!rangeStart && (
-                    <span className="cp-date-placeholder">dd-mm-yyyy</span>
-                  )}
                 </div>
               </div>
               <span className="cp-range-sep">→</span>
@@ -1808,9 +1805,6 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
                     min={rangeStart || undefined}
                     onChange={(e) => setRangeEnd(e.target.value)}
                   />
-                  {!rangeEnd && (
-                    <span className="cp-date-placeholder">dd-mm-yyyy</span>
-                  )}
                 </div>
               </div>
               {(rangeStart || rangeEnd) && (

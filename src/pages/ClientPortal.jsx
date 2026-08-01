@@ -1113,7 +1113,8 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
         public_url: photo.supabaseUrl || photo.publicUrl || photo.url || null,
         storage_path: photo.storagePath || photo.storage_path || null,
         caption: photo.caption || "",
-        created_at: report.date || report.created_at,
+        created_at: report.date || report.created_at,        // grouping key stays as-is
+        actual_created_at: report.created_at || report.date,  // NEW — real timestamp
         source: "dpr",
         image_type: "photos",
       }));
@@ -1135,25 +1136,26 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
       .filter((r) => r.report_type !== "morning")
       .map((r) => ({
         type: "dpr",
-        date: r.date || r.created_at,
+         displayDate: r.created_at || r.date,   
         title: `${capitalize(r.report_type) || "Daily"} Report`,
         meta: r.engineer,
         url: r.pdf_url,
         kind: "doc",
       })),
-...wprs.map((r) => ({
-  type: "wpr",
-  date: r.report_date || r.created_at,       // used for sorting/grouping by report period
-  displayDate: r.created_at || r.report_date, // used for showing actual time
-  title: `Weekly Report #${r.report_number || ""}`,
-  meta: r.engineer_name,
-  url: r.presentation_url,
-  kind: "doc",
-  isOffice: isOfficeFile(r.presentation_url),
-})),
+    ...wprs.map((r) => ({
+      type: "wpr",
+      date: r.report_date || r.created_at,       // used for sorting/grouping by report period
+      displayDate: r.created_at || r.report_date, // used for showing actual time
+      title: `Weekly Report #${r.report_number || ""}`,
+      meta: r.engineer_name,
+      url: r.presentation_url,
+      kind: "doc",
+      isOffice: isOfficeFile(r.presentation_url),
+    })),
     ...photos.map((p) => ({
       type: p.image_type === "graphical" ? "graphical" : "photo",
       date: p.created_at,
+      displayDate: p.actual_created_at || p.created_at,   // NEW
       title:
         p.caption ||
         (p.image_type === "graphical" ? "Graphical Drawing" : "Site Photo"),
@@ -1229,9 +1231,16 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
       cls: "type-wpr",
       icon: <IcoDocBars />,
     },
+    //use when there is monthly report in database
+    // {
+    //   key: "mpr",
+    //   label: ` Monthly Reports (${counts.mpr})`,
+    //   cls: "type-mpr",
+    //   icon: <IcoDocCalendar />,
+    // },
     {
       key: "mpr",
-      label: ` Monthly Reports (${counts.wpr})`,
+      label: ` Monthly Reports (0)`,
       cls: "type-mpr",
       icon: <IcoDocCalendar />,
     },
@@ -1497,12 +1506,12 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
                             <IcoEye /> View
                           </a>
                          <button
-  type="button"
-  className="cp-media-link dl"
-  onClick={() => forceDownload(it.url, it.title || "file")}
->
-  <IcoDl /> Download
-</button>
+                            type="button"
+                            className="cp-media-link dl"
+                            onClick={() => forceDownload(it.url, it.title || "file")}
+                          >
+                            <IcoDl /> Download
+                          </button>
                         </div>
                       ) : (
                         <span
@@ -1587,6 +1596,7 @@ async function forceDownload(url, filename) {
     window.open(url, "_blank");
   }
 }
+
 // ─── Profile panel ─────────────────────────────────────────────────────────
 function ProfilePage({ siteName, onLogout, theme, onToggleTheme }) {
   const [site, setSite] = useState(null);
@@ -1721,14 +1731,6 @@ function ProfilePage({ siteName, onLogout, theme, onToggleTheme }) {
       phone: site.pc_contact_no,
     },
   ].filter((c) => c.name || c.phone);
-
-  function detailSection(title, items){
-    const details = [
-      {clientName: "Client Name", value: site.clientName},
-      {jobNo: "Job Number", value: site.jobNo},
-      {status: "Status", value: site.status},
-    ].filter((d) => d.value); 
-  }
 
   return (
     <div className="cp-profile-outer">

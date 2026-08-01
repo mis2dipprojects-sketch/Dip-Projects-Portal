@@ -1127,7 +1127,7 @@
 .cp-media-card {
   background: var(--surface);
   border: 1.5px solid var(--border);
-  border-radius: var(--r-md);
+  /* border-radius: var(--r-md); */
   overflow: hidden;
   display: flex;
   flex-direction: column;

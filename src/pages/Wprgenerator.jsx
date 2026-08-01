@@ -373,22 +373,52 @@ function rederExcel(excelFile) {
 async function parseExcel(file) {
   const XLSX = await loadXlsx();
   const ab = await file.arrayBuffer();
-  const wb = XLSX.read(ab, { type: "array" });
+  const wb = XLSX.read(ab, { type: "array", cellDates: true }); // cellDates lets SheetJS give us real Date objects for date-formatted cells
   const sheets = {};
+
   wb.SheetNames.forEach((name) => {
     const ws = wb.Sheets[name];
-    const raw = XLSX.utils.sheet_to_json(ws, {
-      header: 1,
-      defval: "",
-      raw: false, 
-    });
+    const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
+    const raw = [];
+
+    for (let r = range.s.r; r <= range.e.r; r++) {
+      const row = [];
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        row.push(formatCellValue(ws[addr]));
+      }
+      raw.push(row);
+    }
+
     const merges = (ws["!merges"] || []).map((m) => ({
       s: { r: m.s.r, c: m.s.c },
       e: { r: m.e.r, c: m.e.c },
     }));
     sheets[name] = { raw, merges };
   });
+
   return { sheetNames: wb.SheetNames, sheets };
+}
+
+// Formats a single SheetJS cell for display: real dates → dd-mm-yyyy,
+// numbers → max 2 decimal places, everything else → plain text.
+function formatCellValue(cell) {
+  if (!cell || cell.v === undefined || cell.v === null) return "";
+  const v = cell.v;
+
+  if (v instanceof Date && !isNaN(v)) {
+    const d = String(v.getDate()).padStart(2, "0");
+    const m = String(v.getMonth() + 1).padStart(2, "0");
+    const y = v.getFullYear();
+    return `${d}-${m}-${y}`;
+  }
+
+  if (typeof v === "number") {
+    const rounded = Math.round(v * 100) / 100; // rounds to 2 decimals, no trailing zeros
+    return String(rounded);
+  }
+
+  return String(v);
 }
 
 function colLetter(n) {

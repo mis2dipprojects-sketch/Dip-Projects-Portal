@@ -474,20 +474,7 @@ const IcoChevron = ({ open }) => (
     <polyline points="9 18 15 12 9 6" />
   </svg>
 );
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
+const MONTH_NAMES = [ "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December",];
 
 function buildDateTree(dates) {
   const years = {};
@@ -541,7 +528,7 @@ function MediaFolderTree({ siteName, activeDate, onSelectDate }) {
   useEffect(() => {
     if (!siteName) return;
     (async () => {
-      const [{ data: dprRows }, { data: wprRows }] = await Promise.all([
+      const [{ data: dprRows }, { data: wprRows }, { data: drawingRows }] = await Promise.all([
         supabase
           .from("dpr_reports")
           .select("id, date, payload")
@@ -549,6 +536,10 @@ function MediaFolderTree({ siteName, activeDate, onSelectDate }) {
         supabase
           .from("wpr_reports")
           .select("id, report_date")
+          .ilike("site_name", siteName),
+        supabase
+          .from("drawings")
+          .select("id, date, file_urls")
           .ilike("site_name", siteName),
       ]);
       const wprIds = (wprRows || []).map((w) => w.id);
@@ -571,12 +562,18 @@ function MediaFolderTree({ siteName, activeDate, onSelectDate }) {
         return photos.length ? photos.map(() => r.date) : [];
       });
 
-      const allDates = [
-        ...(dprRows || []).map((r) => r.date),
-        ...(wprRows || []).map((r) => r.report_date),
-        ...imgDates,
-        ...dprPhotoDates,
-      ];
+      const drawingDates = (drawingRows || []).flatMap((d) => {
+      const files = Array.isArray(d.file_urls) ? d.file_urls : [];
+      return files.length ? files.map(() => d.date) : [];
+    });
+
+    const allDates = [
+      ...(dprRows || []).map((r) => r.date),
+      ...(wprRows || []).map((r) => r.report_date),
+      ...imgDates,
+      ...dprPhotoDates,
+      ...drawingDates,
+    ];
       const t = buildDateTree(allDates);
       setTree(t);
       if (t[0]) {
@@ -751,8 +748,6 @@ function officeViewerUrl(url) {
   return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
 }
 
-// Embed mode has far less chrome than the full view.aspx viewer — used for
-// the card thumbnail preview so we're not just showing a ribbon/toolbar.
 function officeEmbedPreviewUrl(url) {
   if (!url) return url;
   return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
@@ -760,7 +755,7 @@ function officeEmbedPreviewUrl(url) {
 
 function resolveViewUrl(url, isOffice) {
   if (!isOffice) return url;
-  return officeViewerUrl(url); // always wrap office docs — mobile browsers can't render pptx directly either
+  return officeViewerUrl(url);
 }
 function ActivityTrendChart({ series, onSelectMonth, selectedMonth }) {
   const W = 960,
@@ -906,7 +901,7 @@ function daysInMonth(year, month1to12) {
 }
 
 function buildDailySeries(items, monthKey) {
-  const [y, m] = monthKey.split("-").map(Number); // monthKey = "YYYY-MM", m is 1-indexed
+  const [y, m] = monthKey.split("-").map(Number);
   const numDays = daysInMonth(y, m);
   const days = [];
   for (let d = 1; d <= numDays; d++) {
@@ -1020,6 +1015,12 @@ function MediaSkeletonGrid({ count = 8 }) {
     </div>
   );
 }
+function isImageFile(url) {
+  if (!url) return false;
+  const clean = url.split("?")[0].split("#")[0];
+  const ext = clean.split(".").pop().toLowerCase();
+  return ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(ext);
+}
 function isOfficeFile(url) {
   if (!url) return false;
   const clean = url.split("?")[0].split("#")[0];
@@ -1032,8 +1033,8 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
   const [wprs, setWprs] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState("recent"); // recent | day | month | year
-  const [typeFilter, setTypeFilter] = useState("all"); // all | dpr | wpr | photo
+  const [viewMode, setViewMode] = useState("recent");
+  const [typeFilter, setTypeFilter] = useState("all"); 
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
@@ -1113,14 +1114,31 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
         public_url: photo.supabaseUrl || photo.publicUrl || photo.url || null,
         storage_path: photo.storagePath || photo.storage_path || null,
         caption: photo.caption || "",
-        created_at: report.date || report.created_at,        // grouping key stays as-is
-        actual_created_at: report.created_at || report.date,  // NEW — real timestamp
+        created_at: report.date || report.created_at, // grouping key stays as-is
+        actual_created_at: report.created_at || report.date, // NEW — real timestamp
         source: "dpr",
         image_type: "photos",
       }));
     });
+    const { data: drawingData, error: drawErr } = await supabase
+  .from("drawings")
+  .select("id, site_name, date, file_urls, uploaded_by, created_at")
+  .ilike("site_name", siteName)
+  .order("date", { ascending: false });
+if (drawErr) console.error("drawings error:", drawErr);
 
-    setPhotos([...wprPhotoRows, ...dprPhotoRows]);
+const drawingPhotoRows = (drawingData || []).flatMap((d) => {
+  const files = Array.isArray(d.file_urls) ? d.file_urls : [];
+  return files.map((f, i) => ({
+    id: `drw-${d.id}-${i}`,
+    public_url: f.url || f.publicUrl || null,
+    caption: f.name || "Drawing",
+    created_at: d.date || d.created_at,
+    source: "drawing",
+    image_type: "graphical",
+  }));
+});
+    setPhotos([...wprPhotoRows, ...dprPhotoRows, ...drawingPhotoRows]);
 
     setLoading(false);
   }, [siteName]);
@@ -1136,7 +1154,7 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
       .filter((r) => r.report_type !== "morning")
       .map((r) => ({
         type: "dpr",
-         displayDate: r.created_at || r.date,   
+        displayDate: r.created_at || r.date,
         title: `${capitalize(r.report_type) || "Daily"} Report`,
         meta: r.engineer,
         url: r.pdf_url,
@@ -1144,7 +1162,7 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
       })),
     ...wprs.map((r) => ({
       type: "wpr",
-      date: r.report_date || r.created_at,       // used for sorting/grouping by report period
+      date: r.report_date || r.created_at, // used for sorting/grouping by report period
       displayDate: r.created_at || r.report_date, // used for showing actual time
       title: `Weekly Report #${r.report_number || ""}`,
       meta: r.engineer_name,
@@ -1152,22 +1170,27 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
       kind: "doc",
       isOffice: isOfficeFile(r.presentation_url),
     })),
-    ...photos.map((p) => ({
-      type: p.image_type === "graphical" ? "graphical" : "photo",
-      date: p.created_at,
-      displayDate: p.actual_created_at || p.created_at,   // NEW
-      title:
-        p.caption ||
-        (p.image_type === "graphical" ? "Graphical Drawing" : "Site Photo"),
-      meta:
-        p.image_type === "graphical"
-          ? "Weekly Report"
-          : p.source === "dpr"
-            ? "Daily Report"
-            : "Weekly Report",
-      url: p.public_url,
-      kind: "image",
-    })),
+...photos.map((p) => {
+  const isGraphical = p.image_type === "graphical";
+  const isActualImage = !isGraphical || isImageFile(p.public_url);
+  return {
+    type: isGraphical ? "graphical" : "photo",
+    date: p.created_at,
+    displayDate: p.actual_created_at || p.created_at,
+    title:
+      p.caption ||
+      (isGraphical ? "Graphical Drawing" : "Site Photo"),
+    meta:
+      isGraphical
+        ? "Weekly Report"
+        : p.source === "dpr"
+          ? "Daily Report"
+          : "Weekly Report",
+    url: p.public_url,
+    kind: isActualImage ? "image" : "doc",
+    isOffice: isOfficeFile(p.public_url),
+  };
+}),
   ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   const dateScoped = jumpDate
     ? unified.filter((it) => it.date && it.date.slice(0, 10) === jumpDate)
@@ -1379,7 +1402,7 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
           <div className="cp-empty-sub">
             {viewMode === "range" && (rangeStart || rangeEnd)
               ? "Try widening the date range or clearing a filter."
-              : "Daily reports, weekly reports and site photos will appear here once submitted."}
+              : "Reports / Photos will appear here once submitted."}
           </div>
         </div>
       ) : (
@@ -1427,7 +1450,10 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
                           cursor: "pointer",
                         }}
                         onClick={() =>
-                          window.open(resolveViewUrl(it.url, it.isOffice), "_blank")
+                          window.open(
+                            resolveViewUrl(it.url, it.isOffice),
+                            "_blank",
+                          )
                         }
                       >
                         <IcoDocBars w={32} h={32} />
@@ -1438,9 +1464,16 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
                     ) : (
                       <div
                         className="cp-media-photo cp-media-doc-preview"
-                        style={{ position: "relative", overflow: "hidden", cursor: "pointer" }}
+                        style={{
+                          position: "relative",
+                          overflow: "hidden",
+                          cursor: "pointer",
+                        }}
                         onClick={() =>
-                          window.open(resolveViewUrl(it.url, it.isOffice), "_blank")
+                          window.open(
+                            resolveViewUrl(it.url, it.isOffice),
+                            "_blank",
+                          )
                         }
                       >
                         <iframe
@@ -1505,10 +1538,12 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
                           >
                             <IcoEye /> View
                           </a>
-                         <button
+                          <button
                             type="button"
                             className="cp-media-link dl"
-                            onClick={() => forceDownload(it.url, it.title || "file")}
+                            onClick={() =>
+                              forceDownload(it.url, it.title || "file")
+                            }
                           >
                             <IcoDl /> Download
                           </button>
@@ -1592,7 +1627,6 @@ async function forceDownload(url, filename) {
     window.URL.revokeObjectURL(blobUrl);
   } catch (err) {
     console.error("Download failed:", err);
-    // fallback: open in new tab if fetch/blob fails (e.g. CORS)
     window.open(url, "_blank");
   }
 }
@@ -1614,7 +1648,7 @@ function ProfilePage({ siteName, onLogout, theme, onToggleTheme }) {
       return;
     }
     (async () => {
-      setLoading(true); 
+      setLoading(true);
       const { data, error } = await supabase
         .from("site_details")
         .select(

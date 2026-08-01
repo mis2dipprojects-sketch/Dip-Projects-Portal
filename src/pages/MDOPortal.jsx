@@ -50,6 +50,63 @@ function fmtTimeIST(ts) {
     hour12: true,
   });
 }
+const DRAWING_MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function slugify(str) {
+  return String(str || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-+|-+$)/g, "");
+}
+
+function isImageFile(url) {
+  if (!url) return false;
+  const clean = url.split("?")[0].split("#")[0];
+  const ext = clean.split(".").pop().toLowerCase();
+  return ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(ext);
+}
+
+function isOfficeDoc(url) {
+  return /\.(pptx|ppt|docx|doc|xlsx|xls)(\?|$)/i.test(url || "");
+}
+
+function getViewUrl(url) {
+  if (!url) return url;
+  if (isOfficeDoc(url)) {
+    return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
+async function uploadDrawingFiles(supabaseClient, siteName, dateStr, files) {
+  const bucket = slugify(siteName);
+  if (!bucket) throw new Error("Site name is required to upload drawings.");
+
+  const { error: bucketErr } = await supabaseClient.storage.createBucket(bucket, { public: true });
+  if (bucketErr && !/already exists/i.test(bucketErr.message || "")) {
+    throw new Error(`Could not create bucket "${bucket}": ${bucketErr.message}`);
+  }
+
+  const d = new Date(dateStr + "T00:00:00");
+  const year = d.getFullYear();
+  const month = DRAWING_MONTHS[d.getMonth()];
+  const dayFolder = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${year}`;
+
+  const uploaded = [];
+  for (const file of files) {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${year}/${month}/${dayFolder}/drawings/${Date.now()}-${safeName}`;
+    const { error: upErr } = await supabaseClient.storage.from(bucket).upload(path, file);
+    if (upErr) throw new Error(`Failed to upload ${file.name}: ${upErr.message}`);
+    const { data: urlData } = supabaseClient.storage.from(bucket).getPublicUrl(path);
+    uploaded.push({ name: file.name, url: urlData.publicUrl, path });
+  }
+  return uploaded;
+}
 // Inclusive list of ISO date strings between from and to
 function dateRange(from, to) {
   const out = [];
@@ -95,6 +152,19 @@ const Ico = {
       <polyline points="14 2 14 8 20 8" />
     </svg>
   ),
+  addDrawing: (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="5" width="12" height="14" rx="1" />
+    <path d="M6 9h6M6 12h6M6 15h4" />
+    <path d="M16 16l5-5 2 2-5 5-3 1z" />
+  </svg>
+),
+allDrawings: (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="1" />
+    <path d="M3 9h18" /><path d="M9 3v18" /><path d="M15 3v18" /><path d="M3 15h18" />
+  </svg>
+),
   dl: (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -699,6 +769,181 @@ function AttendanceLog({ sites }) {
   );
 }
 
+function AddDrawings({ sites, drawingForm, setDrawingForm, drawingSubmitting, onSubmit }) {
+  return (
+    <div>
+      <div className="grid2">
+        <div className="fgroup">
+          <label className="flabel">Site Name <span className="req">*</span></label>
+          <select
+            className="finput"
+            value={drawingForm.site_name}
+            onChange={(e) => setDrawingForm((p) => ({ ...p, site_name: e.target.value }))}
+          >
+            <option value="">Select site…</option>
+            {sites.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+        <div className="fgroup">
+          <label className="flabel">
+            Date <span style={{ fontSize: 11, color: "var(--ink3)" }}>(defaults to today)</span>
+          </label>
+          <input
+            type="date"
+            className="finput"
+            value={drawingForm.date}
+            max={todayISO()}
+            onChange={(e) => setDrawingForm((p) => ({ ...p, date: e.target.value }))}
+          />
+        </div>
+        <div className="fgroup col2">
+          <label className="flabel">Drawing Attachments <span className="req">*</span></label>
+          <input
+            type="file"
+            multiple
+            accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+            className="finput"
+            onChange={(e) => {
+              const newFiles = Array.from(e.target.files || []);
+              setDrawingForm((p) => ({ ...p, files: [...p.files, ...newFiles] }));
+              e.target.value = "";
+            }}
+          />
+          {drawingForm.files.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+              {drawingForm.files.map((f, i) => (
+                <div
+                  key={`${f.name}-${i}`}
+                  style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    fontSize: 12, background: "#f8fafc", border: "1px solid var(--line)",
+                    borderRadius: 6, padding: "5px 10px",
+                  }}
+                >
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {f.name}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setDrawingForm((p) => ({ ...p, files: p.files.filter((_, idx) => idx !== i) }))
+                    }
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--red)", fontWeight: 700 }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <span style={{ fontSize: 11.5, color: "var(--ink3)" }}>
+            Multiple files allowed — PDF, DWG, DXF, images, and Word docs supported.
+          </span>
+        </div>
+      </div>
+      <div className="act-row">
+        <button className="btn btn-out" onClick={() => setDrawingForm({ site_name: "", date: "", files: [] })}>
+          Reset
+        </button>
+        <button className="btn btn-pri" onClick={onSubmit} disabled={drawingSubmitting}>
+          {drawingSubmitting ? "Uploading…" : "Upload Drawings"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AllDrawings({ drawings, loading, onAddClick }) {
+  if (loading) return <Loading />;
+
+  if (!drawings.length) {
+    return (
+      <div className="empty-state">
+        <div className="empty-title">No drawings uploaded yet</div>
+        <div className="empty-sub">Add a drawing to get started.</div>
+        <button className="btn btn-pri" style={{ marginTop: 12 }} onClick={onAddClick}>
+          Add Drawings
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 12 }}>
+      {drawings.flatMap((d) =>
+        (d.file_urls || []).map((f, i) => {
+          const isImg = isImageFile(f.url);
+          return (
+            <div
+              key={`${d.id}-${i}`}
+              style={{
+                background: "var(--surface)", border: "1.5px solid var(--line)",
+                borderTop: "3px solid #d97706", borderRadius: 10, overflow: "hidden",
+                display: "flex", flexDirection: "column",
+              }}
+            >
+              {isImg ? (
+                <img src={f.url} alt="" style={{ width: "100%", height: 150, objectFit: "cover" }} />
+              ) : (
+                <div
+                  style={{ position: "relative", overflow: "hidden", height: 150, cursor: "pointer" }}
+                  onClick={() => window.open(getViewUrl(f.url), "_blank")}
+                >
+                  <iframe
+                    src={`${f.url}#toolbar=0&navpanel=0&scrollbar=0&view=FitH`}
+                    title={f.name}
+                    loading="lazy"
+                    scrolling="no"
+                    style={{
+                      position: "absolute", top: 0, left: -20, width: "calc(100% + 40px)",
+                      height: "260%", border: "none", pointerEvents: "none",
+                    }}
+                  />
+                </div>
+              )}
+              <div style={{ padding: "13px 15px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <span
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 5, alignSelf: "flex-start",
+                    fontSize: 10.5, fontWeight: 800, padding: "3px 9px", borderRadius: 999,
+                    background: "#fef3c7", color: "#d97706",
+                  }}
+                >
+                  Drawing
+                </span>
+                <div style={{ fontSize: 13.5, fontWeight: 700 }}>{f.name}</div>
+                <div style={{ fontSize: 11.5, color: "var(--ink3)" }}>
+                  {d.site_name} · {fmtDDMMYYYY(d.date)}
+                </div>
+                <div style={{ display: "flex", gap: 7 }}>
+                  <a
+                    href={getViewUrl(f.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-out"
+                    style={{ flex: 1, height: 34, justifyContent: "center" }}
+                  >
+                    View
+                  </a>
+                  <a
+                    href={f.url}
+                    download
+                    className="btn btn-out"
+                    style={{ flex: 1, height: 34, justifyContent: "center", color: "#0369a1" }}
+                  >
+                    Download
+                  </a>
+                </div>
+              </div>
+            </div>
+          );
+        }),
+      )}
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // DPR SHEET SCREEN
 // ═══════════════════════════════════════════════════════════════════════════
@@ -807,6 +1052,8 @@ const NAV = [
   { key: "attendance", label: "Attendance Report", icon: Ico.attendance },
   { key: "attendance-log", label: "Attendance Log", icon: Ico.log },
   { key: "dpr", label: "Daily Report (DPR)", icon: Ico.dpr },
+  { key: "add-drawings", label: "Add Drawings", icon: Ico.addDrawing },
+  { key: "all-drawings", label: "All Drawings", icon: Ico.allDrawings },
   { key: "apply-leave", label: "Apply Leave", icon: Ico.apply },
   { key: "my-leave", label: "My Leave", icon: Ico.leave },
   { key: "proxy-request", label: "Leave Approvals", icon: Ico.proxy },
@@ -819,6 +1066,8 @@ const NAV_COLORS = {
   "apply-leave": "#7c3aed",
   "my-leave": "#7c3aed",
   "proxy-request": "#eb2727",
+  "add-drawings": "#d97706",
+  "all-drawings": "#d97706",
 };
 
 const LEAVE_TYPES = [
@@ -1360,6 +1609,55 @@ export default function MDOPortal() {
   const [activeTab, setActiveTab] = useState("attendance");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hoveredNavKey, setHoveredNavKey] = useState(null);
+  const [drawingForm, setDrawingForm] = useState({ site_name: "", date: "", files: [] });
+  const [drawingSubmitting, setDrawingSubmitting] = useState(false);
+  const [allDrawings, setAllDrawings] = useState([]);
+  const [loadingDrawings, setLoadingDrawings] = useState(false);
+  const [allSites, setAllSites] = useState([]);
+
+  const fetchDrawings = useCallback(async (u) => {
+  if (!u) return;
+  setLoadingDrawings(true);
+  const drawingSites = u.site_names?.length ? u.site_names : u.site_name ? [u.site_name] : [];
+  if (!drawingSites.length) {
+    setAllDrawings([]);
+    setLoadingDrawings(false);
+    return;
+  }
+  const { data, error } = await supabase
+    .from("drawings")
+    .select("*")
+    .in("site_name", drawingSites)
+    .order("date", { ascending: false });
+  if (!error) setAllDrawings(data || []);
+  setLoadingDrawings(false);
+}, []);
+
+const handleDrawingSubmit = async () => {
+  if (!drawingForm.site_name) return alert("Please select a site.");
+  if (!drawingForm.files.length) return alert("Please attach at least one drawing file.");
+
+  const effectiveDate = drawingForm.date || todayISO();
+  setDrawingSubmitting(true);
+  try {
+    const uploaded = await uploadDrawingFiles(supabase, drawingForm.site_name, effectiveDate, drawingForm.files);
+    const { error } = await supabase.from("drawings").insert([
+      {
+        site_name: drawingForm.site_name,
+        date: effectiveDate,
+        file_urls: uploaded,
+        uploaded_by: user.user_name,
+      },
+    ]);
+    if (error) throw error;
+    setDrawingForm({ site_name: "", date: "", files: [] });
+    fetchDrawings(user);
+    setActiveTab("all-drawings");
+  } catch (err) {
+    alert(err.message);
+  }
+  setDrawingSubmitting(false);
+};
 
   const loadUser = useCallback(async () => {
     const stored = localStorage.getItem("user");
@@ -1385,8 +1683,24 @@ export default function MDOPortal() {
       localStorage.setItem("user", JSON.stringify(updated));
     }
   }, []);
-
-  useEffect(() => {
+useEffect(() => {
+  supabase
+    .from("user_details")
+    .select("site_name, site_names")
+    .then(({ data, error }) => {
+      if (error || !data) return;
+      const set = new Set();
+      data.forEach((u) => {
+        if (Array.isArray(u.site_names)) {
+          u.site_names.forEach((s) => s && set.add(s));
+        } else if (u.site_name) {
+          set.add(u.site_name);
+        }
+      });
+      setAllSites([...set].sort((a, b) => a.localeCompare(b)));
+    });
+}, []);
+useEffect(() => {
     loadUser();
     const onResize = () => {
       if (window.innerWidth <= 768) setSidebarOpen(false);
@@ -1395,6 +1709,11 @@ export default function MDOPortal() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [loadUser]);
+
+  // ← add it here
+  useEffect(() => {
+    if (user) fetchDrawings(user);
+  }, [user, fetchDrawings]);
 
   if (!user) {
     return (
@@ -1486,6 +1805,20 @@ export default function MDOPortal() {
               <AttendanceLog sites={sites} />
             ) : activeTab === "dpr" ? (
               <DprSheetReport sites={sites} />
+            ) : activeTab === "add-drawings" ? (
+              <AddDrawings
+                sites={allSites}
+                drawingForm={drawingForm}
+                setDrawingForm={setDrawingForm}
+                drawingSubmitting={drawingSubmitting}
+                onSubmit={handleDrawingSubmit}
+              />
+            ) : activeTab === "all-drawings" ? (
+              <AllDrawings
+                drawings={allDrawings}
+                loading={loadingDrawings}
+                onAddClick={() => setActiveTab("add-drawings")}
+              />
             ) : activeTab === "apply-leave" ? (
               <ApplyLeave user={user} />
             ) : activeTab === "proxy-request" ? (

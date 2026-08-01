@@ -15,6 +15,7 @@ const OFFICE_ALL_KEYS = [
   "verify-requests", "new-tickets", "raised-tickets", "solved-tickets",
   "apply-leave", "my-leaves", "proxy-request",
   "site-report", "my-reports", "checklists", "report-submissions",
+   "add-drawings", "all-drawings",
 ];
 
 // role (lowercased) -> { admin: [...keys], office: [...keys] }

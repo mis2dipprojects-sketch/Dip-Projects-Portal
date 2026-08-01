@@ -36,6 +36,13 @@ const VISITOR_TYPES = [
 const zp = (n) => String(parseInt(n) || 1).padStart(2, "0");
 const today = () => new Date().toISOString().split("T")[0];
 
+// Converts a "yyyy-mm-dd" date input value to "dd-mm-yyyy" for filenames
+const fmtDateForFile = (dateStr) => {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-");
+  if (!y || !m || !d) return "";
+  return `${d}-${m}-${y}`;
+};
 // ─── HEIC loader (lazy) ──────────────────────────────────────────────────────
 // ─── HEIC loader (lazy) ──────────────────────────────────────────────────────
 let _heic2anyPromise = null;
@@ -370,7 +377,11 @@ async function parseExcel(file) {
   const sheets = {};
   wb.SheetNames.forEach((name) => {
     const ws = wb.Sheets[name];
-    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+    const raw = XLSX.utils.sheet_to_json(ws, {
+      header: 1,
+      defval: "",
+      raw: false, 
+    });
     const merges = (ws["!merges"] || []).map((m) => ({
       s: { r: m.s.r, c: m.s.c },
       e: { r: m.e.r, c: m.e.c },
@@ -380,7 +391,6 @@ async function parseExcel(file) {
   return { sheetNames: wb.SheetNames, sheets };
 }
 
-// Convert col index (0-based) → letter (A, B, …, Z, AA, …)
 function colLetter(n) {
   let s = "";
   n++;
@@ -2796,7 +2806,7 @@ export default function WprGenerator({ user, supabase }) {
       const dlUrl = URL.createObjectURL(pptBlob);
       const dlA = document.createElement("a");
       dlA.href = dlUrl;
-      dlA.download = `WPR_${zp(reportNum)}_${site.replace(/\s+/g, "_")}.pptx`;
+      dlA.download = `WPR_${zp(reportNum)}_${site.replace(/\s+/g, "_")}_${fmtDateForFile(reportDate)}.pptx`;
       dlA.style.display = "none";
       document.body.appendChild(dlA);
       dlA.click();
@@ -5009,8 +5019,11 @@ export default function WprGenerator({ user, supabase }) {
                 className="wpr-link-row"
                 style={{ width: "100%", border: "none", cursor: "pointer", textAlign: "left" }}
                 onClick={() =>
-                  forceDownload(successUrls.pptUrl, `WPR_${zp(reportNum)}_${site.replace(/\s+/g, "_")}`)
-                }
+                forceDownload(
+                  successUrls.pptUrl,
+                  `WPR_${zp(reportNum)}_${site.replace(/\s+/g, "_")}_${fmtDateForFile(reportDate)}`
+                )
+              }
               >
                 <span className="wpr-link-icon">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">

@@ -161,6 +161,30 @@ const LEAVE_NAV = [
 
 const REPORTS_NAV = [
   {
+    key: "add-drawings",
+    label: "Add Drawings",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="5" width="12" height="14" rx="1" />
+        <path d="M6 9h6M6 12h6M6 15h4" />
+        <path d="M16 16l5-5 2 2-5 5-3 1z" />
+      </svg>
+    ),
+  },
+  {
+    key: "all-drawings",
+    label: "All Drawings",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="1" />
+        <path d="M3 9h18" />
+        <path d="M9 3v18" />
+        <path d="M15 3v18" />
+        <path d="M3 15h18" />
+      </svg>
+    ),
+  },
+  {
     key: "site-report",
     label: "Site Report",
     icon: (
@@ -1166,6 +1190,7 @@ function TaskActionMenu({
     </div>
   );
 }
+
 // ── Task Table ─────────────────────────────────────────────────────────────
 function TaskTable({
   tasks,
@@ -1181,9 +1206,9 @@ function TaskTable({
   onAccept,
   onHold,
   onContinue,
-  recurringMode = false,   // ← add
-  onDone,                  // ← add
-  onNotApplicable,         // ← add
+  recurringMode = false,
+  onDone,               
+  onNotApplicable,      
 }) {
   const nameFor = (username) => userMap[username] || username || "—";
 
@@ -2435,6 +2460,11 @@ async function activateQueuedTask(supabaseClient, completedTaskId, userMap, noti
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function OfficePortal() {
   const [hoveredNavKey, setHoveredNavKey] = useState(null);
+  const [drawingForm, setDrawingForm] = useState({ site_name: "", date: "", files: [] });
+const [drawingSubmitting, setDrawingSubmitting] = useState(false);
+const [allDrawings, setAllDrawings] = useState([]);
+const [loadingDrawings, setLoadingDrawings] = useState(false);
+const [allSites, setAllSites] = useState([]);
 const NAV_COLORS = {
   "my-tasks": "#2563eb",
   "recurring-tasks": "#2563eb",
@@ -2452,8 +2482,52 @@ const NAV_COLORS = {
   "my-reports": "#0891b2",
   "checklists": "#0891b2",
   "report-submissions": "#0891b2",
+  "add-drawings": "#d97706",
+  "all-drawings": "#d97706",
 };
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function slugify(str) {
+  return String(str || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-+|-+$)/g, "");
+}
+
+function isImageFile(url) {
+  if (!url) return false;
+  const clean = url.split("?")[0].split("#")[0];
+  const ext = clean.split(".").pop().toLowerCase();
+  return ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(ext);
+}
+
+// AFTER
+async function uploadDrawingFiles(supabaseClient, siteName, dateStr, files) {
+  const bucket = slugify(siteName);
+  if (!bucket) throw new Error("Site name is required to upload drawings.");
+
+  const d = new Date(dateStr + "T00:00:00");
+  const year = d.getFullYear();
+  const month = MONTHS[d.getMonth()];
+  const dayFolder = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${year}`;
+
+  const uploaded = [];
+  for (const file of files) {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${year}/${month}/${dayFolder}/drawings/${Date.now()}-${safeName}`;
+    // AFTER
+    const { error: upErr } = await supabaseClient.storage.from(bucket).upload(path, file);
+    if (upErr) throw new Error(`Failed to upload ${file.name}: ${upErr.message} (make sure a public bucket named "${bucket}" exists)`); 
+    const { data: urlData } = supabaseClient.storage.from(bucket).getPublicUrl(path);
+    uploaded.push({ name: file.name, url: urlData.publicUrl, path });
+  }
+  return uploaded;
+}
 function NavButton({ itemKey, icon, label, isActive, isHovered, onEnter, onLeave, onClick, badge }) {
   const highlighted = isActive || isHovered;
   const color = NAV_COLORS[itemKey] || "#2563eb"; // fallback so it never silently breaks
@@ -2796,6 +2870,60 @@ useEffect(() => {
   const [mySvrReports, setMySvrReports] = useState([]);
   const [loadingSvrReports, setLoadingSvrReports] = useState(false);
 
+  const fetchDrawings = useCallback(async (u) => {
+  if (!u) return;
+  setLoadingDrawings(true);
+  const sites = u.site_names?.length ? u.site_names : u.site_name ? [u.site_name] : [];
+  if (!sites.length) {
+    setAllDrawings([]);
+    setLoadingDrawings(false);
+    return;
+  }
+  const { data, error } = await supabase
+    .from("drawings")
+    .select("*")
+    .in("site_name", sites)
+    .order("date", { ascending: false });
+  if (!error) setAllDrawings(data || []);
+  setLoadingDrawings(false);
+}, []);
+
+const handleDrawingSubmit = async () => {
+  if (!drawingForm.site_name) return showToast("error", "Please select a site.");
+  if (!drawingForm.files.length)
+    return showToast("error", "Please attach at least one drawing file.");
+
+  const effectiveDate = drawingForm.date || new Date().toISOString().split("T")[0];
+  setDrawingSubmitting(true);
+  try {
+    const uploaded = await uploadDrawingFiles(
+      supabase,
+      drawingForm.site_name,
+      effectiveDate,
+      drawingForm.files,
+    );
+    const { error } = await supabase.from("drawings").insert([
+      {
+        site_name: drawingForm.site_name,
+        date: effectiveDate,
+        file_urls: uploaded,
+        uploaded_by: user.user_name,
+      },
+    ]);
+    if (error) throw error;
+    showToast(
+      "success",
+      `${uploaded.length} drawing${uploaded.length > 1 ? "s" : ""} uploaded for ${drawingForm.site_name}.`,
+    );
+    setDrawingForm({ site_name: "", date: "", files: [] });
+    fetchDrawings(user);
+    setActiveTab("all-drawings");
+  } catch (err) {
+    showToast("error", err.message);
+  }
+  setDrawingSubmitting(false);
+};
+
   const fetchMySvrReports = useCallback(async (u) => {
     if (!u) return;
     setLoadingSvrReports(true);
@@ -2818,11 +2946,55 @@ const [leaveForm, setLeaveForm] = useState({
   proxy_user_name: "",
 });
 
-  useEffect(() => {
+ useEffect(() => {
     const s = localStorage.getItem("user");
-    if (s) setUser(JSON.parse(s));
-  }, []);
+    if (!s) return;
+    const parsed = JSON.parse(s);
+    console.log("🔍 parsed user from localStorage:", parsed); 
+    setUser(parsed);
 
+    supabase
+      .from("user_details")
+      .select("username, site_name, site_names, department")
+      .eq("username", parsed.user_name)
+      .single()
+      .then(({ data, error }) => {
+        console.log("🔍 supabase user_details result:", { data, error }); 
+        if (error) {
+          console.error("Failed to refresh user site_names:", error.message);
+          return;
+        }
+        if (!data) return;
+        const updated = {
+          ...parsed,
+          site_name: data.site_name ?? parsed.site_name,
+          site_names: data.site_names ?? (parsed.site_name ? [parsed.site_name] : []),
+          department: data.department ?? parsed.department,
+        };
+        console.log("🔍 updated user object:", updated); 
+        setUser(updated);
+        localStorage.setItem("user", JSON.stringify(updated));
+      });
+  }, []);
+  
+useEffect(() => {
+  supabase
+    .from("user_details")
+    .select("site_name, site_names")
+    .then(({ data, error }) => {
+      if (error || !data) return;
+      const set = new Set();
+      data.forEach((u) => {
+        if (Array.isArray(u.site_names)) {
+          u.site_names.forEach((s) => s && set.add(s));
+        } else if (u.site_name) {
+          set.add(u.site_name);
+        }
+      });
+      setAllSites([...set].sort());
+    });
+}, []);
+  
   const fetchMyReschedules = useCallback(async (u) => {
     if (!u) return;
     setLoadingReschedules(true);
@@ -2837,29 +3009,6 @@ const [leaveForm, setLeaveForm] = useState({
     if (!error) setMyReschedules(data || []);
     setLoadingReschedules(false);
   }, []);
-
-  // const fetchTasks = useCallback(async (u) => {
-  //   if (!u) return;
-  //   setLoadingTasks(true);
-
-  //   const isAdmin = u.role?.toLowerCase().trim() === "admin";
-
-  //   const { data: mineAll } = isAdmin
-  //     ? await supabase
-  //         .from("tasks")
-  //         .select("*")
-  //         .order("due_date", { ascending: true })
-  //     : await supabase
-  //         .from("tasks")
-  //         .select("*")
-  //         .eq("assigned_to", u.user_name)
-  //         .order("due_date", { ascending: true });
-
-  //   const mine = mineAll || [];
-  //   setMyTasks(mine.filter((t) => !isRecurringTask(t)));
-  //   setRecurringTasks(mine.filter((t) => isRecurringTask(t)));
-  //   setLoadingTasks(false);
-  // }, []);
 
   const fetchTasks = useCallback(async (u) => {
     if (!u) return;
@@ -2909,7 +3058,8 @@ useEffect(() => {
     fetchVerifyRequests(user);
     fetchNewTickets(user);
     fetchRaisedTickets(user);
-    fetchMyVerifications(user); // ← add
+    fetchMyVerifications(user);
+    fetchDrawings(user);
   }
 }, [
   user,
@@ -2921,7 +3071,8 @@ useEffect(() => {
   fetchVerifyRequests,
   fetchNewTickets,
   fetchRaisedTickets,
-  fetchMyVerifications, // ← add
+  fetchMyVerifications, 
+  fetchDrawings,
 ]);
   useEffect(() => {
   if (!user) return;
@@ -3201,7 +3352,8 @@ const handleNavClick = (key) => {
   if (key === "my-reschedules") markReschedulesRead();
   if (key === "my-leaves") markLeavesRead();
   if (key === "solved-tickets") markTicketsRead();
-  if (key === "task-corrections") markCorrectionsRead(); // ← add
+  if (key === "task-corrections") markCorrectionsRead();
+  if (key === "add-drawings" || key === "all-drawings") fetchDrawings(user); // NEW
 };
   const spawnNextRecurringInstance = async (task, nextDue) => {
     const { data: newTask, error: insertErr } = await supabase
@@ -4393,6 +4545,358 @@ case "recurring-tasks":
           </>
         );
       }
+     case "add-drawings": {
+  return (
+    <div className="lv-form-wrap">
+      <div className="lv-form-grid">
+        <div className="lv-field">
+          <label className="lv-label">
+            Site Name <span className="lv-req">*</span>
+          </label>
+          <select
+            className="lv-input lv-select"
+            value={drawingForm.site_name}
+            onChange={(e) =>
+              setDrawingForm((p) => ({ ...p, site_name: e.target.value }))
+            }
+          >
+            <option value="">Select site…</option>
+            {allSites.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="lv-field">
+          <label className="lv-label">
+            Date
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: "#94a3b8",
+                background: "#f1f5f9",
+                borderRadius: 4,
+                padding: "1px 6px",
+                marginLeft: 6,
+              }}
+            >
+              defaults to today
+            </span>
+          </label>
+          <input
+            className="lv-input"
+            type="date"
+            value={drawingForm.date}
+            max={new Date().toISOString().split("T")[0]}
+            onChange={(e) =>
+              setDrawingForm((p) => ({ ...p, date: e.target.value }))
+            }
+          />
+        </div>
+
+        <div className="lv-field lv-col-2">
+          <label className="lv-label">
+            Drawing Attachments <span className="lv-req">*</span>
+          </label>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              padding: "8px 12px",
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#64748b"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ flexShrink: 0 }}
+            >
+              <rect x="3" y="5" width="12" height="14" rx="1" />
+              <path d="M6 9h6M6 12h6M6 15h4" />
+              <path d="M16 16l5-5 2 2-5 5-3 1z" />
+            </svg>
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+              style={{
+                flex: 1,
+                fontSize: 12.5,
+                color: "#475569",
+                background: "transparent",
+                border: "none",
+                outline: "none",
+                cursor: "pointer",
+              }}
+              onChange={(e) => {
+                const newFiles = Array.from(e.target.files || []);
+                setDrawingForm((p) => ({
+                  ...p,
+                  files: [...p.files, ...newFiles],
+                }));
+                e.target.value = "";
+              }}
+            />
+          </div>
+          {drawingForm.files.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 5,
+                marginTop: 6,
+              }}
+            >
+              {drawingForm.files.map((f, i) => (
+                <div
+                  key={`${f.name}-${i}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    fontSize: 12,
+                    color: "#475569",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 6,
+                    padding: "5px 10px",
+                  }}
+                >
+                  <span
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {f.name}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setDrawingForm((p) => ({
+                        ...p,
+                        files: p.files.filter((_, idx) => idx !== i),
+                      }))
+                    }
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "#dc2626",
+                      fontWeight: 700,
+                      padding: "0 2px",
+                      flexShrink: 0,
+                      marginLeft: 8,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+            Multiple files allowed — PDF, DWG, DXF, images, and Word docs supported.
+          </span>
+        </div>
+
+        <div className="lv-field lv-col-2 lv-actions-row">
+          <button
+            className="lv-btn-reset"
+            onClick={() => setDrawingForm({ site_name: "", date: "", files: [] })}
+          >
+            Reset
+          </button>
+          <button
+            className="lv-btn-submit"
+            onClick={handleDrawingSubmit}
+            disabled={drawingSubmitting}
+          >
+            {drawingSubmitting ? (
+              <>
+                <span className="op-mini-spinner" />
+                &nbsp;Uploading…
+              </>
+            ) : (
+              "Upload Drawings"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+case "all-drawings":
+  return loadingDrawings ? (
+    <div className="op-empty-state">
+      <div className="op-spinner" />
+      <p className="op-empty-text">Loading drawings…</p>
+    </div>
+  ) : allDrawings.length === 0 ? (
+    <div className="op-empty-state">
+      <svg
+        width="48"
+        height="48"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ opacity: 0.3 }}
+      >
+        <rect x="3" y="5" width="12" height="14" rx="1" />
+        <path d="M6 9h6M6 12h6M6 15h4" />
+      </svg>
+      <p className="op-empty-text">No drawings uploaded yet.</p>
+      <button
+        className="lv-btn-submit"
+        style={{ marginTop: 4 }}
+        onClick={() => setActiveTab("add-drawings")}
+      >
+        Add Drawings
+      </button>
+    </div>
+  ) : (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))",
+        gap: 12,
+      }}
+    >
+      {allDrawings.flatMap((d) =>
+        (d.file_urls || []).map((f, i) => {
+          const isImg = isImageFile(f.url);
+          return (
+            <div
+              key={`${d.id}-${i}`}
+              style={{
+                background: "#fff",
+                border: "1.5px solid #e8edf3",
+                borderTop: "3px solid #6d4aa8",
+                borderRadius: 10,
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {isImg ? (
+                <img
+                  src={f.url}
+                  alt=""
+                  style={{ width: "100%", height: 150, objectFit: "cover" }}
+                />
+              ) : (
+                <div
+                  style={{
+                    position: "relative",
+                    overflow: "hidden",
+                    height: 150,
+                    cursor: "pointer",
+                  }}
+                  onClick={() => window.open(getViewUrl(f.url), "_blank")}
+                >
+                  <iframe
+                    src={`${f.url}#toolbar=0&navpanel=0&scrollbar=0&view=FitH`}
+                    title={f.name}
+                    loading="lazy"
+                    scrolling="no"
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: -20,
+                      width: "calc(100% + 40px)",
+                      height: "260%",
+                      border: "none",
+                      pointerEvents: "none",
+                    }}
+                  />
+                </div>
+              )}
+              <div style={{ padding: "13px 15px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    alignSelf: "flex-start",
+                    fontSize: 10.5,
+                    fontWeight: 800,
+                    padding: "3px 9px",
+                    borderRadius: 999,
+                    background: "#f1ecf9",
+                    color: "#6d4aa8",
+                  }}
+                >
+                  Drawing
+                </span>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1e293b" }}>{f.name}</div>
+                <div style={{ fontSize: 11.5, color: "#94a3b8" }}>
+                  {d.site_name} · {new Date(d.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                </div>
+                <div style={{ display: "flex", gap: 7 }}>
+                  
+                  <a  href={getViewUrl(f.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      flex: 1,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      height: 34,
+                      borderRadius: 7,
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      border: "1.5px solid #e2e8f0",
+                      color: "#64748b",
+                      background: "#f8fafc",
+                    }}
+                  >
+                    View
+                  </a>
+                  
+                  <a  href={f.url}
+                    download
+                    style={{
+                      flex: 1,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      height: 34,
+                      borderRadius: 7,
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      textDecoration: "none",
+                      color: "#0369a1",
+                      background: "#f0f9ff",
+                      border: "1.5px solid #bae6fd",
+                    }}
+                  >
+                    Download
+                  </a>
+                </div>
+              </div>
+            </div>
+          );
+        }),
+      )}
+    </div>
+  );
       case "site-report":
         return <SiteReport user={user} />;
       case "my-reports":

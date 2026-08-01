@@ -4164,6 +4164,32 @@ async function syncUserSiteNames(supabaseClient, username, siteName) {
   return { ok: true, updated };
 }
 
+async function uploadDrawingFiles(supabaseClient, siteName, dateStr, files) {
+  const bucket = slugify(siteName);
+  if (!bucket) throw new Error("Site name is required to upload drawings.");
+
+  const { error: bucketErr } = await supabaseClient.storage.createBucket(bucket, { public: true });
+  if (bucketErr && !/already exists/i.test(bucketErr.message || "")) {
+    throw new Error(`Could not create bucket "${bucket}": ${bucketErr.message}`);
+  }
+
+  const d = new Date(dateStr + "T00:00:00");
+  const year = d.getFullYear();
+  const month = MONTHS[d.getMonth()];
+  const dayFolder = `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${year}`;
+
+  const uploaded = [];
+  for (const file of files) {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${year}/${month}/${dayFolder}/drawings/${Date.now()}-${safeName}`;
+    const { error: upErr } = await supabaseClient.storage.from(bucket).upload(path, file);
+    if (upErr) throw new Error(`Failed to upload ${file.name}: ${upErr.message}`);
+    const { data: urlData } = supabaseClient.storage.from(bucket).getPublicUrl(path);
+    uploaded.push({ name: file.name, url: urlData.publicUrl, path });
+  }
+  return uploaded;
+}
+
 async function uploadSiteImage(supabaseClient, siteName, file) {
   const bucket = slugify(siteName);
   if (!bucket) throw new Error("Enter a site name before uploading an image.");
@@ -5123,7 +5149,7 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
 
   const [recurringTemplates, setRecurringTemplates] = useState([]); // from recurring_tasks
   const [editingTaskType, setEditingTaskType] = useState(null);     // 'task' | 'template' | 'instance'
-
+  const [allSites, setAllSites] = useState([]);
   const [leaveDetailModal, setLeaveDetailModal] = useState(null);
 
     const latestVerificationByTask = useMemo(() => {
@@ -5156,6 +5182,11 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
     useState(null);
   const [updatingMarkDoneId, setUpdatingMarkDoneId] = useState(null);
 
+  const [drawingForm, setDrawingForm] = useState({ site_name: "", date: "", files: [] });
+const [drawingSubmitting, setDrawingSubmitting] = useState(false);
+const [allDrawings, setAllDrawings] = useState([]);
+const [loadingDrawings, setLoadingDrawings] = useState(false);
+
   const [seenOverdueIds, setSeenOverdueIds] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("seenOverdueTaskIds") || "[]");
@@ -5163,6 +5194,23 @@ const [hoveredNavKey, setHoveredNavKey] = useState(null);
       return [];
     }
   });
+  useEffect(() => {
+  supabase
+    .from("user_details")
+    .select("site_name, site_names")
+    .then(({ data, error }) => {
+      if (error || !data) return;
+      const set = new Set();
+      data.forEach((u) => {
+        if (Array.isArray(u.site_names)) {
+          u.site_names.forEach((s) => s && set.add(s));
+        } else if (u.site_name) {
+          set.add(u.site_name);
+        }
+      });
+      setAllSites([...set].sort((a, b) => a.localeCompare(b)));
+    });
+}, []);
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
     mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
@@ -5962,6 +6010,12 @@ const handleNavClick = (key) => {
         fetchAllTasks();
         setVisiblePendingVerificationCount(20);
         break;
+      case "add-drawings":
+        fetchSites();
+        break;
+      case "all-drawings":
+        fetchDrawings();
+        break;
       case "overdue-tasks": {
         fetchAllTasks();
         const ids = overdueTasks.map((t) => t.id);
@@ -5969,6 +6023,7 @@ const handleNavClick = (key) => {
         localStorage.setItem("seenOverdueTaskIds", JSON.stringify(ids));
         setVisibleOverdueCount(20);
         break;
+        
       }
       default:
         break;
@@ -6005,6 +6060,52 @@ const handleFormChange = (e) => {
       ? { _queueMode: null, _queueTargetTaskId: null, _queueRescheduleDate: "" }
       : {}),
   }));
+};
+
+const fetchDrawings = useCallback(async () => {
+  setLoadingDrawings(true);
+  const { data, error } = await supabase
+    .from("drawings")
+    .select("*")
+    .order("date", { ascending: false });
+  if (!error) setAllDrawings(data || []);
+  setLoadingDrawings(false);
+}, []);
+
+const handleDrawingSubmit = async () => {
+  if (!drawingForm.site_name) return showToast("error", "Please select a site.");
+  if (!drawingForm.files.length)
+    return showToast("error", "Please attach at least one drawing file.");
+
+  const effectiveDate = drawingForm.date || new Date().toISOString().split("T")[0];
+  setDrawingSubmitting(true);
+  try {
+    const uploaded = await uploadDrawingFiles(
+      supabase,
+      drawingForm.site_name,
+      effectiveDate,
+      drawingForm.files,
+    );
+    const { error } = await supabase.from("drawings").insert([
+      {
+        site_name: drawingForm.site_name,
+        date: effectiveDate,
+        file_urls: uploaded,
+        uploaded_by: user.user_name,
+      },
+    ]);
+    if (error) throw error;
+    showToast(
+      "success",
+      `${uploaded.length} drawing${uploaded.length > 1 ? "s" : ""} uploaded for ${drawingForm.site_name}.`,
+    );
+    setDrawingForm({ site_name: "", date: "", files: [] });
+    fetchDrawings();
+    setActiveTab("all-drawings");
+  } catch (err) {
+    showToast("error", err.message);
+  }
+  setDrawingSubmitting(false);
 };
 
   const handleSubmit = async () => {
@@ -9903,10 +10004,294 @@ if (!error && verification.task_id) {
           </>
         );
 
+        case "add-drawings":
+  return (
+    <div className="ap-form-grid">
+      <div className="ap-form-row ap-col-2">
+        <div className="ap-field">
+          <label className="ap-label">
+            Site Name <span className="ap-req">*</span>
+          </label>
+          <select
+            className="ap-input ap-select"
+            value={drawingForm.site_name}
+            onChange={(e) =>
+              setDrawingForm((p) => ({ ...p, site_name: e.target.value }))
+            }
+          >
+            <option value="">Select site…</option>
+            {sites
+              .filter((s) => (s.status || "Active") === "Active")
+              .slice()
+              .sort((a, b) => (a.site_name || "").localeCompare(b.site_name || ""))
+              .map((s) => (
+                <option key={s.id} value={s.site_name}>
+                  {s.site_name}
+                </option>
+              ))}
+          </select>
+        </div>
+        <div className="ap-field">
+          <label className="ap-label">
+            Date
+            <span
+              className="ap-optional"
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: "#94a3b8",
+                background: "#f1f5f9",
+                borderRadius: 4,
+                padding: "1px 6px",
+                marginLeft: 6,
+              }}
+            >
+              defaults to today
+            </span>
+          </label>
+          <input
+            className="ap-input"
+            type="date"
+            value={drawingForm.date}
+            max={new Date().toISOString().split("T")[0]}
+            onChange={(e) =>
+              setDrawingForm((p) => ({ ...p, date: e.target.value }))
+            }
+          />
+        </div>
+      </div>
+
+      <div className="ap-form-row ap-col-1">
+        <div className="ap-field">
+          <label className="ap-label">
+            Drawing Attachments <span className="ap-req">*</span>
+          </label>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              padding: "8px 12px",
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#64748b"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ flexShrink: 0 }}
+            >
+              <rect x="3" y="5" width="12" height="14" rx="1" />
+              <path d="M6 9h6M6 12h6M6 15h4" />
+              <path d="M16 16l5-5 2 2-5 5-3 1z" />
+            </svg>
+            <input
+              type="file"
+              multiple
+              accept=".pdf,.dwg,.dxf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+              style={{
+                flex: 1,
+                fontSize: 12.5,
+                color: "#475569",
+                background: "transparent",
+                border: "none",
+                outline: "none",
+                cursor: "pointer",
+              }}
+              onChange={(e) => {
+                const newFiles = Array.from(e.target.files || []);
+                setDrawingForm((p) => ({
+                  ...p,
+                  files: [...p.files, ...newFiles],
+                }));
+                e.target.value = "";
+              }}
+            />
+          </div>
+          {drawingForm.files.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 5,
+                marginTop: 6,
+              }}
+            >
+              {drawingForm.files.map((f, i) => (
+                <div
+                  key={`${f.name}-${i}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    fontSize: 12,
+                    color: "#475569",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 6,
+                    padding: "5px 10px",
+                  }}
+                >
+                  <span
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {f.name}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setDrawingForm((p) => ({
+                        ...p,
+                        files: p.files.filter((_, idx) => idx !== i),
+                      }))
+                    }
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "#dc2626",
+                      fontWeight: 700,
+                      padding: "0 2px",
+                      flexShrink: 0,
+                      marginLeft: 8,
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+            Multiple files allowed — PDF, DWG, DXF, images, and Word docs supported.
+          </span>
+        </div>
+      </div>
+
+      <div className="ap-form-row ap-col-1 ap-form-actions">
+        <button
+          className="ap-btn-secondary"
+          onClick={() => setDrawingForm({ site_name: "", date: "", files: [] })}
+        >
+          Reset
+        </button>
+        <button
+          className="ap-btn-primary"
+          onClick={handleDrawingSubmit}
+          disabled={drawingSubmitting}
+        >
+          {drawingSubmitting ? (
+            <>
+              <span className="ap-mini-spinner" /> Uploading…
+            </>
+          ) : (
+            "Upload Drawings"
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+case "all-drawings":
+  return loadingDrawings ? (
+    <div className="op-empty-state">
+      <div className="op-spinner" />
+      <p className="op-empty-text">Loading drawings…</p>
+    </div>
+  ) : allDrawings.length === 0 ? (
+    <div className="op-empty-state">
+      <svg
+        width="48"
+        height="48"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ opacity: 0.3 }}
+      >
+        <rect x="3" y="5" width="12" height="14" rx="1" />
+        <path d="M6 9h6M6 12h6M6 15h4" />
+      </svg>
+      <p className="op-empty-text">No drawings uploaded yet.</p>
+      <button
+        className="ap-btn-primary"
+        style={{ marginTop: 4 }}
+        onClick={() => setActiveTab("add-drawings")}
+      >
+        Add Drawings
+      </button>
+    </div>
+  ) : (
+    <div className="cp-media-grid">
+      {allDrawings.flatMap((d) =>
+        (d.file_urls || []).map((f, i) => (
+          <div key={`${d.id}-${i}`} className="cp-media-card type-graphical">
+            <div
+              className="cp-media-photo"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#6d4aa8",
+                background: "#f1ecf9",
+              }}
+            >
+              <svg
+                width="40"
+                height="40"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="5" width="12" height="14" rx="1" />
+                <path d="M6 9h6M6 12h6M6 15h4" />
+                <path d="M16 16l5-5 2 2-5 5-3 1z" />
+              </svg>
+            </div>
+            <div className="cp-media-body">
+              <span className="cp-media-badge graphical">Drawing</span>
+              <div className="cp-media-title">{f.name}</div>
+              <div className="cp-media-meta">
+                {d.site_name} · {formatSubmissionDate(d.date)}
+              </div>
+              <div className="cp-media-actions">
+                
+                <a  className="cp-media-link"
+                  href={f.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View
+                </a>
+                <a className="cp-media-link dl" href={f.url} download>
+                  Download
+                </a>
+              </div>
+            </div>
+          </div>
+        )),
+      )}
+    </div>
+  );
       default:
         return null;
     }
-  };
+  };  
 
   return (
     <>

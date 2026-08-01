@@ -1,10 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Navbar from "../components/Navbar";
-import "./SitePortal.css"; // reuse finput / btn / card classes for a consistent look
+import "./SitePortal.css";
 
-// jsPDF + autotable are used purely client-side to generate the two report
-// PDFs in the exact layout you supplied. Install with:
 //   npm install jspdf jspdf-autotable
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -16,9 +14,7 @@ const SUPABASE_ANON =
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // ─── Config ────────────────────────────────────────────────────────────────
-// Attendance is considered "late" if clock-in happens after this time.
-// Only used as a fallback if the `attendance` table doesn't already store
-// an `is_late` boolean (it's used first if present).
+
 const LATE_CUTOFF_HOUR = 9;
 const LATE_CUTOFF_MIN = 30;
 
@@ -45,7 +41,15 @@ function fmtDMonYYYY(iso) {
 function toISODateLocal(d) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
-
+function fmtTimeIST(ts) {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 // Inclusive list of ISO date strings between from and to
 function dateRange(from, to) {
   const out = [];
@@ -70,13 +74,23 @@ function Loading() {
 
 const Ico = {
   attendance: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round">
       <circle cx="12" cy="12" r="10" />
       <path d="M12 6v6l4 2" />
     </svg>
   ),
+  log: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round">
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </svg>
+  ),
   dpr: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <polyline points="14 2 14 8 20 8" />
     </svg>
@@ -89,19 +103,35 @@ const Ico = {
     </svg>
   ),
 apply: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round">
       <rect x="3" y="4" width="18" height="18" rx="2" />
       <line x1="12" y1="14" x2="12" y2="18" />
       <line x1="10" y1="16" x2="14" y2="16" />
     </svg>
   ),
   leave: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <polyline points="14 2 14 8 20 8" />
       <line x1="9" y1="13" x2="15" y2="13" />
       <line x1="9" y1="17" x2="13" y2="17" />
     </svg>
+  ),
+  proxy:(
+   <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#eb2727"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="8" r="4" />
+    <path d="M5 21c0-3.5 3-6 7-6s7 2.5 7 6" />
+    <path d="M18 10l2 2 3-3" />
+  </svg>
   ),
   check: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -175,13 +205,46 @@ async function fetchAttendanceSummary(sites, from, to) {
     if (r.clock_in_status === "late") bucket.late += 1;
   });
 
-  return [...byUser.values()].sort((a, b) => a.name.localeCompare(b.name));
+return [...byUser.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Resolve engineer name(s) for each site directly from user_details.
-// A "site" is considered assigned to a user if it appears anywhere in
-// that user's site_names array. Only these roles count as the engineer
-// of record for a site.
+// Per-date, per-employee attendance rows: Date · Name · Clock In · Clock Out
+async function fetchAttendanceLog(sites, from, to) {
+  if (!sites.length || !from || !to) return [];
+
+  const { data: users, error: userErr } = await supabase
+    .from("user_details")
+    .select("username, name, site_names")
+    .overlaps("site_names", sites);
+  if (userErr) throw userErr;
+
+  const usernames = [...new Set((users || []).map((u) => u.username))];
+  if (!usernames.length) return [];
+
+  const nameByUsername = {};
+  (users || []).forEach((u) => { nameByUsername[u.username] = u.name; });
+
+  const { data, error } = await supabase
+    .from("attendance")
+    .select("user_name, name, date, clock_in, clock_out, clock_in_status")
+    .in("user_name", usernames)
+    .gte("date", from)
+    .lte("date", to);
+  if (error) throw error;
+
+  return (data || [])
+    .map((r) => ({
+      date: r.date,
+      name: r.name || nameByUsername[r.user_name] || r.user_name,
+      clockIn: r.clock_in,
+      clockOut: r.clock_out,
+      late: r.clock_in_status === "late",
+    }))
+    .sort((a, b) =>
+      a.date === b.date ? a.name.localeCompare(b.name) : a.date.localeCompare(b.date)
+    );
+}
+
 const ENGINEER_ROLES = ["Site Engineer", "Site Incharge", "Site Coordinator"];
 
 async function resolveEngineers(sites) {
@@ -190,7 +253,7 @@ async function resolveEngineers(sites) {
   const { data, error } = await supabase
     .from("user_details")
     .select("name, role, site_names")
-    .overlaps("site_names", sites)   // only fetch users relevant to these sites
+    .overlaps("site_names", sites)
     .in("role", ENGINEER_ROLES);
 
   if (error) throw error;
@@ -299,15 +362,15 @@ function downloadAttendancePdf(rows, from, to) {
     `${fmtDDMMYYYY(from)} to ${fmtDDMMYYYY(to)}`
   );
 
-  autoTable(doc, {
+    autoTable(doc, {
     startY,
+    theme: "grid",
     head: [["Name", "Clock In", "Clock Out", "Late Count"]],
     body: rows.map((r) => [r.name.toUpperCase(), r.clockIn, r.clockOut, r.late]),
-    styles: { fontSize: 9, halign: "center", cellPadding: 4 },
-    headStyles: { fillColor: [240, 217, 196], textColor: [40, 40, 40], fontStyle: "bold" },
-    bodyStyles: { textColor: [30, 30, 30] },
-    alternateRowStyles: { fillColor: [234, 242, 251] },
-    columnStyles: { 0: { halign: "left", fontStyle: "bold" } },
+    styles: { fontSize: 9, halign: "center", cellPadding: 4, lineColor: [0, 0, 0], lineWidth: 0.1 },
+    headStyles: { fillColor: [240, 217, 196], textColor: [40, 40, 40], fontStyle: "bold", lineColor: [0, 0, 0], lineWidth: 0.1 },
+    bodyStyles: { textColor: [30, 30, 30], fillColor: [255, 255, 255] },
+    columnStyles: { 0: { halign: "center", fontStyle: "bold" } },
     didParseCell: (data) => {
       if (data.section === "body" && data.column.index === 3) {
         const val = Number(data.cell.raw);
@@ -317,11 +380,41 @@ function downloadAttendancePdf(rows, from, to) {
     },
   });
 
-  doc.save(`Attendance_${from}_to_${to}.pdf`);
+doc.save(`Attendance_${from}_to_${to}.pdf`);
 }
 
-// Simple vector check/cross so we're not dependent on Helvetica having
-// glyphs for ✓ / ✗ (it doesn't reliably across environments).
+function downloadAttendanceLogPdf(rows, from, to) {
+  const doc = new jsPDF();
+  const startY = drawReportHeader(
+    doc,
+    "Attendance Log",
+    `${fmtDDMMYYYY(from)} to ${fmtDDMMYYYY(to)}`
+  );
+
+  autoTable(doc, {
+    startY,
+    theme: "grid",
+    head: [["Date", "Engineer Name", "Clock In", "Clock Out"]],
+    body: rows.map((r) => [
+      fmtDDMMYYYY(r.date),
+      r.name.toUpperCase(),
+      fmtTimeIST(r.clockIn),
+      fmtTimeIST(r.clockOut),
+    ]),
+    styles: { fontSize: 9, halign: "center", cellPadding: 4, lineColor: [0, 0, 0], lineWidth: 0.1 },
+    headStyles: { fillColor: [240, 217, 196], textColor: [40, 40, 40], fontStyle: "bold", lineColor: [0, 0, 0], lineWidth: 0.1 },
+    bodyStyles: { textColor: [30, 30, 30], fillColor: [255, 255, 255] },
+    columnStyles: { 1: { halign: "center", fontStyle: "bold" } },
+    didParseCell: (data) => {
+      if (data.section === "body" && (data.column.index === 2 || data.column.index === 3)) {
+        if (data.cell.raw === "—") data.cell.styles.textColor = [220, 38, 38];
+      }
+    },
+  });
+
+  doc.save(`Attendance_Log_${from}_to_${to}.pdf`);
+}
+
 function drawCheck(doc, x, y, size, color) {
   doc.setDrawColor(...color);
   doc.setLineWidth(0.6);
@@ -352,15 +445,16 @@ function downloadDprPdf(rows, dates, from, to) {
 
   autoTable(doc, {
     startY,
+    theme: "grid",
     head: [["SR NO", "SITE NAME", "ENGINEER NAME", ...dayHead]],
     body: rows.map((r) => [r.srNo, r.site.toUpperCase(), r.engineer, ...r.days]),
-    styles: { fontSize: useIcons ? 7 : 8, halign: "center", cellPadding: useIcons ? 1.5 : 3 },
-    headStyles: { fillColor: [30, 58, 95], textColor: [255, 255, 255], fontStyle: "bold" },
-    alternateRowStyles: { fillColor: [234, 242, 251] },
+    styles: { fontSize: useIcons ? 7 : 8, halign: "center", cellPadding: useIcons ? 1.5 : 3, lineColor: [0, 0, 0], lineWidth: 0.1 },
+    headStyles: { fillColor: [30, 58, 95], textColor: [255, 255, 255], fontStyle: "bold", lineColor: [0, 0, 0], lineWidth: 0.1 },
+    bodyStyles: { fillColor: [255, 255, 255] },
     columnStyles: {
       0: { cellWidth: useIcons ? 8 : "auto" },
-      1: { halign: "left", fontStyle: "bold", cellWidth: useIcons ? 32 : "auto" },
-      2: { halign: "left", cellWidth: useIcons ? 30 : "auto" },
+      1: { halign: "center", fontStyle: "bold", cellWidth: useIcons ? 32 : "auto" },
+      2: { halign: "center", cellWidth: useIcons ? 30 : "auto" },
     },
 
     // Suppress the default DONE/PEND text draw for day columns when
@@ -508,6 +602,98 @@ function AttendanceReport({ sites }) {
             </div>
           )}
         </>
+)}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ATTENDANCE LOG SCREEN — one row per date per employee
+// ═══════════════════════════════════════════════════════════════════════════
+
+function AttendanceLog({ sites }) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [rows, setRows] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const generate = async () => {
+    setBusy(true);
+    setErr("");
+    try {
+      const data = await fetchAttendanceLog(sites, from, to);
+      setRows(data);
+    } catch (e) {
+      setErr(e.message || "Failed to load attendance log.");
+      setRows(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div>
+      <RangeFilter from={from} to={to} setFrom={setFrom} setTo={setTo} onGenerate={generate} busy={busy} />
+      {err && <div className="info-banner warn-banner" style={{ marginBottom: 16 }}>{err}</div>}
+
+      {rows && (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ fontSize: 13, color: "var(--ink2)" }}>
+              {rows.length} record{rows.length !== 1 ? "s" : ""} · {fmtDDMMYYYY(from)} to {fmtDDMMYYYY(to)}
+            </div>
+            <button className="btn btn-out" onClick={() => downloadAttendanceLogPdf(rows, from, to)} disabled={!rows.length}>
+              {Ico.dl} Download PDF
+            </button>
+          </div>
+
+          {rows.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-title">No attendance records</div>
+              <div className="empty-sub">No clock-in/out data for this date range across your sites.</div>
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid var(--line)" }}>
+                    <th style={{ textAlign: "left", padding: "8px 10px" }}>Date</th>
+                    <th style={{ textAlign: "left", padding: "8px 10px" }}>Engineer Name</th>
+                    <th style={{ textAlign: "center", padding: "8px 10px" }}>Clock In</th>
+                    <th style={{ textAlign: "center", padding: "8px 10px" }}>Clock Out</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={`${r.date}-${r.name}-${i}`} style={{ borderBottom: "1px solid var(--line)" }}>
+                      <td style={{ padding: "8px 10px" }}>{fmtDDMMYYYY(r.date)}</td>
+                      <td style={{ padding: "8px 10px", fontWeight: 600 }}>{r.name}</td>
+                      <td
+                        style={{
+                          padding: "8px 10px",
+                          textAlign: "center",
+                          color: !r.clockIn ? "var(--red)" : r.late ? "var(--amber2, #d97706)" : "inherit",
+                        }}
+                      >
+                        {fmtTimeIST(r.clockIn)}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 10px",
+                          textAlign: "center",
+                          color: !r.clockOut ? "var(--red)" : "inherit",
+                        }}
+                      >
+                        {fmtTimeIST(r.clockOut)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -619,11 +805,21 @@ function DprSheetReport({ sites }) {
 
 const NAV = [
   { key: "attendance", label: "Attendance Report", icon: Ico.attendance },
+  { key: "attendance-log", label: "Attendance Log", icon: Ico.log },
   { key: "dpr", label: "Daily Report (DPR)", icon: Ico.dpr },
   { key: "apply-leave", label: "Apply Leave", icon: Ico.apply },
   { key: "my-leave", label: "My Leave", icon: Ico.leave },
-  { key: "proxy-request", label: "Leave Approvals", icon: Ico.leave },
+  { key: "proxy-request", label: "Leave Approvals", icon: Ico.proxy },
 ];
+
+const NAV_COLORS = {
+  attendance: "#2563eb",
+  "attendance-log": "#2563eb",
+  dpr: "#16a34a",
+  "apply-leave": "#7c3aed",
+  "my-leave": "#7c3aed",
+  "proxy-request": "#eb2727",
+};
 
 const LEAVE_TYPES = [
   "Casual Leave", "Sick Leave", "Earned Leave",
@@ -827,8 +1023,9 @@ async function findAdminApprover() {
   return data || null;
 }
 function ApplyLeave({ user }) {
-  const empty = { leave_type: "", from_date: "", to_date: "", reason: "" };
+  const empty = { leave_type: "", from_date: "", to_date: "", reason: "", proxy_user_name: "" };
   const [form, setForm] = useState(empty);
+  const [proxyCandidates, setProxyCandidates] = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -851,22 +1048,40 @@ function ApplyLeave({ user }) {
     setTimeout(() => setToast(null), ms);
   };
 
-  useEffect(() => {
+useEffect(() => {
     setAdminLoading(true);
     findAdminApprover().then(setAdmin).finally(() => setAdminLoading(false));
   }, []);
+
+  useEffect(() => {
+    supabase
+      .from("user_details")
+      .select("username, name, department")
+      .then(({ data, error }) => {
+        if (error || !data) return;
+        const pool = data.filter((u) => {
+          const dept = String(u.department || "").trim().toLowerCase();
+          return (
+            (dept === "mdo office" || dept === "engineer office") &&
+            u.username !== user.user_name
+          );
+        });
+        setProxyCandidates(pool.sort((a, b) => (a.name || "").localeCompare(b.name || "")));
+      });
+  }, [user.user_name]);
 
   const days =
     form.from_date && form.to_date && new Date(form.to_date) >= new Date(form.from_date)
       ? Math.ceil((new Date(form.to_date) - new Date(form.from_date)) / 86400000) + 1
       : null;
 
-  const submit = async () => {
+const submit = async () => {
   const missing = [];
   if (!form.leave_type) missing.push("Leave Type");
   if (!form.from_date) missing.push("From Date");
   if (!form.to_date) missing.push("To Date");
   if (!form.reason.trim()) missing.push("Reason");
+  if (!form.proxy_user_name) missing.push("Proxy");
 
   if (missing.length) {
     setInvalidFields(missing);
@@ -879,12 +1094,11 @@ function ApplyLeave({ user }) {
   setBusy(true);
   setErr("");
 
-
+  const proxyUser = proxyCandidates.find((u) => u.username === form.proxy_user_name);
 
   const { error } = await supabase.from("leaves").insert({
     user_name: user.user_name,
     name: user.name,
-    role: user.role || "Process Controller", 
     leave_type: form.leave_type,
     from_date: form.from_date,
     to_date: form.to_date,
@@ -894,13 +1108,15 @@ function ApplyLeave({ user }) {
     approved_by: null,
     rejection_reason: null,
     status: "Pending",
+    proxy_user_name: form.proxy_user_name,
+    proxy_name: proxyUser?.name || form.proxy_user_name,
+    proxy_approved: null,
   });
 
   setBusy(false);
   if (error) { setErr(error.message); return; }
   setSubmitted(true);
 };
-
   if (submitted)
     return (
       <div className="success-state">
@@ -956,6 +1172,26 @@ function ApplyLeave({ user }) {
           <textarea className="finput" rows={3} placeholder="Briefly describe the reason…" value={form.reason}
             onChange={(e) => { set("reason", e.target.value); setInvalidFields((f) => f.filter((x) => x !== "Reason")); }}
             style={invalidFields.includes("Reason") ? { borderColor: "var(--red)" } : undefined} />
+        </div>
+        <div className="fgroup col2">
+          <label className="flabel">
+            Proxy (covers your tasks while on leave) <span className="req">*</span>
+          </label>
+          <select
+            className="finput"
+            value={form.proxy_user_name}
+            onChange={(e) => { set("proxy_user_name", e.target.value); setInvalidFields((f) => f.filter((x) => x !== "Proxy")); }}
+            style={invalidFields.includes("Proxy") ? { borderColor: "var(--red)" } : undefined}
+          >
+            <option value="">Select a proxy…</option>
+            {proxyCandidates.map((u) => (
+              <option key={u.username} value={u.username}>{u.name}</option>
+            ))}
+          </select>
+          <span style={{ fontSize: 11.5, color: "var(--ink3)" }}>
+            Both your proxy and the admin must approve before this leave is confirmed.
+            Your pending tasks due during the leave period will be handed to them.
+          </span>
         </div>
       </div>
       <div className="act-row">
@@ -1123,6 +1359,7 @@ export default function MDOPortal() {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("attendance");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [hoveredNavKey, setHoveredNavKey] = useState(null);
 
   const loadUser = useCallback(async () => {
     const stored = localStorage.getItem("user");
@@ -1198,28 +1435,37 @@ export default function MDOPortal() {
             height: "auto",
             display: "flex",
             flexDirection: "column",
-          }}
+          }}  
         >
-          {NAV.map((n) => (
-            <button
-              key={n.key}
-              className={`sni${activeTab === n.key ? " act" : ""}`}
-              onClick={() => {
-                setActiveTab(n.key);
-                if (window.innerWidth <= 768) setSidebarOpen(false);
-              }}
-              style={{
-                display: "flex",
-                visibility: "visible",
-                opacity: 1,
-                height: "auto",
-                minHeight: 40,
-                flexShrink: 0,
-              }}
-            >
-              {n.icon} {n.label}
-            </button>
-          ))}
+          {NAV.map((n) => {
+            const color = NAV_COLORS[n.key] || "#2563eb";
+            const highlighted = activeTab === n.key || hoveredNavKey === n.key;
+            return (
+              <button
+                key={n.key}
+                className={`sni${activeTab === n.key ? " act" : ""}`}
+                onClick={() => {
+                  setActiveTab(n.key);
+                  if (window.innerWidth <= 768) setSidebarOpen(false);
+                }}
+                onMouseEnter={() => setHoveredNavKey(n.key)}
+                onMouseLeave={() => setHoveredNavKey(null)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  visibility: "visible",
+                  opacity: 1,
+                  height: "auto",
+                  minHeight: 40,
+                  flexShrink: 0,
+                  background: highlighted ? `${color}18` : undefined,
+                  color: highlighted ? color : undefined,
+                }}
+              >
+                {n.icon} {n.label}
+              </button>
+            );
+          })}
         </nav>
         </aside>
 
@@ -1236,6 +1482,8 @@ export default function MDOPortal() {
                                                   
             {activeTab === "attendance" ? (
               <AttendanceReport sites={sites} />
+            ) : activeTab === "attendance-log" ? (
+              <AttendanceLog sites={sites} />
             ) : activeTab === "dpr" ? (
               <DprSheetReport sites={sites} />
             ) : activeTab === "apply-leave" ? (

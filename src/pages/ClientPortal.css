@@ -1729,7 +1729,7 @@
 
 .cp-sidebar-scroll::-webkit-scrollbar-track,
 .cp-drawer-scroll::-webkit-scrollbar-track {
-  background: transparent;
+  background: transparent; 
 }
 
 .cp-sidebar-scroll::-webkit-scrollbar-thumb,
@@ -2196,15 +2196,15 @@
   padding: 12px 14px;
   border: 1px solid #e8edf3;
   border-radius: 12px;
-  background: #fff;
+  background: #e1e1e2;
 }
 
 .cp-profile-contact-avatar {
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: #f1f5f9;
-  color: #475569;
+  background: #1083f7;
+  color: #fafafa;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2933,7 +2933,7 @@ html {
 }
 .cp-week-nav-btn:disabled {
   opacity: 0.4;
-  cursor: not-allowed;
+  cursor: not-allowed;  
 }
 .cp-week-nav-label {
   font-size: 12.5px;

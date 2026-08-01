@@ -414,26 +414,10 @@ const IcoLayers = () => (
     <polyline points="2 12 12 17 22 12" />
   </svg>
 );
-const IcoChart = () => (
+const IcoDocBars = ({ w = 13, h = 13 }) => (
   <svg
-    width="13"
-    height="13"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <line x1="18" y1="20" x2="18" y2="10" />
-    <line x1="12" y1="20" x2="12" y2="4" />
-    <line x1="6" y1="20" x2="6" y2="14" />
-  </svg>
-);
-const IcoDocBars = () => (
-  <svg
-    width="13"
-    height="13"
+    width={w}
+    height={h}
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -464,155 +448,14 @@ const IcoBluePrint = () => (
     <path d="M14 18h4v-4" />
   </svg>
 );
-// ─── Status config ────────────────────────────────────────────────────────────
 
-const STATUS_CFG = {
-  pending: { label: "Pending", icon: <IcoClock />, cls: "pending" },
-  received: { label: "Accepted", icon: <IcoCheck />, cls: "accepted" }, // DB=received → show as Accepted
-  rejected: { label: "Rejected", icon: <IcoX />, cls: "rejected" },
-};
-
-// ─── Confirm dialog ───────────────────────────────────────────────────────────
-// action: "received" (client accepted) | "rejected"
-function ConfirmDialog({ action, material, onConfirm, onCancel, loading }) {
-  const isAccept = action === "received";
+// ─── Skeletons ────────────────────────────────────────────────────────────────
+function StatSkeleton() {
   return (
     <div
-      className="cp-confirm-backdrop"
-      onClick={(e) => e.target === e.currentTarget && onCancel()}
-    >
-      <div className="cp-confirm-box">
-        <div className="cp-confirm-title">
-          {isAccept ? "Accept this request?" : "Reject this request?"}
-        </div>
-        <div className="cp-confirm-body">
-          {isAccept ? (
-            <>
-              Approving <strong>{material}</strong> will allow the site team to
-              proceed with procurement.
-            </>
-          ) : (
-            <>
-              Rejecting <strong>{material}</strong> will notify the site team
-              this item won't be supplied. This cannot be undone.
-            </>
-          )}
-        </div>
-        <div className="cp-confirm-btns">
-          <button
-            className="cp-btn"
-            style={{
-              background: isAccept ? "#1f7a4d" : "#b3261e",
-              color: "#fff",
-              flex: 1,
-            }}
-            onClick={onConfirm}
-            disabled={loading}
-          >
-            {loading ? "Saving…" : isAccept ? "Yes, Accept" : "Yes, Reject"}
-          </button>
-          <button
-            className="cp-btn"
-            style={{
-              background: "#eef1f5",
-              color: "#5c6b7a",
-              border: "1.5px solid #e1e5eb",
-              flex: 1,
-            }}
-            onClick={onCancel}
-            disabled={loading}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Single material card ─────────────────────────────────────────────────────
-function MaterialCard({ r, onAction }) {
-  const [actioning, setActioning] = useState(false);
-  const [confirm, setConfirm] = useState(null); // "received" (accept) | "rejected"
-
-  const status = r.status || "pending";
-  const cfg = STATUS_CFG[status] || STATUS_CFG.pending;
-
-  const handleAction = async () => {
-    setActioning(true);
-    await onAction(r.id, confirm, r.material_name);
-    setActioning(false);
-    setConfirm(null);
-  };
-
-  return (
-    <>
-      {confirm && (
-        <ConfirmDialog
-          action={confirm}
-          material={r.material_name}
-          onConfirm={handleAction}
-          onCancel={() => setConfirm(null)}
-          loading={actioning}
-        />
-      )}
-      <div className={`cp-mcard status-${status}`}>
-        <div className="cp-mcard-top">
-          <div>
-            <div className="cp-mcard-name">{r.material_name}</div>
-            <div className="cp-mcard-qty">
-              {r.quantity} {r.unit_name}
-            </div>
-          </div>
-          <span className={`cp-status ${cfg.cls}`}>
-            {cfg.icon} {cfg.label}
-          </span>
-        </div>
-
-        <div className="cp-mcard-meta">
-          <span>
-            <IcoUser /> Requested by <strong>{r.requested_by || "—"}</strong>
-          </span>
-          {" · "}
-          <span>
-            <IcoClock /> {fmtDateTime(r.created_at)}
-          </span>
-          {status === "received" && r.actioned_at && (
-            <>
-              <br />
-              Accepted by <strong>{r.actioned_by || "Client"}</strong> on{" "}
-              {fmtDateTime(r.actioned_at)}
-            </>
-          )}
-          {status === "rejected" && r.actioned_at && (
-            <>
-              <br />
-              Rejected by <strong>{r.actioned_by || "Client"}</strong> on{" "}
-              {fmtDateTime(r.actioned_at)}
-            </>
-          )}
-        </div>
-
-        {status === "pending" && (
-          <div className="cp-mcard-actions">
-            <button
-              className="cp-btn cp-btn-accept"
-              onClick={() => setConfirm("received")}
-              disabled={actioning}
-            >
-              <IcoCheck /> Accept
-            </button>
-            <button
-              className="cp-btn cp-btn-reject"
-              onClick={() => setConfirm("rejected")}
-              disabled={actioning}
-            >
-              <IcoX /> Reject
-            </button>
-          </div>
-        )}
-      </div>
-    </>
+      className="cp-skel"
+      style={{ width: 40, height: 24, marginBottom: 5 }}
+    />
   );
 }
 
@@ -797,43 +640,15 @@ function MediaFolderTree({ siteName, activeDate, onSelectDate }) {
     </div>
   );
 }
-function StatSkeleton() {
-  return (
-    <div
-      className="cp-skel"
-      style={{ width: 40, height: 24, marginBottom: 5 }}
-    />
-  );
-}
-function FeedSkeletonRow() {
-  return (
-    <div className="cp-feed-row">
-      <div
-        className="cp-skel"
-        style={{ width: 32, height: 32, borderRadius: "var(--r-md)" }}
-      />
-      <div
-        className="cp-feed-main"
-        style={{ display: "flex", flexDirection: "column", gap: 6 }}
-      >
-        <div className="cp-skel" style={{ width: "70%", height: 13 }} />
-        <div className="cp-skel" style={{ width: "40%", height: 11 }} />
-      </div>
-    </div>
-  );
-}
+
 // ─── Overview / dashboard panel ───────────────────────────────────────────────
-function Overview({ siteName, onNavigate, newRequestCount }) {
+function Overview({ siteName, onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
-    pending: 0,
-    accepted: 0,
-    rejected: 0,
     dpr: 0,
     wpr: 0,
     photos: 0,
   });
-  const [recent, setRecent] = useState([]);
 
   const load = useCallback(async () => {
     if (!siteName) {
@@ -841,14 +656,6 @@ function Overview({ siteName, onNavigate, newRequestCount }) {
       return;
     }
     setLoading(true);
-
-    const { data: matRows } = await supabase
-      .from("material_requirements")
-      .select(
-        "id, status, material_name, quantity, unit_name, created_at, actioned_at",
-      )
-      .ilike("site_name", siteName)
-      .order("created_at", { ascending: false });
 
     const { count: dprCount } = await supabase
       .from("dpr_reports")
@@ -870,16 +677,11 @@ function Overview({ siteName, onNavigate, newRequestCount }) {
       photoCount = count || 0;
     }
 
-    const rows = matRows || [];
     setStats({
-      pending: rows.filter((r) => r.status === "pending").length,
-      accepted: rows.filter((r) => r.status === "received").length,
-      rejected: rows.filter((r) => r.status === "rejected").length,
       dpr: dprCount || 0,
       wpr: wprIds.length,
       photos: photoCount,
     });
-    setRecent(rows.slice(0, 6));
     setLoading(false);
   }, [siteName]);
 
@@ -896,35 +698,13 @@ function Overview({ siteName, onNavigate, newRequestCount }) {
             Coordinate site decisions with a polished, focused portal.
           </div>
           <div className="cp-hero-sub">
-            Track procurement approvals, review project documents, and stay
-            aligned with the latest site activity in one place.
+            Review project documents and stay aligned with the latest site
+            activity in one place.
           </div>
-        </div>
-        <div className="cp-hero-pill">
-          <span>{stats.pending}</span>
-          <small>pending</small>
         </div>
       </div>
 
-      <div className="cp-stats cols-6">
-        <div className="cp-stat">
-          <div className="cp-stat-num amber">
-            {loading ? <StatSkeleton /> : stats.pending}
-          </div>
-          <div className="cp-stat-label">Pending</div>
-        </div>
-        <div className="cp-stat">
-          <div className="cp-stat-num green">
-            {loading ? <StatSkeleton /> : stats.accepted}
-          </div>
-          <div className="cp-stat-label">Accepted</div>
-        </div>
-        <div className="cp-stat">
-          <div className="cp-stat-num red">
-            {loading ? <StatSkeleton /> : stats.rejected}
-          </div>
-          <div className="cp-stat-label">Rejected</div>
-        </div>
+      <div className="cp-stats">
         <div className="cp-stat">
           <div className="cp-stat-num blue">
             {loading ? <StatSkeleton /> : stats.dpr}
@@ -946,24 +726,6 @@ function Overview({ siteName, onNavigate, newRequestCount }) {
       </div>
 
       <div className="cp-quick-grid">
-        <button
-          className="cp-quick-card"
-          onClick={() => onNavigate("materials")}
-        >
-          {!!newRequestCount && (
-            <span className="cp-quick-badge">{newRequestCount}</span>
-          )}
-          <div className="cp-quick-icon">
-            <IcoBoxNav />
-          </div>
-          <div className="cp-quick-title">Material Requests</div>
-          <div className="cp-quick-sub">
-            Review and action pending procurement requests from site.
-          </div>
-          <div className="cp-quick-arrow">
-            Open <IcoArrow />
-          </div>
-        </button>
         <button className="cp-quick-card" onClick={() => onNavigate("media")}>
           <div className="cp-quick-icon">
             <IcoFolder />
@@ -977,266 +739,23 @@ function Overview({ siteName, onNavigate, newRequestCount }) {
           </div>
         </button>
       </div>
-
-      <div
-        className="cp-section-head"
-        style={{ justifyContent: "space-between" }}
-      >
-        <div
-          style={{
-            fontSize: 15,
-            fontWeight: 800,
-            color: "var(--ink)",
-            fontFamily: "var(--font-display)",
-          }}
-        >
-          Recent Activity
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="cp-loading">
-          <div className="cp-spinner" /> Loading activity…
-        </div>
-      ) : !recent.length ? (
-        <div className="cp-empty">
-          <IcoBox />
-          <div className="cp-empty-title">No activity yet</div>
-          <div className="cp-empty-sub">
-            Material requests from the site team will show up here.
-          </div>
-        </div>
-      ) : (
-        <div className="cp-feed">
-          {recent.map((r) => (
-            <div className="cp-feed-row" key={r.id}>
-              <div className={`cp-feed-icon ${r.status}`}>
-                {r.status === "pending" ? (
-                  <IcoClock />
-                ) : r.status === "received" ? (
-                  <IcoCheck />
-                ) : (
-                  <IcoX />
-                )}
-              </div>
-              <div className="cp-feed-main">
-                <div className="cp-feed-title">
-                  {r.material_name} — {r.quantity} {r.unit_name}
-                </div>
-                <div className="cp-feed-meta">
-                  {r.status === "pending"
-                    ? "Awaiting your review"
-                    : r.status === "received"
-                      ? "Accepted"
-                      : "Rejected"}
-                </div>
-              </div>
-              <div className="cp-feed-time">
-                {fmtDateShort(r.actioned_at || r.created_at)}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
-// ─── Material requests panel ──────────────────────────────────────────────────
-function MaterialRequests({ siteName, userName, onStatsChange }) {
-  const [rows, setRows] = useState([]);
-  const [allRows, setAllRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("pending");
-  const [toast, setToast] = useState(null);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const showToast = (type, msg) => {
-    setToast({ type, msg });
-    setTimeout(() => setToast(null), 4000);
-  };
-
-  const dbStatusForFilter = (f) => {
-    if (f === "accepted") return "received";
-    if (f === "rejected") return "rejected";
-    if (f === "pending") return "pending";
-    return null;
-  };
-
-  const load = useCallback(async () => {
-    if (!siteName) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    let q = supabase
-      .from("material_requirements")
-      .select("*")
-      .ilike("site_name", siteName);
-    const dbStatus = dbStatusForFilter(filter);
-    if (dbStatus) q = q.eq("status", dbStatus);
-    const { data, error } = await q.order("created_at", { ascending: false });
-    if (!error) setRows(data || []);
-    setLoading(false);
-  }, [siteName, filter]);
-
-  const loadStats = useCallback(async () => {
-    if (!siteName) return;
-    const { data } = await supabase
-      .from("material_requirements")
-      .select("id, status")
-      .ilike("site_name", siteName);
-    setAllRows(data || []);
-    if (onStatsChange) {
-      onStatsChange((data || []).filter((r) => r.status === "pending").length);
-    }
-  }, [siteName, onStatsChange]);
-
-  useEffect(() => {
-    load();
-    loadStats();
-  }, [load, loadStats]);
-
-  const handleAction = async (id, newStatus, materialName) => {
-    const { error } = await supabase
-      .from("material_requirements")
-      .update({
-        status: newStatus,
-        actioned_at: new Date().toISOString(),
-        actioned_by: userName || "Client",
-      })
-      .eq("id", id);
-
-    if (error) {
-      showToast("err", "Update failed: " + error.message);
-      return;
-    }
-    showToast(
-      "ok",
-      newStatus === "received"
-        ? `"${materialName}" accepted.`
-        : `"${materialName}" rejected.`,
-    );
-    load();
-    loadStats();
-  };
-
-  const stats = {
-    pending: allRows.filter((r) => r.status === "pending").length,
-    accepted: allRows.filter((r) => r.status === "received").length,
-    rejected: allRows.filter((r) => r.status === "rejected").length,
-  };
-
-  const FILTERS = [
-    { key: "pending", label: `Pending (${stats.pending})`, cls: "act-amber" },
-    {
-      key: "accepted",
-      label: `Accepted (${stats.accepted})`,
-      cls: "act-green",
-    },
-    { key: "rejected", label: `Rejected (${stats.rejected})`, cls: "act-red" },
-    { key: "all", label: `All (${allRows.length})`, cls: "act" },
-  ];
-
-  return (
-    <div>
-      <div className="cp-stats">
-        <div className="cp-stat">
-          <div className="cp-stat-num amber">{stats.pending}</div>
-          <div className="cp-stat-label">Pending</div>
-        </div>
-        <div className="cp-stat">
-          <div className="cp-stat-num green">{stats.accepted}</div>
-          <div className="cp-stat-label">Accepted</div>
-        </div>
-        <div className="cp-stat">
-          <div className="cp-stat-num red">{stats.rejected}</div>
-          <div className="cp-stat-label">Rejected</div>
-        </div>
-      </div>
-
-      <div className="cp-filter-bar" id="cp-filter-bar">
-        <button
-          type="button"
-          className={`cp-filter-toggle${filterOpen ? " open" : ""}`}
-          onClick={() => setFilterOpen((o) => !o)}
-        >
-          <IcoFilter />
-          <span className="cp-filter-toggle-text">
-            {FILTERS.find((f) => f.key === filter)?.label || "Filter"}
-          </span>
-          <span className="cp-filter-toggle-chevron">
-            <IcoChevron open={filterOpen} />
-          </span>
-        </button>
-
-        <div className={`cp-filter-panel${filterOpen ? " open" : ""}`}>
-          <div className="cp-filters">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                className={`cp-chip${filter === f.key ? " " + f.cls : ""}`}
-                onClick={() => {
-                  setFilter(f.key);
-                  setFilterOpen(false);
-                  scrollToTop();
-                }}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="cp-section-head">
-        <button
-          className="cp-refresh-btn"
-          onClick={() => {
-            load();
-            loadStats();
-          }}
-        >
-          <IcoRefresh /> Refresh
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="cp-loading">
-          <div className="cp-spinner" /> Loading requests…
-        </div>
-      ) : !rows.length ? (
-        <div className="cp-empty">
-          <IcoBox />
-          <div className="cp-empty-title">
-            No {filter === "all" ? "" : filter + " "}requests
-          </div>
-          <div className="cp-empty-sub">
-            {filter === "pending"
-              ? "All caught up — no pending approvals."
-              : `No ${filter} material requests found.`}
-          </div>
-        </div>
-      ) : (
-        rows.map((r) => (
-          <MaterialCard key={r.id} r={r} onAction={handleAction} />
-        ))
-      )}
-
-      {toast && (
-        <div className={`cp-toast ${toast.type}`}>
-          {toast.type === "ok" ? <IcoCheck /> : <IcoX />}
-          {toast.msg}
-        </div>
-      )}
-    </div>
-  );
-}
 const isMobileDevice = () =>
   /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 function officeViewerUrl(url) {
   if (!url) return url;
   return `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(url)}`;
+}
+
+// Embed mode has far less chrome than the full view.aspx viewer — used for
+// the card thumbnail preview so we're not just showing a ribbon/toolbar.
+function officeEmbedPreviewUrl(url) {
+  if (!url) return url;
+  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
 }
 
 function resolveViewUrl(url, isOffice) {
@@ -1884,7 +1403,67 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
                         <IcoImg />
                       </div>
                     )
-                  ) : null}
+                  ) : it.url ? (
+                    it.isOffice ? (
+                      <div
+                        className="cp-media-photo"
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 6,
+                          background: "#fdbca396",
+                          color: "#af3404",
+                          cursor: "pointer",
+                        }}
+                        onClick={() =>
+                          window.open(resolveViewUrl(it.url, it.isOffice), "_blank")
+                        }
+                      >
+                        <IcoDocBars w={32} h={32} />
+                        <span style={{ fontSize: 11, fontWeight: 600 }}>
+                          Open Presentation
+                        </span>
+                      </div>
+                    ) : (
+                      <div
+                        className="cp-media-photo cp-media-doc-preview"
+                        style={{ position: "relative", overflow: "hidden", cursor: "pointer" }}
+                        onClick={() =>
+                          window.open(resolveViewUrl(it.url, it.isOffice), "_blank")
+                        }
+                      >
+                        <iframe
+                          src={`${it.url}#toolbar=0&navpanel=0&scrollbar=0&view=FitH`}
+                          title={it.title}
+                          loading="lazy"
+                          scrolling="no"
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: -20,
+                            width: "calc(100% + 40px)",
+                            height: "260%",
+                            border: "none",
+                            pointerEvents: "none",
+                          }}
+                        />
+                      </div>
+                    )
+                  ) : (
+                    <div
+                      className="cp-media-photo"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#ccc",
+                      }}
+                    >
+                      <IcoDoc w={40} h={40} />
+                    </div>
+                  )}
                   <div className="cp-media-body">
                     <span className={`cp-media-badge ${it.type}`}>
                       {it.type === "dpr" ? (
@@ -1962,10 +1541,6 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
 // ─── Nav config ───────────────────────────────────────────────────────────────
 const SECTIONS = {
   overview: { title: "Overview", sub: "" },
-  materials: {
-    title: "Material Requests",
-    sub: "Review and action procurement requests from site.",
-  },
   media: {
     title: "Reports & Photos",
     sub: "Daily reports, weekly reports and site photos.",
@@ -2029,13 +1604,13 @@ function ProfilePage({ siteName, onLogout, theme, onToggleTheme }) {
       return;
     }
     (async () => {
-      setLoading(true);
+      setLoading(true); 
       const { data, error } = await supabase
         .from("site_details")
         .select(
-          "site_name, client_name, head_name, head_contact_no, incharge_name, incharge_contact_no, pc_name, pc_contact_no, status, site_image_url, job_no",
+          "site_name, client_name, head_name, head_contact_no, coordinator_name, coordinator_contact_no, pc_name, pc_contact_no, status, site_image_url, job_no",
         )
-        .eq("site_name", siteName)
+        .ilike("site_name", siteName)
         .maybeSingle();
       if (error) console.error("site_details error:", error);
       setSite(data || null);
@@ -2136,9 +1711,9 @@ function ProfilePage({ siteName, onLogout, theme, onToggleTheme }) {
   const contacts = [
     { role: "Project Head", name: site.head_name, phone: site.head_contact_no },
     {
-      role: "Site Incharge",
-      name: site.incharge_name,
-      phone: site.incharge_contact_no,
+      role: "Site Coordinator",
+      name: site.coordinator_name,
+      phone: site.coordinator_contact_no,
     },
     {
       role: "Process Controller",
@@ -2146,6 +1721,14 @@ function ProfilePage({ siteName, onLogout, theme, onToggleTheme }) {
       phone: site.pc_contact_no,
     },
   ].filter((c) => c.name || c.phone);
+
+  function detailSection(title, items){
+    const details = [
+      {clientName: "Client Name", value: site.clientName},
+      {jobNo: "Job Number", value: site.jobNo},
+      {status: "Status", value: site.status},
+    ].filter((d) => d.value); 
+  }
 
   return (
     <div className="cp-profile-outer">
@@ -2341,25 +1924,11 @@ export default function ClientPortal() {
   const [activeSite, setActiveSite] = useState("");
   const [allSites, setAllSites] = useState([]);
   const [section, setSection] = useState("overview");
-  const [pendingCount, setPendingCount] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // state additions in ClientPortal
   const [theme, setTheme] = useState(
     () => localStorage.getItem("cp_theme") || "light",
   );
-  const loadPendingCount = useCallback(async () => {
-    if (!activeSite) return;
-    const { count } = await supabase
-      .from("material_requirements")
-      .select("id", { count: "exact", head: true })
-      .ilike("site_name", activeSite)
-      .eq("status", "pending");
-    setPendingCount(count || 0);
-  }, [activeSite]);
-
-  useEffect(() => {
-    loadPendingCount();
-  }, [loadPendingCount]);
   useEffect(() => {
     localStorage.setItem("cp_theme", theme);
   }, [theme]);
@@ -2431,12 +2000,6 @@ export default function ClientPortal() {
 
   const NAV_ITEMS = [
     { key: "overview", label: "Overview", icon: IcoHome },
-    {
-      key: "materials",
-      label: "Material Requests",
-      icon: IcoBoxNav,
-      badge: pendingCount,
-    },
     { key: "media", label: "Reports & Photos", icon: IcoFolder },
   ];
 
@@ -2501,9 +2064,6 @@ export default function ClientPortal() {
                     >
                       <Icon />
                       {item.label}
-                      {!!item.badge && (
-                        <span className="cp-nav-badge">{item.badge}</span>
-                      )}
                     </button>
                   );
                 })}
@@ -2570,13 +2130,9 @@ export default function ClientPortal() {
                       >
                         <Icon />
                         {item.label}
-                        {!!item.badge && (
-                          <span className="cp-nav-badge">{item.badge}</span>
-                        )}
                       </button>
                     );
                   })}
-
                   {section === "media" && (
                     <MediaFolderTree
                       siteName={activeSite}
@@ -2621,18 +2177,7 @@ export default function ClientPortal() {
                   </div>
 
                   {section === "overview" && (
-                    <Overview
-                      siteName={activeSite}
-                      onNavigate={goToSection}
-                      newRequestCount={pendingCount}
-                    />
-                  )}
-                  {section === "materials" && (
-                    <MaterialRequests
-                      siteName={activeSite}
-                      userName={displayName}
-                      onStatsChange={setPendingCount}
-                    />
+                    <Overview siteName={activeSite} onNavigate={goToSection} />
                   )}
                   {section === "media" && (
                     <ReportsAndPhotos

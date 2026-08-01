@@ -1315,6 +1315,7 @@ leaves.forEach(lv => {
           ["Absent",  "#dc2626"],
           ["Leave",   "#7c3aed"],
           ["Partial", "#f59e0b"],
+          ["Overtime", "#2563eb"],
         ].map(([l,c]) => (
           <div key={l} className="cal-leg-item">
             <div className="cal-leg-dot" style={{ background:c }}/>

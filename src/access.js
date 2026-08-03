@@ -15,7 +15,7 @@ const OFFICE_ALL_KEYS = [
   "verify-requests", "new-tickets", "raised-tickets", "solved-tickets",
   "apply-leave", "my-leaves", "proxy-request",
   "site-report", "my-reports", "checklists", "report-submissions",
-   "add-drawings", "all-drawings",
+   "add-drawings", "all-drawings", 
 ];
 
 // role (lowercased) -> { admin: [...keys], office: [...keys] }
@@ -24,13 +24,15 @@ const ROLE_ACCESS = {
   admin: { admin: "*", office: "*" },
 
   "project head": {
-    admin: [],
-    office: [
-      "my-tasks", "recurring-tasks", "my-reschedules",
-      "apply-leave", "my-leaves", "proxy-request",
-      "site-report", "my-reports", "checklists", "report-submissions",
-    ],
-  },
+  admin: [],
+  office: [
+    "my-tasks", "recurring-tasks", "my-reschedules",
+    "raised-tickets", "solved-tickets",
+    "apply-leave", "my-leaves", "proxy-request",
+    "site-report", "my-reports", "checklists", "report-submissions",
+    "new-tickets",
+  ],
+},
   "mis head": {
     admin: [],
     office: OFFICE_ALL_KEYS,

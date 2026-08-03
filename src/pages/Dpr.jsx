@@ -1068,11 +1068,9 @@ async function fetchPendingMaterials(site) {
   return data || [];
 }
 
-// High-urgency styled section — always renders (even with 0 rows, per spec),
-// shown at the very end of the report just before the Thank You page.
 function buildPendingMaterialsHtml(rows) {
   const list = rows || [];
-  if (!list.length) return ""; // ← nothing pending, skip the whole section
+  if (!list.length) return "";
 
   const rowsHtml = list
     .map(

@@ -1223,19 +1223,19 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
 
   const VIEW_MODES = [
     { key: "recent", label: "Recent" },
-    { key: "day", label: "By Day" },
-    { key: "month", label: "By Month" },
-    { key: "year", label: "By Year" },
-    { key: "range", label: "Date Range" },
+      // { key: "day", label: "By Day" },
+      // { key: "month", label: "By Month" },
+      // { key: "year", label: "By Year" },
+      // { key: "range", label: "Date Range" },
   ];
 
   const TYPE_FILTERS = [
-    {
-      key: "all",
-      label: `All (${counts.all})`,
-      cls: "type-all",
-      icon: <IcoLayers />,
-    },
+    // {
+    //   key: "all",
+    //   label: `All (${counts.all})`,
+    //   cls: "type-all",
+    //   icon: <IcoLayers />,
+    // },
     {
       key: "photo",
       label: ` Site Photos (${counts.photo})`,

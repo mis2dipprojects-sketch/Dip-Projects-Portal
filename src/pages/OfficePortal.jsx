@@ -2977,6 +2977,16 @@ const [leaveForm, setLeaveForm] = useState({
       });
   }, []);
   
+  useEffect (()=>{
+    const s = localStorage.getItem("user");
+    if(!s)return;
+    const parsed = JSON.parse(s);
+    console.log("Parsed user from localStorage:", parsed);
+    setUser(parsed);
+    supabase.from("user_details")
+    .select("username", parsed.user_name)
+    .single()
+  })
 useEffect(() => {
   supabase
     .from("user_details")

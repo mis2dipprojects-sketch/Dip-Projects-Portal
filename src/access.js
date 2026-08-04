@@ -18,8 +18,6 @@ const OFFICE_ALL_KEYS = [
    "add-drawings", "all-drawings", 
 ];
 
-// role (lowercased) -> { admin: [...keys], office: [...keys] }
-// Use "*" to mean "everything in that portal".
 const ROLE_ACCESS = {
   admin: { admin: "*", office: "*" },
 

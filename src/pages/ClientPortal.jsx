@@ -1311,7 +1311,7 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
         </button>
 
         <div className={`cp-filter-panel${filterOpen ? " open" : ""}`}>
-          <div className="cp-viewmodes">
+          {/* <div className="cp-viewmodes">
             {VIEW_MODES.map((v) => (
               <button
                 key={v.key}
@@ -1325,7 +1325,7 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
                 {v.label}
               </button>
             ))}
-          </div>
+          </div> */}
 
           {viewMode === "range" && (
             <div className="cp-range-picker">

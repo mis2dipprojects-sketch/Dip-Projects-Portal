@@ -1529,7 +1529,7 @@ async function generateEveningPdf(payload, onProgress) {
 
   // Render each section
   for (const [title, body] of sectionDefs) {
-    if (!body?.trim()) continue;
+    if (!body?.trim()) continue;  
 
     const isPhotos =
       title === "WORK PROGRESS PHOTOS" || title === "CHECKLIST PHOTOS"; // widened

@@ -33,7 +33,6 @@
   --shadow:0 2px 16px rgba(0,0,0,.3);
 } 
 
-
 /* ── Report Submissions ── */
 [data-theme="dark"] .op-empty-state {
   display: flex;

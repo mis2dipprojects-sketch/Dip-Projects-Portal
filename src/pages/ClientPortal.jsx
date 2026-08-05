@@ -1293,13 +1293,7 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
             <IcoX />
           </button>
         </div>
-      )}
-
-      <div className="cp-section-head">
-        <button className="cp-refresh-btn" onClick={load}>
-          <IcoRefresh /> Refresh
-        </button>
-      </div>
+      )}  
 
       <div className="cp-filter-bar">
         <button
@@ -1385,6 +1379,12 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
                 {f.icon} {f.label}
               </button>
             ))}
+            
+            <div className="cp-section-head">
+              <button className="cp-refresh-btn" onClick={load}>
+                <IcoRefresh /> Refresh
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1603,6 +1603,7 @@ const mimeToExt = {
   "application/vnd.ms-powerpoint": "ppt",
 };
 
+
 function getExtensionFromUrl(url, fallback = "") {
   if (!url) return fallback;
   try {
@@ -1612,6 +1613,7 @@ function getExtensionFromUrl(url, fallback = "") {
   } catch (_) {}
   return fallback;
 }
+
 
 async function forceDownload(url, filename) {
   try {

@@ -451,10 +451,7 @@ const NAV = [
       { key: "manpower-reports", label: "Manpower Report", icon: Ico.manRpt },
     ],
   },
-];
-const MDO_PORTAL_NAV={
-
-}
+];  
 const REPORT_SUBMISSIONS_ITEM = {
   key: "report-submissions",
   label: "Report Submissions",
@@ -1278,6 +1275,7 @@ const submit = async () => {
       </div>
     );
 
+    
   return (
     <div>
       <div className="info-banner" style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 8, width: "100%", boxSizing: "border-box" }}>
@@ -1306,8 +1304,9 @@ const submit = async () => {
                 "your project head for approval."}{" "}
             </>
           )}
-        </span>
+        </span> 
       </div>
+      
       {err && (
         <div className="info-banner warn-banner" style={{ marginBottom: 16 }}>
           {Ico.info} {err}
@@ -1626,20 +1625,15 @@ const NAV_COLORS = {
   "profile": "#bd3c0a",
 };
 
-function SniButton({ itemKey, icon, label, isActive, isHovered, onEnter, onLeave, onClick, badge, style }) {
-  const highlighted = isActive || isHovered;
+function SniButton({ itemKey, icon, label, isActive, onClick, badge, style }) {
   const color = NAV_COLORS[itemKey] || "var(--amber2)";
   return (
     <button
       className={`sni${isActive ? " act" : ""}`}
       onClick={onClick}
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
       style={{
-        background: highlighted ? `${color}18` : undefined,
-        color: highlighted ? color : undefined,
-        overflow: "visible",
-        position: "relative",
+        "--nav-bg": `${color}18`,
+        "--nav-color": color,
         ...style,
       }}
     >

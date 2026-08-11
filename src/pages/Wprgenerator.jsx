@@ -186,6 +186,30 @@ async function ensureBucket(supabase, site) {
   return data;
 }
 
+async function setStorageBucket(supabase, site){
+  const {data, error} = await supabase.functions.invoke("ensure-storageBucket", {
+    body: {site},
+  });
+  if(error) {
+    const msg = error.context?.error || 
+    error.message ||
+    "Failed to prepare storage bucket";
+    throw new Error(msg);
+  }
+  if(data?.error) throw new Error(data.error);
+  try{
+    for(let i=0; i<data.length();i++){
+      
+    }
+  }
+  catch(e){
+    window.refresh();
+    console.log("error occured:", e);
+    return null;
+  }
+  return data;
+}
+
 function buildSiteDatePath(date) {
   const [year, month, day] = date.split("-");
   const monthNames = [
@@ -2317,6 +2341,8 @@ export default function WprGenerator({ user, supabase }) {
     }));
   const lbNext = () =>
     setLightbox((p) => ({ ...p, idx: (p.idx + 1) % p.images.length }));
+const displayJobNo = String(reportNum).padStart(2, "0");
+const displayReportNo = zp(reportNum);
   const uploadWprRef = useRef();
   const showToast = (msg, type = "info", ms = 3000) => {
     setToast({ msg, type });
@@ -3331,18 +3357,22 @@ export default function WprGenerator({ user, supabase }) {
                   letterSpacing: ".06em",
                 }}
               >
-                Report Number
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "rgba(255,207,160,0.75)",
-                  marginTop: 3,
+                Report Number:
+                  <span
+                  style={{
+                  fontSize: 18,
+                  color: "rgb(2, 2, 2)",
+                  marginLeft: 35,
+                  borderRadius:"50px",
+                  padding: "8px",
+                  background:"rgb(255, 207, 160)",
                   fontFamily: "var(--mono)",
                 }}
               >
-                {jobNo || "—"}
+                {displayReportNo}
+              </span>
               </div>
+             
             </div>
           </div>
           <div className="wpr-fg">

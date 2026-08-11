@@ -565,6 +565,10 @@
   .sni{display:flex;align-items:center;gap:9px;padding:12px;border-radius:9px;cursor:pointer;color:var(--ink2);font-size:13px;font-weight:500;border:none;background:transparent;width:100%;text-align:left;transition:background .15s,color .15s;}
   .sni:hover{background:var(--paper);color:var(--ink);}
 
+  .sni.act {
+  background: var(--nav-color-bg);
+  color: var(--nav-color);
+}
   .sni { position: relative; }
   .sni-badge {margin-left: auto;min-width: 18px;height: 18px;padding: 0 5px;border-radius: 9px;background: var(--red);color: #fff;font-size: 10.5px;font-weight: 800;display: flex;align-items: center;justify-content: center;flex-shrink: 0;line-height: 1;}
   /* ── Card ── */
@@ -775,3 +779,54 @@
   .spinner{width:20px;height:20px;border:2.5px solid var(--line2);border-top-color:var(--amber);border-radius:50%;animation:spin .7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
   @keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+
+  /* ── Sidebar nav button ── */
+.sni{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:12px;
+  border-radius:9px;
+  cursor:pointer;
+  color:var(--ink2);
+  font-size:13px;
+  font-weight:500;
+  border:none;
+  background:transparent;
+  width:100%;
+  text-align:left;
+  transition:background .15s, color .15s;
+  position:relative;
+  overflow:visible;
+}
+
+/* Hover ONLY on real pointer devices (mouse/trackpad) — never on touch */
+@media (hover: hover) and (pointer: fine) {
+  .sni:hover{
+    background: var(--nav-bg, var(--paper));
+    color: var(--nav-color, var(--ink));
+  }
+}
+
+/* Active — driven purely by activeTab state, works identically on touch/mouse */
+.sni.act{
+  background: var(--nav-bg, var(--paper));
+  color: var(--nav-color, var(--ink));
+}
+
+.sni-badge{
+  margin-left:auto;
+  min-width:18px;
+  height:18px;
+  padding:0 5px;
+  border-radius:9px;
+  background:var(--red);
+  color:#fff;
+  font-size:10.5px;
+  font-weight:800;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  line-height:1;
+}

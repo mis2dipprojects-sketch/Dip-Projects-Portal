@@ -334,18 +334,18 @@ function PendingTaskQueuePanel({ assignedTo, employeeName, form, setForm }) {
     if (!assignedTo) { setPendingTasks([]); return; }
     (async () => {
       setLoading(true);
-const { data, error } = await supabase
-  .from("tasks")
-  .select("id, title, due_date, hours_to_complete, accepted_at, resumed_at, accumulated_seconds, is_held, hold_started_at, status, is_recurring, parent_task_id")
-  .eq("assigned_to", assignedTo)
-  .neq("status", "completed")
-  .neq("status", "not_applicable")
-  .order("due_date", { ascending: true });
-if (!error) {
-  setPendingTasks(
-    (data || []).filter((t) => !t.is_recurring && !t.parent_task_id),
-  );
-}
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("id, title, due_date, hours_to_complete, accepted_at, resumed_at, accumulated_seconds, is_held, hold_started_at, status, is_recurring, parent_task_id")
+        .eq("assigned_to", assignedTo)
+        .neq("status", "completed")
+        .neq("status", "not_applicable")
+        .order("due_date", { ascending: true });
+      if (!error) {
+        setPendingTasks(
+          (data || []).filter((t) => !t.is_recurring && !t.parent_task_id),
+        );
+      }
       setLoading(false);
     })();
   }, [assignedTo]);

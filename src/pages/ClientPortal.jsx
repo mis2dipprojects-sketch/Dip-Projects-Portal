@@ -29,6 +29,26 @@ const fmtDateShort = (iso) => {
   });
 };
 
+function extractFileUrl(raw) {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (trimmed.startsWith("http")) return trimmed;
+    try {
+      return extractFileUrl(JSON.parse(trimmed));
+    } catch {
+      return trimmed; // not JSON, not http — return as-is
+    }
+  }
+  if (Array.isArray(raw)) {
+    return raw.length ? extractFileUrl(raw[0]) : null;
+  }
+  if (typeof raw === "object") {
+    return raw.url || raw.publicUrl || raw.supabaseUrl || null;
+  }
+  return null;
+}
+
 function parseSiteNames(raw) {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -1160,37 +1180,40 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
         url: r.pdf_url,
         kind: "doc",
       })),
-    ...wprs.map((r) => ({
-      type: "wpr",
-      date: r.report_date || r.created_at, // used for sorting/grouping by report period
-      displayDate: r.created_at || r.report_date, // used for showing actual time
-      title: `Weekly Report #${r.report_number || ""}`,
-      meta: r.engineer_name,
-      url: r.presentation_url,
-      kind: "doc",
-      isOffice: isOfficeFile(r.presentation_url),
-    })),
-...photos.map((p) => {
-  const isGraphical = p.image_type === "graphical";
-  const isActualImage = !isGraphical || isImageFile(p.public_url);
-  return {
-    type: isGraphical ? "graphical" : "photo",
-    date: p.created_at,
-    displayDate: p.actual_created_at || p.created_at,
-    title:
-      p.caption ||
-      (isGraphical ? "Graphical Drawing" : "Site Photo"),
-    meta:
-      isGraphical
-        ? "Weekly Report"
-        : p.source === "dpr"
-          ? "Daily Report"
-          : "Weekly Report",
-    url: p.public_url,
-    kind: isActualImage ? "image" : "doc",
-    isOffice: isOfficeFile(p.public_url),
-  };
-}),
+    ...wprs.map((r) => {
+      const url = extractFileUrl(r.presentation_url);
+      return {
+        type: "wpr",
+        date: r.report_date || r.created_at,
+        displayDate: r.created_at || r.report_date,
+        title: `Weekly Report #${r.report_number || ""}`,
+        meta: r.engineer_name,
+        url,
+        kind: "doc",
+        isOffice: isOfficeFile(url),
+      };
+    }),
+    ...photos.map((p) => {
+      const isGraphical = p.image_type === "graphical";
+      const isActualImage = !isGraphical || isImageFile(p.public_url);
+      return {
+        type: isGraphical ? "graphical" : "photo",
+        date: p.created_at,
+        displayDate: p.actual_created_at || p.created_at,
+        title:
+          p.caption ||
+          (isGraphical ? "Graphical Drawing" : "Site Photo"),
+        meta:
+          isGraphical
+            ? "Weekly Report"
+            : p.source === "dpr"
+              ? "Daily Report"
+              : "Weekly Report",
+        url: p.public_url,
+        kind: isActualImage ? "image" : "doc",
+        isOffice: isOfficeFile(p.public_url),
+      };
+    }),
   ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   const dateScoped = jumpDate
     ? unified.filter((it) => it.date && it.date.slice(0, 10) === jumpDate)
@@ -1326,7 +1349,6 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
               </button>
             ))}
           </div> */}
-
           {viewMode === "range" && (
             <div className="cp-range-picker">
               <div className="cp-range-field">
@@ -1632,7 +1654,6 @@ async function forceDownload(url, filename) {
     window.open(url, "_blank");
   }
 }
-
 // ─── Profile panel ─────────────────────────────────────────────────────────
 function ProfilePage({ siteName, onLogout, theme, onToggleTheme }) {
   const [site, setSite] = useState(null);
@@ -1640,9 +1661,9 @@ function ProfilePage({ siteName, onLogout, theme, onToggleTheme }) {
   const [activity, setActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(null);
-  const [showLogoutModal, setShowLogoutModal] = useState(false); // NEW
+  const [showLogoutModal, setShowLogoutModal] = useState(false); 
 
-  const user = JSON.parse(localStorage.getItem("user") || "null"); // NEW — for the modal's name/role display
+  const user = JSON.parse(localStorage.getItem("user") || "null"); 
 
   useEffect(() => {
     if (!siteName) {

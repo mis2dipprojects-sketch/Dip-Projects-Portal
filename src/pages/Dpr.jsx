@@ -1505,7 +1505,7 @@ async function generateEveningPdf(payload, onProgress) {
   onProgress("Fetching pending materials…");
   const pendingMaterials = await fetchPendingMaterials(payload.site);
   const pmHtml = buildPendingMaterialsHtml(pendingMaterials);
-
+  
   const sectionDefs = [
     ["TODAY'S WORK SUMMARY", buildSummaryHtml(payload.summary)],
     ["MANPOWER REPORT", buildManpowerHtml(payload.manpower)],
@@ -4164,7 +4164,7 @@ function DprForm({ user }) {
           sites = [titleCase(udData.site_name)];
         }
       }
-
+      
       // Final fallback: use whatever is in localStorage user object
       if (sites.length === 0) {
         if (user?.site_names?.length) {
@@ -4173,7 +4173,7 @@ function DprForm({ user }) {
           sites = [titleCase(user.site_name)];
         }
       }
-
+      
       if (sites.length === 1) {
         setSite(sites[0]);
       }
@@ -4500,11 +4500,11 @@ async function uploadBatch(items, uploadFn, concurrency = 4) {
   };
 
   function buildWhatsAppText(payload) {
-    const LINE = "─".repeat(20);
-    const RULE = "━".repeat(20);
+    const LINE = "─".repeat(10);
+    const RULE = "━".repeat(10);
 
     let msg = "";
-
+    
     // ── Header ──────────────────────────────────────────────
     msg += "🌅 *MORNING REPORT*\n";
     msg += "🏗️ _DIP Projects · Site Progress Update_\n";

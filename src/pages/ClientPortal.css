@@ -761,7 +761,9 @@
   align-items: center;
   justify-content: flex-end;
   margin-bottom: 0px;
+  margin-top:10px;
   margin-left:35rem;
+  margin:10px 0px 0px 35rem;
   flex-wrap: wrap;
   gap: 10px;
 }
@@ -1997,7 +1999,7 @@
 .cp-filter-bar {
   border-radius: var(--r-md);
   position: sticky;
-  top: 8px;
+  top: 80px;
   z-index: 999;
   background: #ffffffcc;
   backdrop-filter: blur(6px);

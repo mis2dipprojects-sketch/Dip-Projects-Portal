@@ -2932,7 +2932,7 @@ const handleDrawingSubmit = async () => {
       .select(
         "id, site_name, reporter_name, designation, visit_date, visit_time, progress_of_work, quality_observations, safety_concerns, issues_concerns, site_visit_instructions, key_instructions, submitted_by, submitted_by_name, pdf_url, created_at",
       )
-      .eq("submitted_by", u.user_name) // ✅ matches what's actually stored
+      .eq("submitted_by", u.user_name)
       .order("created_at", { ascending: false });
     if (!error) setMySvrReports(data || []);
     setLoadingSvrReports(false);
@@ -2976,17 +2976,18 @@ const [leaveForm, setLeaveForm] = useState({
         localStorage.setItem("user", JSON.stringify(updated));
       });
   }, []);
-  
-  useEffect (()=>{
-    const s = localStorage.getItem("user");
-    if(!s)return;
-    const parsed = JSON.parse(s);
-    console.log("Parsed user from localStorage:", parsed);
-    setUser(parsed);
-    supabase.from("user_details")
-    .select("username", parsed.user_name)
-    .single()
-  })
+
+// useEffect (()=>{
+//     const s = localStorage.getItem("user");
+//     if(!s)return;
+//     const parsed = JSON.parse(s);
+//     console.log("Parsed user from localStorage:", parsed);
+//     setUser(parsed);
+//     supabase.from("user_details")
+//     .select("username", parsed.user_name)
+//     .single()
+// })
+
 useEffect(() => {
   supabase
     .from("user_details")

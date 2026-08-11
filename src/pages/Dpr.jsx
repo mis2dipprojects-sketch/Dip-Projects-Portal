@@ -637,7 +637,7 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 .visitor-instr{font-size:14px;color:#334155;line-height:1.7;}
 
 /* PLAN LIST */
-.plan-item{display:flex;align-items:baseline;gap:14px;padding:10px 16px;border-bottom:1px solid #cbd5e1;}
+.plan-item{display:flex;align-items:baseline;gap:14px;padding:8px 16px;}
 .plan-item:last-child{border-bottom:none;}
 .plan-num{font-size:15px;font-weight:800;color:#800000;min-width:18px;flex-shrink:0;}
 .plan-text{font-size:15px;color:#0f172a;}
@@ -645,7 +645,7 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 
 /* BULLET LIST */
 .bullet-list{padding:8px 16px;}
-.bullet-item{display:flex;align-items:flex-start;gap:8px;padding:4px 0;border-bottom:1px solid #f1f5f9;}
+.bullet-item{display:flex;align-items:flex-start;gap:8px;padding:4px 0;}
 .bullet-item:last-child{border-bottom:none;}
 .bullet-arrow{color:#800000;font-weight:700;font-size:12px;margin-top:4px;flex-shrink:0;}
 .bullet-item.bullet-sub{padding-left:26px;}

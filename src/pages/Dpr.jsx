@@ -641,6 +641,7 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 .plan-item:last-child{border-bottom:none;}
 .plan-num{font-size:15px;font-weight:800;color:#800000;min-width:18px;flex-shrink:0;}
 .plan-text{font-size:15px;color:#0f172a;}
+.plan-heading{font-size:15px;font-weight:800;color:#0f172a;padding:10px 16px 4px;}
 
 /* BULLET LIST */
 .bullet-list{padding:8px 16px;}
@@ -657,6 +658,7 @@ table tbody tr:nth-child(even) td{background:#f8fafc;}
 /* SUMMARY with categories */
 .summary-cat{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#fff;background:#800000;padding:7px 14px;border-radius:4px 4px 0 0;}
 .summary-cat-body{border:1.5px solid #cbd5e1;border-top:none;border-radius:0 0 4px 4px;padding:12px 16px;background:#fff;margin-bottom:14px;}
+.summary-heading{font-size:15px;font-weight:800;color:#0f172a;padding:10px 0 4px;}
 
 /* PHOTOS */
 .pdf-photo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;padding:14px;background:#f8fafc;}
@@ -762,15 +764,15 @@ function bulletBlock(txt) {
     .join("")}</div>`;
 }
 
+
 function buildSummaryHtml(summary) {
   if (!summary?.trim()) return "";
   const lines = summary.replace(/\n{2,}/g, "\n").split("\n").filter((l) => l.trim());
   let html = "";
-  let currentCat = "";
   let bullets = []; // { text, sub }
 
-  function flush() {
-    if (!currentCat && !bullets.length) return;
+  function flushBullets() {
+    if (!bullets.length) return;
     const bHtml = bullets
       .map((b) =>
         b.sub
@@ -784,29 +786,37 @@ function buildSummaryHtml(summary) {
             </div>`,
       )
       .join("");
-    if (currentCat) {
-      html += `<div class="summary-cat">${esc(currentCat.replace(/\*/g, "").trim())}</div>
-               <div class="summary-cat-body">${bHtml}</div>`;
-    } else {
-      html += `<div class="bullet-list">${bHtml}</div>`;
-    }
+    html += `<div class="bullet-list">${bHtml}</div>`;
     bullets = [];
   }
 
   lines.forEach((line) => {
     const trimmed = line.trim();
+
+    // legacy *Category* syntax — still supported, renders same as heading
     if (trimmed.startsWith("*") && trimmed.endsWith("*") && trimmed.length > 2) {
-      flush();
-      currentCat = trimmed;
-    } else {
-      const isSub = /^\s*◦/.test(line) || /^ {2,}/.test(line);
-      const cleanText = line.replace(/^\s*[•◦]\s*/, "").trim();
-      bullets.push({ text: cleanText, sub: isSub });
+      flushBullets();
+      html += `<div class="summary-heading">${esc(trimmed.replace(/\*/g, "").trim())}</div>`;
+      return;
     }
+
+    const isBulletLine = /^\s*[•◦]/.test(line);
+    if (!isBulletLine) {
+      // Plain line with no bullet marker → heading
+      flushBullets();
+      html += `<div class="summary-heading">${esc(trimmed)}</div>`;
+      return;
+    }
+
+    const isSub = /^\s*◦/.test(line) || /^ {2,}/.test(line);
+    const cleanText = line.replace(/^\s*[•◦]\s*/, "").trim();
+    bullets.push({ text: cleanText, sub: isSub });
   });
-  flush();
+
+  flushBullets();
   return html ? `<div style="padding:14px 18px;">${html}</div>` : "";
 }
+
 function buildManpowerHtml(manpower) {
   if (!manpower?.length) return "";
   const grouped = {};
@@ -970,20 +980,26 @@ function buildVisitorsHtml(visitors) {
 
 function buildPlanningHtml(planning) {
   if (!planning?.trim()) return "";
-  const lines = planning.split("\n").filter((l) => l.trim());
+  const lines = planning.split("\n");
   if (!lines.length) return "";
-  let num = 0;
-  return lines
-    .map((line) => {
-      const clean = line.replace(/^\d+[\.\)]\s*|^[•\-*]\s*/, "").trim();
-      if (!clean) return "";
-      num++;
-      return `<div class="plan-item">
-      <span class="plan-num">${num}</span>
-      <span class="plan-text">${esc(clean)}</span>
-    </div>`;
-    })
-    .join("");
+
+  let html = "";
+  lines.forEach((raw) => {
+    const line = raw.trim();
+    if (!line) return;
+    const m = line.match(/^(\d+)\)\s*(.*)$/);
+    if (m) {
+      const text = m[2].trim();
+      if (!text) return;
+      html += `<div class="plan-item">
+        <span class="plan-num">${m[1]}</span>
+        <span class="plan-text">${esc(text)}</span>
+      </div>`;
+    } else {
+      html += `<div class="plan-heading">${esc(line)}</div>`;
+    }
+  });
+  return html;
 }
 
 function buildCustomFieldsHtml(fields) {
@@ -4182,6 +4198,85 @@ function DprForm({ user }) {
       setLoadingSites(false);
     })();
   }, [user]);
+
+const handlePlanningKeyDown = (e) => {
+  if (e.key !== "Enter" && e.key !== "Backspace") return;
+  const textarea = e.target;
+  const { selectionStart, selectionEnd, value } = textarea;
+  const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
+  const currentLine = value.slice(lineStart, selectionStart);
+  const numMatch = currentLine.match(/^(\d+)\)\s/);
+
+  if (e.key === "Enter") {
+    e.preventDefault();
+
+    if (numMatch) {
+      const restOfLine = currentLine.slice(numMatch[0].length).trim();
+
+      if (!restOfLine && selectionStart === selectionEnd) {
+        // Enter on an empty numbered line → drop numbering, exit the list
+        const newValue = value.slice(0, lineStart) + value.slice(selectionEnd);
+        setPlanning(newValue);
+        requestAnimationFrame(() => {
+          textarea.selectionStart = textarea.selectionEnd = lineStart;
+        });
+        return;
+      }
+
+      // Continue the list: N) → N+1)
+      const nextNum = parseInt(numMatch[1], 10) + 1;
+      const insertion = `\n${nextNum}) `;
+      const newValue =
+        value.slice(0, selectionStart) + insertion + value.slice(selectionEnd);
+      setPlanning(newValue);
+      const newPos = selectionStart + insertion.length;
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = newPos;
+      });
+      return;
+    }
+
+    const lineText = currentLine.trim();
+    if (!lineText) {
+      // Empty heading line → plain newline, stay in heading mode
+      const insertion = "\n";
+      const newValue =
+        value.slice(0, selectionStart) + insertion + value.slice(selectionEnd);
+      setPlanning(newValue);
+      const newPos = selectionStart + insertion.length;
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = newPos;
+      });
+      return;
+    }
+
+    // Non-empty heading line → start a numbered list at 1)
+    const insertion = "\n1) ";
+    const newValue =
+      value.slice(0, selectionStart) + insertion + value.slice(selectionEnd);
+    setPlanning(newValue);
+    const newPos = selectionStart + insertion.length;
+    requestAnimationFrame(() => {
+      textarea.selectionStart = textarea.selectionEnd = newPos;
+    });
+    return;
+  }
+
+  if (e.key === "Backspace" && selectionStart === selectionEnd && numMatch) {
+    const prefixEnd = lineStart + numMatch[0].length;
+    if (selectionStart === prefixEnd) {
+      // Cursor right after "N) " → one backspace clears the whole prefix,
+      // turning the line back into a heading
+      e.preventDefault();
+      const newValue = value.slice(0, lineStart) + value.slice(prefixEnd);
+      setPlanning(newValue);
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = lineStart;
+      });
+    }
+  }
+};
+
 const handleSummaryKeyDown = (e) => {
   const textarea = e.target;
   const { selectionStart, selectionEnd, value } = textarea;
@@ -4203,42 +4298,82 @@ const handleSummaryKeyDown = (e) => {
     return;
   }
 
-  if (e.key !== "Enter") return;
+  if (e.key !== "Enter" && e.key !== "Backspace") return;
 
   const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
   const currentLine = value.slice(lineStart, selectionStart);
   const bulletMatch = currentLine.match(/^(\s*)(•|◦)\s?/);
-  e.preventDefault();
 
-  if (bulletMatch && currentLine.slice(bulletMatch[0].length).trim() === "") {
-    // empty bullet/sub-bullet → remove it and exit the list
-    const newValue = value.slice(0, lineStart) + value.slice(selectionEnd);
+  if (e.key === "Enter") {
+    e.preventDefault();
+
+    if (bulletMatch) {
+      const restOfLine = currentLine.slice(bulletMatch[0].length).trim();
+
+      if (!restOfLine && selectionStart === selectionEnd) {
+        // Enter on an empty bullet/sub-bullet → remove it, exit the list
+        const newValue = value.slice(0, lineStart) + value.slice(selectionEnd);
+        setSummary(newValue);
+        requestAnimationFrame(() => {
+          textarea.selectionStart = textarea.selectionEnd = lineStart;
+        });
+        return;
+      }
+
+      // Continue the list, preserving bullet vs sub-bullet level
+      const isSub = /^\s*◦/.test(currentLine);
+      const insertion = isSub ? "\n    ◦ " : "\n• ";
+      const newValue =
+        value.slice(0, selectionStart) + insertion + value.slice(selectionEnd);
+      setSummary(newValue);
+      const newPos = selectionStart + insertion.length;
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = newPos;
+      });
+      return;
+    }
+
+    const lineText = currentLine.trim();
+    if (!lineText) {
+      // Empty heading line → plain newline, stay in heading mode
+      const insertion = "\n";
+      const newValue =
+        value.slice(0, selectionStart) + insertion + value.slice(selectionEnd);
+      setSummary(newValue);
+      const newPos = selectionStart + insertion.length;
+      requestAnimationFrame(() => {
+        textarea.selectionStart = textarea.selectionEnd = newPos;
+      });
+      return;
+    }
+
+    // Non-empty heading line → start a bulleted list
+    const insertion = "\n• ";
+    const newValue =
+      value.slice(0, selectionStart) + insertion + value.slice(selectionEnd);
     setSummary(newValue);
+    const newPos = selectionStart + insertion.length;
     requestAnimationFrame(() => {
-      textarea.selectionStart = textarea.selectionEnd = lineStart;
+      textarea.selectionStart = textarea.selectionEnd = newPos;
     });
     return;
   }
 
-  const isSub = /^\s*◦/.test(currentLine);
-  const insertion = isSub ? "\n    ◦ " : "\n• ";
-  const newValue =
-    value.slice(0, selectionStart) + insertion + value.slice(selectionEnd);
-  setSummary(newValue);
-  const newPos = selectionStart + insertion.length;
-  requestAnimationFrame(() => {
-    textarea.selectionStart = textarea.selectionEnd = newPos;
-  });
-};
-
-  const handleSummaryFocus = (e) => {
-    if (!summary) {
-      setSummary("• ");
+  if (e.key === "Backspace" && selectionStart === selectionEnd && bulletMatch) {
+    const prefixEnd = lineStart + bulletMatch[0].length;
+    if (selectionStart === prefixEnd) {
+      // Cursor right after "• " or "    ◦ " → one backspace clears the
+      // whole prefix, turning the line back into a heading
+      e.preventDefault();
+      const newValue = value.slice(0, lineStart) + value.slice(prefixEnd);
+      setSummary(newValue);
       requestAnimationFrame(() => {
-        e.target.selectionStart = e.target.selectionEnd = 2;
+        textarea.selectionStart = textarea.selectionEnd = lineStart;
       });
     }
-  };
+  }
+};
+
   const collectPayload = () => ({
     site,
     engineer,
@@ -4527,7 +4662,7 @@ async function uploadBatch(items, uploadFn, concurrency = 4) {
           msg += isSub ? `    ◦ ${clean}\n` : `• ${clean}\n`;
         });
     }
-    
+
     // ── Manpower ────────────────────────────────────────────
     if (payload.manpower?.length) {
       msg += "\n👥 *MANPOWER*\n";
@@ -4979,7 +5114,6 @@ async function uploadBatch(items, uploadFn, concurrency = 4) {
           value={summary}
           onChange={(e) => setSummary(e.target.value)}
           onKeyDown={handleSummaryKeyDown}
-          onFocus={handleSummaryFocus}
           placeholder="Describe completed work activities…"
         />
       </SectionBlock>
@@ -5181,6 +5315,7 @@ async function uploadBatch(items, uploadFn, concurrency = 4) {
               rows={4}
               value={planning}
               onChange={(e) => setPlanning(e.target.value)}
+              onKeyDown={handlePlanningKeyDown}
               placeholder="Plan for tomorrow's activities…"
             />
           </SectionBlock>

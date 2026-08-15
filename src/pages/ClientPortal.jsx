@@ -551,7 +551,7 @@ function MediaFolderTree({ siteName, activeDate, onSelectDate }) {
       const [{ data: dprRows }, { data: wprRows }, { data: drawingRows }] = await Promise.all([
         supabase
           .from("dpr_reports")
-          .select("id, date, payload")
+          .select("id, date, payload, report_type")   // ← added report_type
           .ilike("site", siteName),
         supabase
           .from("wpr_reports")
@@ -574,26 +574,31 @@ function MediaFolderTree({ siteName, activeDate, onSelectDate }) {
         imgDates = (data || []).map((r) => r.created_at);
       }
 
-      // DPR photos now live in payload.photos, not a separate table
+      // Only non-morning DPRs count as "Daily Report" dates — matches the
+      // "Daily Reports" pill, which excludes report_type === "morning".
+      const dprReportDates = (dprRows || [])
+        .filter((r) => r.report_type !== "morning")
+        .map((r) => r.date);
+
+      // DPR photos live in payload.photos regardless of report_type — matches
+      // the "Site Photos" pill, which does NOT filter dprData before pulling photos.
       const dprPhotoDates = (dprRows || []).flatMap((r) => {
-        const photos = Array.isArray(r?.payload?.photos)
-          ? r.payload.photos
-          : [];
+        const photos = Array.isArray(r?.payload?.photos) ? r.payload.photos : [];
         return photos.length ? photos.map(() => r.date) : [];
       });
 
       const drawingDates = (drawingRows || []).flatMap((d) => {
-      const files = Array.isArray(d.file_urls) ? d.file_urls : [];
-      return files.length ? files.map(() => d.date) : [];
-    });
+        const files = Array.isArray(d.file_urls) ? d.file_urls : [];
+        return files.length ? files.map(() => d.date) : [];
+      });
 
-    const allDates = [
-      ...(dprRows || []).map((r) => r.date),
-      ...(wprRows || []).map((r) => r.report_date),
-      ...imgDates,
-      ...dprPhotoDates,
-      ...drawingDates,
-    ];
+      const allDates = [
+        ...dprReportDates,          // ← was: (dprRows || []).map((r) => r.date)
+        ...(wprRows || []).map((r) => r.report_date),
+        ...imgDates,
+        ...dprPhotoDates,
+        ...drawingDates,
+      ];
       const t = buildDateTree(allDates);
       setTree(t);
       if (t[0]) {
@@ -674,10 +679,11 @@ function Overview({ siteName, onNavigate }) {
     }
     setLoading(true);
 
-    const { count: dprCount } = await supabase
-      .from("dpr_reports")
-      .select("id", { count: "exact", head: true })
-      .ilike("site", siteName);
+  const { count: dprCount } = await supabase
+    .from("dpr_reports")
+    .select("id", { count: "exact", head: true })
+    .neq("report_type", "morning")
+    .ilike("site", siteName);
 
     const { data: wprRows } = await supabase
       .from("wpr_reports")

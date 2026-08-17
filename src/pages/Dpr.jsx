@@ -5006,7 +5006,7 @@ async function uploadBatch(items, uploadFn, concurrency = 4) {
 
         <div className="fg">
           <label className="flabel">
-            Site / Project <span className="req">*</span>
+            Site <span className="req">*</span>
           </label>
           {loadingSites ? (
             <input className="finput" value="Loading…" readOnly />

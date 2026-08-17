@@ -496,11 +496,25 @@ const IcoChevron = ({ open }) => (
 );
 const MONTH_NAMES = [ "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December",];
 
-function buildDateTree(dates) {
+function buildDateTree(items) {
   const years = {};
-  dates.filter(Boolean).forEach((iso) => {
+  const seen = new Set();
+
+  items.filter(Boolean).forEach((item) => {
+    const iso = item.date;
+    if (!iso) return;
     const d = new Date(iso);
     if (isNaN(d)) return;
+
+    const signature = [
+      item.type || "unknown",
+      item.id || item.url || "",
+      iso.slice(0, 10),
+    ].join("::");
+
+    if (seen.has(signature)) return;
+    seen.add(signature);
+
     const y = d.getFullYear(),
       m = d.getMonth();
     const dayKey = `${y}-${String(m + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -551,7 +565,7 @@ function MediaFolderTree({ siteName, activeDate, onSelectDate }) {
       const [{ data: dprRows }, { data: wprRows }, { data: drawingRows }] = await Promise.all([
         supabase
           .from("dpr_reports")
-          .select("id, date, payload")
+          .select("id, report_type, date, payload")
           .ilike("site", siteName),
         supabase
           .from("wpr_reports")
@@ -564,37 +578,64 @@ function MediaFolderTree({ siteName, activeDate, onSelectDate }) {
       ]);
       const wprIds = (wprRows || []).map((w) => w.id);
 
-      let imgDates = [];
+      let wprImageRows = [];
       if (wprIds.length) {
         const { data } = await supabase
           .from("wpr_images")
-          .select("created_at")
+          .select("id, wpr_report_id, image_type, public_url, created_at")
           .in("wpr_report_id", wprIds)
           .in("image_type", ["site_photo", "site_photos", "graphical"]);
-        imgDates = (data || []).map((r) => r.created_at);
+        wprImageRows = data || [];
       }
 
-      // DPR photos now live in payload.photos, not a separate table
-      const dprPhotoDates = (dprRows || []).flatMap((r) => {
-        const photos = Array.isArray(r?.payload?.photos)
-          ? r.payload.photos
+      const filteredDprRows = (dprRows || []).filter((r) => r.report_type !== "morning");
+
+      const dprPhotoRows = filteredDprRows.flatMap((report) => {
+        const photos = Array.isArray(report?.payload?.photos)
+          ? report.payload.photos
           : [];
-        return photos.length ? photos.map(() => r.date) : [];
+        return photos.filter(Boolean).map((photo, photoIndex) => ({
+          id: `dpr-photo-${report.id}-${photoIndex}`,
+          type: "photo",
+          date: report.date || report.created_at,
+          url: photo.supabaseUrl || photo.publicUrl || photo.url || null,
+        }));
       });
 
-      const drawingDates = (drawingRows || []).flatMap((d) => {
-      const files = Array.isArray(d.file_urls) ? d.file_urls : [];
-      return files.length ? files.map(() => d.date) : [];
-    });
+      const drawingRowsNormalized = (drawingRows || []).flatMap((d) => {
+        const files = Array.isArray(d.file_urls) ? d.file_urls : [];
+        return files.map((f, i) => ({
+          id: `drawing-${d.id}-${i}`,
+          type: "graphical",
+          date: d.date || d.created_at,
+          url: f.url || f.publicUrl || null,
+        }));
+      });
 
-    const allDates = [
-      ...(dprRows || []).map((r) => r.date),
-      ...(wprRows || []).map((r) => r.report_date),
-      ...imgDates,
-      ...dprPhotoDates,
-      ...drawingDates,
-    ];
-      const t = buildDateTree(allDates);
+      const allItems = [
+        ...filteredDprRows.map((r) => ({
+          id: `dpr-${r.id}`,
+          type: "dpr",
+          date: r.date || r.created_at,
+          url: r.pdf_url || null,
+        })),
+        ...(wprRows || []).map((r) => ({
+          id: `wpr-${r.id}`,
+          type: "wpr",
+          date: r.report_date || r.created_at,
+          url: r.presentation_url || null,
+        })),
+        ...(wprImageRows || []).map((p) => ({
+          id: `wpr-image-${p.id}`,
+          type: p.image_type === "graphical" ? "graphical" : "photo",
+          date: p.created_at,
+          url: p.public_url || null,
+        })),
+        ...dprPhotoRows,
+        ...drawingRowsNormalized,
+      ];
+
+      const t = buildDateTree(allItems);
       setTree(t);
       if (t[0]) {
         setOpenYears({ [t[0].key]: true });
@@ -1174,6 +1215,7 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
       .filter((r) => r.report_type !== "morning")
       .map((r) => ({
         type: "dpr",
+        date: r.date || r.created_at,
         displayDate: r.created_at || r.date,
         title: `${capitalize(r.report_type) || "Daily"} Report`,
         meta: r.engineer,

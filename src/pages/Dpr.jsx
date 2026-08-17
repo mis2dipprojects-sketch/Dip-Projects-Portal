@@ -4737,6 +4737,26 @@ async function uploadBatch(items, uploadFn, concurrency = 4) {
 
     return msg;
   }
+
+  function openWhatsAppShare(messageText) {
+    const encodedMessage = encodeURIComponent(messageText);
+    const mobileDeepLink = `whatsapp://send?text=${encodedMessage}`;
+    const webShareLink = `https://api.whatsapp.com/send?text=${encodedMessage}`;
+
+    try {
+      window.location.href = mobileDeepLink;
+    } catch (error) {
+      window.open(webShareLink, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    setTimeout(() => {
+      if (document.hasFocus()) {
+        window.open(webShareLink, "_blank", "noopener,noreferrer");
+      }
+    }, 1500);
+  }
+
   async function getLastMorningPayload(site, engineer) {
     const { data } = await supabase
       .from("dpr_reports")
@@ -4821,11 +4841,8 @@ async function uploadBatch(items, uploadFn, concurrency = 4) {
       if (error) throw new Error(`DB insert failed: ${error.message}`);
 
       // Build WhatsApp text and open
-
-      // Build WhatsApp text and open
       const text = buildWhatsAppText(payload);
-      const encoded = encodeURIComponent(text);
-      window.open(`https://wa.me/?text=${encoded}`, "_blank");
+      openWhatsAppShare(text);
 
       setSubmitted(true);
     } catch (err) {

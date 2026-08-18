@@ -48,7 +48,24 @@ function extractFileUrl(raw) {
   }
   return null;
 }
+export function dayKeyOf(iso) {
+  if (!iso && iso !== 0) return null;
 
+  const raw = String(iso).trim();
+  if (!raw) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw;
+  }
+
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 function parseSiteNames(raw) {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.filter(Boolean);
@@ -502,25 +519,23 @@ function buildDateTree(items) {
 
   items.filter(Boolean).forEach((item) => {
     const iso = item.date;
-    if (!iso) return;
-    const d = new Date(iso);
-    if (isNaN(d)) return;
+    const dayKey = dayKeyOf(iso);
+    if (!dayKey) return;
 
+    const [y, m, d] = dayKey.split("-").map(Number);
     const signature = [
       item.type || "unknown",
       item.id || item.url || "",
-      iso.slice(0, 10),
+      dayKey,
     ].join("::");
 
     if (seen.has(signature)) return;
     seen.add(signature);
 
-    const y = d.getFullYear(),
-      m = d.getMonth();
-    const dayKey = `${y}-${String(m + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const monthIndex = m - 1;
     years[y] = years[y] || {};
-    years[y][m] = years[y][m] || {};
-    years[y][m][dayKey] = (years[y][m][dayKey] || 0) + 1;
+    years[y][monthIndex] = years[y][monthIndex] || {};
+    years[y][monthIndex][dayKey] = (years[y][monthIndex][dayKey] || 0) + 1;
   });
 
   return Object.keys(years)
@@ -944,11 +959,10 @@ function ActivityTrendChart({ series, onSelectMonth, selectedMonth }) {
     </div>
   );
 }
-function monthKeyOf(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
-  if (isNaN(d)) return null;
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+export function monthKeyOf(dateStr) {
+  const dayKey = dayKeyOf(dateStr);
+  if (!dayKey) return null;
+  return `${dayKey.slice(0, 4)}-${dayKey.slice(5, 7)}`;
 }
 function monthLabelOf(key) {
   const [y, m] = key.split("-").map(Number);
@@ -1258,7 +1272,7 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
     }),
   ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   const dateScoped = jumpDate
-    ? unified.filter((it) => it.date && it.date.slice(0, 10) === jumpDate)
+    ? unified.filter((it) => dayKeyOf(it.date) === jumpDate)
     : unified;
 
   const counts = {

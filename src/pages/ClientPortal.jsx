@@ -1445,12 +1445,25 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
           )}
 
           <div className="cp-typefilters">
+            {/* {TYPE_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                className={`cp-chip${typeFilter === f.key ? " act " + f.cls : ""}`}
+                onClick={() => {
+                  setTypeFilter(f.key);
+                  scrollToTop();
+                }}
+              >
+                {f.icon} {f.label}
+              </button>
+            ))} */}
             {TYPE_FILTERS.map((f) => (
               <button
                 key={f.key}
                 className={`cp-chip${typeFilter === f.key ? " act " + f.cls : ""}`}
                 onClick={() => {
                   setTypeFilter(f.key);
+                  setFilterOpen(false);
                   scrollToTop();
                 }}
               >

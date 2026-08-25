@@ -356,60 +356,104 @@ async function buildContentsSlide(pres, fd, sections, hidden = false) {
 }
 
 // ── Activities Slide ─────────────────────────────────────────────────────────
-async function buildActivitiesSlide(pres, fd, hidden = false) { 
+// async function buildActivitiesSlide(pres, fd, hidden = false) { 
+//   const acts = (fd.activities || []).filter(a => a.name);
+//   if (!acts.length) return;
+
+//   const COL_SR   = pt(36);
+//   const COL_NAME = pt(210);
+//   const COL_NOTE = SAFE_WIDTH - COL_SR - COL_NAME;
+//   const HDR_H    = pt(28);
+//   // Taller rows to avoid content overflow
+//   const ROW_FONT = 9;
+//   const HDR_FONT = 10;
+//   const MIN_ROW = pt(24), MAX_ROW = pt(80), ROW_FONT_OA = 10;
+
+//   let i = 0, slideNo = 1;
+//   while (i < acts.length) {
+//     const s = makeSlide(pres, hidden);
+//     s.background = { color: WHT };
+//     const startY = addHeader(s, fd, 'Detailed Status of Activities') + pt(6);
+//     let y = startY;
+//     const SAFE_BTM = SAFE_BOTTOM - pt(20);
+
+//     // Header row — professional navy
+//     const colX = [SAFE_LEFT, SAFE_LEFT + COL_SR, SAFE_LEFT + COL_SR + COL_NAME];
+//     const colW = [COL_SR, COL_NAME, COL_NOTE];
+//     drawTableHeader(s, colX, colW, ['SR', 'ACTIVITY NAME', 'STATUS / NOTE'], y, HDR_H, HDR_FONT);
+//     y += HDR_H;
+
+//     let rowIdx = 0;
+//     while (i < acts.length) {
+//       const act  = acts[i];
+//       // Estimate row height based on text length
+//       const statusLen = (act.status || '').length;
+//       const nameLen   = (act.name || '').length;
+//       // Approx chars per line at ROW_FONT
+//       const noteCharsPerLine  = Math.floor(COL_NOTE   / (ROW_FONT * 0.55 / 72));
+//       const nameCharsPerLine  = Math.floor(COL_NAME   / (ROW_FONT * 0.55 / 72));
+//       const noteLines  = Math.ceil(statusLen / Math.max(noteCharsPerLine, 1));
+//       const nameLines  = Math.ceil(nameLen   / Math.max(nameCharsPerLine, 1));
+//       const textLines  = Math.max(noteLines, nameLines, 1);
+//       const lineH      = (ROW_FONT + 2) / 72;
+//       const rowH = Math.min(MAX_ROW, Math.max(MIN_ROW, textLines * lineH + pt(10)));
+
+//       if (y + rowH > SAFE_BTM) break;
+
+//       drawTableRow(s, colX, colW,
+//         [String(i+1), (act.name || '').toUpperCase(), act.status || ''],
+//         y, rowH, rowIdx, ['center', 'left', 'left'], ROW_FONT);
+
+//       y += rowH; i++; rowIdx++;
+//     }
+
+//     // Outer border
+//     outerBorder(s, SAFE_LEFT, startY, SAFE_WIDTH, y - startY);
+//     addSlideNum(s, pres);
+//   }
+// }
+async function buildActivitiesSlide(pres, fd, hidden = false) {
   const acts = (fd.activities || []).filter(a => a.name);
   if (!acts.length) return;
 
-  const COL_SR   = pt(36);
+  const COL_SR = pt(36);
   const COL_NAME = pt(210);
   const COL_NOTE = SAFE_WIDTH - COL_SR - COL_NAME;
-  const HDR_H    = pt(28);
-  // Taller rows to avoid content overflow
-  const ROW_FONT = 9;
-  const HDR_FONT = 10;
-  const MIN_ROW = pt(24), MAX_ROW = pt(80), ROW_FONT_OA = 10;
+  const ROWS_PER_SLIDE = 12;
 
-  let i = 0, slideNo = 1;
+  let i = 0;
   while (i < acts.length) {
     const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     const startY = addHeader(s, fd, 'Detailed Status of Activities') + pt(6);
-    let y = startY;
-    const SAFE_BTM = SAFE_BOTTOM - pt(20);
+    const chunk = acts.slice(i, i + ROWS_PER_SLIDE);
 
-    // Header row — professional navy
-    const colX = [SAFE_LEFT, SAFE_LEFT + COL_SR, SAFE_LEFT + COL_SR + COL_NAME];
-    const colW = [COL_SR, COL_NAME, COL_NOTE];
-    drawTableHeader(s, colX, colW, ['SR', 'ACTIVITY NAME', 'STATUS / NOTE'], y, HDR_H, HDR_FONT);
-    y += HDR_H;
+    const rows = [
+      ['SR', 'ACTIVITY NAME', 'STATUS / NOTE'].map(h => ({
+        text: h,
+        options: { bold: true, color: TBL_HDR_FG, fill: { color: TBL_HDR_BG }, align: 'center', valign: 'middle', fontSize: 10 },
+      })),
+      ...chunk.map((act, idx) => {
+        const bg = idx % 2 === 0 ? WHT : TBL_ALT_BG;
+        return [
+          { text: String(i + idx + 1), options: { align: 'center', valign: 'middle', fontSize: 9, fill: { color: bg } } },
+          { text: (act.name || '').toUpperCase(), options: { align: 'left', valign: 'middle', fontSize: 9, fill: { color: bg } } },
+          { text: act.status || '', options: { align: 'left', valign: 'middle', fontSize: 9, fill: { color: bg } } },
+        ];
+      }),
+    ];
 
-    let rowIdx = 0;
-    while (i < acts.length) {
-      const act  = acts[i];
-      // Estimate row height based on text length
-      const statusLen = (act.status || '').length;
-      const nameLen   = (act.name || '').length;
-      // Approx chars per line at ROW_FONT
-      const noteCharsPerLine  = Math.floor(COL_NOTE   / (ROW_FONT * 0.55 / 72));
-      const nameCharsPerLine  = Math.floor(COL_NAME   / (ROW_FONT * 0.55 / 72));
-      const noteLines  = Math.ceil(statusLen / Math.max(noteCharsPerLine, 1));
-      const nameLines  = Math.ceil(nameLen   / Math.max(nameCharsPerLine, 1));
-      const textLines  = Math.max(noteLines, nameLines, 1);
-      const lineH      = (ROW_FONT + 2) / 72;
-      const rowH = Math.min(MAX_ROW, Math.max(MIN_ROW, textLines * lineH + pt(10)));
+    s.addTable(rows, {
+      x: SAFE_LEFT, y: startY, w: SAFE_WIDTH,
+      colW: [COL_SR, COL_NAME, COL_NOTE],
+      border: { type: 'solid', color: TBL_BORDER, pt: 0.5 },
+      fontFace: FONT,
+      valign: 'middle',
+      autoPage: false,
+    });
 
-      if (y + rowH > SAFE_BTM) break;
-
-      drawTableRow(s, colX, colW,
-        [String(i+1), (act.name || '').toUpperCase(), act.status || ''],
-        y, rowH, rowIdx, ['center', 'left', 'left'], ROW_FONT);
-
-      y += rowH; i++; rowIdx++;
-    }
-
-    // Outer border
-    outerBorder(s, SAFE_LEFT, startY, SAFE_WIDTH, y - startY);
     addSlideNum(s, pres);
+    i += chunk.length;
   }
 }
 
@@ -531,301 +575,688 @@ async function buildGraphicalSlides(pres, fd, hidden = false) {
 }
 
 // ── Next Week Planning ───────────────────────────────────────────────────────
+// async function buildNextWeekSlide(pres, fd, hidden = false) {
+//   const plans = (fd.nextWeekPlans || []).filter(Boolean);
+//   if (!plans.length) return;
+
+//   const MIN_ROW = pt(30), MAX_ROW = pt(80);
+//   let i = 0;
+
+//   while (i < plans.length) {
+//     const s = makeSlide(pres, hidden);
+//     s.background = { color: WHT };
+//     const startY = addHeader(s, fd, 'Next Week Planning');
+//     let y = startY + pt(10);
+
+//     while (i < plans.length) {
+//       const rowH = calcRowHeight(
+//         [pt(40), SAFE_WIDTH - pt(56)],
+//         [String(i + 1), plans[i]],
+//         10, MIN_ROW, MAX_ROW
+//       );
+//       if (y + rowH > SAFE_BOTTOM) break;
+
+//       const bg = i % 2 ? 'F5F8FF' : WHT;
+//       rect(s, SAFE_LEFT, y, SAFE_WIDTH, rowH, bg);
+//       rect(s, SAFE_LEFT, y + rowH - pt(0.4), SAFE_WIDTH, pt(0.4), TBL_BORDER);
+
+//       // SR badge — navy
+//       rect(s, SAFE_LEFT, y, pt(40), rowH, NAVY);
+//       tx(s, String(i + 1), SAFE_LEFT, y, pt(40), rowH,
+//         { color: WHT, bold: true, size: 10, align: 'center', vAlign: 'middle', font: FONT });
+
+//       tx(s, plans[i], SAFE_LEFT + pt(52), y, SAFE_WIDTH - pt(56), rowH,
+//         { size: 10, color: '1A2E42', vAlign: 'middle', font: FONT });
+
+//       y += rowH;
+//       i++;
+//     }
+
+//     addSlideNum(s, pres);
+//   }
+// }
+// async function buildNextWeekSlide(pres, fd, hidden = false) {
+//   const plans = (fd.nextWeekPlans || []).filter(Boolean);
+//   if (!plans.length) return;
+
+//   const NUM_W = pt(40);
+//   const TEXT_W = SAFE_WIDTH - NUM_W;
+//   const ROWS_PER_SLIDE = 10;
+//   let idx = 0;
+
+//   while (idx < plans.length) {
+//     const s = makeSlide(pres, hidden);
+//     s.background = { color: WHT };
+//     const startY = addHeader(s, fd, 'Next Week Planning');
+//     const chunk = plans.slice(idx, idx + ROWS_PER_SLIDE);
+
+//     const rows = chunk.map((plan, i2) => {
+//       const bg = (idx + i2) % 2 === 0 ? WHT : 'F5F8FF';
+//       return [
+//         {
+//           text: String(idx + i2 + 1),
+//           options: { bold: true, color: WHT, fill: { color: NAVY }, align: 'center', valign: 'middle', fontSize: 10 },
+//         },
+//         {
+//           text: plan,
+//           options: { color: '1A2E42', fill: { color: bg }, align: 'left', valign: 'middle', fontSize: 10 },
+//         },
+//       ];
+//     });
+
+//     s.addTable(rows, {
+//       x: SAFE_LEFT, y: startY + pt(10), w: SAFE_WIDTH,
+//       colW: [NUM_W, TEXT_W],
+//       border: { type: 'solid', color: TBL_BORDER, pt: 0.5 },
+//       fontFace: FONT,
+//       valign: 'middle',
+//       autoPage: false,
+//     });
+
+//     addSlideNum(s, pres);
+//     idx += chunk.length;
+//   }
+// }
 async function buildNextWeekSlide(pres, fd, hidden = false) {
   const plans = (fd.nextWeekPlans || []).filter(Boolean);
   if (!plans.length) return;
 
-  const MIN_ROW = pt(30), MAX_ROW = pt(80);
-  let i = 0;
+  const NUM_W = pt(40);
+  const TEXT_W = SAFE_WIDTH - NUM_W;
+  const ROWS_PER_SLIDE = 10;
+  const MIN_ROW = pt(38);   // ↑ taller minimum row height
+  const MAX_ROW = pt(110);
+  const ROW_FONT = 10;
+  let idx = 0;
 
-  while (i < plans.length) {
+  while (idx < plans.length) {
     const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     const startY = addHeader(s, fd, 'Next Week Planning');
-    let y = startY + pt(10);
+    const chunk = plans.slice(idx, idx + ROWS_PER_SLIDE);
 
-    while (i < plans.length) {
-      const rowH = calcRowHeight(
-        [pt(40), SAFE_WIDTH - pt(56)],
-        [String(i + 1), plans[i]],
-        10, MIN_ROW, MAX_ROW
-      );
-      if (y + rowH > SAFE_BOTTOM) break;
+    const rows = chunk.map((plan, i2) => {
+      const bg = (idx + i2) % 2 === 0 ? WHT : 'F5F8FF';
+      return [
+        {
+          text: String(idx + i2 + 1),
+          options: { bold: true, color: WHT, fill: { color: NAVY }, align: 'center', valign: 'middle', fontSize: ROW_FONT },
+        },
+        {
+          text: plan,
+          options: { color: '1A2E42', fill: { color: bg }, align: 'left', valign: 'middle', fontSize: ROW_FONT },
+        },
+      ];
+    });
 
-      const bg = i % 2 ? 'F5F8FF' : WHT;
-      rect(s, SAFE_LEFT, y, SAFE_WIDTH, rowH, bg);
-      rect(s, SAFE_LEFT, y + rowH - pt(0.4), SAFE_WIDTH, pt(0.4), TBL_BORDER);
+    // Per-row heights, computed from content but with a taller floor
+    const rowH = chunk.map((plan, i2) =>
+      calcRowHeight([NUM_W, TEXT_W], [String(idx + i2 + 1), plan], ROW_FONT, MIN_ROW, MAX_ROW)
+    );
 
-      // SR badge — navy
-      rect(s, SAFE_LEFT, y, pt(40), rowH, NAVY);
-      tx(s, String(i + 1), SAFE_LEFT, y, pt(40), rowH,
-        { color: WHT, bold: true, size: 10, align: 'center', vAlign: 'middle', font: FONT });
-
-      tx(s, plans[i], SAFE_LEFT + pt(52), y, SAFE_WIDTH - pt(56), rowH,
-        { size: 10, color: '1A2E42', vAlign: 'middle', font: FONT });
-
-      y += rowH;
-      i++;
-    }
+    s.addTable(rows, {
+      x: SAFE_LEFT, y: startY + pt(10), w: SAFE_WIDTH,
+      colW: [NUM_W, TEXT_W],
+      rowH,
+      border: { type: 'solid', color: TBL_BORDER, pt: 0.5 },
+      fontFace: FONT,
+      valign: 'middle',
+      autoPage: false,
+    });
 
     addSlideNum(s, pres);
+    idx += chunk.length;
   }
 }
-
 // ── Drawing Register ─────────────────────────────────────────────────────────
+// async function buildDrawingRegisterSlide(pres, fd, hidden = false) {
+//   const rows = (fd.drawingRegisterData || []).filter(r => {
+//     const hdrs = fd.drawingRegisterHeaders || [];
+//     return hdrs.some((_, hi) => r['col'+hi]);
+//   });
+//   if (!rows.length) return;
+
+//   const hdrs     = fd.drawingRegisterHeaders || ['Architect GFC Drawing','Structure GFC Drawing','MEPF GFC Drawing'];
+//   const headers  = ['SR.NO.', ...hdrs];
+//   const HDR_H    = pt(32);
+//   const ROWS_H    = pt(26);
+//   const TABLE_W  = SAFE_WIDTH;
+//   const SR_W     = TABLE_W * 0.06;
+//   const COL_W    = (TABLE_W - SR_W) / hdrs.length;
+//   const colWidths = [SR_W, ...hdrs.map((_, i) => i === hdrs.length-1 ? TABLE_W - SR_W - COL_W*(hdrs.length-1) : COL_W)];
+//   const colX = colWidths.reduce((acc, w, i) => { acc.push(i===0 ? SAFE_LEFT : acc[i-1]+colWidths[i-1]); return acc; }, []);
+// const ROW_FONT = 9;
+// const MIN_ROW  = pt(26);
+// const MAX_ROW  = pt(90);    
+//   const maxPerSlide = Math.floor((SAFE_BOTTOM - SAFE_TOP - HDR_H - pt(8)) / ROWS_H) || 1;
+//   let idx = 0, slideNo = 1;
+
+//   while (idx < rows.length) {
+//     const s = makeSlide(pres, hidden);
+//     s.background = { color: WHT };
+//     addHeader(s, fd, 'Drawing Register');
+//     let y = SAFE_TOP + pt(10);
+
+//     drawTableHeader(s, colX, colWidths, headers.map(h => h.toUpperCase()), y, HDR_H, 9);
+//     y += HDR_H;
+
+//     let placed = 0;
+// while (idx < rows.length && placed < maxPerSlide) {
+//   const row = rows[idx];
+//   const vals = [String(idx+1), ...hdrs.map((_, hi) => row['col'+hi] || '')];
+//   const rowH = calcRowHeight(colWidths, vals, ROW_FONT, MIN_ROW, MAX_ROW);
+//   if (y + rowH > SAFE_BOTTOM - pt(8)) break;
+//   drawTableRow(s, colX, colWidths, vals, y, rowH, placed, null, ROW_FONT);
+//   y += rowH; idx++; placed++;
+// }
+
+//     outerBorder(s, SAFE_LEFT, SAFE_TOP+pt(10), TABLE_W, y - SAFE_TOP - pt(10));
+//     addSlideNum(s, pres);
+//   }
+// }
 async function buildDrawingRegisterSlide(pres, fd, hidden = false) {
   const rows = (fd.drawingRegisterData || []).filter(r => {
     const hdrs = fd.drawingRegisterHeaders || [];
-    return hdrs.some((_, hi) => r['col'+hi]);
+    return hdrs.some((_, hi) => r['col' + hi]);
   });
   if (!rows.length) return;
 
-  const hdrs     = fd.drawingRegisterHeaders || ['Architect GFC Drawing','Structure GFC Drawing','MEPF GFC Drawing'];
-  const headers  = ['SR.NO.', ...hdrs];
-  const HDR_H    = pt(32);
-  const ROWS_H    = pt(26);
-  const TABLE_W  = SAFE_WIDTH;
-  const SR_W     = TABLE_W * 0.06;
-  const COL_W    = (TABLE_W - SR_W) / hdrs.length;
-  const colWidths = [SR_W, ...hdrs.map((_, i) => i === hdrs.length-1 ? TABLE_W - SR_W - COL_W*(hdrs.length-1) : COL_W)];
-  const colX = colWidths.reduce((acc, w, i) => { acc.push(i===0 ? SAFE_LEFT : acc[i-1]+colWidths[i-1]); return acc; }, []);
-const ROW_FONT = 9;
-const MIN_ROW  = pt(26);
-const MAX_ROW  = pt(90);    
-  const maxPerSlide = Math.floor((SAFE_BOTTOM - SAFE_TOP - HDR_H - pt(8)) / ROWS_H) || 1;
-  let idx = 0, slideNo = 1;
+  const hdrs = fd.drawingRegisterHeaders || ['Architect GFC Drawing', 'Structure GFC Drawing', 'MEPF GFC Drawing'];
+  const headers = ['SR.NO.', ...hdrs.map(h => h.toUpperCase())];
+
+  const SR_W = SAFE_WIDTH * 0.06;
+  const COL_W = (SAFE_WIDTH - SR_W) / hdrs.length;
+  const colWidths = [SR_W, ...hdrs.map((_, i) => i === hdrs.length - 1 ? SAFE_WIDTH - SR_W - COL_W * (hdrs.length - 1) : COL_W)];
+
+  const ROWS_PER_SLIDE = 12;
+  let idx = 0;
 
   while (idx < rows.length) {
     const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     addHeader(s, fd, 'Drawing Register');
-    let y = SAFE_TOP + pt(10);
+    const chunk = rows.slice(idx, idx + ROWS_PER_SLIDE);
 
-    drawTableHeader(s, colX, colWidths, headers.map(h => h.toUpperCase()), y, HDR_H, 9);
-    y += HDR_H;
+    const tableRows = [
+      headers.map(h => ({
+        text: h,
+        options: { bold: true, color: TBL_HDR_FG, fill: { color: TBL_HDR_BG }, align: 'center', valign: 'middle', fontSize: 9 },
+      })),
+      ...chunk.map((row, i2) => {
+        const bg = i2 % 2 === 0 ? WHT : TBL_ALT_BG;
+        return [
+          { text: String(idx + i2 + 1), options: { align: 'center', valign: 'middle', fontSize: 9, fill: { color: bg } } },
+          ...hdrs.map((_, hi) => ({ text: row['col' + hi] || '', options: { align: 'left', valign: 'middle', fontSize: 9, fill: { color: bg } } })),
+        ];
+      }),
+    ];
 
-    let placed = 0;
-while (idx < rows.length && placed < maxPerSlide) {
-  const row = rows[idx];
-  const vals = [String(idx+1), ...hdrs.map((_, hi) => row['col'+hi] || '')];
-  const rowH = calcRowHeight(colWidths, vals, ROW_FONT, MIN_ROW, MAX_ROW);
-  if (y + rowH > SAFE_BOTTOM - pt(8)) break;
-  drawTableRow(s, colX, colWidths, vals, y, rowH, placed, null, ROW_FONT);
-  y += rowH; idx++; placed++;
-}
+    s.addTable(tableRows, {
+      x: SAFE_LEFT, y: SAFE_TOP + pt(10), w: SAFE_WIDTH,
+      colW: colWidths,
+      border: { type: 'solid', color: TBL_BORDER, pt: 0.5 },
+      fontFace: FONT,
+      valign: 'middle',
+      autoPage: false,
+    });
 
-    outerBorder(s, SAFE_LEFT, SAFE_TOP+pt(10), TABLE_W, y - SAFE_TOP - pt(10));
     addSlideNum(s, pres);
+    idx += chunk.length;
   }
 }
 
 // ── Office Activity ───────────────────────────────────────────────────────────
+// async function buildOfficeActivitySlide(pres, fd, hidden = false) {
+//   const items = (fd.officeActivityItems || []).filter(Boolean);
+//   if (!items.length) return;
+
+//   const CAT_H   = pt(24);
+//   const HDR_H   = pt(28);
+//   const MIN_ROW = pt(24);
+//   const MAX_ROW = pt(80);
+//   const ROW_FONT = 10;
+
+//   const SR_W  = SAFE_WIDTH * 0.07;
+//   const DET_W = SAFE_WIDTH - SR_W;
+//   const colX  = [SAFE_LEFT, SAFE_LEFT + SR_W];
+//   const colW  = [SR_W, DET_W];
+
+//   let idx = 0;
+
+//   while (idx < items.length) {
+//     const s = makeSlide(pres, hidden);
+//     s.background = { color: WHT };
+//     addHeader(s, fd, 'Office Activity');
+//     let y = SAFE_TOP + pt(10);
+
+//     // Category banner
+//     rect(s, SAFE_LEFT, y, SAFE_WIDTH, CAT_H, '2C4A6E');
+//     tx(s, 'BACK OFFICE WORK', SAFE_LEFT + pt(10), y, SAFE_WIDTH - pt(20), CAT_H,
+//       { bold: true, size: 9, color: WHT, align: 'center', vAlign: 'middle', font: FONT });
+//     y += CAT_H;
+
+//     drawTableHeader(s, colX, colW, ['SR.NO.', 'DETAILS'], y, HDR_H, ROW_FONT);
+//     y += HDR_H;
+
+//     let placed = 0;
+//     while (idx < items.length) {
+//       const vals = [String(idx + 1), items[idx]];
+//       const rowH = calcRowHeight(colW, vals, ROW_FONT, MIN_ROW, MAX_ROW);
+//       if (y + rowH > SAFE_BOTTOM - pt(8)) break;
+
+//       drawTableRow(s, colX, colW, vals, y, rowH, placed, ['center', 'left'], ROW_FONT);
+//       y += rowH;
+//       idx++;
+//       placed++;
+//     }
+
+//     outerBorder(s, SAFE_LEFT, SAFE_TOP + pt(10), SAFE_WIDTH, y - SAFE_TOP - pt(10));
+//     addSlideNum(s, pres);
+//   }
+// }
 async function buildOfficeActivitySlide(pres, fd, hidden = false) {
   const items = (fd.officeActivityItems || []).filter(Boolean);
   if (!items.length) return;
 
-  const CAT_H   = pt(24);
-  const HDR_H   = pt(28);
-  const MIN_ROW = pt(24);
-  const MAX_ROW = pt(80);
-  const ROW_FONT = 10;
-
-  const SR_W  = SAFE_WIDTH * 0.07;
+  const SR_W = SAFE_WIDTH * 0.07;
   const DET_W = SAFE_WIDTH - SR_W;
-  const colX  = [SAFE_LEFT, SAFE_LEFT + SR_W];
-  const colW  = [SR_W, DET_W];
-
+  const ROWS_PER_SLIDE = 12;
   let idx = 0;
 
   while (idx < items.length) {
     const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     addHeader(s, fd, 'Office Activity');
+
     let y = SAFE_TOP + pt(10);
-
-    // Category banner
-    rect(s, SAFE_LEFT, y, SAFE_WIDTH, CAT_H, '2C4A6E');
-    tx(s, 'BACK OFFICE WORK', SAFE_LEFT + pt(10), y, SAFE_WIDTH - pt(20), CAT_H,
+    rect(s, SAFE_LEFT, y, SAFE_WIDTH, pt(24), '2C4A6E');
+    tx(s, 'BACK OFFICE WORK', SAFE_LEFT + pt(10), y, SAFE_WIDTH - pt(20), pt(24),
       { bold: true, size: 9, color: WHT, align: 'center', vAlign: 'middle', font: FONT });
-    y += CAT_H;
+    y += pt(24);
 
-    drawTableHeader(s, colX, colW, ['SR.NO.', 'DETAILS'], y, HDR_H, ROW_FONT);
-    y += HDR_H;
+    const chunk = items.slice(idx, idx + ROWS_PER_SLIDE);
+    const tableRows = [
+      ['SR.NO.', 'DETAILS'].map(h => ({
+        text: h,
+        options: { bold: true, color: TBL_HDR_FG, fill: { color: TBL_HDR_BG }, align: 'center', valign: 'middle', fontSize: 10 },
+      })),
+      ...chunk.map((item, i2) => {
+        const bg = i2 % 2 === 0 ? WHT : TBL_ALT_BG;
+        return [
+          { text: String(idx + i2 + 1), options: { align: 'center', valign: 'middle', fontSize: 10, fill: { color: bg } } },
+          { text: item, options: { align: 'left', valign: 'middle', fontSize: 10, fill: { color: bg } } },
+        ];
+      }),
+    ];
 
-    let placed = 0;
-    while (idx < items.length) {
-      const vals = [String(idx + 1), items[idx]];
-      const rowH = calcRowHeight(colW, vals, ROW_FONT, MIN_ROW, MAX_ROW);
-      if (y + rowH > SAFE_BOTTOM - pt(8)) break;
+    s.addTable(tableRows, {
+      x: SAFE_LEFT, y, w: SAFE_WIDTH,
+      colW: [SR_W, DET_W],
+      border: { type: 'solid', color: TBL_BORDER, pt: 0.5 },
+      fontFace: FONT,
+      valign: 'middle',
+      autoPage: false,
+    });
 
-      drawTableRow(s, colX, colW, vals, y, rowH, placed, ['center', 'left'], ROW_FONT);
-      y += rowH;
-      idx++;
-      placed++;
-    }
-
-    outerBorder(s, SAFE_LEFT, SAFE_TOP + pt(10), SAFE_WIDTH, y - SAFE_TOP - pt(10));
     addSlideNum(s, pres);
+    idx += chunk.length;
   }
 }
 // ── Visitor Register ──────────────────────────────────────────────────────────
+// async function buildVisitorRegisterSlide(pres, fd, hidden = false) {
+//   const photos = (fd.visitorPhotos || []).filter(p => p && p.dataUrl);
+
+//   // Photo mode — render like MOM/Cube/Barchart range-captured images
+//   if (photos.length) {
+//     await buildRangeCaptureSlides(pres, fd, photos, 'Visitor Register', hidden);
+//     return;
+//   }
+
+//   // Manual mode — existing typed-table rendering
+//   const rows = (fd.visitorRegisterData || []).filter(r => r.name || r.type);
+//   if (!rows.length) return;
+
+//   const HDR_H   = pt(28);
+//   const MIN_ROW = pt(28);
+//   const MAX_ROW = pt(100);
+//   const ROW_FONT = 9;
+
+//   const SR_W    = SAFE_WIDTH * 0.06;
+//   const TYPE_W  = SAFE_WIDTH * 0.20;
+//   const NAME_W  = SAFE_WIDTH * 0.24;
+//   const INSTR_W = SAFE_WIDTH - SR_W - TYPE_W - NAME_W;
+//   const colWidths = [SR_W, TYPE_W, NAME_W, INSTR_W];
+//   const colX = colWidths.reduce((acc, w, i) => {
+//     acc.push(i === 0 ? SAFE_LEFT : acc[i-1] + colWidths[i-1]); return acc;
+//   }, []);
+//   const headers = ['SR.NO.', 'VISITOR TYPE', 'NAME / COMPANY', 'INSTRUCTIONS'];
+
+//   let idx = 0;
+//   while (idx < rows.length) {
+//     const s = makeSlide(pres, hidden);
+//     s.background = { color: WHT };
+//     addHeader(s, fd, 'Visitor Register');
+//     let y = SAFE_TOP + pt(10);
+
+//     drawTableHeader(s, colX, colWidths, headers, y, HDR_H, ROW_FONT);
+//     y += HDR_H;
+
+//     let placed = 0;
+//     while (idx < rows.length) {
+//       const row = rows[idx];
+//       const typeLabel = row.type === '__other__' ? (row.typeOther || 'Other') : (row.type || '');
+//       const vals = [String(idx+1), typeLabel, row.name||'', row.instruction||''];
+//       const rowH = calcRowHeight(colWidths, vals, ROW_FONT, MIN_ROW, MAX_ROW);
+//       if (y + rowH > SAFE_BOTTOM - pt(8)) break;
+//       drawTableRow(s, colX, colWidths, vals, y, rowH, placed, null, ROW_FONT);
+//       y += rowH; idx++; placed++;
+//     }
+
+//     outerBorder(s, SAFE_LEFT, SAFE_TOP+pt(10), SAFE_WIDTH, y - SAFE_TOP - pt(10));
+//     addSlideNum(s, pres);
+//   }
+// }
 async function buildVisitorRegisterSlide(pres, fd, hidden = false) {
   const photos = (fd.visitorPhotos || []).filter(p => p && p.dataUrl);
-
-  // Photo mode — render like MOM/Cube/Barchart range-captured images
   if (photos.length) {
     await buildRangeCaptureSlides(pres, fd, photos, 'Visitor Register', hidden);
     return;
   }
 
-  // Manual mode — existing typed-table rendering
   const rows = (fd.visitorRegisterData || []).filter(r => r.name || r.type);
   if (!rows.length) return;
 
-  const HDR_H   = pt(28);
-  const MIN_ROW = pt(28);
-  const MAX_ROW = pt(100);
-  const ROW_FONT = 9;
-
-  const SR_W    = SAFE_WIDTH * 0.06;
-  const TYPE_W  = SAFE_WIDTH * 0.20;
-  const NAME_W  = SAFE_WIDTH * 0.24;
+  const SR_W = SAFE_WIDTH * 0.06;
+  const TYPE_W = SAFE_WIDTH * 0.20;
+  const NAME_W = SAFE_WIDTH * 0.24;
   const INSTR_W = SAFE_WIDTH - SR_W - TYPE_W - NAME_W;
-  const colWidths = [SR_W, TYPE_W, NAME_W, INSTR_W];
-  const colX = colWidths.reduce((acc, w, i) => {
-    acc.push(i === 0 ? SAFE_LEFT : acc[i-1] + colWidths[i-1]); return acc;
-  }, []);
   const headers = ['SR.NO.', 'VISITOR TYPE', 'NAME / COMPANY', 'INSTRUCTIONS'];
 
+  const ROWS_PER_SLIDE = 10;
   let idx = 0;
+
   while (idx < rows.length) {
     const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     addHeader(s, fd, 'Visitor Register');
-    let y = SAFE_TOP + pt(10);
+    const chunk = rows.slice(idx, idx + ROWS_PER_SLIDE);
 
-    drawTableHeader(s, colX, colWidths, headers, y, HDR_H, ROW_FONT);
-    y += HDR_H;
+    const tableRows = [
+      headers.map(h => ({
+        text: h,
+        options: { bold: true, color: TBL_HDR_FG, fill: { color: TBL_HDR_BG }, align: 'center', valign: 'middle', fontSize: 9 },
+      })),
+      ...chunk.map((row, i2) => {
+        const bg = i2 % 2 === 0 ? WHT : TBL_ALT_BG;
+        const typeLabel = row.type === '__other__' ? (row.typeOther || 'Other') : (row.type || '');
+        return [
+          { text: String(idx + i2 + 1), options: { align: 'center', valign: 'middle', fontSize: 9, fill: { color: bg } } },
+          { text: typeLabel, options: { align: 'left', valign: 'middle', fontSize: 9, fill: { color: bg } } },
+          { text: row.name || '', options: { align: 'left', valign: 'middle', fontSize: 9, fill: { color: bg } } },
+          { text: row.instruction || '', options: { align: 'left', valign: 'middle', fontSize: 9, fill: { color: bg } } },
+        ];
+      }),
+    ];
 
-    let placed = 0;
-    while (idx < rows.length) {
-      const row = rows[idx];
-      const typeLabel = row.type === '__other__' ? (row.typeOther || 'Other') : (row.type || '');
-      const vals = [String(idx+1), typeLabel, row.name||'', row.instruction||''];
-      const rowH = calcRowHeight(colWidths, vals, ROW_FONT, MIN_ROW, MAX_ROW);
-      if (y + rowH > SAFE_BOTTOM - pt(8)) break;
-      drawTableRow(s, colX, colWidths, vals, y, rowH, placed, null, ROW_FONT);
-      y += rowH; idx++; placed++;
-    }
+    s.addTable(tableRows, {
+      x: SAFE_LEFT, y: SAFE_TOP + pt(10), w: SAFE_WIDTH,
+      colW: [SR_W, TYPE_W, NAME_W, INSTR_W],
+      border: { type: 'solid', color: TBL_BORDER, pt: 0.5 },
+      fontFace: FONT,
+      valign: 'middle',
+      autoPage: false,
+    });
 
-    outerBorder(s, SAFE_LEFT, SAFE_TOP+pt(10), SAFE_WIDTH, y - SAFE_TOP - pt(10));
     addSlideNum(s, pres);
+    idx += chunk.length;
   }
 }
 
 // ── Drawing & Decision Pending ────────────────────────────────────────────────
+// async function buildDrawingDecisionSlide(pres, fd, hidden = false) {
+//   const rows = (fd.drawingDecisionData || []).filter(r => r.drawingName);
+//   if (!rows.length) return;
+
+//   const HDR_H   = pt(28);
+//   const MIN_ROW = pt(26);
+//   const MAX_ROW = pt(80);
+//   const ROW_FONT = 9;
+
+//   const SR_W   = SAFE_WIDTH * 0.06;
+//   const DATE_W = SAFE_WIDTH * 0.18;
+//   const DWG_W  = SAFE_WIDTH - SR_W - DATE_W;
+//   const colWidths = [SR_W, DWG_W, DATE_W];
+//   const colX = colWidths.reduce((acc, w, i) => {
+//     acc.push(i === 0 ? SAFE_LEFT : acc[i - 1] + colWidths[i - 1]);
+//     return acc;
+//   }, []);
+//   const headers = ['SR.', 'DRAWING / DECISION NAME', 'REQUIRED DATE'];
+
+//   let idx = 0;
+
+//   while (idx < rows.length) {
+//     const s = makeSlide(pres, hidden);
+//     s.background = { color: WHT };
+//     addHeader(s, fd, 'Drawing & Decision Pending');
+//     let y = SAFE_TOP + pt(10);
+
+//     drawTableHeader(s, colX, colWidths, headers, y, HDR_H, ROW_FONT);
+//     y += HDR_H;
+
+//     let placed = 0;
+//     while (idx < rows.length) {
+//       const row = rows[idx];
+//       let dateDisp = row.requiredDate || '';
+//       if (/^\d{4}-\d{2}-\d{2}$/.test(dateDisp)) {
+//         const [yr, mo, da] = dateDisp.split('-');
+//         dateDisp = `${da}/${mo}/${yr}`;
+//       }
+//       const vals = [String(idx + 1), row.drawingName || '', dateDisp];
+//       const rowH = calcRowHeight(colWidths, vals, ROW_FONT, MIN_ROW, MAX_ROW);
+//       if (y + rowH > SAFE_BOTTOM - pt(8)) break;
+
+//       drawTableRow(s, colX, colWidths, vals, y, rowH, placed, null, ROW_FONT);
+//       y += rowH;
+//       idx++;
+//       placed++;
+//     }
+
+//     outerBorder(s, SAFE_LEFT, SAFE_TOP + pt(10), SAFE_WIDTH, y - SAFE_TOP - pt(10));
+//     addSlideNum(s, pres);
+//   }
+// }
 async function buildDrawingDecisionSlide(pres, fd, hidden = false) {
   const rows = (fd.drawingDecisionData || []).filter(r => r.drawingName);
   if (!rows.length) return;
 
-  const HDR_H   = pt(28);
-  const MIN_ROW = pt(26);
-  const MAX_ROW = pt(80);
-  const ROW_FONT = 9;
-
-  const SR_W   = SAFE_WIDTH * 0.06;
+  const SR_W = SAFE_WIDTH * 0.06;
   const DATE_W = SAFE_WIDTH * 0.18;
-  const DWG_W  = SAFE_WIDTH - SR_W - DATE_W;
-  const colWidths = [SR_W, DWG_W, DATE_W];
-  const colX = colWidths.reduce((acc, w, i) => {
-    acc.push(i === 0 ? SAFE_LEFT : acc[i - 1] + colWidths[i - 1]);
-    return acc;
-  }, []);
+  const DWG_W = SAFE_WIDTH - SR_W - DATE_W;
   const headers = ['SR.', 'DRAWING / DECISION NAME', 'REQUIRED DATE'];
 
+  const ROWS_PER_SLIDE = 12;
   let idx = 0;
 
   while (idx < rows.length) {
     const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     addHeader(s, fd, 'Drawing & Decision Pending');
-    let y = SAFE_TOP + pt(10);
+    const chunk = rows.slice(idx, idx + ROWS_PER_SLIDE);
 
-    drawTableHeader(s, colX, colWidths, headers, y, HDR_H, ROW_FONT);
-    y += HDR_H;
+    const tableRows = [
+      headers.map(h => ({
+        text: h,
+        options: { bold: true, color: TBL_HDR_FG, fill: { color: TBL_HDR_BG }, align: 'center', valign: 'middle', fontSize: 9 },
+      })),
+      ...chunk.map((row, i2) => {
+        const bg = i2 % 2 === 0 ? WHT : TBL_ALT_BG;
+        let dateDisp = row.requiredDate || '';
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateDisp)) {
+          const [yr, mo, da] = dateDisp.split('-');
+          dateDisp = `${da}/${mo}/${yr}`;
+        }
+        return [
+          { text: String(idx + i2 + 1), options: { align: 'center', valign: 'middle', fontSize: 9, fill: { color: bg } } },
+          { text: row.drawingName || '', options: { align: 'left', valign: 'middle', fontSize: 9, fill: { color: bg } } },
+          { text: dateDisp, options: { align: 'center', valign: 'middle', fontSize: 9, fill: { color: bg } } },
+        ];
+      }),
+    ];
 
-    let placed = 0;
-    while (idx < rows.length) {
-      const row = rows[idx];
-      let dateDisp = row.requiredDate || '';
-      if (/^\d{4}-\d{2}-\d{2}$/.test(dateDisp)) {
-        const [yr, mo, da] = dateDisp.split('-');
-        dateDisp = `${da}/${mo}/${yr}`;
-      }
-      const vals = [String(idx + 1), row.drawingName || '', dateDisp];
-      const rowH = calcRowHeight(colWidths, vals, ROW_FONT, MIN_ROW, MAX_ROW);
-      if (y + rowH > SAFE_BOTTOM - pt(8)) break;
+    s.addTable(tableRows, {
+      x: SAFE_LEFT, y: SAFE_TOP + pt(10), w: SAFE_WIDTH,
+      colW: [SR_W, DWG_W, DATE_W],
+      border: { type: 'solid', color: TBL_BORDER, pt: 0.5 },
+      fontFace: FONT,
+      valign: 'middle',
+      autoPage: false,
+    });
 
-      drawTableRow(s, colX, colWidths, vals, y, rowH, placed, null, ROW_FONT);
-      y += rowH;
-      idx++;
-      placed++;
-    }
-
-    outerBorder(s, SAFE_LEFT, SAFE_TOP + pt(10), SAFE_WIDTH, y - SAFE_TOP - pt(10));
     addSlideNum(s, pres);
+    idx += chunk.length;
   }
 }
 
 // ── Delay Points ──────────────────────────────────────────────────────────────
+// async function buildDelayPointsSlide(pres, fd, hidden = false) {
+//   const points = (fd.delayPoints || []).filter(Boolean);
+//   if (!points.length) return;
+
+//   const MIN_ROW = pt(30);
+//   const MAX_ROW = pt(90);
+//   const ROW_FONT = 10;
+//   const BADGE_W = pt(40);
+
+//   let idx = 0;
+
+//   while (idx < points.length) {
+//     const s = makeSlide(pres, hidden);
+//     s.background = { color: WHT };
+//     const startY = addHeader(s, fd, 'Delay Points / Highlights / Red Flag');
+//     let y = startY + pt(6);
+
+//     let placed = 0;
+//     while (idx < points.length) {
+//       const textColW = SAFE_WIDTH - pt(52);
+//       const rowH = calcRowHeight(
+//         [BADGE_W, textColW],
+//         [String(idx + 1), points[idx]],
+//         ROW_FONT, MIN_ROW, MAX_ROW
+//       );
+//       if (y + rowH > SAFE_BOTTOM - pt(8)) break;
+
+//       const bg = placed % 2 ? 'FFF5F5' : WHT;
+//       rect(s, SAFE_LEFT, y, SAFE_WIDTH, rowH, bg);
+//       rect(s, SAFE_LEFT, y + rowH - pt(0.5), SAFE_WIDTH, pt(0.5), 'FCA5A5');
+
+//       // Red badge
+//       rect(s, SAFE_LEFT, y, BADGE_W, rowH, 'DC2626');
+//       tx(s, String(idx + 1), SAFE_LEFT, y, BADGE_W, rowH,
+//         { color: WHT, bold: true, size: ROW_FONT, align: 'center', vAlign: 'middle', font: FONT });
+
+//       tx(s, points[idx], SAFE_LEFT + pt(52), y, textColW, rowH,
+//         { size: ROW_FONT, color: '1A2E42', vAlign: 'middle', font: FONT });
+
+//       y += rowH;
+//       idx++;
+//       placed++;
+//     }
+
+//     addSlideNum(s, pres);
+//   }
+// }
+// async function buildDelayPointsSlide(pres, fd, hidden = false) {
+//   const points = (fd.delayPoints || []).filter(Boolean);
+//   if (!points.length) return;
+
+//   const NUM_W = pt(40);
+//   const TEXT_W = SAFE_WIDTH - NUM_W;
+//   const ROWS_PER_SLIDE = 10;
+//   let idx = 0;
+
+//   while (idx < points.length) {
+//     const s = makeSlide(pres, hidden);
+//     s.background = { color: WHT };
+//     const startY = addHeader(s, fd, 'Delay Points / Highlights / Red Flag');
+//     const chunk = points.slice(idx, idx + ROWS_PER_SLIDE);
+
+//     const rows = chunk.map((point, i2) => {
+//       const bg = (idx + i2) % 2 === 0 ? WHT : 'FFF5F5';
+//       return [
+//         {
+//           text: String(idx + i2 + 1),
+//           options: { bold: true, color: WHT, fill: { color: 'DC2626' }, align: 'center', valign: 'middle', fontSize: 10 },
+//         },
+//         {
+//           text: point,
+//           options: { color: '1A2E42', fill: { color: bg }, align: 'left', valign: 'middle', fontSize: 10 },
+//         },
+//       ];
+//     });
+
+//     s.addTable(rows, {
+//       x: SAFE_LEFT, y: startY + pt(6), w: SAFE_WIDTH,
+//       colW: [NUM_W, TEXT_W],
+//       border: { type: 'solid', color: 'FCA5A5', pt: 0.5 },
+//       fontFace: FONT,
+//       valign: 'middle',
+//       autoPage: false,
+//     });
+
+//     addSlideNum(s, pres);
+//     idx += chunk.length;
+//   }
+// }
 async function buildDelayPointsSlide(pres, fd, hidden = false) {
   const points = (fd.delayPoints || []).filter(Boolean);
   if (!points.length) return;
 
-  const MIN_ROW = pt(30);
-  const MAX_ROW = pt(90);
+  const NUM_W = pt(40);
+  const TEXT_W = SAFE_WIDTH - NUM_W;
+  const ROWS_PER_SLIDE = 10;
+  const MIN_ROW = pt(38);   // ↑ taller minimum row height
+  const MAX_ROW = pt(110);
   const ROW_FONT = 10;
-  const BADGE_W = pt(40);
-
   let idx = 0;
 
   while (idx < points.length) {
     const s = makeSlide(pres, hidden);
     s.background = { color: WHT };
     const startY = addHeader(s, fd, 'Delay Points / Highlights / Red Flag');
-    let y = startY + pt(6);
+    const chunk = points.slice(idx, idx + ROWS_PER_SLIDE);
 
-    let placed = 0;
-    while (idx < points.length) {
-      const textColW = SAFE_WIDTH - pt(52);
-      const rowH = calcRowHeight(
-        [BADGE_W, textColW],
-        [String(idx + 1), points[idx]],
-        ROW_FONT, MIN_ROW, MAX_ROW
-      );
-      if (y + rowH > SAFE_BOTTOM - pt(8)) break;
+    const rows = chunk.map((point, i2) => {
+      const bg = (idx + i2) % 2 === 0 ? WHT : 'FFF5F5';
+      return [
+        {
+          text: String(idx + i2 + 1),
+          options: { bold: true, color: WHT, fill: { color: 'DC2626' }, align: 'center', valign: 'middle', fontSize: ROW_FONT },
+        },
+        {
+          text: point,
+          options: { color: '1A2E42', fill: { color: bg }, align: 'left', valign: 'middle', fontSize: ROW_FONT },
+        },
+      ];
+    });
 
-      const bg = placed % 2 ? 'FFF5F5' : WHT;
-      rect(s, SAFE_LEFT, y, SAFE_WIDTH, rowH, bg);
-      rect(s, SAFE_LEFT, y + rowH - pt(0.5), SAFE_WIDTH, pt(0.5), 'FCA5A5');
+    const rowH = chunk.map((point, i2) =>
+      calcRowHeight([NUM_W, TEXT_W], [String(idx + i2 + 1), point], ROW_FONT, MIN_ROW, MAX_ROW)
+    );
 
-      // Red badge
-      rect(s, SAFE_LEFT, y, BADGE_W, rowH, 'DC2626');
-      tx(s, String(idx + 1), SAFE_LEFT, y, BADGE_W, rowH,
-        { color: WHT, bold: true, size: ROW_FONT, align: 'center', vAlign: 'middle', font: FONT });
-
-      tx(s, points[idx], SAFE_LEFT + pt(52), y, textColW, rowH,
-        { size: ROW_FONT, color: '1A2E42', vAlign: 'middle', font: FONT });
-
-      y += rowH;
-      idx++;
-      placed++;
-    }
+    s.addTable(rows, {
+      x: SAFE_LEFT, y: startY + pt(6), w: SAFE_WIDTH,
+      colW: [NUM_W, TEXT_W],
+      rowH,
+      border: { type: 'solid', color: 'FCA5A5', pt: 0.5 },
+      fontFace: FONT,
+      valign: 'middle',
+      autoPage: false,
+    });
 
     addSlideNum(s, pres);
+    idx += chunk.length;
   }
 }
-
 // ── MOM / Barchart / Cube (range-captured images) ────────────────────────────
 async function buildRangeCaptureSlides(pres, fd, items, sectionTitle, hidden = false) {
   const filtered = (items || []).filter(i => i && i.dataUrl);

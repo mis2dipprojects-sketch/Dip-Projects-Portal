@@ -5073,6 +5073,8 @@ async function uploadBatch(items, uploadFn, concurrency = 4) {
           </div>
         </div>
       )}
+      
+
 
       {draftCheckStatus === "error" && (
         <div
@@ -5101,6 +5103,7 @@ async function uploadBatch(items, uploadFn, concurrency = 4) {
           back.
         </div>
       )}
+
 
       {draftCheckStatus === "found" && draftInfo && (
         <div className="draft-bar">

@@ -36,7 +36,6 @@ async function downloadPdf(url) {
     window.open(url, "_blank");
   } 
 }
-
 const TAB_CONFIG = [
   { key:"dpr", label:"DPR", color:"#7a2e00", bg:"#eff6ff", border:"#bfdbfe" },
   { key:"wpr", label:"WPR", color:"#a55622", bg:"#f5f3ff", border:"#e0e7ff" },

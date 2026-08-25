@@ -13,6 +13,7 @@ import { useMaterialUnseenCount } from "./MatRequirement"; // adjust path
 import { canAccessPortal } from "../access.js";
 import "./SitePortal.css";
 import { computeMonthlyLeaveBalance, isMonthlyLeaveRole } from "./leaveUtils.js";
+
 // ─── Supabase ────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://efqfjfthsleymhljswcq.supabase.co";
 const SUPABASE_ANON =
@@ -443,8 +444,6 @@ const NAV = [
     children: [
       { key: "daily-report", label: "Daily Report", icon: Ico.report },
       { key: "wpr-generator", label: "Weekly Report", icon: Ico.weekly },
-      // {key: "weekly-planning",label: "Weekly Planning",icon: Ico.weeklyPlan,},
-      // { key: "monthly-report", label: "Monthly Report", icon: Ico.monthly },
       { key: "site-report", label: "Site Visit Report", icon: Ico.site },
       //{ key: "material-requirement", label: "Material Requirement", icon: Ico.materialRequirement,},
       { key: "my-reports", label: "My Reports", icon: Ico.myRpt },
@@ -1954,8 +1953,6 @@ useEffect(() => {
 
       case "wpr-generator":
         return <WprGenerator user={user} supabase={supabase} />;
-      // case "monthly-report":
-      //   return <MonthlyReport />;
       case "site-report":
         return <SiteReport user={user} />;
       // case "material-requirement":

@@ -2,10 +2,11 @@ import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Navbar from "../components/Navbar";
 import "./SitePortal.css";
-
+import MonthEndReport from "./MonthEndReport.jsx";
 //   npm install jspdf jspdf-autotable
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import EmployeeAttendanceReport from "./EmployeeAttendanceReport.jsx";
 
 // ─── Supabase ────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://efqfjfthsleymhljswcq.supabase.co";
@@ -50,6 +51,7 @@ function fmtTimeIST(ts) {
     hour12: true,
   });
 }
+
 const DRAWING_MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -130,6 +132,32 @@ function Loading() {
 }
 
 const Ico = {
+  empReport: (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+),
+  sun: (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+    <circle cx="12" cy="12" r="4" />
+    <line x1="12" y1="1" x2="12" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="23" />
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+    <line x1="1" y1="12" x2="3" y2="12" />
+    <line x1="21" y1="12" x2="23" y2="12" />
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+  </svg>
+),
+moon: (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+  </svg>
+),
   attendance: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round">
       <circle cx="12" cy="12" r="10" />
@@ -152,6 +180,25 @@ const Ico = {
       <polyline points="14 2 14 8 20 8" />
     </svg>
   ),
+monthEnd: (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#16a34a"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="4" width="18" height="17" rx="2" />
+    <line x1="16" y1="2" x2="16" y2="6" />
+    <line x1="8" y1="2" x2="8" y2="6" />
+    <line x1="3" y1="10" x2="21" y2="10" />
+    <polyline points="8 15 11 18 16 13" />
+  </svg>
+),
+
   addDrawing: (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="5" width="12" height="14" rx="1" />
@@ -1051,7 +1098,9 @@ function DprSheetReport({ sites }) {
 const NAV = [
   { key: "attendance", label: "Attendance Report", icon: Ico.attendance },
   { key: "attendance-log", label: "Attendance Log", icon: Ico.log },
+   { key: "emp-report", label: "Employee Report", icon: Ico.empReport },
   { key: "dpr", label: "Daily Report (DPR)", icon: Ico.dpr },
+  { key: "month-end-report", label: "Month End Report", icon: Ico.monthEnd },
   { key: "add-drawings", label: "Add Drawings", icon: Ico.addDrawing },
   { key: "all-drawings", label: "All Drawings", icon: Ico.allDrawings },
   { key: "apply-leave", label: "Apply Leave", icon: Ico.apply },
@@ -1062,7 +1111,9 @@ const NAV = [
 const NAV_COLORS = {
   attendance: "#2563eb",
   "attendance-log": "#2563eb",
+  "emp-report": "#2563eb",
   dpr: "#16a34a",
+   "month-end-report": "#16a34a",
   "apply-leave": "#7c3aed",
   "my-leave": "#7c3aed",
   "proxy-request": "#eb2727",
@@ -1615,6 +1666,20 @@ export default function MDOPortal() {
   const [loadingDrawings, setLoadingDrawings] = useState(false);
   const [allSites, setAllSites] = useState([]);
 
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved) document.documentElement.setAttribute("data-theme", saved);
+    return saved === "dark";
+  });
+
+  const toggleTheme = () => {
+    const next = !isDark;
+    setIsDark(next);
+    const val = next ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", val);
+    localStorage.setItem("theme", val);
+  };
+
   const fetchDrawings = useCallback(async (u) => {
   if (!u) return;
   setLoadingDrawings(true);
@@ -1786,6 +1851,17 @@ useEffect(() => {
             );
           })}
         </nav>
+          {/* Theme toggle */}
+          <div className="sb-bottom">
+            <button
+              className="sni"
+              onClick={toggleTheme}
+              style={{ width: "100%", justifyContent: "center", borderRadius: 9 }}
+            >
+              {isDark ? Ico.sun : Ico.moon}
+              {isDark ? "Light Mode" : "Dark Mode"}
+            </button>
+          </div>
         </aside>
 
         <main className="main">
@@ -1801,10 +1877,14 @@ useEffect(() => {
                                                   
             {activeTab === "attendance" ? (
               <AttendanceReport sites={sites} />
+            ) : activeTab === "emp-report" ? (
+              <EmployeeAttendanceReport supabase={supabase} sites={sites} />
             ) : activeTab === "attendance-log" ? (
               <AttendanceLog sites={sites} />
             ) : activeTab === "dpr" ? (
               <DprSheetReport sites={sites} />
+            ) : activeTab === "month-end-report" ? (
+              <MonthEndReport user={user} supabase={supabase} />
             ) : activeTab === "add-drawings" ? (
               <AddDrawings
                 sites={allSites}

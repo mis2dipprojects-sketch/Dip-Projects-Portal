@@ -44,7 +44,6 @@ const fmtDateForFile = (dateStr) => {
   return `${d}-${m}-${y}`;
 };
 // ─── HEIC loader (lazy) ──────────────────────────────────────────────────────
-// ─── HEIC loader (lazy) ──────────────────────────────────────────────────────
 let _heic2anyPromise = null;
 function loadHeic2Any() {
   if (_heic2anyPromise) return _heic2anyPromise;
@@ -64,6 +63,13 @@ function loadHeic2Any() {
     document.head.appendChild(s);
   });
   return _heic2anyPromise;
+}
+
+function reduceSize(){
+  if(_heic2anyPromise) return _heic2anyPromise;
+  _heic2anyPromise = new Promise((resolve, reject)=>{
+
+  })
 }
 
 // ─── Processing counter (module-level so processImage can reach it) ───────────
@@ -1336,6 +1342,7 @@ function ExcelRangeCapture({
       setIsDragging(true);
     };
 
+    //
     const handleTouchMove = (e) => {
       if (e.touches.length === 2 && pinchRef.current.active) {
         e.preventDefault();
@@ -2791,36 +2798,41 @@ const displayReportNo = zp(reportNum);
       ].reduce((sum, arr) => sum + arr.filter((i) => i.dataUrl).length, 0);
 
       const uploadBatch = async (images, imageType, subfolder, namePrefix) => {
-        for (let i = 0; i < images.length; i++) {
-          const img = images[i];
-          if (!img.dataUrl) continue;
+        const validImages = images.filter((img) => img.dataUrl);
+        if (!validImages.length) return;
+
+        const paths = [];
+        const publicUrls = [];
+        const captions = [];
+
+        for (let i = 0; i < validImages.length; i++) {
+          const img = validImages[i];
           const ext = img.dataUrl.split(";")[0].split("/")[1] || "jpg";
           const cap = safeNamePart(img.label || img.caption || "");
           const fname = `${namePrefix}_${i + 1}${cap ? "_" + cap : ""}.${ext}`;
           const path = `${wprBase}/${subfolder}/${fname}`;
-          const publicUrl = await uploadImage(
-            supabase,
-            bucketName,
-            img.dataUrl,
-            path,
-          );
-          await supabase.from("wpr_images").insert({
-            wpr_report_id: reportId,
-            image_type: imageType,
-            storage_path: path,
-            public_url: publicUrl,
-            caption: img.label || img.caption || "",
-            sort_order: i,
-          });
+          const publicUrl = await uploadImage(supabase, bucketName, img.dataUrl, path);
+
+          paths.push(path);
+          publicUrls.push(publicUrl);
+          captions.push(img.label || img.caption || "");
+
           uploadedCount++;
           setGenProgress(
-            Math.min(
-              100,
-              65 + Math.round((uploadedCount / Math.max(totalUp, 1)) * 28),
-            ),
+            Math.min(100, 65 + Math.round((uploadedCount / Math.max(totalUp, 1)) * 28)),
           );
           setGenStep(`Uploading images… (${uploadedCount}/${totalUp})`);
         }
+
+        // One row per category, holding all its photo URLs/paths/captions as arrays.
+        await supabase.from("wpr_images").insert({
+          wpr_report_id: reportId,
+          image_type: imageType,
+          storage_path: paths,
+          public_url: publicUrls,
+          caption: captions,
+          sort_order: 0,
+        });
       };
 
       if (siteImage) {

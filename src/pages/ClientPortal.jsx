@@ -624,7 +624,7 @@ function MediaFolderTree({ siteName, activeDate, onSelectDate }) {
           type: "graphical",
           date: d.date || d.created_at,
           url: f.url || f.publicUrl || null,
-        }));
+        }));  
       });
 
       const allItems = [
@@ -1106,6 +1106,7 @@ function isOfficeFile(url) {
 function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
   const [dprs, setDprs] = useState([]);
   const [wprs, setWprs] = useState([]);
+  const [monthEndReports, setMonthEndReports] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState("recent");
@@ -1160,6 +1161,14 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
     if (wprErr) console.error("wpr_reports error:", wprErr);
     setWprs(wprData || []);
 
+    const { data: monthEndData, error: monthEndErr } = await supabase
+      .from("month_end_reports")
+      .select("id, site_name, month, document_url, wpr_count, photo_count, created_at")
+      .ilike("site_name", siteName)
+      .order("month", { ascending: false });
+    if (monthEndErr) console.error("month_end_reports error:", monthEndErr);
+    setMonthEndReports(monthEndData || []);
+
     const wprIds = (wprData || []).map((w) => w.id);
 
     let wprPhotoRows = [];
@@ -1172,11 +1181,20 @@ function ReportsAndPhotos({ siteName, jumpDate, onClearJump }) {
         .in("wpr_report_id", wprIds)
         .in("image_type", ["site_photo", "site_photos", "graphical"]);
       if (imgErr) console.error("wpr_images error:", imgErr);
-      wprPhotoRows = (imgData || []).map((p) => ({
-        ...p,
-        source: "wpr",
-        public_url: p.public_url || p.supabaseUrl || null,
-      }));
+
+      wprPhotoRows = (imgData || []).flatMap((row) => {
+        const urls = Array.isArray(row.public_url) ? row.public_url : [row.public_url].filter(Boolean);
+        const captions = Array.isArray(row.caption) ? row.caption : [row.caption].filter(Boolean);
+        return urls.map((url, i) => ({
+          id: `${row.id}-${i}`,
+          wpr_report_id: row.wpr_report_id,
+          image_type: row.image_type,
+          public_url: url,
+          caption: captions[i] || "",
+          created_at: row.created_at,
+          source: "wpr",
+        }));
+      });
     }
 
     const dprPhotoRows = (dprData || []).flatMap((report, reportIndex) => {
@@ -1249,6 +1267,19 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
         isOffice: isOfficeFile(url),
       };
     }),
+    ...monthEndReports.map((r) => {
+      const url = extractFileUrl(r.document_url);
+      return {
+        type: "mpr",
+        date: r.month || r.created_at,
+        displayDate: r.month || r.created_at,
+        title: `Month-End Report — ${r.month ? monthLabelOf(r.month) : ""}`.trim(),
+        meta: `${r.wpr_count || 0} WPRs · ${r.photo_count || 0} photos`,
+        url,
+        kind: "doc",
+        isOffice: isOfficeFile(url),
+      };
+    }),
     ...photos.map((p) => {
       const isGraphical = p.image_type === "graphical";
       const isActualImage = !isGraphical || isImageFile(p.public_url);
@@ -1279,6 +1310,7 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
     all: dateScoped.length,
     dpr: dateScoped.filter((it) => it.type === "dpr").length,
     wpr: dateScoped.filter((it) => it.type === "wpr").length,
+    mpr: dateScoped.filter((it) => it.type === "mpr").length,
     photo: dateScoped.filter((it) => it.type === "photo").length,
     graphical: dateScoped.filter((it) => it.type === "graphical").length,
   };
@@ -1333,16 +1365,9 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
       cls: "type-wpr",
       icon: <IcoDocBars />,
     },
-    //use when there is monthly report in database
-    // {
-    //   key: "mpr",
-    //   label: ` Monthly Reports (${counts.mpr})`,
-    //   cls: "type-mpr",
-    //   icon: <IcoDocCalendar />,
-    // },
     {
       key: "mpr",
-      label: ` Monthly Reports (0)`,
+      label: ` Monthly Reports (${counts.mpr})`,
       cls: "type-mpr",
       icon: <IcoDocCalendar />,
     },
@@ -1390,21 +1415,6 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
         </button>
 
         <div className={`cp-filter-panel${filterOpen ? " open" : ""}`}>
-          {/* <div className="cp-viewmodes">
-            {VIEW_MODES.map((v) => (
-              <button
-                key={v.key}
-                className={`cp-chip${viewMode === v.key ? " act" : ""}`}
-                onClick={() => {
-                  setViewMode(v.key);
-                  if (jumpDate && onClearJump) onClearJump();
-                  scrollToTop();
-                }}
-              >
-                {v.label}
-              </button>
-            ))}
-          </div> */}
           {viewMode === "range" && (
             <div className="cp-range-picker">
               <div className="cp-range-field">
@@ -1445,18 +1455,6 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
           )}
 
           <div className="cp-typefilters">
-            {/* {TYPE_FILTERS.map((f) => (
-              <button
-                key={f.key}
-                className={`cp-chip${typeFilter === f.key ? " act " + f.cls : ""}`}
-                onClick={() => {
-                  setTypeFilter(f.key);
-                  scrollToTop();
-                }}
-              >
-                {f.icon} {f.label}
-              </button>
-            ))} */}
             {TYPE_FILTERS.map((f) => (
               <button
                 key={f.key}
@@ -1528,31 +1526,21 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
                     )
                   ) : it.url ? (
                     it.isOffice ? (
-                      <div
-                        className="cp-media-photo"
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          gap: 6,
-                          background: "#fdbca396",
-                          color: "#af3404",
-                          cursor: "pointer",
-                        }}
-                        onClick={() =>
-                          window.open(
-                            resolveViewUrl(it.url, it.isOffice),
-                            "_blank",
-                          )
-                        }
-                      >
-                        <IcoDocBars w={32} h={32} />
-                        <span style={{ fontSize: 11, fontWeight: 600 }}>
-                          Open Presentation
-                        </span>
-                      </div>
-                    ) : (
+                        <div
+                          className={`cp-media-photo cp-media-office-tile type-${it.type}`}
+                          onClick={() =>
+                            window.open(
+                              resolveViewUrl(it.url, it.isOffice),
+                              "_blank",
+                            )
+                          }
+                        >
+                          {it.type === "mpr" ? <IcoDocCalendar w={32} h={32} /> : <IcoDocBars w={32} h={32} />}
+                          <span style={{ fontSize: 11, fontWeight: 600 }}>
+                            {it.type === "mpr" ? "Open Monthly Report" : "Open Presentation"}
+                          </span>
+                        </div>
+                      ) : (
                       <div
                         className="cp-media-photo cp-media-doc-preview"
                         style={{
@@ -1603,6 +1591,8 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
                         <IcoDoc />
                       ) : it.type === "wpr" ? (
                         <IcoDoc />
+                      ) : it.type === "mpr" ? (
+                        <IcoDocCalendar />
                       ) : (
                         <IcoImg />
                       )}
@@ -1610,6 +1600,8 @@ const drawingPhotoRows = (drawingData || []).flatMap((d) => {
                         ? "Daily Report"
                         : it.type === "wpr"
                           ? "Weekly Report"
+                          : it.type === "mpr"
+                            ? "Monthly Report"
                           : it.type === "graphical"
                             ? "Graphical Drawing"
                             : "Site Photo"}

@@ -2951,3 +2951,30 @@ html {
   .cp-week-nav { flex-wrap: wrap; }
   .cp-week-nav-label { order: -1; width: 100%; text-align: center; margin-bottom: 6px; }
 }
+.cp-media-office-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.cp-media-office-tile.type-wpr {
+  background: #fdbca396;
+  color: #af3404;
+}
+
+.cp-media-office-tile.type-mpr {
+  background: #e9defc;
+  color: #6d4aa8;
+}
+
+.cp-media-badge.mpr {
+  background: #f1ecf9;
+  color: #6d4aa8;
+}
+
+.cp-media-card.type-mpr {
+  border-top: 3px solid #6d4aa8;
+}

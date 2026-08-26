@@ -1,5 +1,4 @@
-import docx from "docx";
-
+const docx = require("docx");
 const {
   Document,
   Packer,
@@ -11,7 +10,6 @@ const {
   TableRow,
   TableCell,
   WidthType,
-  BorderStyle,
   TextRun,
   Header,
   VerticalAlign,
@@ -20,6 +18,10 @@ const {
   Footer,
   PageNumber,
 } = docx;
+const BorderStyle = docx.BorderStyle || {
+  SINGLE: "single",
+  NONE: "none",
+};
 
 function imageTypeFromContentType(contentType) {
   if (!contentType) return null;

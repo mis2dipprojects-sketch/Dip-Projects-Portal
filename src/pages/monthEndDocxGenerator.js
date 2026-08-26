@@ -1,8 +1,25 @@
-import {
-  Document, Packer, Paragraph, HeadingLevel, ImageRun, AlignmentType,
-  Table, TableRow, TableCell, WidthType, BorderStyle, TextRun, Header,
-  VerticalAlign, SectionType, TableOfContents, Footer, PageNumber,
-} from "docx";
+import docx from "docx";
+
+const {
+  Document,
+  Packer,
+  Paragraph,
+  HeadingLevel,
+  ImageRun,
+  AlignmentType,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  BorderStyle,
+  TextRun,
+  Header,
+  VerticalAlign,
+  SectionType,
+  TableOfContents,
+  Footer,
+  PageNumber,
+} = docx;
 
 function imageTypeFromContentType(contentType) {
   if (!contentType) return null;

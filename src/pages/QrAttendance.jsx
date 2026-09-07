@@ -77,10 +77,6 @@ function hasDeskCodeInUrl() {
 async function fetchLoggedInEmployee(user) {
   const select =
     "id, username, name, role, department, site_name, site_names, status";
-  if (user?.id) {
-    const { data } = await supabase.from("user_details").select(select).eq("id", user.id).maybeSingle();
-    if (data) return data;
-  }
   if (user?.user_name) {
     const { data } = await supabase
       .from("user_details")
@@ -163,7 +159,7 @@ export default function QrAttendance() {
     const payload = {
       scan_date: todayIST(),
       scanned_at: new Date().toISOString(),
-      employee_id: employee.id || null,
+      employee_id: employee.id != null ? String(employee.id) : null,
       employee_username: employee.username,
       employee_name: employee.name || null,
       employee_role: employee.role || null,

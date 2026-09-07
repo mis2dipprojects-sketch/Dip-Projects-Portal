@@ -6,7 +6,7 @@ create table if not exists public.qr_site_attendance (
   scan_date date not null default (timezone('Asia/Kolkata', now()))::date,
   scanned_at timestamptz not null default now(),
 
-  employee_id uuid,
+  employee_id text,
   employee_username text not null,
   employee_name text,
   employee_role text,

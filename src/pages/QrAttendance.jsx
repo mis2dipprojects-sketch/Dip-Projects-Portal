@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import QRCode from "qrcode";
 import Navbar from "../components/Navbar";
 import { supabase } from "../supabase";
 import "./QrAttendance.css";
 
 const POPUP_MS = 2600;
 export const DESK_QR_TOKEN = "DIP-DESK-ATTENDANCE";
-
-function deskQrValue() {
-  return `${window.location.origin}/site/qr-scan?code=${DESK_QR_TOKEN}`;
-}
 
 function todayIST() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
@@ -176,11 +171,9 @@ export default function QrAttendance() {
   const [file1, setFile1] = useState(null);
   const [file2, setFile2] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [deskQrImage, setDeskQrImage] = useState("");
 
   const scannerRef = useRef(null);
   const handlingRef = useRef(false);
-  const fileInputRef = useRef(null);
   const week = currentWeekBounds();
   const coordinator = isCoordinatorRole(scannedEmployee?.role);
 
@@ -277,17 +270,6 @@ export default function QrAttendance() {
   }, [user]);
 
   useEffect(() => {
-    QRCode.toDataURL(deskQrValue(), {
-      errorCorrectionLevel: "H",
-      margin: 2,
-      width: 560,
-      color: { dark: "#3d1200", light: "#ffffff" },
-    })
-      .then(setDeskQrImage)
-      .catch(() => setDeskQrImage(""));
-  }, []);
-
-  useEffect(() => {
     if (!user || !hasDeskCodeInUrl()) return;
     checkInCurrentUser();
   }, [user, checkInCurrentUser]);
@@ -305,16 +287,14 @@ export default function QrAttendance() {
         scannerRef.current = html5Qr;
         await html5Qr.start(
           { facingMode: "environment" },
-          { fps: 12, qrbox: { width: 240, height: 240 } },
+          { fps: 12, qrbox: { width: 250, height: 250 } },
           (text) => {
             handleDecoded(text);
           }
         );
       } catch {
         if (!cancelled) {
-          setCamError(
-            "Camera could not start. Allow camera access, or upload a photo of the desk QR."
-          );
+          setCamError("Camera could not start. Allow camera access and try again.");
         }
       }
     })();
@@ -330,26 +310,6 @@ export default function QrAttendance() {
     const t = setTimeout(() => setPhase("plan"), POPUP_MS);
     return () => clearTimeout(t);
   }, [phase]);
-
-  const onFileQr = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setBusy(true);
-    setMessage("");
-    try {
-      await stopScanner();
-      const inst = new Html5Qrcode("qr-reader", { verbose: false });
-      scannerRef.current = inst;
-      const text = await inst.scanFile(file, true);
-      await handleDecoded(text);
-    } catch (err) {
-      setMessage(err?.message || "Could not read a QR code from that image.");
-      handlingRef.current = false;
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const submitWeeklyPlan = async (e) => {
     e.preventDefault();
@@ -416,52 +376,7 @@ export default function QrAttendance() {
           Back to Site Portal
         </button>
 
-        <div className="qr-sticker no-print-hide">
-          <div className="qr-sticker-badge">Print & stick on desk</div>
-          <h2>Monday check-in</h2>
-          <p>Engineers scan this QR after logging in. Attendance is marked for the person who scans, then they submit their weekly plan.</p>
-          {deskQrImage ? (
-            <img className="qr-sticker-img" src={deskQrImage} alt="Desk attendance QR code" />
-          ) : (
-            <div className="qr-sticker-wait">Generating QR…</div>
-          )}
-          <div className="qr-sticker-code">{DESK_QR_TOKEN}</div>
-          <button type="button" className="qr-btn-primary qr-print-btn" onClick={() => window.print()}>
-            Print desk QR
-          </button>
-          <p className="qr-sticker-hint">
-            Print this from your live website URL so the code points to production, not localhost.
-          </p>
-        </div>
-
-        <div className="qr-print-only">
-          <div className="qr-print-card">
-            <div className="qr-print-kicker">DIP Projects · Site Portal</div>
-            <h1>Monday check-in</h1>
-            <p>Log in to Site Portal, then scan this QR to mark yourself present and submit your weekly plan.</p>
-            {deskQrImage && <img src={deskQrImage} alt="Desk attendance QR code" />}
-            <div className="qr-sticker-code">{DESK_QR_TOKEN}</div>
-          </div>
-        </div>
-
-        <div className="qr-card qr-screen-only">
-          <div className="qr-card-head">
-            <div className="qr-card-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7" />
-                <rect x="14" y="3" width="7" height="7" />
-                <rect x="3" y="14" width="7" height="7" />
-                <path d="M14 14h3v3h-3z" />
-                <path d="M20 14v7" />
-                <path d="M14 20h7" />
-              </svg>
-            </div>
-            <div>
-              <h1>Scan desk QR</h1>
-              <p>Open this page on your phone, scan the QR on the desk, and your attendance will be marked present.</p>
-            </div>
-          </div>
-
+        <div className="qr-card">
           {(phase === "scan" || phase === "loading") && (
             <div className="qr-scan-body">
               <div id="qr-reader" className="qr-reader" />
@@ -469,18 +384,6 @@ export default function QrAttendance() {
                 <div className="qr-busy">Marking you present…</div>
               )}
               {camError && <div className="qr-note">{camError}</div>}
-              <div className="qr-actions">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={onFileQr}
-                />
-                <button type="button" className="qr-btn-secondary" onClick={() => fileInputRef.current?.click()}>
-                  Upload photo of desk QR
-                </button>
-              </div>
               {message && <div className="qr-error">{message}</div>}
             </div>
           )}

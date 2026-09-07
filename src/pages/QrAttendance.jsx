@@ -100,14 +100,60 @@ async function fetchLoggedInEmployee(user) {
   return null;
 }
 
-async function uploadPlanFile(file, username, slot) {
+function sanitizeBucketName(site) {
+  return (
+    (site || "site")
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 63) || "site"
+  );
+}
+
+const _bucketEnsuredCache = new Set();
+
+async function ensureBucketExists(bucketName, site) {
+  if (_bucketEnsuredCache.has(bucketName)) return;
+  const { data, error } = await supabase.functions.invoke("ensure-bucket", {
+    body: { site },
+  });
+  if (error) throw new Error(`Could not provision storage bucket "${bucketName}": ${error.message}`);
+  if (data?.error) throw new Error(`Could not provision storage bucket "${bucketName}": ${data.error}`);
+  _bucketEnsuredCache.add(bucketName);
+}
+
+function buildSiteDatePath(date) {
+  const [year, month, day] = date.split("-");
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  const monthName = monthNames[parseInt(month, 10) - 1];
+  const dayFolder = `${day}-${month}-${year}`;
+  return `${year}/${monthName}/${dayFolder}`;
+}
+
+function employeeSiteName(employee) {
+  if (employee?.site_name) return employee.site_name;
+  if (Array.isArray(employee?.site_names) && employee.site_names[0]) return employee.site_names[0];
+  return "";
+}
+
+async function uploadPlanFile(file, employee, slot) {
+  const site = employeeSiteName(employee);
+  if (!site) throw new Error("No site is assigned to your account, so the file cannot be saved.");
+  const bucketName = sanitizeBucketName(site);
+  await ensureBucketExists(bucketName, site);
+  const datePath = buildSiteDatePath(todayIST());
   const safeName = file.name.replace(/[^\w.\-]+/g, "_");
-  const path = `qr-weekly-plans/${username}/${todayIST()}/${slot}_${Date.now()}_${safeName}`;
+  const path = `${datePath}/weekly plan/${slot}_${Date.now()}_${safeName}`;
   const { error } = await supabase.storage
-    .from("documents")
+    .from(bucketName)
     .upload(path, file, { upsert: true });
-  if (error) throw new Error(error.message);
-  const { data } = supabase.storage.from("documents").getPublicUrl(path);
+  if (error) throw new Error(`Upload failed: ${error.message} (bucket: ${bucketName})`);
+  const { data } = supabase.storage.from(bucketName).getPublicUrl(path);
   return { url: data?.publicUrl || null, name: file.name };
 }
 
@@ -127,7 +173,6 @@ export default function QrAttendance() {
   const [message, setMessage] = useState("");
   const [scannedEmployee, setScannedEmployee] = useState(null);
   const [attendanceRow, setAttendanceRow] = useState(null);
-  const [weeklyPlan, setWeeklyPlan] = useState("");
   const [file1, setFile1] = useState(null);
   const [file2, setFile2] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -197,7 +242,6 @@ export default function QrAttendance() {
       const row = await markPresent(employee);
       setScannedEmployee(employee);
       setAttendanceRow(row);
-      setWeeklyPlan(row?.weekly_plan || "");
       setPhase("popup");
       const url = new URL(window.location.href);
       if (url.searchParams.has("code")) {
@@ -310,10 +354,6 @@ export default function QrAttendance() {
   const submitWeeklyPlan = async (e) => {
     e.preventDefault();
     if (!attendanceRow?.id) return;
-    if (!weeklyPlan.trim()) {
-      setMessage("Please enter the weekly plan.");
-      return;
-    }
     if (!file1) {
       setMessage("Please attach at least one file.");
       return;
@@ -325,15 +365,14 @@ export default function QrAttendance() {
     setSubmitting(true);
     setMessage("");
     try {
-      const a1 = await uploadPlanFile(file1, scannedEmployee.username, "file1");
+      const a1 = await uploadPlanFile(file1, scannedEmployee, "file1");
       let a2 = { url: null, name: null };
       if (coordinator && file2) {
-        a2 = await uploadPlanFile(file2, scannedEmployee.username, "file2");
+        a2 = await uploadPlanFile(file2, scannedEmployee, "file2");
       }
       const { error } = await supabase
         .from("qr_site_attendance")
         .update({
-          weekly_plan: weeklyPlan.trim(),
           week_start: week.start,
           week_end: week.end,
           attachment_1_url: a1.url,
@@ -357,7 +396,6 @@ export default function QrAttendance() {
     setPhase("scan");
     setScannedEmployee(null);
     setAttendanceRow(null);
-    setWeeklyPlan("");
     setFile1(null);
     setFile2(null);
     setMessage("");
@@ -460,21 +498,10 @@ export default function QrAttendance() {
               </div>
 
               <label className="qr-label">
-                Weekly plan
+                {coordinator ? "Report attachments (2 required for Co-ordinator)" : "Report attachment"}
                 <span className="qr-week">
                   {week.start} → {week.end}
                 </span>
-              </label>
-              <textarea
-                className="qr-textarea"
-                rows={6}
-                value={weeklyPlan}
-                onChange={(e) => setWeeklyPlan(e.target.value)}
-                placeholder="Enter this week's plan, tasks, and site notes…"
-              />
-
-              <label className="qr-label">
-                {coordinator ? "Report attachments (2 required for Co-ordinator)" : "Report attachment"}
               </label>
               <label className="qr-file">
                 <input type="file" onChange={(e) => setFile1(e.target.files?.[0] || null)} />

@@ -70,6 +70,7 @@
 .qr-plan,
 .qr-done {
   padding: 16px 20px 22px;
+  min-width: 0;
 }
 
 .qr-reader {
@@ -146,6 +147,7 @@
   background: #fff7ed;
   border: 1px solid #fed7aa;
   margin-bottom: 16px;
+  min-width: 0;
 }
 
 .qr-emp-av {
@@ -160,9 +162,16 @@
   justify-content: center;
 }
 
+.qr-emp-chip > div:last-child {
+  min-width: 0;
+}
+
 .qr-emp-chip strong {
   display: block;
   font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .qr-emp-chip span {
@@ -201,6 +210,10 @@
   display: flex;
   align-items: center;
   min-height: 44px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border: 1.5px dashed #d4ccc0;
   border-radius: 12px;
   padding: 10px 12px;
@@ -208,6 +221,16 @@
   cursor: pointer;
   font-size: 13px;
   color: #4a4540;
+  overflow: hidden;
+}
+
+.qr-file span {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .qr-file input {

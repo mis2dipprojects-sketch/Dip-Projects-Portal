@@ -4,10 +4,6 @@ import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-const MONTHS_SHORT = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
 const pad = (n) => String(n).padStart(2, "0");
 const todayISO = () => {
   const d = new Date();
@@ -153,7 +149,6 @@ async function fetchEmployeeDetailReport(supabase, employee, sites, from, to) {
 
   const attByDate = {};
   (attData || []).forEach((r) => {
-    // Prefer explicit address/text fields if your schema has them; fall back to lat/lng.
     const checkInLoc =
       r.clock_in_location || r.clock_in_address ||
       (r.clock_in_lat != null ? `${r.clock_in_lat}, ${r.clock_in_lng}` : "");
@@ -240,13 +235,13 @@ async function fetchEmployeeDetailReport(supabase, employee, sites, from, to) {
 // ═══════════════════════════════════════════════════════════════
 function statusColor_(status) {
   const s = String(status).toLowerCase();
-  if (s === "absent") return { bg: [241, 245, 249], text: [100, 116, 139] };
-  if (s === "late") return { bg: [254, 226, 226], text: [153, 27, 27] };
-  return { bg: [220, 252, 231], text: [22, 101, 52] }; // On Time / Submitted
+  if (s === "absent") return { bg: [241, 245, 249], text: [100, 116, 139] }; // Grey
+  if (s === "late" || s === "pending") return { bg: [254, 226, 226], text: [153, 27, 27] }; // Red
+  if (s === "submitted" || s === "on time") return { bg: [220, 252, 231], text: [22, 101, 52] }; // Green
+  return { bg: [255, 255, 255], text: [0, 0, 0] };
 }
 
-function downloadEmployeeReportPdf(rows, empName, from, to) {
-  const doc = new jsPDF({ orientation: "landscape" });
+function renderEmployeePdfTable(doc, rows, empName, from, to) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 12;
 
@@ -264,8 +259,6 @@ function downloadEmployeeReportPdf(rows, empName, from, to) {
   doc.setFont(undefined, "normal");
   doc.text(`Attendance Report | Period: ${fmtDate_(from)} to ${fmtDate_(to)}`, pageWidth / 2, 27.5, { align: "center" });
   doc.setTextColor(0, 0, 0);
-
-  const linkMap = []; // collect [pageNumber not needed since autoTable draws once] {x,y,w,h,url}
 
   autoTable(doc, {
     startY: 34,
@@ -307,53 +300,75 @@ function downloadEmployeeReportPdf(rows, empName, from, to) {
     didDrawCell: (data) => {
       if (data.section !== "body") return;
       const row = rows[data.row.index];
-      // Check In Location (col 3) / Check Out Location (col 5) clickable
       if (data.column.index === 2 && row.checkInMapUrl) {
         doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url: row.checkInMapUrl });
       }
       if (data.column.index === 4 && row.checkOutMapUrl) {
         doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url: row.checkOutMapUrl });
       }
-      // Morning/Evening report cells link to DPR report if submitted
       if ((data.column.index === 7 || data.column.index === 8) && row.morningSubmitted && row.dprLink) {
         doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url: row.dprLink });
       }
     },
   });
+}
 
+function downloadEmployeeReportPdf(rows, empName, from, to) {
+  const doc = new jsPDF({ orientation: "landscape" });
+  renderEmployeePdfTable(doc, rows, empName, from, to);
   doc.save(`Attendance_${empName.replace(/\s+/g, "_")}_${from}_to_${to}.pdf`);
+}
+
+function downloadAllEmployeesReportPdf(employeesData, from, to) {
+  const doc = new jsPDF({ orientation: "landscape" });
+  employeesData.forEach((empData, index) => {
+    if (index > 0) {
+      doc.addPage();
+    }
+    const empName = empData.employee.name || empData.employee.username || "Employee";
+    renderEmployeePdfTable(doc, empData.rows, empName, from, to);
+  });
+  doc.save(`Attendance_All_Employees_${from}_to_${to}.pdf`);
 }
 
 // ═══════════════════════════════════════════════════════════════
 // EXCEL EXPORT — exceljs for real cell colors + clickable hyperlinks
 // ═══════════════════════════════════════════════════════════════
-async function downloadEmployeeReportExcel(rows, empName, from, to) {
-  const wb = new ExcelJS.Workbook();
-  const sh = wb.addWorksheet("Attendance");
-
+function renderEmployeeExcelBlock(sh, rows, empName, from, to, isFirstBlock = true) {
   const headers = [
     "Date", "Check In", "Check In Loc", "Check Out", "Check Out Loc",
     "Late Min", "Status", "Morning", "Evening",
   ];
-  sh.columns = [
-    { width: 13 }, { width: 13 }, { width: 34 }, { width: 13 },
-    { width: 34 }, { width: 12 }, { width: 12 }, { width: 15 },
-    { width: 15 },
-  ];
-
-  const headerRow = sh.addRow(headers);
-  headerRow.eachCell((cell) => {
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } };
-    cell.font = { color: { argb: "FFFFFFFF" }, bold: true, size: 11 };
-    cell.alignment = { horizontal: "center", vertical: "middle" };
-  });
-  headerRow.height = 22;
 
   const GREEN_BG = "FFDCFCE7", GREEN_TXT = "FF166534";
   const RED_BG = "FFFEE2E2", RED_TXT = "FF991B1B";
   const GREY_BG = "FFF1F5F9", GREY_TXT = "FF64748B";
   const BLUE_TXT = "FF1E40AF";
 
+  if (!isFirstBlock) {
+    sh.addRow([]);
+    sh.addRow([]);
+  }
+
+  // Employee Header Row
+  const titleRow = sh.addRow([`${empName} — Attendance Report (${fmtDate_(from)} to ${fmtDate_(to)})`]);
+  sh.mergeCells(titleRow.number, 1, titleRow.number, 9);
+  titleRow.height = 26;
+  const titleCell = sh.getCell(titleRow.number, 1);
+  titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } };
+  titleCell.font = { color: { argb: "FFFFFFFF" }, bold: true, size: 12 };
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
+
+  // Column Headers Row
+  const headerRow = sh.addRow(headers);
+  headerRow.eachCell((cell) => {
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF45668F" } };
+    cell.font = { color: { argb: "FFFFFFFF" }, bold: true, size: 10.5 };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+  });
+  headerRow.height = 22;
+
+  // Data Rows
   rows.forEach((r, idx) => {
     const row = sh.addRow([
       r.date, r.checkIn, r.checkInLoc || "-", r.checkOut,
@@ -368,7 +383,7 @@ async function downloadEmployeeReportExcel(rows, empName, from, to) {
 
     const rowNum = row.number;
 
-    // Check In Location (col 3) — hyperlink, no underline
+    // Check In Location (col 3)
     if (r.checkInMapUrl) {
       const c = sh.getCell(rowNum, 3);
       c.value = { text: r.checkInLoc || "View Map", hyperlink: r.checkInMapUrl };
@@ -423,12 +438,42 @@ async function downloadEmployeeReportExcel(rows, empName, from, to) {
       });
     }
   });
+}
 
-  sh.views = [{ state: "frozen", ySplit: 1 }];
+async function downloadEmployeeReportExcel(rows, empName, from, to) {
+  const wb = new ExcelJS.Workbook();
+  const sh = wb.addWorksheet("Attendance");
+  sh.columns = [
+    { width: 13 }, { width: 13 }, { width: 34 }, { width: 13 },
+    { width: 34 }, { width: 12 }, { width: 12 }, { width: 15 },
+    { width: 15 },
+  ];
+
+  renderEmployeeExcelBlock(sh, rows, empName, from, to, true);
+  sh.views = [{ state: "frozen", ySplit: 2 }];
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: "application/octet-stream" });
   saveAs(blob, `Attendance_${empName.replace(/\s+/g, "_")}_${from}_to_${to}.xlsx`);
+}
+
+async function downloadAllEmployeesReportExcel(employeesData, from, to) {
+  const wb = new ExcelJS.Workbook();
+  const sh = wb.addWorksheet("All Employees Attendance");
+  sh.columns = [
+    { width: 13 }, { width: 13 }, { width: 34 }, { width: 13 },
+    { width: 34 }, { width: 12 }, { width: 12 }, { width: 15 },
+    { width: 15 },
+  ];
+
+  employeesData.forEach((empData, index) => {
+    const empName = empData.employee.name || empData.employee.username || "Employee";
+    renderEmployeeExcelBlock(sh, empData.rows, empName, from, to, index === 0);
+  });
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: "application/octet-stream" });
+  saveAs(blob, `Attendance_All_Employees_${from}_to_${to}.xlsx`);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -439,7 +484,7 @@ export default function EmployeeAttendanceReport({ supabase, sites }) {
   const [selectedUsername, setSelectedUsername] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState(todayISO());
-  const [rows, setRows] = useState(null);
+  const [reportData, setReportData] = useState(null); // { isAll: boolean, employee?, rows?, employeesData? }
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(null); // 'pdf' | 'excel' | null
   const [err, setErr] = useState("");
@@ -461,38 +506,128 @@ export default function EmployeeAttendanceReport({ supabase, sites }) {
     setBusy(true);
     setErr("");
     try {
-      const emp = employees.find((e) => e.username === selectedUsername);
-      const data = await fetchEmployeeDetailReport(supabase, emp, sites, from, to);
-      setRows(data);
-      enrichLocationNames_(data).then(setRows);
+      if (selectedUsername === "__ALL__") {
+        if (!employees.length) {
+          throw new Error("No employees found for the selected sites.");
+        }
+        const allData = await Promise.all(
+          employees.map(async (emp) => {
+            const data = await fetchEmployeeDetailReport(supabase, emp, sites, from, to);
+            return {
+              employee: emp,
+              rows: data,
+            };
+          }),
+        );
+
+        setReportData({ isAll: true, employeesData: allData });
+
+        // Enrich reverse-geocoded locations in the background
+        const allRows = allData.flatMap((ed) => ed.rows);
+        enrichLocationNames_(allRows).then(() => {
+          setReportData({ isAll: true, employeesData: [...allData] });
+        });
+      } else {
+        const emp = employees.find((e) => e.username === selectedUsername);
+        if (!emp) throw new Error("Selected employee not found.");
+        const data = await fetchEmployeeDetailReport(supabase, emp, sites, from, to);
+        setReportData({ isAll: false, employee: emp, rows: data });
+        enrichLocationNames_(data).then((enriched) => {
+          setReportData({ isAll: false, employee: emp, rows: enriched });
+        });
+      }
     } catch (e) {
       setErr(e.message || "Failed to load attendance.");
-      setRows(null);
+      setReportData(null);
     } finally {
       setBusy(false);
     }
   };
 
-  const emp = employees.find((e) => e.username === selectedUsername);
-
   const handleDownload = async (fmt) => {
-    if (!rows || !emp) return;
+    if (!reportData) return;
     setExporting(fmt);
     try {
-      if (fmt === "pdf") downloadEmployeeReportPdf(rows, emp.name, from, to);
-      else await downloadEmployeeReportExcel(rows, emp.name, from, to);
+      if (reportData.isAll) {
+        if (fmt === "pdf") {
+          downloadAllEmployeesReportPdf(reportData.employeesData, from, to);
+        } else {
+          await downloadAllEmployeesReportExcel(reportData.employeesData, from, to);
+        }
+      } else {
+        if (fmt === "pdf") {
+          downloadEmployeeReportPdf(reportData.rows, reportData.employee.name, from, to);
+        } else {
+          await downloadEmployeeReportExcel(reportData.rows, reportData.employee.name, from, to);
+        }
+      }
+    } catch (e) {
+      console.error("Export error:", e);
+      setErr(e.message || "Export failed.");
     } finally {
       setExporting(null);
     }
   };
+
+  const renderAttendanceTable = (rows) => (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+        <thead>
+          <tr style={{ borderBottom: "2px solid var(--line)", background: "var(--bg-card, #f8fafc)" }}>
+            {["Date", "Check In", "Check In Loc", "Check Out", "Check Out Loc", "Late Min", "Status", "Morning", "Evening"].map((h) => (
+              <th key={h} style={{ padding: "8px 6px", textAlign: "center" }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const statusColorMap = {
+              absent: "#64748b",
+              late: "#dc2626",
+            };
+            const sColor = statusColorMap[String(r.status).toLowerCase()] || "#16a34a";
+            return (
+              <tr key={r.sortDate} style={{ borderBottom: "1px solid var(--line)" }}>
+                <td style={{ padding: "7px 6px", textAlign: "center" }}>{r.date}</td>
+                <td style={{ padding: "7px 6px", textAlign: "center" }}>{r.checkIn}</td>
+                <td style={{ padding: "7px 6px", textAlign: "center", fontSize: 11 }}>
+                  {r.checkInMapUrl ? <a href={r.checkInMapUrl} target="_blank" rel="noreferrer">{r.checkInLoc || "View Map"}</a> : (r.checkInLoc || "-")}
+                </td>
+                <td style={{ padding: "7px 6px", textAlign: "center" }}>{r.checkOut}</td>
+                <td style={{ padding: "7px 6px", textAlign: "center", fontSize: 11 }}>
+                  {r.checkOutMapUrl ? <a href={r.checkOutMapUrl} target="_blank" rel="noreferrer">{r.checkOutLoc || "View Map"}</a> : (r.checkOutLoc || "-")}
+                </td>
+                <td style={{ padding: "7px 6px", textAlign: "center" }}>{r.lateMin || 0}</td>
+                <td style={{ padding: "7px 6px", textAlign: "center", fontWeight: 700, color: sColor }}>{r.status}</td>
+                <td style={{ padding: "7px 6px", textAlign: "center", fontWeight: 700, color: r.morningSubmitted ? "#16a34a" : "#dc2626" }}>
+                  {r.morningSubmitted ? "Submitted" : "Pending"}
+                </td>
+                <td style={{ padding: "7px 6px", textAlign: "center", fontWeight: 700, color: r.eveningSubmitted ? "#16a34a" : "#dc2626" }}>
+                  {r.eveningSubmitted ? "Submitted" : "Pending"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 
   return (
     <div>
       <div className="grid2" style={{ marginBottom: 20 }}>
         <div className="fgroup col2">
           <label className="flabel">Employee <span className="req">*</span></label>
-          <select className="finput" value={selectedUsername} onChange={(e) => setSelectedUsername(e.target.value)}>
+          <select
+            className="finput"
+            value={selectedUsername}
+            onChange={(e) => {
+              setSelectedUsername(e.target.value);
+              setReportData(null);
+            }}
+          >
             <option value="">Select employee…</option>
+            <option value="__ALL__">All Employees</option>
             {employees.map((u) => (
               <option key={u.username} value={u.username}>{u.name}</option>
             ))}
@@ -515,63 +650,62 @@ export default function EmployeeAttendanceReport({ supabase, sites }) {
 
       {err && <div className="info-banner warn-banner" style={{ marginBottom: 16 }}>{err}</div>}
 
-      {rows && (
+      {reportData && (
         <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
-            <div style={{ fontSize: 13, color: "var(--ink2)" }}>
-              {emp?.name} · {rows.length} day{rows.length !== 1 ? "s" : ""} · {fmtDate_(from)} to {fmtDate_(to)}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>
+              {reportData.isAll
+                ? `All Employees (${reportData.employeesData.length}) · ${fmtDate_(from)} to ${fmtDate_(to)}`
+                : `${reportData.employee?.name} · ${reportData.rows?.length} day${reportData.rows?.length !== 1 ? "s" : ""} · ${fmtDate_(from)} to ${fmtDate_(to)}`}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-out" disabled={exporting} onClick={() => handleDownload("pdf")}>
-                {exporting === "pdf" ? "Building…" : "Download PDF"}
+                {exporting === "pdf" ? "Building PDF…" : "Download PDF"}
               </button>
               <button className="btn btn-out" disabled={exporting} onClick={() => handleDownload("excel")}>
-                {exporting === "excel" ? "Building…" : "Download Excel"}
+                {exporting === "excel" ? "Building Excel…" : "Download Excel"}
               </button>
             </div>
           </div>
 
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
-              <thead>
-                <tr style={{ borderBottom: "2px solid var(--line)" }}>
-                  {["Date", "Check In", "Check In Loc", "Check Out", "Check Out Loc", "Late Min", "Status", "Morning", "Evening"].map((h) => (
-                    <th key={h} style={{ padding: "8px 6px", textAlign: "center" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => {
-                  const statusColorMap = {
-                    absent: "#64748b",
-                    late: "#dc2626",
-                  };
-                  const sColor = statusColorMap[String(r.status).toLowerCase()] || "#16a34a";
-                  return (
-                    <tr key={r.sortDate} style={{ borderBottom: "1px solid var(--line)" }}>
-                      <td style={{ padding: "7px 6px", textAlign: "center" }}>{r.date}</td>
-                      <td style={{ padding: "7px 6px", textAlign: "center" }}>{r.checkIn}</td>
-                      <td style={{ padding: "7px 6px", textAlign: "center", fontSize: 11 }}>
-                        {r.checkInMapUrl ? <a href={r.checkInMapUrl} target="_blank" rel="noreferrer">{r.checkInLoc || "View Map"}</a> : (r.checkInLoc || "-")}
-                      </td>
-                      <td style={{ padding: "7px 6px", textAlign: "center" }}>{r.checkOut}</td>
-                      <td style={{ padding: "7px 6px", textAlign: "center", fontSize: 11 }}>
-                        {r.checkOutMapUrl ? <a href={r.checkOutMapUrl} target="_blank" rel="noreferrer">{r.checkOutLoc || "View Map"}</a> : (r.checkOutLoc || "-")}
-                      </td>
-                      <td style={{ padding: "7px 6px", textAlign: "center" }}>{r.lateMin || 0}</td>
-                      <td style={{ padding: "7px 6px", textAlign: "center", fontWeight: 700, color: sColor }}>{r.status}</td>
-                      <td style={{ padding: "7px 6px", textAlign: "center", fontWeight: 700, color: r.morningSubmitted ? "#16a34a" : "#dc2626" }}>
-                        {r.morningSubmitted ? "Submitted" : "Pending"}
-                      </td>
-                      <td style={{ padding: "7px 6px", textAlign: "center", fontWeight: 700, color: r.eveningSubmitted ? "#16a34a" : "#dc2626" }}>
-                        {r.eveningSubmitted ? "Submitted" : "Pending"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {reportData.isAll ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+              {reportData.employeesData.map(({ employee, rows }) => (
+                <div
+                  key={employee.username}
+                  style={{
+                    border: "1px solid var(--line)",
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                  }}
+                >
+                  <div
+                    style={{
+                      background: "var(--pri, #1e3a5f)",
+                      color: "#ffffff",
+                      padding: "10px 16px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      fontWeight: 700,
+                      fontSize: 14,
+                    }}
+                  >
+                    <span>👤 {employee.name}</span>
+                    <span style={{ fontSize: 12, fontWeight: 400, opacity: 0.9 }}>
+                      {rows.length} day{rows.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  {renderAttendanceTable(rows)}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ border: "1px solid var(--line)", borderRadius: 8, overflow: "hidden" }}>
+              {renderAttendanceTable(reportData.rows)}
+            </div>
+          )}
         </>
       )}
     </div>

@@ -2773,6 +2773,7 @@ useEffect(() => {
         <Navbar
           onMenuToggle={() => setSidebarOpen((p) => !p)}
           menuOpen={sidebarOpen}
+          showQrScanner
         />
 
         <div className="body">

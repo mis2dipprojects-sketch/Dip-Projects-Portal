@@ -149,7 +149,7 @@ export default function MonthEndReport({ user, supabase }) {
     setResult(null);
     setProgress(5);
     setStep("Fetching this month's weekly reports…");
-
+  
     try {
       const { data: allWprs, error: wprErr } = await supabase
         .from("wpr_reports").select("*").ilike("site_name", site).order("created_at", { ascending: true });

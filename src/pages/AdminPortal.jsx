@@ -184,6 +184,33 @@ const NAV_ITEMS = [
     ),
   },
   {
+    key: "org-hierarchy",
+    label: "Organization Hierarchy",
+    color: "#db2777",
+    icon: (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#db2777"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="9" y="2" width="6" height="4" rx="1" />
+        <rect x="2" y="18" width="6" height="4" rx="1" />
+        <rect x="9" y="18" width="6" height="4" rx="1" />
+        <rect x="16" y="18" width="6" height="4" rx="1" />
+        <line x1="12" y1="6" x2="12" y2="11" />
+        <line x1="5" y1="18" x2="5" y2="14" />
+        <line x1="12" y1="18" x2="12" y2="14" />
+        <line x1="19" y1="18" x2="19" y2="14" />
+        <line x1="5" y1="14" x2="19" y2="14" />
+      </svg>
+    ),
+  },
+  {
     key: "add-site",
     label: "Add Site",
     color: "#0891b2",
@@ -2491,9 +2518,8 @@ function TaskCard({
         }}
       >
         <div
-          style={{ flex: 1, minWidth: 0 }}
+          style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
           onClick={() => onOpenDetail?.(task)}
-          style={{ cursor: "pointer" }}
         >
           <div className="ap-task-card-title" style={{ marginBottom: 5 }}>
             {task.parent_task_id && <span className="ap-child-badge">↳</span>}
@@ -5118,6 +5144,450 @@ function AdminTicketsTable({
     </div>
   );
 }
+// ── Organization Hierarchy ──────────────────────────────────────────────────
+const DEPT_ORDER = ["admin", "project head", "mis head", "mis executive", "engineer office", "site incharge", "site engineer", "site coordinator", "process controller", "junior estimator", "client"];
+
+// ── Org chart tree building blocks ──────────────────────────────────────
+const SITE_ROLE_ORDER = ["project head", "site coordinator", "site incharge", "site engineer"];
+const SITE_ROLE_LABELS = {
+  "project head": "Head",
+  "site coordinator": "Co-ordinator",
+  "site incharge": "Incharge",
+  "site engineer": "Engineer",
+};
+const SITE_ROLE_COLORS = {
+  "project head": "#7c3aed",
+  "site coordinator": "#2563eb",
+  "site incharge": "#0891b2",
+  "site engineer": "#16a34a",
+};
+
+function buildSiteTree(siteName, siteEmployees) {
+  const byRole = {};
+  SITE_ROLE_ORDER.forEach((r) => { byRole[r] = []; });
+  siteEmployees.forEach((emp) => {
+    const r = normalizeText(emp.role);
+    if (byRole[r]) byRole[r].push(emp);
+  });
+
+  const makeNode = (emp, role) => ({
+    id: `${siteName}-${role}-${emp.id || emp.username}`,
+    emp,
+    roleLabel: SITE_ROLE_LABELS[role],
+    color: SITE_ROLE_COLORS[role],
+    children: [],
+  });
+
+  const levels = SITE_ROLE_ORDER
+    .map((role) => byRole[role].map((emp) => makeNode(emp, role)))
+    .filter((arr) => arr.length > 0);
+
+  if (levels.length === 0) return [];
+
+  const root = levels[0][0];
+  const extras = levels[0].slice(1); // other people at the same top level, shown as separate root cards
+
+  let chainTail = root;
+  for (let i = 1; i < levels.length; i++) {
+    chainTail.children = levels[i];
+    chainTail = levels[i][0]; // chain continues through the first person of this level
+  }
+
+  return [root, ...extras];
+}
+
+function buildOfficeTree(officeEmployees) {
+  if (!officeEmployees.length) return [];
+  const isAdmin = (e) => normalizeText(e.role) === "admin";
+  const admins = officeEmployees.filter(isAdmin);
+  const rest = officeEmployees.filter((e) => !isAdmin(e));
+
+  const makeChild = (emp, i) => ({
+    id: `office-emp-${emp.id || emp.username || i}`,
+    emp,
+    roleLabel: toTitleCase(emp.role || "Employee"),
+    color: "#64748b",
+    children: [],
+  });
+
+  if (admins.length === 0) {
+    // No explicit admin — show a virtual "Office" root grouping everyone
+    return [{
+      id: "office-root-virtual",
+      emp: null,
+      virtualLabel: "Office",
+      roleLabel: "Office",
+      color: "#dc2626",
+      children: rest.map(makeChild),
+    }];
+  }
+
+  const [firstAdmin, ...otherAdmins] = admins;
+  const root = {
+    id: `office-admin-${firstAdmin.id || firstAdmin.username}`,
+    emp: firstAdmin,
+    roleLabel: "Office Admin",
+    color: "#dc2626",
+    children: rest.map(makeChild),
+  };
+  const extraAdmins = otherAdmins.map((emp, i) => ({
+    id: `office-admin-extra-${emp.id || emp.username || i}`,
+    emp,
+    roleLabel: "Office Admin",
+    color: "#dc2626",
+    children: [],
+  }));
+  return [root, ...extraAdmins];
+}
+
+function OrgNodeCard({ node }) {
+  const label = node.emp ? (node.emp.name || node.emp.username || "—") : node.virtualLabel;
+  const initials = node.emp
+    ? (node.emp.name || node.emp.username || "?").split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase()
+    : "🏢";
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 6,
+        background: "#fff",
+        border: `1.5px solid ${node.color}55`,
+        borderRadius: 12,
+        padding: "10px 14px",
+        minWidth: 128,
+        boxShadow: "0 1px 4px rgba(0,0,0,.05)",
+      }}
+    >
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: "50%",
+          background: `linear-gradient(135deg, ${node.color}cc, ${node.color}88)`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 13,
+          fontWeight: 700,
+          color: "#fff",
+          flexShrink: 0,
+        }}
+      >
+        {initials}
+      </div>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: "#1e293b", whiteSpace: "nowrap" }}>
+          {label}
+        </div>
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: node.color,
+            textTransform: "uppercase",
+            letterSpacing: ".04em",
+            marginTop: 2,
+          }}
+        >
+          {node.roleLabel}
+        </div>
+        {node.emp?.username && (
+          <div style={{ fontSize: 9.5, color: "#94a3b8", marginTop: 1 }}>@{node.emp.username}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OrgTreeNode({ node }) {
+  return (
+    <li>
+      <OrgNodeCard node={node} />
+      {node.children?.length > 0 && (
+        <ul>
+          {node.children.map((c) => (
+            <OrgTreeNode key={c.id} node={c} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+function OrgTreeChart({ roots }) {
+  if (!roots || roots.length === 0) return null;
+  return (
+    <div className="oh-tree-scroll">
+      <ul className="oh-tree-ul oh-tree-root">
+        {roots.map((r) => (
+          <OrgTreeNode key={r.id} node={r} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function OrgHierarchy({ employees = [] }) {
+  const [expandedDepts, setExpandedDepts] = useState({});
+  const [search, setSearch] = useState("");
+
+  const filtered = search.trim()
+    ? employees.filter(
+        (e) =>
+          (e.name || "").toLowerCase().includes(search.toLowerCase()) ||
+          (e.role || "").toLowerCase().includes(search.toLowerCase()) ||
+          (e.department || "").toLowerCase().includes(search.toLowerCase()),
+      )
+    : employees;
+
+  // Group by department, then by role within each department
+  const byDept = useMemo(() => {
+    const map = {};
+    filtered.forEach((emp) => {
+      const dept = (emp.department || "Unassigned").trim();
+      const role = (emp.role || "No Role").trim();
+      if (!map[dept]) map[dept] = {};
+      if (!map[dept][role]) map[dept][role] = [];
+      map[dept][role].push(emp);
+    });
+    return map;
+  }, [filtered]);
+  const deptKeys = Object.keys(byDept).sort((a, b) => {
+    const ai = DEPT_ORDER.indexOf(a.toLowerCase());
+    const bi = DEPT_ORDER.indexOf(b.toLowerCase());
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+
+  const toggleDept = (dept) =>
+    setExpandedDepts((prev) => ({ ...prev, [dept]: !prev[dept] }));
+
+  // Auto-expand all when search changes
+  useEffect(() => {
+    const init = {};
+    deptKeys.forEach((d) => { init[d] = true; });
+    setExpandedDepts(init);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  const totalCount = filtered.length;
+
+  return (
+    <div style={{ padding: "0 0 32px 0" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+        <div style={{
+          background: "linear-gradient(135deg, #7c3aed22 0%, #a855f722 100%)",
+          borderRadius: 12,
+          padding: "10px 14px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="2" width="6" height="4" rx="1" />
+            <rect x="2" y="18" width="6" height="4" rx="1" />
+            <rect x="9" y="18" width="6" height="4" rx="1" />
+            <rect x="16" y="18" width="6" height="4" rx="1" />
+            <line x1="12" y1="6" x2="12" y2="11" />
+            <line x1="5" y1="18" x2="5" y2="14" />
+            <line x1="12" y1="18" x2="12" y2="14" />
+            <line x1="19" y1="18" x2="19" y2="14" />
+            <line x1="5" y1="14" x2="19" y2="14" />
+          </svg>
+        </div>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1e293b" }}>Organization Hierarchy</h2>
+          <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>{totalCount} member{totalCount !== 1 ? "s" : ""} across {deptKeys.length} department{deptKeys.length !== 1 ? "s" : ""}</p>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div style={{ position: "relative", marginBottom: 20, maxWidth: 360 }}>
+        <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", opacity: 0.4 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name, role or department…"
+          style={{
+            width: "100%",
+            paddingLeft: 34,
+            paddingRight: 12,
+            paddingTop: 9,
+            paddingBottom: 9,
+            border: "1.5px solid #e2e8f0",
+            borderRadius: 8,
+            fontSize: 13,
+            color: "#334155",
+            background: "#fff",
+            outline: "none",
+            boxSizing: "border-box",
+          }}
+        />
+      </div>
+
+      {/* Departments */}
+      {deptKeys.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "48px 0", color: "#94a3b8", fontSize: 14 }}>
+          No employees found.
+        </div>
+      ) : (
+        deptKeys.map((dept) => {
+          const roles = byDept[dept];
+          const roleKeys = Object.keys(roles).sort();
+          const deptCount = Object.values(roles).reduce((s, arr) => s + arr.length, 0);
+          const isOpen = expandedDepts[dept] !== false;
+
+          const deptColor = dept.toLowerCase() === "admin" ? "#7c3aed"
+            : dept.toLowerCase().includes("head") ? "#2563eb"
+            : dept.toLowerCase().includes("mis") ? "#0891b2"
+            : dept.toLowerCase().includes("engineer") ? "#16a34a"
+            : dept.toLowerCase().includes("site") ? "#ea580c"
+            : "#64748b";
+
+          return (
+            <div key={dept} style={{
+              marginBottom: 16,
+              border: "1.5px solid #e2e8f0",
+              borderRadius: 12,
+              overflow: "hidden",
+              background: "#fff",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+            }}>
+              {/* Dept header */}
+              <button
+                onClick={() => toggleDept(dept)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "13px 16px",
+                  background: `${deptColor}09`,
+                  border: "none",
+                  cursor: "pointer",
+                  borderBottom: isOpen ? `1.5px solid ${deptColor}20` : "none",
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{
+                    width: 10, height: 10, borderRadius: "50%",
+                    background: deptColor, flexShrink: 0,
+                  }} />
+                  <span style={{ fontSize: 14, fontWeight: 700, color: deptColor, textTransform: "capitalize" }}>
+                    {dept}
+                  </span>
+                  <span style={{
+                    background: `${deptColor}18`, color: deptColor,
+                    fontSize: 11, fontWeight: 700, borderRadius: 20,
+                    padding: "2px 8px",
+                  }}>
+                    {deptCount}
+                  </span>
+                </div>
+                <svg
+                  width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke={deptColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", flexShrink: 0 }}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {/* Role groups */}
+              {isOpen && (
+                <div style={{ padding: "12px 16px 16px 16px" }}>
+                  {roleKeys.map((role) => (
+                    <div key={role} style={{ marginBottom: 14 }}>
+                      <div style={{
+                        fontSize: 11, fontWeight: 700, color: "#94a3b8",
+                        textTransform: "uppercase", letterSpacing: "0.06em",
+                        marginBottom: 8, paddingLeft: 2,
+                      }}>
+                        {role} <span style={{ fontWeight: 500 }}>({roles[role].length})</span>
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {roles[role].map((emp) => {
+                          const sites = emp.site_names?.length
+                            ? emp.site_names
+                            : emp.site_name
+                            ? [emp.site_name]
+                            : [];
+                          const initials = (emp.name || "?")
+                            .split(" ")
+                            .slice(0, 2)
+                            .map((w) => w[0])
+                            .join("")
+                            .toUpperCase();
+                          return (
+                            <div key={emp.id || emp.username} style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                              background: "#f8fafc",
+                              border: "1.5px solid #e2e8f0",
+                              borderRadius: 10,
+                              padding: "8px 12px",
+                              minWidth: 200,
+                              flex: "0 1 auto",
+                            }}>
+                              {/* Avatar */}
+                              <div style={{
+                                width: 36, height: 36, borderRadius: "50%",
+                                background: `linear-gradient(135deg, ${deptColor}cc, ${deptColor}88)`,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0,
+                                userSelect: "none",
+                              }}>
+                                {initials}
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  {emp.name || emp.username || "—"}
+                                </div>
+                                <div style={{ fontSize: 11, color: "#64748b", marginTop: 1 }}>
+                                  @{emp.username || "—"}
+                                </div>
+                                {sites.length > 0 && (
+                                  <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 4 }}>
+                                    {sites.slice(0, 2).map((s) => (
+                                      <span key={s} style={{
+                                        fontSize: 10, background: "#e0f2fe", color: "#0369a1",
+                                        borderRadius: 4, padding: "1px 6px", fontWeight: 600,
+                                        whiteSpace: "nowrap",
+                                      }}>
+                                        {s}
+                                      </span>
+                                    ))}
+                                    {sites.length > 2 && (
+                                      <span style={{ fontSize: 10, color: "#94a3b8" }}>+{sites.length - 2}</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
 // ── main component ─────────────────────────────────────────────────────────
 export default function AdminPortal() {
   const [allReschedules, setAllReschedules] = useState([]);
@@ -5986,6 +6456,9 @@ const handleNavClick = (key) => {
         break;
       case "add-employee":
       case "manage-employees":
+        fetchEmployees();
+        break;
+      case "org-hierarchy":
         fetchEmployees();
         break;
       case "add-site":
@@ -8524,22 +8997,28 @@ if (!error && verification.task_id) {
                       <span>Designation</span>
                       <strong>{emp.designation || "—"}</strong>
                     </div>
-                    <td className="ap-td">
-                    <SiteBadgeList
-                      sites={
-                        emp.site_names?.length > 0
-                          ? emp.site_names
-                          : emp.site_name
-                            ? [emp.site_name]
-                            : []
-                      }
-                    />
-                  </td>
+                    <div>
+                      <span>Sites</span>
+                      <SiteBadgeList
+                        sites={
+                          emp.site_names?.length > 0
+                            ? emp.site_names
+                            : emp.site_name
+                              ? [emp.site_name]
+                              : []
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           </>
+        );
+
+      case "org-hierarchy":
+        return (
+          <OrgHierarchy employees={employees} />
         );
 
       case "add-site":
@@ -10490,7 +10969,7 @@ case "all-drawings":
                 );
               })}
               <span className="op-nav-section">Employee Management</span>
-              {filterNav(NAV_ITEMS.slice(6, 8), user, "admin").map((item) => {
+              {filterNav(NAV_ITEMS.slice(6, 9), user, "admin").map((item) => {
                 const isActive = activeTab === item.key;
                 const isHovered = hoveredNavKey === item.key;
                 const highlighted = isActive || isHovered;
@@ -10513,7 +10992,7 @@ case "all-drawings":
                 );
               })}
               <span className="op-nav-section">Site Management</span>
-              {filterNav(NAV_ITEMS.slice(8), user, "admin").map((item) => {
+              {filterNav(NAV_ITEMS.slice(9), user, "admin").map((item) => {
                 const isActive = activeTab === item.key;
                 const isHovered = hoveredNavKey === item.key;
                 const highlighted = isActive || isHovered;

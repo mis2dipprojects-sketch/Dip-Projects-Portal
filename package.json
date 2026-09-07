@@ -15,9 +15,11 @@
     "heic2any": "^0.0.4",
     "html2canvas": "^1.4.1",
     "html2pdf.js": "^0.14.0",
+    "html5-qrcode": "^2.3.8",
     "http-proxy-middleware": "^2.0.9",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
+    "qrcode": "^1.5.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.16.0",
@@ -27,9 +29,9 @@
     "xlsx-js-style": "^1.2.0"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
+    "start": "node --max-old-space-size=4096 node_modules/react-scripts/bin/react-scripts.js start",
+    "build": "node --max-old-space-size=4096 node_modules/react-scripts/bin/react-scripts.js build",
+    "test": "node --max-old-space-size=4096 node_modules/react-scripts/bin/react-scripts.js test",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -49,5 +51,10 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@craco/craco": "^7.1.0",
+    "crypto-browserify": "^3.12.1",
+    "path-browserify": "^1.0.1"
   }
 }

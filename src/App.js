@@ -17,6 +17,7 @@ import LeaveApprovals from "./pages/LeaveApprovals";
 import ManpowerReport from "./pages/Manpowerreport";
 //import SitePortal from "./pages/SitePortal_disabled.jsx";
 import SitePortal from "./pages/SitePortal";
+import QrAttendance from "./pages/QrAttendance";
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
       <Route path="/admin" element={<AdminPortal />} />
       <Route path="/office" element={<OfficePortal />} />
       <Route path="/site" element={<SitePortal />} />
+      <Route path="/site/qr-scan" element={<QrAttendance />} />
 
       <Route path="/mdo" element={<MDOPortal />} />
       <Route path="/head" element={<ProjectHeadPortal/>} />

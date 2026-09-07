@@ -5,7 +5,7 @@ const ADMIN_ALL_KEYS = [
   "leave-requests", "reschedule-requests",
   "pending-verification",  "resolved-verification", "overdue-tasks",
   "new-tickets", "solved-ticket",
-  "add-employee", "manage-employees", "add-site", "manage-sites",
+  "add-employee", "manage-employees", "org-hierarchy", "add-site", "manage-sites",
   "add-drawings", "all-drawings", "site-report", "my-reports", "report-submissions",
 ];
 

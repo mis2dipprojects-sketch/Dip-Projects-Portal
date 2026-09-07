@@ -18,11 +18,19 @@ export default function Login() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const getSafeNext = () => {
+    const next = new URLSearchParams(window.location.search).get("next");
+    if (!next || !next.startsWith("/site/qr-scan")) return null;
+    return next;
+  };
+
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) return;
     const user = JSON.parse(storedUser);
-    redirectUser(user.department);
+    const next = getSafeNext();
+    if (next) navigate(next);
+    else redirectUser(user.department);
   }, [navigate]);
 
   const redirectUser = (department) => {
@@ -90,7 +98,9 @@ const userData = {
       designation: userRow.department || "",
     };
     localStorage.setItem("user", JSON.stringify(userData));
-    redirectUser(userData.department);
+    const next = getSafeNext();
+    if (next) navigate(next);
+    else redirectUser(userData.department);
   };
   
 

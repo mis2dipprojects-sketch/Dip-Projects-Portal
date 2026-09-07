@@ -136,20 +136,52 @@ function employeeSiteName(employee) {
   return "";
 }
 
-async function uploadPlanFile(file, employee, slot) {
+function storagePathFromPublicUrl(url, bucketName) {
+  if (!url || !bucketName) return null;
+  try {
+    const parsed = new URL(url.split("?")[0]);
+    const marker = `/object/public/${bucketName}/`;
+    const idx = parsed.pathname.indexOf(marker);
+    if (idx === -1) return null;
+    return decodeURIComponent(parsed.pathname.slice(idx + marker.length));
+  } catch {
+    return null;
+  }
+}
+
+async function uploadPlanFile(file, employee, slot, previousUrl) {
   const site = employeeSiteName(employee);
   if (!site) throw new Error("No site is assigned to your account, so the file cannot be saved.");
   const bucketName = sanitizeBucketName(site);
   await ensureBucketExists(bucketName, site);
   const datePath = buildSiteDatePath(todayIST());
-  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
-  const path = `${datePath}/weekly plan/${slot}_${Date.now()}_${safeName}`;
+  const userFolder = String(employee.username || "user").replace(/[^\w.\-]+/g, "_");
+  const folder = `${datePath}/weekly plan/${userFolder}`;
+  const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+  const path = `${folder}/${slot}.${ext}`;
+
+  const stalePaths = new Set();
+  const oldFromTable = storagePathFromPublicUrl(previousUrl, bucketName);
+  if (oldFromTable) stalePaths.add(oldFromTable);
+
+  const { data: existing } = await supabase.storage.from(bucketName).list(folder);
+  (existing || []).forEach((obj) => {
+    if (!obj?.name) return;
+    if (obj.name === slot || obj.name.startsWith(`${slot}.`) || obj.name.startsWith(`${slot}_`)) {
+      stalePaths.add(`${folder}/${obj.name}`);
+    }
+  });
+  stalePaths.delete(path);
+  if (stalePaths.size) {
+    await supabase.storage.from(bucketName).remove([...stalePaths]);
+  }
+
   const { error } = await supabase.storage
     .from(bucketName)
-    .upload(path, file, { upsert: true });
+    .upload(path, file, { upsert: true, cacheControl: "0" });
   if (error) throw new Error(`Upload failed: ${error.message} (bucket: ${bucketName})`);
   const { data } = supabase.storage.from(bucketName).getPublicUrl(path);
-  return { url: data?.publicUrl || null, name: file.name };
+  return { url: data?.publicUrl ? `${data.publicUrl}?t=${Date.now()}` : null, name: file.name };
 }
 
 export default function QrAttendance() {
@@ -325,10 +357,20 @@ export default function QrAttendance() {
     setSubmitting(true);
     setMessage("");
     try {
-      const a1 = await uploadPlanFile(file1, scannedEmployee, "file1");
+      const a1 = await uploadPlanFile(
+        file1,
+        scannedEmployee,
+        "file1",
+        attendanceRow.attachment_1_url
+      );
       let a2 = { url: null, name: null };
       if (coordinator && file2) {
-        a2 = await uploadPlanFile(file2, scannedEmployee, "file2");
+        a2 = await uploadPlanFile(
+          file2,
+          scannedEmployee,
+          "file2",
+          attendanceRow.attachment_2_url
+        );
       }
       const { error } = await supabase
         .from("qr_site_attendance")

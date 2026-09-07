@@ -1838,17 +1838,18 @@ const markLeavesSeen = useCallback(async (u) => {
   }, []);
 
   useEffect(() => {
-    if (sidebarOpen && window.innerWidth <= 768) {
+    if (sidebarOpen && window.innerWidth <= 900) {
       document.body.style.overflow = "hidden";
-      document.body.style.position = "fixed";
-      document.body.style.width = "100%";
+      document.documentElement.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
       document.body.style.position = "";
       document.body.style.width = "";
     }
     return () => {
       document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
       document.body.style.position = "";
       document.body.style.width = "";
     };
@@ -2776,16 +2777,11 @@ useEffect(() => {
           showQrScanner
         />
 
-        <div className="body">
-          {sidebarOpen && window.innerWidth <= 768 && (
+        <div className={`body${sidebarOpen ? " sidebar-open" : ""}`}>
+          {sidebarOpen && window.innerWidth <= 900 && (
             <button
               className="sb-backdrop"
               onClick={() => setSidebarOpen(false)}
-              onTouchMove={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onTouchStart={(e) => e.stopPropagation()}
               aria-label="Close sidebar"
             />
           )}
@@ -2793,8 +2789,6 @@ useEffect(() => {
           {/* Sidebar */}
           <aside
             className={`sidebar${sidebarOpen ? "" : " closed"}`}
-            onTouchMove={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
           >
             {canSwitchToAdmin && (
               <div style={{ padding: "14px 14px 0" }}>

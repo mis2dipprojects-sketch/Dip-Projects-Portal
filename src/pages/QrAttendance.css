@@ -79,15 +79,29 @@
 
 .qr-reader {
   width: 100%;
-  min-height: 70vh;
+  max-width: 360px;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  min-height: 0;
+  margin: 0 auto;
   border-radius: 12px;
   overflow: hidden;
   background: #111;
+  position: relative;
 }
 
-.qr-reader video {
+.qr-reader video,
+.qr-reader canvas {
   width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
   border-radius: 12px;
+}
+
+#qr-reader__scan_region {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
 }
 
 #qr-reader__dashboard_section,

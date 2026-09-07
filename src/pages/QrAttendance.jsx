@@ -287,7 +287,7 @@ export default function QrAttendance() {
         scannerRef.current = html5Qr;
         await html5Qr.start(
           { facingMode: "environment" },
-          { fps: 12, qrbox: { width: 250, height: 250 } },
+          { fps: 12, qrbox: { width: 220, height: 220 } },
           (text) => {
             handleDecoded(text);
           }
